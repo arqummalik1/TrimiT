@@ -1,0 +1,109 @@
+{
+  "theme": "light",
+  "archetype": "1 (Organic & Earthy)",
+  "vibe": "Trust, Growth, Calm, Wellness, Tactile, Modern self-care",
+  "typography": {
+    "headings": {
+      "family": "Cabinet Grotesk",
+      "weights": ["400", "700", "800"],
+      "tracking": "tracking-tight",
+      "usage": "Use for all H1, H2, H3 elements. H1 max size text-5xl to text-6xl. Keep line-height tight (leading-none for large text)."
+    },
+    "body": {
+      "family": "Manrope",
+      "weights": ["400", "500", "600"],
+      "usage": "Use for body copy, paragraphs, small labels. Use loose line-height (leading-relaxed)."
+    },
+    "overlines": {
+      "styling": "uppercase text-xs tracking-[0.2em] font-bold text-orange-800"
+    }
+  },
+  "colors": {
+    "background": {
+      "primary": "bg-stone-50",
+      "secondary": "bg-stone-100",
+      "surface": "bg-white",
+      "inverse": "bg-stone-900"
+    },
+    "text": {
+      "primary": "text-stone-900",
+      "secondary": "text-stone-500",
+      "inverse": "text-stone-50",
+      "accent": "text-orange-800"
+    },
+    "border": {
+      "default": "border-stone-200",
+      "focus": "border-orange-800"
+    },
+    "accent": {
+      "primary": "bg-orange-800 text-white",
+      "primary_hover": "hover:bg-orange-700 hover:text-white",
+      "secondary": "bg-emerald-800 text-white",
+      "secondary_hover": "hover:bg-emerald-700 hover:text-white",
+      "muted": "bg-orange-100 text-orange-900"
+    }
+  },
+  "layout_and_spacing": {
+    "spacing_scale": "Generous spacing. Use p-6, p-8, p-12 for containers.",
+    "border_radius": "rounded-2xl or rounded-3xl for soft, approachable feel.",
+    "customer_marketplace_grid": "Mode A: Tetris Grid. Asymmetrical layouts for salon discovery. Wide gaps (gap-8, gap-12).",
+    "owner_dashboard_grid": "Mode B: Control Room Grid. Dense, gap-4 to gap-6. Flat rectangular cards with 1px border. Every pixel utilized.",
+    "alignment": "Left-align paragraphs, inputs, labels. Center-align hero text only if it improves visual balance."
+  },
+  "surfaces_and_micro_themes": {
+    "header_nav": "Crystal Glass: backdrop-blur-xl bg-white/70, 1px subtle inner border (border-white/40). z-50 fixed or sticky.",
+    "dashboard_cards": "Flat solid background (bg-white), 1px subtle border (border-stone-200), no default shadow. Hover: slight lift (-translate-y-1) and shadow-lg.",
+    "hero_overlay": "Max overlay opacity bg-black/40 or bg-stone-900/30. Gradient overlay preferred over solid blanket to preserve image details."
+  },
+  "components": {
+    "shadcn_customization": "Use Shadcn components for complex interactions (dropdowns, calendars, dialogs, forms). Customize borders to border-stone-200, radius to rounded-xl, and focus rings to ring-orange-800/20.",
+    "forms": "Use Shadcn Input, Select, Form. Left-aligned labels. Generous padding.",
+    "buttons": "Rounded-full or rounded-xl. High contrast. Primary: bg-orange-800 text-white hover:bg-orange-700.",
+    "cards": "Avoid overusing standard Shadcn Card in marketplace view. Use raw HTML/Tailwind for custom overlapping, asymmetrical bento layouts."
+  },
+  "motion_and_interactions": {
+    "hover_states": "ALWAYS explicitly set text color on hover. E.g., hover:bg-orange-800 hover:text-white.",
+    "transitions": "Use specific properties (transition-transform, transition-colors duration-200 ease-out).",
+    "accessibility": "Respect prefers-reduced-motion. Ensure focus states have higher contrast."
+  },
+  "icons": {
+    "library": "@phosphor-icons/react",
+    "style": "Duotone or Regular weight for a premium, friendly look.",
+    "install_command": "yarn add @phosphor-icons/react"
+  },
+  "images": {
+    "hero": {
+      "url": "https://images.unsplash.com/photo-1626383137804-ff908d2753a2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHw0fHxzYWxvbiUyMGludGVyaW9yJTIwd2FybSUyMGxpZ2h0aW5nfGVufDB8fHx8MTc3NTY3NzQzNnww&ixlib=rb-4.1.0&q=85",
+      "description": "Warm, inviting salon interior. Use for customer landing page hero."
+    },
+    "category_hair": {
+      "url": "https://images.unsplash.com/photo-1511920922889-5c35bfd95a7f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODB8MHwxfHNlYXJjaHwyfHxoYWlyJTIwc3R5bGlzdCUyMGN1dHRpbmclMjBoYWlyfGVufDB8fHx8MTc3NTY3NzQzNnww&ixlib=rb-4.1.0&q=85",
+      "description": "Hair stylist cutting hair. Use for services listing or category card."
+    },
+    "category_spa": {
+      "url": "https://images.unsplash.com/photo-1559185590-765cdc663325?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODh8MHwxfHNlYXJjaHw0fHxzcGElMjBtYXNzYWdlJTIwd2VsbG5lc3N8ZW58MHx8fHwxNzc1Njc3NDM2fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Spa/massage wellness. Use for spa services category."
+    },
+    "avatar_customer": {
+      "url": "https://images.unsplash.com/photo-1629794138560-46d2815a6d79?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMG5hdHVyYWwlMjBsaWdodGluZ3xlbnwwfHx8fDE3NzU2Nzc0NDZ8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Portrait of a man in natural lighting. Use as placeholder customer or stylist profile."
+    },
+    "avatar_stylist": {
+      "url": "https://images.unsplash.com/photo-1679943350848-e58bad25c130?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwyfHxwb3J0cmFpdCUyMG5hdHVyYWwlMjBsaWdodGluZ3xlbnwwfHx8fDE3NzU2Nzc0NDZ8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Black and white photo of a woman smiling. Use as stylist/owner profile."
+    }
+  },
+  "testing": {
+    "attributes": "All interactive and key informational elements MUST include a data-testid attribute (e.g., data-testid='book-slot-button')."
+  },
+  "instructions_to_main_agent": [
+    "Install necessary fonts: Cabinet Grotesk (headings) and Manrope (body) via Google Fonts or Fontshare.",
+    "Install @phosphor-icons/react.",
+    "Initialize Shadcn UI and add components: button, input, select, dialog, form, calendar, popover, tabs, table.",
+    "Implement two distinct layouts: Customer App (discovery, map, details) and Owner Dashboard (sidebar, stats, calendar).",
+    "Customer side should feel generous, exploratory, using asymmetrical 'bento' grids for salon showcases.",
+    "Owner side should be dense, data-rich (Control Room grid), prioritizing table clarity and calendar view.",
+    "Never use placeholder URLs (like via.placeholder.com). Strictly use the image URLs provided in this file.",
+    "Ensure the hero section on the customer landing page has the image visible behind a proper overlay (bg-black/40 or gradient)."
+  ]
+}
