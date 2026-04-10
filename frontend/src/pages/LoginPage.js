@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { EnvelopeSimple, Lock, Eye, EyeSlash, Scissors } from '@phosphor-icons/react';
@@ -11,14 +11,34 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // Load saved credentials if remember me was checked
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('trimit_remember_email');
+    const savedRemember = localStorage.getItem('trimit_remember_me');
+    if (savedRemember === 'true' && savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
     
-    const result = await login(email, password);
+    const result = await login(email, password, rememberMe);
     
     if (result.success) {
+      // Save or clear remember me preferences
+      if (rememberMe) {
+        localStorage.setItem('trimit_remember_email', email);
+        localStorage.setItem('trimit_remember_me', 'true');
+      } else {
+        localStorage.removeItem('trimit_remember_email');
+        localStorage.removeItem('trimit_remember_me');
+      }
+      
       if (result.profile?.role === 'owner') {
         navigate('/owner/dashboard');
       } else {
@@ -108,6 +128,25 @@ const LoginPage = () => {
                   {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
                 </button>
               </div>
+            </div>
+
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 text-orange-800 border-stone-300 rounded focus:ring-orange-800"
+                />
+                <span className="text-sm text-stone-600">Remember me</span>
+              </label>
+              <Link
+                to="/forgot-password"
+                className="text-sm text-orange-800 font-medium hover:underline"
+              >
+                Forgot password?
+              </Link>
             </div>
 
             <button

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { format, addDays, isBefore, startOfToday } from 'date-fns';
+import { format, addDays, isBefore, startOfToday, isSameDay, parse } from 'date-fns';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -15,11 +15,13 @@ import {
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import { formatPrice, formatTime } from '../../lib/utils';
+import { useToastStore } from '../../store/toastStore';
 
 const BookingPage = () => {
   const { salonId, serviceId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { success, error } = useToastStore();
 
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedSlot, setSelectedSlot] = useState(null);
@@ -36,7 +38,7 @@ const BookingPage = () => {
   });
 
   // Fetch available slots
-  const { data: slots, isLoading: slotsLoading } = useQuery({
+  const { data: slotsData, isLoading: slotsLoading } = useQuery({
     queryKey: ['slots', salonId, serviceId, selectedDate],
     queryFn: async () => {
       const response = await api.get(`/api/salons/${salonId}/slots`, {
@@ -45,6 +47,26 @@ const BookingPage = () => {
       return response.data;
     },
     enabled: !!selectedDate,
+  });
+  
+  const slots = slotsData?.slots || [];
+  
+  // Filter slots: hide past times for today
+  const filteredSlots = slots.filter(slot => {
+    const selectedDateObj = parse(selectedDate, 'yyyy-MM-dd', new Date());
+    const isToday = isSameDay(selectedDateObj, new Date());
+    
+    if (!isToday) {
+      // For future dates, show all slots
+      return true;
+    }
+    
+    // For today, only show slots that are in the future
+    const now = new Date();
+    const [hours, minutes] = slot.time.split(':').map(Number);
+    const slotTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+    
+    return slotTime > now;
   });
 
   // Create booking mutation
@@ -62,7 +84,32 @@ const BookingPage = () => {
       setBookingData(data);
       setBookingComplete(true);
       queryClient.invalidateQueries(['bookings']);
+      
+      // Show success toast
+      success('Your appointment has been successfully booked!', {
+        title: 'Booking Confirmed',
+        duration: 5000
+      });
     },
+    onError: (err) => {
+      // Show error toast with retry action
+      const errorMessage = err?.response?.data?.detail || 'Failed to create booking. Please try again.';
+      error(errorMessage, {
+        title: 'Booking Failed',
+        duration: 0, // Persistent until user dismisses
+        actions: [
+          {
+            label: 'Try Again',
+            primary: true,
+            onClick: () => handleBooking()
+          },
+          {
+            label: 'Cancel',
+            onClick: () => {}
+          }
+        ]
+      });
+    }
   });
 
   const service = salon?.services?.find(s => s.id === serviceId);
@@ -81,7 +128,19 @@ const BookingPage = () => {
 
   const handleBooking = () => {
     if (!selectedSlot) return;
-    bookingMutation.mutate();
+    
+    // Show processing toast
+    const processingToast = useToastStore.getState().info('Processing your booking...', {
+      title: 'Please Wait',
+      duration: 30000 // Will be replaced by success/error
+    });
+    
+    bookingMutation.mutate(undefined, {
+      onSettled: () => {
+        // Remove processing toast
+        useToastStore.getState().removeToast(processingToast);
+      }
+    });
   };
 
   if (bookingComplete && bookingData) {
@@ -122,6 +181,18 @@ const BookingPage = () => {
                 <span className="text-stone-500">Time</span>
                 <span className="font-semibold text-stone-900">{formatTime(selectedSlot)}</span>
               </div>
+              {/* Savings message for offers on success page */}
+              {service?.is_on_offer && service?.original_price && (
+                <div className="flex justify-between items-center bg-green-50 p-3 rounded-lg">
+                  <span className="text-green-700 font-medium">
+                    🎉 You saved {service.discount_percentage}%!
+                  </span>
+                  <span className="text-green-800 font-bold">
+                    -{formatPrice(service.original_price - service.price)}
+                  </span>
+                </div>
+              )}
+              
               <div className="border-t border-stone-200 pt-3 flex justify-between">
                 <span className="text-stone-500">Amount</span>
                 <span className="font-bold text-orange-800 text-lg">
@@ -190,8 +261,7 @@ const BookingPage = () => {
                 <Timer size={18} weight="bold" />
                 {service.duration} mins
               </span>
-              <span className="flex items-center gap-1.5 font-semibold text-orange-800">
-                <CurrencyInr size={18} weight="bold" />
+              <span className="font-semibold text-orange-800">
                 {formatPrice(service.price)}
               </span>
             </div>
@@ -254,9 +324,9 @@ const BookingPage = () => {
                 <div key={i} className="h-12 bg-stone-200 rounded-xl animate-pulse" />
               ))}
             </div>
-          ) : slots?.length > 0 ? (
+          ) : filteredSlots?.length > 0 ? (
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-              {slots.map((slot) => (
+              {filteredSlots.map((slot) => (
                 <button
                   key={slot.time}
                   onClick={() => slot.available && setSelectedSlot(slot.time)}
@@ -307,6 +377,18 @@ const BookingPage = () => {
                 <span className="text-stone-500">Duration</span>
                 <span className="font-medium text-stone-900">{service?.duration} mins</span>
               </div>
+              {/* Savings message for offers */}
+              {service?.is_on_offer && service?.original_price && (
+                <div className="flex justify-between text-sm bg-green-50 p-3 rounded-lg">
+                  <span className="text-green-700 font-medium">
+                    🎉 You save {service.discount_percentage}%!
+                  </span>
+                  <span className="text-green-800 font-bold">
+                    -{formatPrice(service.original_price - service.price)}
+                  </span>
+                </div>
+              )}
+              
               <div className="border-t border-stone-200 pt-3 flex justify-between">
                 <span className="font-medium text-stone-700">Total Amount</span>
                 <span className="font-bold text-orange-800 text-lg">

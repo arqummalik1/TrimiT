@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,12 +7,19 @@ import api from '../../lib/api';
 import { Salon, Analytics } from '../../types';
 import { colors, formatPrice } from '../../lib/utils';
 import { Button } from '../../components/Button';
+import { BookingsTrendChart, PopularServicesChart, StatusDistributionChart } from '../../components/charts';
+import { subscribeToSalonBookings, unsubscribeFromBookings } from '../../lib/supabase';
 
 interface OwnerDashboardScreenProps {
   navigation: any;
 }
 
+type Period = '7d' | '30d' | 'all';
+
 export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navigation }) => {
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>('all');
+  const [realtimeChannel, setRealtimeChannel] = useState<any>(null);
+
   const { data: salon, isLoading: salonLoading, refetch: refetchSalon } = useQuery<Salon | null>({
     queryKey: ['ownerSalon'],
     queryFn: async () => {
@@ -22,17 +29,36 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
   });
 
   const { data: analytics, refetch: refetchAnalytics } = useQuery<Analytics>({
-    queryKey: ['ownerAnalytics'],
+    queryKey: ['ownerAnalytics', selectedPeriod],
     queryFn: async () => {
-      const response = await api.get('/api/owner/analytics');
+      const response = await api.get(`/api/owner/analytics?period=${selectedPeriod}`);
       return response.data;
     },
     enabled: !!salon,
   });
 
+  // Subscribe to real-time booking updates
+  useEffect(() => {
+    if (salon?.id) {
+      const channel = subscribeToSalonBookings(salon.id, () => {
+        // Refresh analytics when bookings change
+        refetchAnalytics();
+      });
+      setRealtimeChannel(channel);
+
+      return () => {
+        unsubscribeFromBookings(channel);
+      };
+    }
+  }, [salon?.id]);
+
   const handleRefresh = () => {
     refetchSalon();
     refetchAnalytics();
+  };
+
+  const handlePeriodChange = (period: Period) => {
+    setSelectedPeriod(period);
   };
 
   const statCards = [
@@ -97,6 +123,29 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
           <Text style={styles.subtitle}>Welcome back, {salon?.name}</Text>
         </View>
 
+        {/* Period Selector */}
+        <View style={styles.periodSelector}>
+          {(['7d', '30d', 'all'] as Period[]).map((period) => (
+            <TouchableOpacity
+              key={period}
+              style={[
+                styles.periodButton,
+                selectedPeriod === period && styles.periodButtonActive,
+              ]}
+              onPress={() => handlePeriodChange(period)}
+            >
+              <Text
+                style={[
+                  styles.periodButtonText,
+                  selectedPeriod === period && styles.periodButtonTextActive,
+                ]}
+              >
+                {period === '7d' ? '7 Days' : period === '30d' ? '30 Days' : 'All Time'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
           {statCards.map((stat, index) => (
@@ -110,40 +159,45 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
           ))}
         </View>
 
-        {/* Booking Overview */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Booking Overview</Text>
-          <View style={styles.overviewCard}>
-            <View style={styles.overviewRow}>
-              <View style={styles.overviewItem}>
-                <Ionicons name="hourglass" size={18} color="#92400E" />
-                <Text style={styles.overviewLabel}>Pending</Text>
-              </View>
-              <Text style={styles.overviewValue}>{analytics?.pending_bookings || 0}</Text>
-            </View>
-            <View style={styles.overviewRow}>
-              <View style={styles.overviewItem}>
-                <Ionicons name="checkmark-circle" size={18} color="#1E40AF" />
-                <Text style={styles.overviewLabel}>Confirmed</Text>
-              </View>
-              <Text style={styles.overviewValue}>{analytics?.confirmed_bookings || 0}</Text>
-            </View>
-            <View style={styles.overviewRow}>
-              <View style={styles.overviewItem}>
-                <Ionicons name="checkmark-done-circle" size={18} color="#059669" />
-                <Text style={styles.overviewLabel}>Completed</Text>
-              </View>
-              <Text style={styles.overviewValue}>{analytics?.completed_bookings || 0}</Text>
-            </View>
-            <View style={styles.overviewRow}>
-              <View style={styles.overviewItem}>
-                <Ionicons name="close-circle" size={18} color="#DC2626" />
-                <Text style={styles.overviewLabel}>Cancelled</Text>
-              </View>
-              <Text style={styles.overviewValue}>{analytics?.cancelled_bookings || 0}</Text>
+        {/* Analytics Charts */}
+        {analytics && (
+          <>
+            <BookingsTrendChart data={analytics.bookings_trend} />
+            <PopularServicesChart data={analytics.popular_services} />
+            <StatusDistributionChart data={analytics.status_distribution} />
+          </>
+        )}
+
+        {/* Peak Hours Section */}
+        {analytics?.peak_hours && analytics.peak_hours.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Peak Booking Hours</Text>
+            <View style={styles.peakHoursCard}>
+              {analytics.peak_hours.map((hour, index) => (
+                <View key={index} style={styles.peakHourRow}>
+                  <View style={styles.peakHourRank}>
+                    <Text style={styles.peakHourRankText}>#{index + 1}</Text>
+                  </View>
+                  <View style={styles.peakHourTime}>
+                    <Ionicons name="time-outline" size={16} color={colors.primary} />
+                    <Text style={styles.peakHourTimeText}>
+                      {hour.hour}:00 - {hour.hour + 1}:00
+                    </Text>
+                  </View>
+                  <View style={styles.peakHourBar}>
+                    <View
+                      style={[
+                        styles.peakHourFill,
+                        { width: `${Math.min((hour.bookings / analytics.total_bookings) * 500, 100)}%` },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.peakHourCount}>{hour.bookings} bookings</Text>
+                </View>
+              ))}
             </View>
           </View>
-        </View>
+        )}
 
         {/* Quick Actions */}
         <View style={styles.section}>
@@ -168,6 +222,17 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
                 <Ionicons name="calendar" size={24} color="#059669" />
               </View>
               <Text style={styles.actionText}>View Bookings</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="settings" size={24} color="#92400E" />
+              </View>
+              <Text style={styles.actionText}>Settings</Text>
               <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -239,6 +304,34 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: colors.textSecondary,
+  },
+  periodSelector: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  periodButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  periodButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  periodButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  periodButtonTextActive: {
+    color: '#FFFFFF',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -368,6 +461,60 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.primary,
+  },
+  peakHoursCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 12,
+  },
+  peakHourRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  peakHourRank: {
+    width: 28,
+    height: 28,
+    backgroundColor: colors.primaryLight,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  peakHourRankText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  peakHourTime: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    width: 100,
+  },
+  peakHourTimeText: {
+    fontSize: 13,
+    color: colors.text,
+  },
+  peakHourBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: colors.border,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  peakHourFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 4,
+  },
+  peakHourCount: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    width: 70,
+    textAlign: 'right',
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays, startOfToday } from 'date-fns';
 import api from '../../lib/api';
-import { Salon, TimeSlot } from '../../types';
+import { Salon, TimeSlot, SlotsResponse } from '../../types';
 import { colors, formatPrice, formatTime } from '../../lib/utils';
 import { Button } from '../../components/Button';
+import { useBookingStore } from '../../store/bookingStore';
+import { scheduleBookingReminder } from '../../lib/notifications';
 
 interface BookingScreenProps {
   navigation: any;
@@ -29,6 +31,19 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [bookingComplete, setBookingComplete] = useState(false);
+  const [slotConflictError, setSlotConflictError] = useState<string | null>(null);
+
+  // Real-time booking store
+  const {
+    slots: realtimeSlots,
+    justBookedSlots,
+    needsRefresh,
+    allowMultipleBookings,
+    subscribeToSlots,
+    unsubscribeFromSlots,
+    updateSlots,
+    refreshSlots,
+  } = useBookingStore();
 
   // Get salon details
   const { data: salon } = useQuery<Salon>({
@@ -41,8 +56,8 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
 
   const service = salon?.services?.find((s) => s.id === serviceId);
 
-  // Get available slots
-  const { data: slots, isLoading: slotsLoading } = useQuery<TimeSlot[]>({
+  // Get available slots with real-time sync
+  const { data: slotsData, isLoading: slotsLoading, refetch: refetchSlots } = useQuery<SlotsResponse>({
     queryKey: ['slots', salonId, serviceId, selectedDate],
     queryFn: async () => {
       const response = await api.get(`/api/salons/${salonId}/slots`, {
@@ -52,6 +67,21 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
     },
     enabled: !!selectedDate,
   });
+
+  // Use real-time slots if available, otherwise use fetched slots
+  const displaySlots = realtimeSlots.length > 0 ? realtimeSlots : (slotsData?.slots || []);
+  const effectiveAllowMultiple = slotsData?.allow_multiple_bookings_per_slot ?? allowMultipleBookings;
+
+  // Subscribe to real-time updates when slots are loaded
+  useEffect(() => {
+    if (slotsData?.slots && salonId && selectedDate) {
+      subscribeToSlots(salonId, selectedDate, slotsData.slots, slotsData.allow_multiple_bookings_per_slot);
+    }
+
+    return () => {
+      unsubscribeFromSlots();
+    };
+  }, [salonId, serviceId, selectedDate, slotsData]);
 
   // Create booking mutation
   const bookingMutation = useMutation({
@@ -67,9 +97,28 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
     onSuccess: () => {
       setBookingComplete(true);
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      unsubscribeFromSlots();
+
+      // Schedule a reminder notification 1 hour before
+      if (selectedDate && selectedSlot && salon && service) {
+        scheduleBookingReminder(
+          selectedDate,
+          selectedSlot,
+          salon.name,
+          service.name
+        ).catch(() => {}); // Silently ignore if notifications not permitted
+      }
     },
     onError: (error: any) => {
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to create booking');
+      const errorDetail = error.response?.data?.detail || 'Failed to create booking';
+      const statusCode = error.response?.status;
+
+      // Handle slot conflict specifically
+      if (statusCode === 409 || errorDetail.includes('already booked') || errorDetail.includes('someone else')) {
+        setSlotConflictError(errorDetail);
+      } else {
+        Alert.alert('Error', errorDetail);
+      }
     },
   });
 
@@ -90,8 +139,43 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
       Alert.alert('Error', 'Please select a time slot');
       return;
     }
+
+    // Check if slot was just booked by someone else
+    if (justBookedSlots.has(selectedSlot) && !effectiveAllowMultiple) {
+      Alert.alert(
+        'Slot Unavailable',
+        'This time slot was just booked by someone else. Please select another slot.',
+        [{ text: 'OK', onPress: () => {
+          setSelectedSlot(null);
+          refetchSlots();
+        }}]
+      );
+      return;
+    }
+
+    setSlotConflictError(null);
     bookingMutation.mutate();
   };
+
+  // Handle refresh needed indicator
+  const handleRefreshNeeded = () => {
+    refreshSlots();
+    refetchSlots();
+  };
+
+  // Show conflict error when booking fails due to conflict
+  useEffect(() => {
+    if (slotConflictError) {
+      Alert.alert(
+        'Booking Conflict',
+        slotConflictError,
+        [{ text: 'OK', onPress: () => {
+          setSelectedSlot(null);
+          refetchSlots();
+        }}]
+      );
+    }
+  }, [slotConflictError]);
 
   if (bookingComplete) {
     return (
@@ -195,6 +279,8 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
                 onPress={() => {
                   setSelectedDate(date.value);
                   setSelectedSlot(null);
+                  setSlotConflictError(null);
+                  unsubscribeFromSlots(); // Unsubscribe from previous date
                 }}
               >
                 <Text
@@ -233,32 +319,69 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
             <Text style={styles.sectionTitle}>Select Time</Text>
           </View>
 
+          {/* Refresh needed indicator */}
+          {needsRefresh && (
+            <TouchableOpacity style={styles.refreshBanner} onPress={handleRefreshNeeded}>
+              <Ionicons name="refresh" size={16} color={colors.primary} />
+              <Text style={styles.refreshText}>Bookings updated. Tap to refresh.</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Multiple bookings info */}
+          {effectiveAllowMultiple && (
+            <View style={styles.infoBanner}>
+              <Ionicons name="information-circle" size={16} color={colors.primary} />
+              <Text style={styles.infoText}>
+                This salon allows multiple bookings per slot
+              </Text>
+            </View>
+          )}
+
           {slotsLoading ? (
             <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
-          ) : slots && slots.length > 0 ? (
+          ) : displaySlots && displaySlots.length > 0 ? (
             <View style={styles.slotsGrid}>
-              {slots.map((slot) => (
-                <TouchableOpacity
-                  key={slot.time}
-                  style={[
-                    styles.slotButton,
-                    !slot.available && styles.slotDisabled,
-                    selectedSlot === slot.time && styles.slotSelected,
-                  ]}
-                  onPress={() => slot.available && setSelectedSlot(slot.time)}
-                  disabled={!slot.available}
-                >
-                  <Text
+              {displaySlots.map((slot) => {
+                const isJustBooked = justBookedSlots.has(slot.time);
+                const showWarning = slot.has_bookings && effectiveAllowMultiple;
+
+                return (
+                  <TouchableOpacity
+                    key={slot.time}
                     style={[
-                      styles.slotText,
-                      !slot.available && styles.slotTextDisabled,
-                      selectedSlot === slot.time && styles.slotTextSelected,
+                      styles.slotButton,
+                      !slot.available && styles.slotDisabled,
+                      selectedSlot === slot.time && styles.slotSelected,
+                      isJustBooked && styles.slotJustBooked,
                     ]}
+                    onPress={() => slot.available && setSelectedSlot(slot.time)}
+                    disabled={!slot.available}
                   >
-                    {formatTime(slot.time)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.slotText,
+                        !slot.available && styles.slotTextDisabled,
+                        selectedSlot === slot.time && styles.slotTextSelected,
+                        isJustBooked && styles.slotTextJustBooked,
+                      ]}
+                    >
+                      {formatTime(slot.time)}
+                    </Text>
+                    {showWarning && (
+                      <View style={styles.slotBadge}>
+                        <Text style={styles.slotBadgeText}>
+                          {slot.booking_count || 1} booked
+                        </Text>
+                      </View>
+                    )}
+                    {isJustBooked && (
+                      <View style={styles.justBookedIndicator}>
+                        <Text style={styles.justBookedText}>Just taken!</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           ) : (
             <View style={styles.noSlots}>
@@ -470,6 +593,70 @@ const styles = StyleSheet.create({
   },
   noSlotsText: {
     color: colors.textSecondary,
+  },
+  refreshBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.primaryLight,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  refreshText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.secondaryLight,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  infoText: {
+    fontSize: 13,
+    color: colors.secondary,
+    fontWeight: '500',
+  },
+  slotBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: colors.warning,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  slotBadgeText: {
+    fontSize: 9,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  slotJustBooked: {
+    borderColor: colors.error,
+    borderWidth: 2,
+  },
+  slotTextJustBooked: {
+    color: colors.error,
+  },
+  justBookedIndicator: {
+    position: 'absolute',
+    bottom: -6,
+    left: '50%',
+    transform: [{ translateX: -30 }],
+    backgroundColor: colors.error,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  justBookedText: {
+    fontSize: 9,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   bookingSummary: {
     backgroundColor: colors.surface,

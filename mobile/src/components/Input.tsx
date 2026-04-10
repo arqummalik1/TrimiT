@@ -30,7 +30,7 @@ export const Input: React.FC<InputProps> = ({
       <View style={[styles.inputContainer, error && styles.inputError]}>
         {icon && <View style={styles.iconContainer}>{icon}</View>}
         <TextInput
-          style={[styles.input, icon && styles.inputWithIcon, style]}
+          style={[styles.input, icon ? styles.inputWithIcon : undefined, style]}
           placeholderTextColor={colors.textSecondary}
           {...props}
         />

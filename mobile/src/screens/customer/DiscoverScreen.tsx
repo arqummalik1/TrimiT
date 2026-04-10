@@ -8,15 +8,19 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useQuery } from '@tanstack/react-query';
+import MapView, { Marker, Callout } from 'react-native-maps';
 import api from '../../lib/api';
 import { SalonCard } from '../../components/SalonCard';
 import { Salon } from '../../types';
-import { colors } from '../../lib/utils';
+import { colors, spacing, borderRadius, typography } from '../../theme';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface DiscoverScreenProps {
   navigation: any;
@@ -26,6 +30,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
   useEffect(() => {
     (async () => {
@@ -66,14 +71,57 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     navigation.navigate('SalonDetail', { salonId: salon.id });
   };
 
+  const mapRegion = location
+    ? {
+        latitude: location.lat,
+        longitude: location.lng,
+        latitudeDelta: 0.15,
+        longitudeDelta: 0.15,
+      }
+    : {
+        latitude: 28.6139,
+        longitude: 77.209,
+        latitudeDelta: 0.5,
+        longitudeDelta: 0.5,
+      };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Find Your Perfect Salon</Text>
-        <Text style={styles.subtitle}>
-          {location ? 'Showing salons near you' : locationError || 'Enable location for nearby salons'}
-        </Text>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>Find Your Perfect Salon</Text>
+            <Text style={styles.subtitle}>
+              {location
+                ? 'Showing salons near you'
+                : locationError || 'Enable location for nearby salons'}
+            </Text>
+          </View>
+          {/* View Mode Toggle */}
+          <View style={styles.viewToggle}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
+              onPress={() => setViewMode('list')}
+            >
+              <Ionicons
+                name="list"
+                size={18}
+                color={viewMode === 'list' ? colors.white : colors.textSecondary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, viewMode === 'map' && styles.toggleBtnActive]}
+              onPress={() => setViewMode('map')}
+            >
+              <Ionicons
+                name="map"
+                size={18}
+                color={viewMode === 'map' ? colors.white : colors.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
@@ -93,12 +141,41 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
         </View>
       </View>
 
-      {/* Salon List */}
+      {/* Content */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
+      ) : viewMode === 'map' ? (
+        /* Map View */
+        <MapView style={styles.map} initialRegion={mapRegion} showsUserLocation>
+          {(salons || []).map((salon) =>
+            salon.latitude && salon.longitude ? (
+              <Marker
+                key={salon.id}
+                coordinate={{
+                  latitude: salon.latitude,
+                  longitude: salon.longitude,
+                }}
+                pinColor={colors.primary}
+              >
+                <Callout onPress={() => handleSalonPress(salon)}>
+                  <View style={styles.callout}>
+                    <Text style={styles.calloutTitle}>{salon.name}</Text>
+                    <Text style={styles.calloutText}>{salon.address}</Text>
+                    {salon.avg_rating ? (
+                      <Text style={styles.calloutRating}>
+                        {salon.avg_rating.toFixed(1)} ({salon.review_count} reviews)
+                      </Text>
+                    ) : null}
+                  </View>
+                </Callout>
+              </Marker>
+            ) : null
+          )}
+        </MapView>
       ) : (
+        /* List View */
         <FlatList
           data={salons}
           keyExtractor={(item) => item.id}
@@ -135,34 +212,52 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    padding: 20,
+    padding: spacing.xl,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    ...typography.h2,
     color: colors.text,
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
+    ...typography.bodySmall,
     color: colors.textSecondary,
-    marginBottom: 16,
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: borderRadius.sm,
+    overflow: 'hidden',
+  },
+  toggleBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  toggleBtnActive: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.sm,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surfaceSecondary,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    ...typography.body,
     color: colors.text,
   },
   loadingContainer: {
@@ -171,21 +266,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   listContent: {
-    padding: 20,
+    padding: spacing.xl,
   },
+  // Map styles
+  map: {
+    flex: 1,
+  },
+  callout: {
+    padding: spacing.sm,
+    minWidth: 160,
+    maxWidth: 220,
+  },
+  calloutTitle: {
+    ...typography.bodySmallMedium,
+    color: colors.text,
+    marginBottom: 2,
+  },
+  calloutText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  calloutRating: {
+    ...typography.captionMedium,
+    color: colors.secondary,
+    marginTop: 4,
+  },
+  // Empty state
   emptyContainer: {
     alignItems: 'center',
     paddingTop: 60,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...typography.h4,
     color: colors.text,
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
   emptyText: {
-    fontSize: 14,
+    ...typography.bodySmall,
     color: colors.textSecondary,
     textAlign: 'center',
   },

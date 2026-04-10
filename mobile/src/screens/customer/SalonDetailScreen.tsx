@@ -4,20 +4,21 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   TouchableOpacity,
   ActivityIndicator,
   Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import MapView, { Marker } from 'react-native-maps';
 import api from '../../lib/api';
 import { Salon, Service } from '../../types';
 import { colors, formatPrice, formatDate } from '../../lib/utils';
+import { spacing, borderRadius } from '../../theme';
 import { Button } from '../../components/Button';
-
-const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1626383137804-ff908d2753a2?w=800';
+import ImageCarousel from '../../components/ImageCarousel';
 
 interface SalonDetailScreenProps {
   navigation: any;
@@ -45,6 +46,18 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
     }
   };
 
+  const handleDirections = () => {
+    if (!salon?.latitude || !salon?.longitude) return;
+    const lat = salon.latitude;
+    const lng = salon.longitude;
+    const label = encodeURIComponent(salon.name);
+    const url = Platform.select({
+      ios: `maps:0,0?q=${label}@${lat},${lng}`,
+      android: `geo:${lat},${lng}?q=${lat},${lng}(${label})`,
+    });
+    if (url) Linking.openURL(url);
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -66,14 +79,10 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Hero Image */}
+        {/* Hero Image Carousel */}
         <View style={styles.heroContainer}>
-          <Image
-            source={{ uri: salon.images?.[0] || DEFAULT_IMAGE }}
-            style={styles.heroImage}
-            resizeMode="cover"
-          />
-          <View style={styles.heroOverlay} />
+          <ImageCarousel images={salon.images || []} height={320} />
+          <View style={styles.heroOverlay} pointerEvents="box-none" />
           
           {/* Back Button */}
           <SafeAreaView style={styles.headerButtons}>
@@ -108,11 +117,53 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
 
         {/* Content */}
         <View style={styles.content}>
-          {/* Call Button */}
-          <TouchableOpacity style={styles.callButton} onPress={handleCall}>
-            <Ionicons name="call" size={20} color={colors.primary} />
-            <Text style={styles.callText}>{salon.phone}</Text>
-          </TouchableOpacity>
+          {/* Action Buttons */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.callButton} onPress={handleCall}>
+              <Ionicons name="call" size={20} color={colors.primary} />
+              <Text style={styles.callText}>Call</Text>
+            </TouchableOpacity>
+            {salon.latitude && salon.longitude ? (
+              <TouchableOpacity style={styles.directionsButton} onPress={handleDirections}>
+                <Ionicons name="navigate" size={20} color={colors.secondary} />
+                <Text style={styles.directionsText}>Directions</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          {/* Mini Map */}
+          {salon.latitude && salon.longitude ? (
+            <TouchableOpacity
+              style={styles.miniMapContainer}
+              onPress={handleDirections}
+              activeOpacity={0.9}
+            >
+              <MapView
+                style={styles.miniMap}
+                scrollEnabled={false}
+                zoomEnabled={false}
+                rotateEnabled={false}
+                initialRegion={{
+                  latitude: salon.latitude,
+                  longitude: salon.longitude,
+                  latitudeDelta: 0.005,
+                  longitudeDelta: 0.005,
+                }}
+              >
+                <Marker
+                  coordinate={{
+                    latitude: salon.latitude,
+                    longitude: salon.longitude,
+                  }}
+                  pinColor={colors.primary}
+                />
+              </MapView>
+              <View style={styles.miniMapLabel}>
+                <Ionicons name="navigate-outline" size={14} color={colors.textSecondary} />
+                <Text style={styles.miniMapText}>Tap to open in Maps</Text>
+              </View>
+            </TouchableOpacity>
+          ) : null}
 
           {/* Description */}
           {salon.description && (
@@ -292,20 +343,63 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+  },
   callButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primaryLight,
     padding: 14,
-    borderRadius: 12,
-    marginBottom: 20,
+    borderRadius: borderRadius.md,
     gap: 8,
   },
   callText: {
     color: colors.primary,
     fontSize: 16,
     fontWeight: '600',
+  },
+  directionsButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.secondaryLight,
+    padding: 14,
+    borderRadius: borderRadius.md,
+    gap: 8,
+  },
+  directionsText: {
+    color: colors.secondary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  miniMapContainer: {
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.xl,
+  },
+  miniMap: {
+    height: 150,
+    width: '100%',
+  },
+  miniMapLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  miniMapText: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   section: {
     marginBottom: 24,

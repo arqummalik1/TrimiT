@@ -20,7 +20,7 @@ import { formatPrice, formatTime, getStatusColor, getPaymentStatusColor } from '
 const ManageBookings = () => {
   const queryClient = useQueryClient();
 
-  const { data: salon } = useQuery({
+  const { data: salon, isLoading: salonLoading } = useQuery({
     queryKey: ['ownerSalon'],
     queryFn: async () => {
       const response = await api.get('/api/owner/salon');
@@ -28,7 +28,7 @@ const ManageBookings = () => {
     },
   });
 
-  const { data: bookings, isLoading } = useQuery({
+  const { data: bookings, isLoading: bookingsLoading } = useQuery({
     queryKey: ['ownerBookings'],
     queryFn: async () => {
       const response = await api.get('/api/bookings');
@@ -56,14 +56,30 @@ const ManageBookings = () => {
     }
   };
 
-  if (isLoading) {
+  if (salonLoading) {
     return (
       <div className="min-h-screen bg-stone-50 p-8">
         <div className="max-w-4xl mx-auto animate-pulse">
-          <div className="h-8 bg-stone-200 rounded mb-8 w-48" />
+          {/* Header shimmer */}
+          <div className="h-8 bg-stone-200 rounded mb-2 w-32" />
+          <div className="h-4 bg-stone-200 rounded mb-8 w-48" />
+          {/* Bookings shimmer */}
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 bg-stone-200 rounded-xl" />
+              <div key={i} className="bg-white rounded-2xl border border-stone-200 p-5">
+                <div className="flex justify-between mb-4">
+                  <div className="h-4 bg-stone-200 rounded w-32" />
+                  <div className="h-6 bg-stone-200 rounded w-20" />
+                </div>
+                <div className="h-20 bg-stone-200 rounded-xl mb-4" />
+                <div className="flex justify-between">
+                  <div className="h-4 bg-stone-200 rounded w-24" />
+                  <div className="flex gap-2">
+                    <div className="h-8 bg-stone-200 rounded w-20" />
+                    <div className="h-8 bg-stone-200 rounded w-20" />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -105,7 +121,26 @@ const ManageBookings = () => {
           </p>
         </motion.div>
 
-        {bookings?.length > 0 ? (
+        {bookingsLoading ? (
+          <div className="animate-pulse space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white rounded-2xl border border-stone-200 p-5">
+                <div className="flex justify-between mb-4">
+                  <div className="h-4 bg-stone-200 rounded w-32" />
+                  <div className="h-6 bg-stone-200 rounded w-20" />
+                </div>
+                <div className="h-20 bg-stone-200 rounded-xl mb-4" />
+                <div className="flex justify-between">
+                  <div className="h-4 bg-stone-200 rounded w-24" />
+                  <div className="flex gap-2">
+                    <div className="h-8 bg-stone-200 rounded w-20" />
+                    <div className="h-8 bg-stone-200 rounded w-20" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : bookings?.length > 0 ? (
           <div className="space-y-4">
             {bookings.map((booking, index) => (
               <motion.div

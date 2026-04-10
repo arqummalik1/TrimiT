@@ -81,10 +81,24 @@ const ManageServices = () => {
         description: service.description || '',
         price: service.price.toString(),
         duration: service.duration,
+        // Offer fields
+        is_on_offer: service.is_on_offer || false,
+        discount_percentage: service.discount_percentage || '',
+        offer_end_date: service.offer_end_date || '',
+        offer_tagline: service.offer_tagline || "Grab it before it's gone!",
       });
     } else {
       setEditingService(null);
-      setFormData({ name: '', description: '', price: '', duration: 30 });
+      setFormData({ 
+        name: '', 
+        description: '', 
+        price: '', 
+        duration: 30,
+        is_on_offer: false,
+        discount_percentage: '',
+        offer_end_date: '',
+        offer_tagline: "Grab it before it's gone!"
+      });
     }
     setIsModalOpen(true);
   };
@@ -92,7 +106,16 @@ const ManageServices = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingService(null);
-    setFormData({ name: '', description: '', price: '', duration: 30 });
+    setFormData({ 
+      name: '', 
+      description: '', 
+      price: '', 
+      duration: 30,
+      is_on_offer: false,
+      discount_percentage: '',
+      offer_end_date: '',
+      offer_tagline: "Grab it before it's gone!"
+    });
   };
 
   const handleSubmit = (e) => {
@@ -114,10 +137,32 @@ const ManageServices = () => {
     return (
       <div className="min-h-screen bg-stone-50 p-8">
         <div className="max-w-4xl mx-auto animate-pulse">
-          <div className="h-8 bg-stone-200 rounded mb-8 w-48" />
-          <div className="space-y-4">
+          {/* Header shimmer */}
+          <div className="h-8 bg-stone-200 rounded mb-2 w-40" />
+          <div className="h-4 bg-stone-200 rounded mb-8 w-64" />
+          
+          {/* Add button shimmer */}
+          <div className="flex justify-end mb-6">
+            <div className="h-10 bg-stone-200 rounded-full w-32" />
+          </div>
+          
+          {/* Services shimmer */}
+          <div className="grid gap-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-24 bg-stone-200 rounded-xl" />
+              <div key={i} className="bg-white rounded-2xl border border-stone-200 p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="h-5 bg-stone-200 rounded w-40" />
+                  <div className="h-5 bg-stone-200 rounded w-20" />
+                </div>
+                <div className="h-4 bg-stone-200 rounded w-full mb-4" />
+                <div className="flex justify-between">
+                  <div className="h-6 bg-stone-200 rounded w-24" />
+                  <div className="flex gap-2">
+                    <div className="h-8 bg-stone-200 rounded w-20" />
+                    <div className="h-8 bg-stone-200 rounded w-20" />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -178,9 +223,27 @@ const ManageServices = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-white rounded-2xl border border-stone-200 p-5 hover:shadow-lg transition-all duration-300"
+                className={`rounded-2xl p-5 transition-all duration-300 ${
+                  service.is_on_offer 
+                    ? 'bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-300 shadow-lg hover:shadow-xl' 
+                    : 'bg-white border border-stone-200 hover:shadow-lg'
+                }`}
                 data-testid={`service-${service.id}`}
               >
+                {/* Offer Badge */}
+                {service.is_on_offer && service.discount_percentage && (
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-orange-600 to-red-600 text-white text-xs font-bold rounded-full">
+                      🔥 {service.discount_percentage}% OFF
+                    </span>
+                    {service.offer_end_date && (
+                      <span className="text-xs text-orange-700 font-medium">
+                        Ends {new Date(service.offer_end_date).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                )}
+                
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h3 className="font-heading text-lg font-bold text-stone-900 mb-1">
@@ -191,14 +254,36 @@ const ManageServices = () => {
                         {service.description}
                       </p>
                     )}
+                    
+                    {/* Offer Tagline */}
+                    {service.is_on_offer && service.offer_tagline && (
+                      <p className="text-xs text-orange-700 italic mb-3">
+                        🏷 {service.offer_tagline}
+                      </p>
+                    )}
+                    
                     <div className="flex items-center gap-6 text-sm">
                       <span className="flex items-center gap-1.5 text-stone-600">
                         <Timer size={18} weight="bold" />
                         {service.duration} mins
                       </span>
-                      <span className="flex items-center gap-1.5 font-semibold text-orange-800">
-                        <CurrencyInr size={18} weight="bold" />
-                        {formatPrice(service.price)}
+                      
+                      {/* Price Display with Offer */}
+                      <span className="flex items-center gap-2">
+                        {service.is_on_offer && service.original_price ? (
+                          <>
+                            <span className="text-stone-400 line-through text-sm">
+                              {formatPrice(service.original_price)}
+                            </span>
+                            <span className="font-bold text-orange-800 text-lg">
+                              {formatPrice(service.price)}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="font-semibold text-orange-800">
+                            {formatPrice(service.price)}
+                          </span>
+                        )}
                       </span>
                     </div>
                   </div>
@@ -331,6 +416,84 @@ const ManageServices = () => {
                     <option value="120">2 hours</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Offer Section */}
+              <div className="border-t border-stone-200 pt-4 mt-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <input
+                    type="checkbox"
+                    id="is_on_offer"
+                    checked={formData.is_on_offer || false}
+                    onChange={(e) => setFormData({ ...formData, is_on_offer: e.target.checked })}
+                    className="w-4 h-4 text-orange-800 border-stone-300 rounded focus:ring-orange-800"
+                  />
+                  <label htmlFor="is_on_offer" className="text-sm font-medium text-stone-700">
+                    Enable Special Offer
+                  </label>
+                </div>
+
+                {formData.is_on_offer && (
+                  <div className="space-y-4 bg-orange-50 p-4 rounded-xl border border-orange-100">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-stone-700 mb-2">
+                          Discount % *
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            value={formData.discount_percentage || ''}
+                            onChange={(e) => setFormData({ ...formData, discount_percentage: parseInt(e.target.value) || 0 })}
+                            className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                            placeholder="20"
+                            min="1"
+                            max="99"
+                            required={formData.is_on_offer}
+                          />
+                          <span className="absolute right-3 top-3 text-stone-500">%</span>
+                        </div>
+                        {formData.price && formData.discount_percentage && (
+                          <p className="text-xs text-orange-700 mt-1">
+                            Final price: ₹{Math.round(formData.price * (1 - (formData.discount_percentage || 0) / 100))}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-stone-700 mb-2">
+                          Offer Ends *
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.offer_end_date || ''}
+                          onChange={(e) => setFormData({ ...formData, offer_end_date: e.target.value })}
+                          className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                          min={new Date().toISOString().split('T')[0]}
+                          required={formData.is_on_offer}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-stone-700 mb-2">
+                        Offer Tagline
+                      </label>
+                      <select
+                        value={formData.offer_tagline || "Grab it before it's gone!"}
+                        onChange={(e) => setFormData({ ...formData, offer_tagline: e.target.value })}
+                        className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                      >
+                        <option value="Grab it before it's gone!">Grab it before it's gone!</option>
+                        <option value="Limited Time Offer!">Limited Time Offer!</option>
+                        <option value="Flash Sale!">Flash Sale!</option>
+                        <option value="Today Only!">Today Only!</option>
+                        <option value="Special Deal!">Special Deal!</option>
+                        <option value="Hot Deal!">Hot Deal!</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 pt-4">

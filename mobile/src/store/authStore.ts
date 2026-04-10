@@ -10,10 +10,12 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  
+
   setUser: (user: User | null, token: string | null) => void;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (email: string, password: string, name: string, phone: string, role: 'customer' | 'owner') => Promise<{ success: boolean; error?: string }>;
+  forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (data: { name?: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   clearError: () => void;
   initializeAuth: () => void;
@@ -87,6 +89,37 @@ export const useAuthStore = create<AuthState>()(
           return { success: true };
         } catch (error: any) {
           const message = error.response?.data?.detail || 'Signup failed';
+          set({ isLoading: false, error: message });
+          return { success: false, error: message };
+        }
+      },
+
+      forgotPassword: async (email) => {
+        set({ isLoading: true, error: null });
+        try {
+          await api.post('/api/auth/forgot-password', { email });
+          set({ isLoading: false });
+          return { success: true };
+        } catch (error: any) {
+          set({ isLoading: false });
+          return { success: true }; // Always succeed to prevent email enumeration
+        }
+      },
+
+      updateProfile: async (data) => {
+        set({ isLoading: true, error: null });
+        try {
+          await api.patch('/api/auth/profile', data);
+          const currentUser = get().user;
+          if (currentUser) {
+            set({
+              user: { ...currentUser, ...data },
+              isLoading: false,
+            });
+          }
+          return { success: true };
+        } catch (error: any) {
+          const message = error.response?.data?.detail || 'Failed to update profile';
           set({ isLoading: false, error: message });
           return { success: false, error: message };
         }

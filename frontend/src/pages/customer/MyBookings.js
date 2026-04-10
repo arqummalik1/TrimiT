@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -15,9 +15,19 @@ import {
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import { formatPrice, formatTime, getStatusColor, getPaymentStatusColor } from '../../lib/utils';
+import { useToastStore } from '../../store/toastStore';
+import { useNotificationStore } from '../../store/notificationStore';
+import { subscribeToUserBookings, unsubscribeFromChannel } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
+import NotificationBell from '../../components/NotificationBell';
 
 const MyBookings = () => {
   const queryClient = useQueryClient();
+  const { success } = useToastStore();
+  const { addNotification } = useNotificationStore();
+  const { profile } = useAuthStore();
+  const [activeChannel, setActiveChannel] = useState(null);
+  const [statusUpdates, setStatusUpdates] = useState([]);
 
   const { data: bookings, isLoading } = useQuery({
     queryKey: ['myBookings'],
@@ -26,6 +36,84 @@ const MyBookings = () => {
       return response.data;
     },
   });
+
+  // Handle booking status update
+  const handleBookingUpdate = useCallback((payload) => {
+    console.log('[Realtime] Booking update received:', payload);
+    
+    if (payload.eventType === 'UPDATE') {
+      const oldBooking = payload.old;
+      const newBooking = payload.new;
+      
+      // Only notify if status changed
+      if (oldBooking.status !== newBooking.status) {
+        const statusMessages = {
+          confirmed: {
+            title: 'Booking Confirmed!',
+            message: `Your appointment at ${newBooking.salon?.name || 'the salon'} has been confirmed.`,
+            type: 'booking_accepted'
+          },
+          cancelled: {
+            title: 'Booking Cancelled',
+            message: `Your appointment at ${newBooking.salon?.name || 'the salon'} has been cancelled.`,
+            type: 'booking_cancelled'
+          },
+          completed: {
+            title: 'Service Completed',
+            message: `Your appointment at ${newBooking.salon?.name || 'the salon'} has been completed.`,
+            type: 'booking_completed'
+          }
+        };
+        
+        const statusUpdate = statusMessages[newBooking.status];
+        if (statusUpdate) {
+          // Add to notification store (persistent)
+          addNotification({
+            type: statusUpdate.type,
+            title: statusUpdate.title,
+            message: statusUpdate.message,
+            data: {
+              bookingId: newBooking.id,
+              salonId: newBooking.salon_id,
+              serviceName: newBooking.service_name,
+            },
+          });
+          
+          // Show toast notification (temporary)
+          success(statusUpdate.message, {
+            title: statusUpdate.title,
+            duration: 6000
+          });
+          
+          // Add to status updates list
+          setStatusUpdates(prev => [{
+            id: newBooking.id,
+            status: newBooking.status,
+            timestamp: Date.now()
+          }, ...prev].slice(0, 5));
+        }
+        
+        // Refresh bookings list
+        queryClient.invalidateQueries(['myBookings']);
+      }
+    }
+  }, [addNotification, success, queryClient]);
+
+  // Subscribe to real-time booking status updates
+  useEffect(() => {
+    if (!profile?.id) return;
+    
+    console.log('[Realtime] Setting up user bookings subscription for:', profile.id);
+    
+    const channel = subscribeToUserBookings(profile.id, handleBookingUpdate);
+    
+    setActiveChannel(channel);
+    
+    return () => {
+      console.log('[Realtime] Cleaning up user bookings subscription');
+      unsubscribeFromChannel(channel);
+    };
+  }, [profile?.id, handleBookingUpdate]);
 
   const cancelMutation = useMutation({
     mutationFn: async (bookingId) => {
@@ -61,14 +149,36 @@ const MyBookings = () => {
 
   return (
     <div className="min-h-screen bg-stone-50 pb-12" data-testid="my-bookings">
+      {/* Status Updates Banner */}
+      {statusUpdates.length > 0 && (
+        <div className="bg-orange-50 border-b border-orange-200 px-4 py-2">
+          <div className="max-w-3xl mx-auto flex items-center gap-2">
+            <Bell size={16} className="text-orange-600" />
+            <span className="text-sm text-orange-800">
+              <strong>{statusUpdates.length}</strong> booking status update{statusUpdates.length > 1 ? 's' : ''} received
+            </span>
+            <button 
+              onClick={() => setStatusUpdates([])}
+              className="ml-auto text-xs text-orange-600 hover:text-orange-800 underline"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Header */}
       <div className="max-w-4xl mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h1 className="font-heading text-3xl font-bold text-stone-900 mb-2">
-            My Bookings
-          </h1>
+          <div className="flex items-start justify-between mb-2">
+            <h1 className="font-heading text-3xl font-bold text-stone-900">
+              My Bookings
+            </h1>
+            <NotificationBell isOwner={false} />
+          </div>
           <p className="text-stone-500 mb-8">
             View and manage your salon appointments
           </p>

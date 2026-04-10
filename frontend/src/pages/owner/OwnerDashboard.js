@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { 
   CurrencyInr, 
@@ -12,19 +12,77 @@ import {
   ArrowRight,
   CheckCircle,
   XCircle,
-  Hourglass
+  Hourglass,
+  Gear
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import { formatPrice } from '../../lib/utils';
+import { useToastStore } from '../../store/toastStore';
+import { useNotificationStore } from '../../store/notificationStore';
+import { subscribeToSalonBookings, unsubscribeFromChannel } from '../../lib/supabase';
+import NotificationBell from '../../components/NotificationBell';
 
 const OwnerDashboard = () => {
-  const { data: salon } = useQuery({
+  const queryClient = useQueryClient();
+  const { newBooking } = useToastStore();
+  const { addNotification, soundEnabled } = useNotificationStore();
+  const [activeChannel, setActiveChannel] = useState(null);
+
+  const { data: salon, isLoading: salonLoading } = useQuery({
     queryKey: ['ownerSalon'],
     queryFn: async () => {
       const response = await api.get('/api/owner/salon');
       return response.data;
     },
   });
+
+  // Handle new booking notification
+  const handleNewBooking = useCallback((booking) => {
+    console.log('[Realtime] New booking received:', booking);
+    
+    // Add to notification store (persistent)
+    addNotification({
+      type: 'booking_created',
+      title: 'New Booking Received',
+      message: `${booking.user_name || 'A customer'} booked ${booking.service_name} for ${booking.booking_time}`,
+      data: {
+        bookingId: booking.id,
+        customerId: booking.user_id,
+        serviceName: booking.service_name,
+        bookingTime: booking.booking_time,
+      },
+    });
+    
+    // Show toast notification (temporary)
+    newBooking({
+      customerName: booking.user_name || 'A customer',
+      serviceName: booking.service_name,
+      bookingTime: booking.booking_time,
+    });
+    
+    // Refresh dashboard data
+    queryClient.invalidateQueries(['owner-salon']);
+    queryClient.invalidateQueries(['owner-bookings']);
+  }, [addNotification, newBooking, queryClient]);
+
+  // Subscribe to real-time bookings
+  useEffect(() => {
+    if (!salon?.id) return;
+    
+    console.log(`[Realtime] Setting up subscription for salon ${salon.id}`);
+
+    const channel = subscribeToSalonBookings(salon.id, handleNewBooking);
+    
+    // Log subscription status
+    channel.on('system', {}, (status) => {
+      console.log('[Realtime] Subscription status:', status);
+    });
+
+    return () => {
+      console.log('[Realtime] Cleaning up subscription');
+      unsubscribeFromChannel(channel);
+    };
+  }, [salon?.id, handleNewBooking]);
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ['ownerAnalytics'],
@@ -68,6 +126,7 @@ const OwnerDashboard = () => {
   const quickActions = [
     { title: 'Manage Salon', icon: Storefront, href: '/owner/salon', color: 'bg-orange-800' },
     { title: 'View Bookings', icon: CalendarCheck, href: '/owner/bookings', color: 'bg-emerald-800' },
+    { title: 'Settings', icon: Gear, href: '/owner/settings', color: 'bg-blue-800' },
   ];
 
   return (
@@ -79,15 +138,63 @@ const OwnerDashboard = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="font-heading text-3xl font-bold text-stone-900 mb-2">
-            Dashboard
-          </h1>
-          <p className="text-stone-500">
-            {salon ? `Welcome back, ${salon.name}` : 'Set up your salon to get started'}
-          </p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="font-heading text-3xl font-bold text-stone-900">
+                Owner Dashboard
+              </h1>
+              <p className="text-stone-500 mt-1">
+                Welcome back! Here's what's happening today.
+              </p>
+            </div>
+
+            {/* Notification Bell */}
+            <NotificationBell isOwner={true} />
+          </div>
         </motion.div>
 
-        {!salon ? (
+        {salonLoading ? (
+          // Shimmer skeleton loading state
+          <div className="animate-pulse">
+            {/* Header shimmer */}
+            <div className="h-8 bg-stone-200 rounded w-48 mb-2" />
+            <div className="h-4 bg-stone-200 rounded w-64 mb-8" />
+            
+            {/* Stats grid shimmer */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-white rounded-2xl border border-stone-200 p-5">
+                  <div className="h-10 w-10 bg-stone-200 rounded-xl mb-3" />
+                  <div className="h-3 bg-stone-200 rounded w-24 mb-2" />
+                  <div className="h-8 bg-stone-200 rounded w-16" />
+                </div>
+              ))}
+            </div>
+            
+            {/* Two column shimmer */}
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+              <div className="bg-white rounded-2xl border border-stone-200 p-6">
+                <div className="h-6 bg-stone-200 rounded w-40 mb-4" />
+                <div className="space-y-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex justify-between">
+                      <div className="h-4 bg-stone-200 rounded w-24" />
+                      <div className="h-4 bg-stone-200 rounded w-8" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl border border-stone-200 p-6">
+                <div className="h-6 bg-stone-200 rounded w-32 mb-4" />
+                <div className="space-y-3">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-14 bg-stone-200 rounded-xl" />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : !salon ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

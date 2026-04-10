@@ -16,7 +16,11 @@ import { BookingCard } from '../../components/BookingCard';
 import { Booking } from '../../types';
 import { colors } from '../../lib/utils';
 
-export const MyBookingsScreen: React.FC = () => {
+interface MyBookingsScreenProps {
+  navigation?: any;
+}
+
+export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({ navigation }) => {
   const queryClient = useQueryClient();
 
   const { data: bookings, isLoading, refetch, isRefetching } = useQuery<Booking[]>({

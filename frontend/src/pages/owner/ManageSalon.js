@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -10,13 +10,22 @@ import {
   FloppyDisk,
   Trash,
   Plus,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Camera,
+  X,
+  Spinner
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
+import { useAuthStore } from '../../store/authStore';
+import { uploadImage, deleteImage } from '../../lib/supabase';
 
 const ManageSalon = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { setHasSalon } = useAuthStore();
+  const fileInputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const { data: salon, isLoading } = useQuery({
     queryKey: ['ownerSalon'],
@@ -62,6 +71,7 @@ const ManageSalon = () => {
       return response.data;
     },
     onSuccess: () => {
+      setHasSalon(true);
       queryClient.invalidateQueries(['ownerSalon']);
       navigate('/owner/services');
     },
@@ -82,8 +92,30 @@ const ManageSalon = () => {
     setFormData({ ...formData, [name]: value });
   };
 
+  const [validationError, setValidationError] = useState(null);
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    setValidationError(null);
+
+    // Validate required fields
+    if (!formData.name || formData.name.trim() === '') {
+      setValidationError('Salon Name is required');
+      return;
+    }
+    if (!formData.address || formData.address.trim() === '') {
+      setValidationError('Address is required');
+      return;
+    }
+    if (!formData.city || formData.city.trim() === '') {
+      setValidationError('City is required');
+      return;
+    }
+    if (!formData.phone || formData.phone.trim() === '') {
+      setValidationError('Phone is required');
+      return;
+    }
+
     if (salon) {
       updateMutation.mutate(formData);
     } else {
@@ -91,14 +123,73 @@ const ManageSalon = () => {
     }
   };
 
-  const handleAddImage = () => {
-    const url = prompt('Enter image URL:');
-    if (url) {
-      setFormData({ ...formData, images: [...formData.images, url] });
+  const handleFileSelect = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    setUploading(true);
+    setUploadProgress(0);
+    
+    try {
+      const uploadedUrls = [];
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          alert('Please select only image files (JPEG, PNG, etc.)');
+          continue;
+        }
+        
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          alert('File size must be less than 5MB');
+          continue;
+        }
+        
+        // Upload to Supabase Storage
+        const publicUrl = await uploadImage(file, 'salon-images');
+        uploadedUrls.push(publicUrl);
+        
+        setUploadProgress(Math.round(((i + 1) / files.length) * 100));
+      }
+      
+      // Add uploaded URLs to form data
+      if (uploadedUrls.length > 0) {
+        setFormData(prev => ({ 
+          ...prev, 
+          images: [...prev.images, ...uploadedUrls] 
+        }));
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload image. Please try again.');
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
+  
+  const handleAddImage = () => {
+    fileInputRef.current?.click();
+  };
 
-  const handleRemoveImage = (index) => {
+  const handleRemoveImage = async (index) => {
+    const imageUrl = formData.images[index];
+    
+    // Try to delete from storage (best effort - don't block UI if fails)
+    try {
+      await deleteImage(imageUrl, 'salon-images');
+    } catch (error) {
+      console.error('Failed to delete image from storage:', error);
+    }
+    
+    // Remove from form data
     const newImages = formData.images.filter((_, i) => i !== index);
     setFormData({ ...formData, images: newImages });
   };
@@ -107,11 +198,25 @@ const ManageSalon = () => {
     return (
       <div className="min-h-screen bg-stone-50 p-8">
         <div className="max-w-3xl mx-auto animate-pulse">
-          <div className="h-8 bg-stone-200 rounded mb-8 w-48" />
+          {/* Header shimmer */}
+          <div className="h-8 bg-stone-200 rounded mb-2 w-48" />
+          <div className="h-4 bg-stone-200 rounded mb-8 w-64" />
+          
+          {/* Form shimmer */}
           <div className="bg-white rounded-2xl p-8 space-y-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-12 bg-stone-200 rounded-xl" />
+            {/* Image upload shimmer */}
+            <div className="h-32 bg-stone-200 rounded-xl mb-6" />
+            
+            {/* Input fields shimmer */}
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i}>
+                <div className="h-4 bg-stone-200 rounded w-24 mb-2" />
+                <div className="h-12 bg-stone-200 rounded-xl" />
+              </div>
             ))}
+            
+            {/* Submit button shimmer */}
+            <div className="h-12 bg-stone-200 rounded-full mt-8" />
           </div>
         </div>
       </div>
@@ -284,28 +389,73 @@ const ManageSalon = () => {
               Salon Images
             </h2>
             
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              capture="environment"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            
+            {/* Upload Progress */}
+            {uploading && (
+              <div className="mb-4 p-4 bg-blue-50 rounded-xl">
+                <div className="flex items-center gap-2 text-blue-700 mb-2">
+                  <Spinner size={20} className="animate-spin" />
+                  <span className="font-medium">Uploading images...</span>
+                </div>
+                <div className="w-full bg-blue-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <p className="text-sm text-blue-600 mt-1">{uploadProgress}% complete</p>
+              </div>
+            )}
+            
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {formData.images.map((url, index) => (
-                <div key={index} className="relative aspect-video rounded-xl overflow-hidden group">
-                  <img src={url} alt={`Salon ${index + 1}`} className="w-full h-full object-cover" />
+                <div key={index} className="relative aspect-video rounded-xl overflow-hidden group bg-stone-100">
+                  <img 
+                    src={url} 
+                    alt={`Salon ${index + 1}`} 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/400x300?text=Image+Error';
+                    }}
+                  />
                   <button
                     type="button"
                     onClick={() => handleRemoveImage(index)}
-                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    title="Remove image"
                   >
-                    <Trash size={16} />
+                    <X size={16} weight="bold" />
                   </button>
                 </div>
               ))}
+              
+              {/* Add Image Button */}
               <button
                 type="button"
                 onClick={handleAddImage}
-                className="aspect-video rounded-xl border-2 border-dashed border-stone-300 flex flex-col items-center justify-center text-stone-400 hover:border-orange-800 hover:text-orange-800 transition-colors"
+                disabled={uploading}
+                className="aspect-video rounded-xl border-2 border-dashed border-stone-300 flex flex-col items-center justify-center text-stone-400 hover:border-orange-800 hover:text-orange-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Plus size={24} />
-                <span className="text-sm mt-1">Add Image</span>
+                <Camera size={28} />
+                <span className="text-sm mt-2 font-medium">Add Photo</span>
+                <span className="text-xs text-stone-400 mt-1">Camera or Gallery</span>
               </button>
             </div>
+            
+            <p className="text-sm text-stone-500 mt-3">
+              Upload high-quality images of your salon. First image will be used as the main thumbnail.
+              Supported formats: JPEG, PNG. Max size: 5MB per image.
+            </p>
           </div>
 
           {/* Submit */}
@@ -326,6 +476,12 @@ const ManageSalon = () => {
               )}
             </button>
           </div>
+
+          {validationError && (
+            <p className="mt-4 text-sm text-red-600 text-center font-medium">
+              {validationError}
+            </p>
+          )}
 
           {(createMutation.isError || updateMutation.isError) && (
             <p className="mt-4 text-sm text-red-600 text-center">

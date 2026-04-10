@@ -20,6 +20,7 @@ export interface Salon {
   opening_time: string;
   closing_time: string;
   images: string[];
+  allow_multiple_bookings_per_slot?: boolean;
   created_at: string;
   services?: Service[];
   reviews?: Review[];
@@ -67,9 +68,45 @@ export interface Review {
 export interface TimeSlot {
   time: string;
   available: boolean;
+  has_bookings?: boolean;
+  booking_count?: number;
+  allow_multiple?: boolean;
+}
+
+export interface SlotsResponse {
+  slots: TimeSlot[];
+  allow_multiple_bookings_per_slot: boolean;
+}
+
+export interface TrendData {
+  date: string;
+  count: number;
+}
+
+export interface PeakHourData {
+  hour: number;
+  bookings: number;
+}
+
+export interface PopularServiceData {
+  name: string;
+  bookings: number;
+  revenue: number;
+}
+
+export interface StatusDistributionData {
+  status: string;
+  count: number;
+  color: string;
+}
+
+export interface WeeklyTrendData {
+  week: string;
+  bookings: number;
 }
 
 export interface Analytics {
+  period: string;
   total_bookings: number;
   total_earnings: number;
   pending_bookings: number;
@@ -77,4 +114,9 @@ export interface Analytics {
   completed_bookings: number;
   cancelled_bookings: number;
   today_bookings: number;
+  bookings_trend: TrendData[];
+  peak_hours: PeakHourData[];
+  popular_services: PopularServiceData[];
+  status_distribution: StatusDistributionData[];
+  customer_trends: WeeklyTrendData[];
 }

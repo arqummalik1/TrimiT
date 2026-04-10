@@ -165,8 +165,26 @@ const SalonDetail = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.1 + index * 0.05 }}
-                  className="bg-white rounded-2xl border border-stone-200 p-5 hover:shadow-lg transition-all duration-300"
+                  className={`rounded-2xl p-5 transition-all duration-300 ${
+                    service.is_on_offer 
+                      ? 'bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-300 shadow-lg' 
+                      : 'bg-white border border-stone-200 hover:shadow-lg'
+                  }`}
                 >
+                  {/* Offer Badge */}
+                  {service.is_on_offer && service.discount_percentage && (
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-orange-600 to-red-600 text-white text-xs font-bold rounded-full">
+                        🔥 {service.discount_percentage}% OFF
+                      </span>
+                      {service.offer_end_date && (
+                        <span className="text-xs text-orange-700">
+                          Ends {new Date(service.offer_end_date).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <h3 className="font-heading text-lg font-bold text-stone-900 mb-1">
@@ -177,21 +195,45 @@ const SalonDetail = () => {
                           {service.description}
                         </p>
                       )}
-                      <div className="flex items-center gap-4 text-sm text-stone-600">
-                        <span className="flex items-center gap-1.5">
+                      
+                      {/* Offer Tagline */}
+                      {service.is_on_offer && service.offer_tagline && (
+                        <p className="text-xs text-orange-700 italic mb-3">
+                          🏷 {service.offer_tagline}
+                        </p>
+                      )}
+                      
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="flex items-center gap-1.5 text-stone-600">
                           <Timer size={16} weight="bold" />
                           {service.duration} mins
                         </span>
-                        <span className="flex items-center gap-1.5 font-semibold text-orange-800">
-                          <CurrencyInr size={16} weight="bold" />
-                          {formatPrice(service.price)}
+                        <span className="flex items-center gap-2">
+                          {service.is_on_offer && service.original_price ? (
+                            <>
+                              <span className="text-stone-400 line-through text-sm">
+                                {formatPrice(service.original_price)}
+                              </span>
+                              <span className="font-bold text-orange-800 text-lg">
+                                {formatPrice(service.price)}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="font-semibold text-orange-800">
+                              {formatPrice(service.price)}
+                            </span>
+                          )}
                         </span>
                       </div>
                     </div>
                     <Link
                       to={`/booking/${salon.id}/${service.id}`}
                       data-testid={`book-service-${service.id}`}
-                      className="btn-primary text-sm px-5 py-2.5 flex items-center gap-2"
+                      className={`text-sm px-5 py-2.5 flex items-center gap-2 rounded-full font-semibold transition-all ${
+                        service.is_on_offer
+                          ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white hover:from-orange-700 hover:to-red-700'
+                          : 'btn-primary'
+                      }`}
                     >
                       <CalendarCheck size={18} />
                       Book Now
