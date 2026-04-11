@@ -1,12 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, X, Check, SpeakerHigh, SpeakerSlash, CaretDown } from '@phosphor-icons/react';
+import { Bell, X, Check, SpeakerHigh, SpeakerSlash, CaretDown, Spinner } from '@phosphor-icons/react';
 import { useNotificationStore } from '../store/notificationStore';
 import { useAuthStore } from '../store/authStore';
+import { useToastStore } from '../store/toastStore';
+import api from '../lib/api';
 import { formatDistanceToNow } from 'date-fns';
 
 const NotificationBell = ({ isOwner = false }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [loadingBookingId, setLoadingBookingId] = useState(null);
+  const [loadingAction, setLoadingAction] = useState(null);
   const dropdownRef = useRef(null);
   const {
     notifications,
@@ -16,8 +20,15 @@ const NotificationBell = ({ isOwner = false }) => {
     clearNotification,
     soundEnabled,
     toggleSound,
+    addNotification,
   } = useNotificationStore();
   const { profile } = useAuthStore();
+  const { success, error } = useToastStore();
+
+  // Debug: log when notifications change
+  useEffect(() => {
+    console.log('[NotificationBell] Notifications state:', { count: notifications.length, unreadCount });
+  }, [notifications.length, unreadCount]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -47,37 +58,49 @@ const NotificationBell = ({ isOwner = false }) => {
     clearNotification(id);
   };
 
-  const handleAcceptBooking = async (e, bookingId) => {
+  const handleAcceptBooking = async (e, bookingId, notificationId) => {
     e.stopPropagation();
+    setLoadingBookingId(bookingId);
+    setLoadingAction('accept');
+    
     try {
-      const response = await fetch(`/api/owner/bookings/${bookingId}/accept`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      if (response.ok) {
-        markAsRead(notifications.find((n) => n.data?.bookingId === bookingId)?.id);
+      const response = await api.post(`/api/owner/bookings/${bookingId}/accept`);
+      
+      if (response.data) {
+        success('Booking accepted successfully!', { title: 'Success' });
+        markAsRead(notificationId);
+        // Close dropdown after successful action
+        setIsOpen(false);
       }
-    } catch (error) {
-      console.error('Failed to accept booking:', error);
+    } catch (err) {
+      console.error('Failed to accept booking:', err);
+      error(err.response?.data?.detail || 'Failed to accept booking. Please try again.', { title: 'Error' });
+    } finally {
+      setLoadingBookingId(null);
+      setLoadingAction(null);
     }
   };
 
-  const handleRejectBooking = async (e, bookingId) => {
+  const handleRejectBooking = async (e, bookingId, notificationId) => {
     e.stopPropagation();
+    setLoadingBookingId(bookingId);
+    setLoadingAction('reject');
+    
     try {
-      const response = await fetch(`/api/owner/bookings/${bookingId}/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      if (response.ok) {
-        markAsRead(notifications.find((n) => n.data?.bookingId === bookingId)?.id);
+      const response = await api.post(`/api/owner/bookings/${bookingId}/reject`);
+      
+      if (response.data) {
+        success('Booking rejected successfully!', { title: 'Success' });
+        markAsRead(notificationId);
+        // Close dropdown after successful action
+        setIsOpen(false);
       }
-    } catch (error) {
-      console.error('Failed to reject booking:', error);
+    } catch (err) {
+      console.error('Failed to reject booking:', err);
+      error(err.response?.data?.detail || 'Failed to reject booking. Please try again.', { title: 'Error' });
+    } finally {
+      setLoadingBookingId(null);
+      setLoadingAction(null);
     }
   };
 
@@ -219,18 +242,28 @@ const NotificationBell = ({ isOwner = false }) => {
                             notification.data?.bookingId && (
                               <div className="flex gap-2 mt-2">
                                 <button
-                                  onClick={(e) => handleAcceptBooking(e, notification.data.bookingId)}
-                                  className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors"
+                                  onClick={(e) => handleAcceptBooking(e, notification.data.bookingId, notification.id)}
+                                  disabled={loadingBookingId === notification.data.bookingId}
+                                  className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  <Check size={14} />
-                                  Accept
+                                  {loadingBookingId === notification.data.bookingId && loadingAction === 'accept' ? (
+                                    <Spinner size={14} className="animate-spin" />
+                                  ) : (
+                                    <Check size={14} />
+                                  )}
+                                  {loadingBookingId === notification.data.bookingId && loadingAction === 'accept' ? 'Accepting...' : 'Accept'}
                                 </button>
                                 <button
-                                  onClick={(e) => handleRejectBooking(e, notification.data.bookingId)}
-                                  className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors"
+                                  onClick={(e) => handleRejectBooking(e, notification.data.bookingId, notification.id)}
+                                  disabled={loadingBookingId === notification.data.bookingId}
+                                  className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  <X size={14} />
-                                  Reject
+                                  {loadingBookingId === notification.data.bookingId && loadingAction === 'reject' ? (
+                                    <Spinner size={14} className="animate-spin" />
+                                  ) : (
+                                    <X size={14} />
+                                  )}
+                                  {loadingBookingId === notification.data.bookingId && loadingAction === 'reject' ? 'Rejecting...' : 'Reject'}
                                 </button>
                               </div>
                             )}

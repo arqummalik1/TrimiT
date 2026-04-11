@@ -12,13 +12,16 @@ import {
   XCircle,
   Hourglass,
   Scissors,
-  CurrencyInr
+  CurrencyInr,
+  Spinner
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
+import { useToastStore } from '../../store/toastStore';
 import { formatPrice, formatTime, getStatusColor, getPaymentStatusColor } from '../../lib/utils';
 
 const ManageBookings = () => {
   const queryClient = useQueryClient();
+  const { success, error } = useToastStore();
 
   const { data: salon, isLoading: salonLoading } = useQuery({
     queryKey: ['ownerSalon'],
@@ -28,7 +31,7 @@ const ManageBookings = () => {
     },
   });
 
-  const { data: bookings, isLoading: bookingsLoading } = useQuery({
+  const { data: rawBookings, isLoading: bookingsLoading } = useQuery({
     queryKey: ['ownerBookings'],
     queryFn: async () => {
       const response = await api.get('/api/bookings');
@@ -37,13 +40,64 @@ const ManageBookings = () => {
     enabled: !!salon,
   });
 
-  const statusMutation = useMutation({
-    mutationFn: async ({ bookingId, status }) => {
-      await api.patch(`/api/bookings/${bookingId}/status`, { status });
+  // Sort bookings by booking date and time slot - newest first
+  const bookings = React.useMemo(() => {
+    if (!rawBookings) return [];
+    return [...rawBookings].sort((a, b) => {
+      // First sort by booking_date (newest first)
+      const dateA = new Date(a.booking_date || 0);
+      const dateB = new Date(b.booking_date || 0);
+      if (dateB - dateA !== 0) return dateB - dateA;
+      
+      // Then sort by time_slot (newest first)
+      const timeA = a.time_slot || '';
+      const timeB = b.time_slot || '';
+      return timeB.localeCompare(timeA);
+    });
+  }, [rawBookings]);
+
+  // Accept booking mutation
+  const acceptMutation = useMutation({
+    mutationFn: async (bookingId) => {
+      return await api.post(`/api/owner/bookings/${bookingId}/accept`);
     },
     onSuccess: () => {
+      success('Booking accepted successfully!', { title: 'Success' });
       queryClient.invalidateQueries(['ownerBookings']);
       queryClient.invalidateQueries(['ownerAnalytics']);
+    },
+    onError: (err) => {
+      error(err.response?.data?.detail || 'Failed to accept booking', { title: 'Error' });
+    },
+  });
+
+  // Reject booking mutation
+  const rejectMutation = useMutation({
+    mutationFn: async (bookingId) => {
+      return await api.post(`/api/owner/bookings/${bookingId}/reject`);
+    },
+    onSuccess: () => {
+      success('Booking rejected successfully!', { title: 'Success' });
+      queryClient.invalidateQueries(['ownerBookings']);
+      queryClient.invalidateQueries(['ownerAnalytics']);
+    },
+    onError: (err) => {
+      error(err.response?.data?.detail || 'Failed to reject booking', { title: 'Error' });
+    },
+  });
+
+  // Complete booking mutation
+  const completeMutation = useMutation({
+    mutationFn: async (bookingId) => {
+      await api.patch(`/api/bookings/${bookingId}/status`, { status: 'completed' });
+    },
+    onSuccess: () => {
+      success('Booking marked as completed!', { title: 'Success' });
+      queryClient.invalidateQueries(['ownerBookings']);
+      queryClient.invalidateQueries(['ownerAnalytics']);
+    },
+    onError: (err) => {
+      error(err.response?.data?.detail || 'Failed to complete booking', { title: 'Error' });
     },
   });
 
@@ -203,35 +257,47 @@ const ManageBookings = () => {
                     {booking.status === 'pending' && (
                       <div className="flex gap-2">
                         <button
-                          onClick={() => statusMutation.mutate({ bookingId: booking.id, status: 'confirmed' })}
-                          disabled={statusMutation.isPending}
+                          onClick={() => acceptMutation.mutate(booking.id)}
+                          disabled={acceptMutation.isPending || rejectMutation.isPending}
                           data-testid={`confirm-booking-${booking.id}`}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-100 text-emerald-800 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors"
+                          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-100 text-emerald-800 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <CheckCircle size={16} weight="bold" />
-                          Confirm
+                          {acceptMutation.isPending ? (
+                            <Spinner size={16} className="animate-spin" />
+                          ) : (
+                            <CheckCircle size={16} />
+                          )}
+                          {acceptMutation.isPending ? 'Accepting...' : 'Confirm'}
                         </button>
                         <button
-                          onClick={() => statusMutation.mutate({ bookingId: booking.id, status: 'cancelled' })}
-                          disabled={statusMutation.isPending}
+                          onClick={() => rejectMutation.mutate(booking.id)}
+                          disabled={acceptMutation.isPending || rejectMutation.isPending}
                           data-testid={`reject-booking-${booking.id}`}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors"
+                          className="flex items-center gap-1.5 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <XCircle size={16} weight="bold" />
-                          Reject
+                          {rejectMutation.isPending ? (
+                            <Spinner size={16} className="animate-spin" />
+                          ) : (
+                            <XCircle size={16} />
+                          )}
+                          {rejectMutation.isPending ? 'Rejecting...' : 'Reject'}
                         </button>
                       </div>
                     )}
 
                     {booking.status === 'confirmed' && (
                       <button
-                        onClick={() => statusMutation.mutate({ bookingId: booking.id, status: 'completed' })}
-                        disabled={statusMutation.isPending}
+                        onClick={() => completeMutation.mutate(booking.id)}
+                        disabled={completeMutation.isPending}
                         data-testid={`complete-booking-${booking.id}`}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
+                        className="flex items-center gap-1.5 px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <CheckCircle size={16} weight="bold" />
-                        Mark Complete
+                        {completeMutation.isPending ? (
+                          <Spinner size={16} className="animate-spin" />
+                        ) : (
+                          <CheckCircle size={16} />
+                        )}
+                        {completeMutation.isPending ? 'Completing...' : 'Mark Complete'}
                       </button>
                     )}
                   </div>

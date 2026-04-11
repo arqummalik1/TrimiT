@@ -5,6 +5,19 @@ const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Create authenticated client for realtime subscriptions
+export const createAuthenticatedClient = (token) => {
+  const client = createClient(supabaseUrl, supabaseAnonKey);
+  
+  // Set auth token for realtime subscriptions
+  if (token) {
+    client.realtime.setAuth(token);
+    console.log('[Realtime] Auth token set on realtime client');
+  }
+  
+  return client;
+};
+
 // ==========================================
 // REALTIME SUBSCRIPTIONS
 // ==========================================
@@ -45,11 +58,22 @@ export const subscribeToBookings = (salonId, date, onChange) => {
  * Subscribe to all booking changes for a salon (owner dashboard)
  * @param {string} salonId - The salon ID to watch
  * @param {function} onChange - Callback when any booking changes
+ * @param {string} token - User's auth token for RLS bypass
  * @returns {object} - Supabase realtime channel
  */
-export const subscribeToSalonBookings = (salonId, onChange) => {
-  const channel = supabase
-    .channel(`salon-bookings:${salonId}`)
+export const subscribeToSalonBookings = (salonId, onChange, token = null) => {
+  // Use authenticated client if token provided, otherwise use anon client
+  const client = token ? createAuthenticatedClient(token) : supabase;
+  
+  console.log('[Realtime] Creating subscription with', token ? 'authenticated' : 'anon', 'client');
+  console.log('[Realtime] Watching salon_id:', salonId);
+  
+  // Use a unique channel name to avoid conflicts
+  const channelName = `salon-${salonId}-${Math.random().toString(36).substring(7)}`;
+  console.log('[Realtime] Channel name:', channelName);
+  
+  const channel = client
+    .channel(channelName)
     .on(
       'postgres_changes',
       {
@@ -59,7 +83,8 @@ export const subscribeToSalonBookings = (salonId, onChange) => {
         filter: `salon_id=eq.${salonId}`,
       },
       (payload) => {
-        console.log('[Realtime] Salon booking event:', payload.eventType, payload);
+        console.log('[Realtime] Salon booking event received:', payload.eventType, payload);
+        console.log('[Realtime] New booking data:', payload.new);
         onChange(payload);
       }
     )
@@ -67,6 +92,9 @@ export const subscribeToSalonBookings = (salonId, onChange) => {
       console.log('[Realtime] Salon bookings subscription status:', status);
       if (err) {
         console.error('[Realtime] Subscription error:', err);
+      }
+      if (status === 'SUBSCRIBED') {
+        console.log('[Realtime] Successfully subscribed to bookings for salon:', salonId);
       }
     });
 

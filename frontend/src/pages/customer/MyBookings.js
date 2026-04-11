@@ -11,7 +11,8 @@ import {
   XCircle,
   CheckCircle,
   Warning,
-  Hourglass
+  Hourglass,
+  Spinner
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import { formatPrice, formatTime, getStatusColor, getPaymentStatusColor } from '../../lib/utils';
@@ -23,19 +24,35 @@ import NotificationBell from '../../components/NotificationBell';
 
 const MyBookings = () => {
   const queryClient = useQueryClient();
-  const { success } = useToastStore();
+  const { success, error } = useToastStore();
   const { addNotification } = useNotificationStore();
   const { profile } = useAuthStore();
   const [activeChannel, setActiveChannel] = useState(null);
   const [statusUpdates, setStatusUpdates] = useState([]);
 
-  const { data: bookings, isLoading } = useQuery({
+  const { data: rawBookings, isLoading } = useQuery({
     queryKey: ['myBookings'],
     queryFn: async () => {
       const response = await api.get('/api/bookings');
       return response.data;
     },
   });
+
+  // Sort bookings by booking date and time slot - newest first
+  const bookings = React.useMemo(() => {
+    if (!rawBookings) return [];
+    return [...rawBookings].sort((a, b) => {
+      // First sort by booking_date (newest first)
+      const dateA = new Date(a.booking_date || 0);
+      const dateB = new Date(b.booking_date || 0);
+      if (dateB - dateA !== 0) return dateB - dateA;
+      
+      // Then sort by time_slot (newest first)
+      const timeA = a.time_slot || '';
+      const timeB = b.time_slot || '';
+      return timeB.localeCompare(timeA);
+    });
+  }, [rawBookings]);
 
   // Handle booking status update
   const handleBookingUpdate = useCallback((payload) => {
@@ -120,7 +137,11 @@ const MyBookings = () => {
       await api.patch(`/api/bookings/${bookingId}/status`, { status: 'cancelled' });
     },
     onSuccess: () => {
+      success('Booking cancelled successfully!', { title: 'Success' });
       queryClient.invalidateQueries(['myBookings']);
+    },
+    onError: (err) => {
+      error(err.response?.data?.detail || 'Failed to cancel booking', { title: 'Error' });
     },
   });
 
@@ -247,10 +268,14 @@ const MyBookings = () => {
                         onClick={() => cancelMutation.mutate(booking.id)}
                         disabled={cancelMutation.isPending}
                         data-testid={`cancel-booking-${booking.id}`}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <XCircle size={18} />
-                        Cancel
+                        {cancelMutation.isPending ? (
+                          <Spinner size={18} className="animate-spin" />
+                        ) : (
+                          <XCircle size={18} />
+                        )}
+                        {cancelMutation.isPending ? 'Cancelling...' : 'Cancel'}
                       </button>
                     )}
                   </div>

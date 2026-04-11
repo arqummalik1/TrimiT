@@ -19,6 +19,7 @@ import api from '../../lib/api';
 import { formatPrice } from '../../lib/utils';
 import { useToastStore } from '../../store/toastStore';
 import { useNotificationStore } from '../../store/notificationStore';
+import { useAuthStore } from '../../store/authStore';
 import { subscribeToSalonBookings, unsubscribeFromChannel } from '../../lib/supabase';
 import NotificationBell from '../../components/NotificationBell';
 
@@ -26,6 +27,7 @@ const OwnerDashboard = () => {
   const queryClient = useQueryClient();
   const { newBooking } = useToastStore();
   const { addNotification, soundEnabled } = useNotificationStore();
+  const { token } = useAuthStore();
   const [activeChannel, setActiveChannel] = useState(null);
 
   const { data: salon, isLoading: salonLoading } = useQuery({
@@ -36,29 +38,72 @@ const OwnerDashboard = () => {
     },
   });
 
-  // Handle new booking notification
-  const handleNewBooking = useCallback((booking) => {
-    console.log('[Realtime] New booking received:', booking);
+  // Handle new booking notification - payload contains {new, old, eventType}
+  const handleNewBooking = useCallback(async (payload) => {
+    console.log('[Realtime] Raw payload received:', payload);
+    
+    // Extract booking data from payload
+    const booking = payload.new || payload;
+    const eventType = payload.eventType || 'INSERT';
+    
+    console.log('[Realtime] Processing booking:', booking);
+    console.log('[Realtime] Event type:', eventType);
+    
+    if (!booking || !booking.id) {
+      console.log('[Realtime] No valid booking data, skipping');
+      return;
+    }
+    
+    // Only process new bookings (INSERT events)
+    if (eventType !== 'INSERT' && !payload.new) {
+      console.log('[Realtime] Not a new booking, skipping');
+      return;
+    }
+    
+    // Fetch full booking details (realtime only sends raw row data, not joined data)
+    let fullBooking = booking;
+    try {
+      // Use the correct endpoint /api/bookings which returns owner's salon bookings with joined data
+      const response = await api.get(`/api/bookings`);
+      if (response.data && Array.isArray(response.data)) {
+        // Find the booking that matches the ID from the realtime event
+        const matchingBooking = response.data.find(b => b.id === booking.id);
+        if (matchingBooking) {
+          fullBooking = matchingBooking;
+          console.log('[Realtime] Found full booking details:', fullBooking);
+        }
+      }
+    } catch (err) {
+      console.log('[Realtime] Could not fetch full booking details, using raw data:', err);
+    }
+    
+    // Extract display values from joined data or use raw data
+    // API returns users(name) and services(name) in the response
+    const customerName = fullBooking.users?.name || fullBooking.user_name || 'A customer';
+    const serviceName = fullBooking.services?.name || fullBooking.service_name || 'a service';
+    const bookingTime = fullBooking.time_slot || fullBooking.booking_time || 'today';
+    
+    console.log('[Realtime] Display values:', { customerName, serviceName, bookingTime });
     
     // Add to notification store (persistent)
     addNotification({
       type: 'booking_created',
       title: 'New Booking Received',
-      message: `${booking.user_name || 'A customer'} booked ${booking.service_name} for ${booking.booking_time}`,
+      message: `${customerName} booked ${serviceName} for ${bookingTime}`,
       data: {
         bookingId: booking.id,
         customerId: booking.user_id,
-        serviceName: booking.service_name,
-        bookingTime: booking.booking_time,
+        serviceName: serviceName,
+        bookingTime: bookingTime,
       },
     });
     
     // Show toast notification (temporary)
-    newBooking({
-      customerName: booking.user_name || 'A customer',
-      serviceName: booking.service_name,
-      bookingTime: booking.booking_time,
-    });
+    newBooking(
+      'New Booking Received',
+      `${customerName} booked ${serviceName} for ${bookingTime}`,
+      { type: 'new-booking' }
+    );
     
     // Refresh dashboard data
     queryClient.invalidateQueries(['owner-salon']);
@@ -67,22 +112,30 @@ const OwnerDashboard = () => {
 
   // Subscribe to real-time bookings
   useEffect(() => {
-    if (!salon?.id) return;
+    if (!salon?.id) {
+      console.log('[Realtime] No salon ID, skipping subscription');
+      return;
+    }
     
     console.log(`[Realtime] Setting up subscription for salon ${salon.id}`);
+    console.log('[Realtime] Supabase URL:', process.env.REACT_APP_SUPABASE_URL);
+    console.log('[Realtime] Using auth token:', token ? 'YES (authenticated)' : 'NO (anon)');
 
-    const channel = subscribeToSalonBookings(salon.id, handleNewBooking);
+    // Main subscription with salon filter
+    const channel = subscribeToSalonBookings(salon.id, handleNewBooking, token);
+    setActiveChannel(channel);
     
     // Log subscription status
     channel.on('system', {}, (status) => {
-      console.log('[Realtime] Subscription status:', status);
+      console.log('[Realtime] System event:', status);
     });
 
     return () => {
       console.log('[Realtime] Cleaning up subscription');
       unsubscribeFromChannel(channel);
+      setActiveChannel(null);
     };
-  }, [salon?.id, handleNewBooking]);
+  }, [salon?.id, handleNewBooking, token]);
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ['ownerAnalytics'],
