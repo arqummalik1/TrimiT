@@ -3,13 +3,13 @@ import { Platform } from 'react-native';
 
 import Constants from 'expo-constants';
 
-// Backend API URL — detection logic
+const PRODUCTION_API_URL = 'https://trimit-api.onrender.com';
 const ENV_API_URL = process.env.EXPO_PUBLIC_API_URL;
-let API_BASE_URL = ENV_API_URL || '';
+
+let API_BASE_URL = PRODUCTION_API_URL; // Default to production
 
 if (__DEV__) {
   // Smart Discovery: Auto-detect host IP from Expo Metro Bundler
-  // This works for physical devices on the same Wi-Fi
   const hostUri = Constants.expoConfig?.hostUri; 
   const hostIP = hostUri?.split(':')[0];
 
@@ -17,19 +17,12 @@ if (__DEV__) {
     API_BASE_URL = `http://${hostIP}:8001`;
     console.log('[API] Smart Discovery: Using host IP', hostIP);
   } else if (Platform.OS === 'android') {
-    // Fallback for Android Emulator
     API_BASE_URL = 'http://10.0.2.2:8001';
   } else {
-    // Fallback for iOS Simulator or local dev
-    API_BASE_URL = 'http://localhost:8001';
+    API_BASE_URL = ENV_API_URL || 'http://localhost:8001';
   }
 }
 
-if (!API_BASE_URL && !__DEV__) {
-  throw new Error(
-    'EXPO_PUBLIC_API_URL is not set. Set it in your environment / EAS secrets before building.'
-  );
-}
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -68,7 +61,10 @@ api.interceptors.response.use(
       if (error.code === 'ECONNABORTED') {
         showToast('Request timed out. Please try again.', 'error');
       } else if (error.message === 'Network Error') {
-        showToast('Cannot reach server. Verify your EXPO_PUBLIC_API_URL in .env and ensure your phone is on the same network.', 'error');
+        const msg = __DEV__ 
+          ? 'Cannot reach local server. Check your .env and Wi-Fi.'
+          : 'Server is waking up or unreachable. Please try again in a few seconds.';
+        showToast(msg, 'error');
       }
     }
 
