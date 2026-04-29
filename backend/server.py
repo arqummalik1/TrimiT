@@ -956,7 +956,10 @@ async def get_available_slots(salon_id: str, date: str, service_id: str, current
             is_available = max_count_in_range == 0
             
         # EXTRA CHECK: If it's today, mark past slots as unavailable
-        if is_today and slot_str < current_time_str:
+        # We add a 5-minute grace period so users can still book a slot 
+        # that just started (handles the time taken to click 'Confirm')
+        grace_time = (now - timedelta(minutes=5)).strftime("%H:%M")
+        if is_today and slot_str < grace_time:
             is_available = False
 
         slots.append({
@@ -967,6 +970,7 @@ async def get_available_slots(salon_id: str, date: str, service_id: str, current
             "allow_multiple": allow_multiple
         })
         current += timedelta(minutes=30)
+
 
 
     return {
@@ -1006,15 +1010,22 @@ async def create_booking(data: BookingCreate, current_user: dict = Depends(get_c
 
     service = service_resp.json()[0]
 
-    
     # 3. Double-check availability before booking (The "Final Guard")
     availability_check = await get_available_slots(data.salon_id, data.booking_date, data.service_id)
     slot_info = next((s for s in availability_check["slots"] if s["time"] == data.time_slot), None)
     
-    if not slot_info or not slot_info["available"]:
+    if not slot_info:
+        logger.error(f"Booking Failed: Slot {data.time_slot} not found in generated slots for date {data.booking_date}")
         raise HTTPException(
             status_code=409, 
-            detail="This slot was just taken. Please choose another time."
+            detail=f"Time slot {data.time_slot} is not valid for this date."
+        )
+
+    if not slot_info["available"]:
+        logger.warning(f"Booking Conflict: Slot {data.time_slot} is already full or in the past.")
+        raise HTTPException(
+            status_code=409, 
+            detail="This slot was just taken or has already passed. Please choose another time."
         )
 
     # 4. Prepare booking data
@@ -1027,17 +1038,19 @@ async def create_booking(data: BookingCreate, current_user: dict = Depends(get_c
         "status": "confirmed" if auto_accept else "pending",
         "payment_status": "pending",
         "payment_method": data.payment_method,
-        "amount": service.get("price", 0)
+        "amount": float(service.get("price", 0))
     }
 
-    
-    # 3. Insert booking
+    logger.info(f"Attempting to create booking for user {user_id} at {data.time_slot}")
+    # 5. Insert booking
     response = await supabase_request("POST", "bookings", booking_data, token=token)
     
     if response.status_code not in [200, 201]:
-        print(f"[ERROR create_booking] Failed: {response.status_code} - {response.text}")
-        raise HTTPException(status_code=400, detail="Failed to create booking")
+        error_body = response.text
+        logger.error(f"Supabase Insertion Failed: {response.status_code} - {error_body}")
+        raise HTTPException(status_code=400, detail=f"Booking failed: {error_body}")
     
+    logger.info(f"Booking successful for user {user_id}")
     booking = response.json()[0]
     
     # 4. Trigger Notifications
