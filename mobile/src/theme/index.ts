@@ -9,164 +9,121 @@ import { Platform, TextStyle, ViewStyle } from 'react-native';
 // Use a flexible type so dark colors can have different hex values
 export type ColorScheme = { [K in keyof typeof lightColors]: string };
 
-// -- LIGHT COLORS (default) ---------------------------------------------------
-export const lightColors = {
-  // Primary brand
-  primary: '#9A3412',       // orange-800
-  primaryLight: '#FFEDD5',  // orange-100
-  primaryDark: '#7C2D12',   // orange-900
+// -- COLOR TYPES --------------------------------------------------------------
+export type ColorScheme = { [K in keyof typeof lightColors]: string };
 
-  // Secondary brand
-  secondary: '#065F46',     // emerald-800
-  secondaryLight: '#D1FAE5', // emerald-100
+// -- LUXURY PALETTE (Quiet Confidence) ----------------------------------------
+// Note: We use the same dark-first palette for both modes to maintain 
+// the "Luxury Concierge" editorial aesthetic consistently.
+export const luxuryColors = {
+  // Primary brand (Gold Rule: Use with restraint)
+  primary: '#f1d18d',       // Light Gold (Accents/Highlights)
+  primaryDark: '#d4b574',   // Muted Gold (Interactive/Active)
+  primaryLight: '#f9e8c4',  // Cream Gold (Soft accents)
 
-  // Backgrounds
-  background: '#FAFAF9',    // stone-50
-  surface: '#FFFFFF',
-  surfaceSecondary: '#F5F5F4', // stone-100
-  inverse: '#1C1917',       // stone-900
+  // Backgrounds (Obsidian Layers)
+  background: '#121411',    // Deep Obsidian
+  surface: '#1A1C19',       // Obsidian Elevate 1
+  surfaceSecondary: '#242622', // Obsidian Elevate 2
+  inverse: '#F5F5F5',       // Off-White
 
-  // Text
-  text: '#1C1917',          // stone-900
-  textSecondary: '#78716C', // stone-500
-  textTertiary: '#A8A29E',  // stone-400
-  textInverse: '#FAFAF9',   // stone-50
-  textAccent: '#9A3412',    // orange-800
+  // Text (High Contrast Editorial)
+  text: '#F5F5F5',          // Primary White
+  textSecondary: '#A1A1A1', // Muted Silver
+  textTertiary: '#717171',  // Deep Grey
+  textInverse: '#121411',   // Deep Obsidian
+  textAccent: '#f1d18d',    // Gold highlight
 
-  // Borders
-  border: '#E7E5E4',        // stone-200
-  borderFocus: '#9A3412',   // orange-800
+  // Borders (Hairline depth)
+  border: '#2A2C29',        // Tonal Divider
+  borderFocus: '#f1d18d',   // Gold focus
 
-  // Semantic
-  error: '#DC2626',
-  errorLight: '#FEE2E2',
-  success: '#059669',
-  successLight: '#D1FAE5',
-  warning: '#D97706',
-  warningLight: '#FEF3C7',
-  info: '#2563EB',
-  infoLight: '#DBEAFE',
+  // Semantic (Muted luxury tones)
+  error: '#FF5F5F',
+  errorLight: '#2D1A1A',
+  success: '#82E0AA',
+  successLight: '#1A2D22',
+  warning: '#F7DC6F',
+  warningLight: '#2D2D1A',
+  info: '#85C1E9',
+  infoLight: '#1A242D',
 
   // Misc
-  overlay: 'rgba(0,0,0,0.4)',
-  shimmer: '#E7E5E4',
-  star: '#FBBF24',
+  overlay: 'rgba(0,0,0,0.85)',
+  shimmer: '#1A1C19',
+  star: '#f1d18d',
   white: '#FFFFFF',
   black: '#000000',
   transparent: 'transparent',
 
-  // Tab bar
-  tabBar: '#FFFFFF',
-  tabBarBorder: '#E7E5E4',
+  // Tab bar (Glassmorphism inspired)
+  tabBar: '#121411',
+  tabBarBorder: '#1A1C19',
 } as const;
 
-// -- DARK COLORS --------------------------------------------------------------
-export const darkColors: ColorScheme = {
-  // Primary brand — slightly brighter for dark backgrounds
-  primary: '#EA580C',       // orange-600
-  primaryLight: '#431407',  // orange-950
-  primaryDark: '#FB923C',   // orange-400
+// For this premium experience, light/dark are both obsidian-based
+export const lightColors = luxuryColors;
+export const darkColors = luxuryColors;
 
-  // Secondary brand
-  secondary: '#10B981',     // emerald-500
-  secondaryLight: '#064E3B', // emerald-900
-
-  // Backgrounds
-  background: '#0C0A09',    // stone-950
-  surface: '#1C1917',       // stone-900
-  surfaceSecondary: '#292524', // stone-800
-  inverse: '#FAFAF9',       // stone-50
-
-  // Text
-  text: '#FAFAF9',          // stone-50
-  textSecondary: '#A8A29E', // stone-400
-  textTertiary: '#78716C',  // stone-500
-  textInverse: '#1C1917',   // stone-900
-  textAccent: '#FB923C',    // orange-400
-
-  // Borders
-  border: '#44403C',        // stone-700
-  borderFocus: '#EA580C',   // orange-600
-
-  // Semantic
-  error: '#EF4444',
-  errorLight: '#450A0A',
-  success: '#10B981',
-  successLight: '#064E3B',
-  warning: '#F59E0B',
-  warningLight: '#451A03',
-  info: '#3B82F6',
-  infoLight: '#172554',
-
-  // Misc
-  overlay: 'rgba(0,0,0,0.6)',
-  shimmer: '#44403C',
-  star: '#FBBF24',
-  white: '#FFFFFF',
-  black: '#000000',
-  transparent: 'transparent',
-
-  // Tab bar
-  tabBar: '#1C1917',
-  tabBarBorder: '#44403C',
-};
-
-// -- DEFAULT EXPORT (light mode for backward compatibility) --------------------
-export const colors = lightColors;
+// -- DEFAULT EXPORT -----------------------------------------------------------
+export const colors = luxuryColors;
 
 // -- STATUS BADGE COLORS ------------------------------------------------------
 export const statusColors: Record<string, { bg: string; text: string }> = {
-  pending:   { bg: '#FEF3C7', text: '#92400E' },
-  confirmed: { bg: '#DBEAFE', text: '#1E40AF' },
-  completed: { bg: '#D1FAE5', text: '#065F46' },
-  cancelled: { bg: '#FEE2E2', text: '#991B1B' },
+  pending:   { bg: '#2D2D1A', text: '#F7DC6F' },
+  confirmed: { bg: '#1A242D', text: '#85C1E9' },
+  completed: { bg: '#1A2D22', text: '#82E0AA' },
+  cancelled: { bg: '#2D1A1A', text: '#FF5F5F' },
 };
 
 export const paymentStatusColors: Record<string, { bg: string; text: string }> = {
-  pending:  { bg: '#FEF3C7', text: '#92400E' },
-  paid:     { bg: '#D1FAE5', text: '#065F46' },
-  failed:   { bg: '#FEE2E2', text: '#991B1B' },
-  refunded: { bg: '#EDE9FE', text: '#5B21B6' },
+  pending:  { bg: '#2D2D1A', text: '#F7DC6F' },
+  paid:     { bg: '#1A2D22', text: '#82E0AA' },
+  failed:   { bg: '#2D1A1A', text: '#FF5F5F' },
+  refunded: { bg: '#1A1A2D', text: '#BB8FCE' },
 };
 
 export const getStatusColor = (status: string) =>
-  statusColors[status] || { bg: '#F3F4F6', text: '#374151' };
+  statusColors[status] || { bg: '#1A1C19', text: '#F5F5F5' };
 
 export const getPaymentStatusColor = (status: string) =>
-  paymentStatusColors[status] || { bg: '#F3F4F6', text: '#374151' };
+  paymentStatusColors[status] || { bg: '#1A1C19', text: '#F5F5F5' };
 
 // -- TYPOGRAPHY ---------------------------------------------------------------
-// Font families — loaded via expo-google-fonts in App.tsx
-// If fonts fail to load, system fonts are used as fallback.
+// Editorial Font Pairing: Cormorant Garamond (Serif) & Inter (Sans)
 export const fonts = {
-  heading: 'Inter_700Bold',
-  headingBlack: 'Inter_800ExtraBold',
-  body: 'Manrope_400Regular',
-  bodyMedium: 'Manrope_500Medium',
-  bodySemiBold: 'Manrope_600SemiBold',
-  bodyBold: 'Manrope_700Bold',
-  // System fallbacks (used when custom fonts haven't loaded yet)
-  systemHeading: Platform.select({ ios: 'System', android: 'sans-serif' }) ?? 'System',
+  heading: 'CormorantGaramond_700Bold',
+  headingMedium: 'CormorantGaramond_600SemiBold',
+  headingRegular: 'CormorantGaramond_400Regular',
+  body: 'Inter_400Regular',
+  bodyMedium: 'Inter_500Medium',
+  bodySemiBold: 'Inter_600SemiBold',
+  bodyBold: 'Inter_700Bold',
+  // System fallbacks
+  systemHeading: Platform.select({ ios: 'Georgia', android: 'serif' }) ?? 'serif',
   systemBody: Platform.select({ ios: 'System', android: 'sans-serif' }) ?? 'System',
 } as const;
 
 export const typography = {
   h1: {
-    fontFamily: fonts.headingBlack,
-    fontSize: 32,
-    fontWeight: '800' as TextStyle['fontWeight'],
+    fontFamily: fonts.heading,
+    fontSize: 36,
+    fontWeight: '700' as TextStyle['fontWeight'],
     letterSpacing: -0.5,
+    lineHeight: 44,
   },
   h2: {
     fontFamily: fonts.heading,
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700' as TextStyle['fontWeight'],
     letterSpacing: -0.3,
+    lineHeight: 34,
   },
   h3: {
     fontFamily: fonts.heading,
-    fontSize: 20,
-    fontWeight: '700' as TextStyle['fontWeight'],
+    fontSize: 22,
+    fontWeight: '600' as TextStyle['fontWeight'],
+    lineHeight: 28,
   },
   h4: {
     fontFamily: fonts.bodySemiBold,
@@ -226,6 +183,7 @@ export const typography = {
     fontFamily: fonts.bodySemiBold,
     fontSize: 16,
     fontWeight: '600' as TextStyle['fontWeight'],
+    letterSpacing: 0.5,
   },
   buttonSmall: {
     fontFamily: fonts.bodySemiBold,
@@ -255,11 +213,12 @@ export const layout = {
 
 // -- BORDER RADIUS ------------------------------------------------------------
 export const borderRadius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
+  sm: 4,
+  md: 8,
+  lg: 12,
+  xl: 16,
   xxl: 24,
+  pill: 32,
   full: 999,
 } as const;
 

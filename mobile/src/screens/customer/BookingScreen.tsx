@@ -227,72 +227,72 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
   if (bookingComplete) {
     return (
       <SafeAreaView style={styles.successContainer}>
-        <View style={styles.successContent}>
-          <View style={styles.successIcon}>
-            <Ionicons name="checkmark-circle" size={80} color="#059669" />
-          </View>
-          <Text style={styles.successTitle}>Booking Confirmed!</Text>
-          <Text style={styles.successText}>Your appointment has been successfully booked</Text>
+        <ScrollView contentContainerStyle={styles.successScroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.successContent}>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark" size={48} color={colors.primary} />
+            </View>
+            <Text style={styles.successTitle}>Reservation Confirmed</Text>
+            <Text style={styles.successSubtitle}>Your luxury experience awaits at {salon?.name}</Text>
 
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Salon</Text>
-              <Text style={styles.summaryValue}>{salon?.name}</Text>
+            <View style={styles.confirmationCard}>
+              <Text style={styles.confirmationHeader}>Booking Details</Text>
+              
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Service</Text>
+                <Text style={styles.summaryValue}>{service?.name}</Text>
+              </View>
+              
+              <View style={styles.summarySeparator} />
+              
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Appointment</Text>
+                <Text style={styles.summaryValue}>
+                  {format(new Date(selectedDate), 'EEEE, d MMM')} • {formatTime(selectedSlot!)}
+                </Text>
+              </View>
+
+              <View style={styles.summarySeparator} />
+
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Investment</Text>
+                <Text style={styles.summaryValueGold}>{formatPrice(service?.price || 0)}</Text>
+              </View>
             </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Service</Text>
-              <Text style={styles.summaryValue}>{service?.name}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Date</Text>
-              <Text style={styles.summaryValue}>
-                {format(new Date(selectedDate), 'EEE, d MMM yyyy')}
-              </Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Time</Text>
-              <Text style={styles.summaryValue}>{formatTime(selectedSlot!)}</Text>
-            </View>
-            <View style={[styles.summaryRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Total Amount</Text>
-              <Text style={styles.totalValue}>{formatPrice(service?.price || 0)}</Text>
+
+            {/* Primary Action: Get Directions */}
+            {salon?.latitude && salon?.longitude && (
+              <TouchableOpacity
+                style={styles.primaryDirectionButton}
+                onPress={() =>
+                  openNativeDirections(
+                    { latitude: salon.latitude, longitude: salon.longitude },
+                    salon.name
+                  )
+                }
+              >
+                <Ionicons name="location" size={20} color={colors.textInverse} />
+                <Text style={styles.primaryDirectionText}>Get Directions to Salon</Text>
+              </TouchableOpacity>
+            )}
+
+            <View style={styles.successActionRow}>
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => navigation.navigate('CustomerTabs', { screen: 'Bookings' })}
+              >
+                <Text style={styles.secondaryButtonText}>View Bookings</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => navigation.navigate('CustomerTabs', { screen: 'Discover' })}
+              >
+                <Text style={styles.secondaryButtonText}>Back to Home</Text>
+              </TouchableOpacity>
             </View>
           </View>
-
-          {/* Get Directions — PRIMARY ACTION */}
-          {salon?.latitude && salon?.longitude && (
-            <Button
-              title="Get Directions to Salon"
-              onPress={() =>
-                openNativeDirections(
-                  { latitude: salon.latitude, longitude: salon.longitude },
-                  salon.name
-                )
-              }
-              variant="primary"
-              size="lg"
-              icon={<Ionicons name="location" size={20} color="#FFFFFF" />}
-              style={styles.heroButton}
-            />
-          )}
-
-          <View style={styles.successButtons}>
-            <Button
-              title="My Bookings"
-              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Bookings' })}
-              variant="outline"
-              style={{ flex: 1 }}
-              size="md"
-            />
-            <Button
-              title="Home"
-              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Discover' })}
-              variant="outline"
-              style={{ flex: 1 }}
-              size="md"
-            />
-          </View>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -568,48 +568,52 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: colors.surface,
+    padding: 20,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    backgroundColor: colors.surfaceSecondary,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    backgroundColor: colors.surface,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   headerText: {
-    marginLeft: 12,
+    marginLeft: 16,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontFamily: fonts.heading,
+    fontSize: 24,
     color: colors.text,
   },
   headerSubtitle: {
+    fontFamily: fonts.body,
     fontSize: 14,
     color: colors.textSecondary,
+    marginTop: 2,
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: 24,
   },
   serviceCard: {
     backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 16,
+    padding: 24,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 24,
+    marginBottom: 32,
   },
   serviceName: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontFamily: fonts.heading,
+    fontSize: 22,
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   serviceDetails: {
     flexDirection: 'row',
@@ -619,40 +623,44 @@ const styles = StyleSheet.create({
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   detailText: {
+    fontFamily: fonts.body,
     fontSize: 14,
     color: colors.textSecondary,
   },
   servicePrice: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontFamily: fonts.bodyBold,
+    fontSize: 20,
     color: colors.primary,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 32,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  datesContainer: {
+    marginBottom: 20,
     gap: 10,
   },
+  sectionTitle: {
+    fontFamily: fonts.heading,
+    fontSize: 22,
+    color: colors.text,
+    letterSpacing: 0.5,
+  },
+  datesContainer: {
+    gap: 12,
+    paddingRight: 24,
+  },
   dateCard: {
-    width: 64,
-    paddingVertical: 12,
+    width: 70,
+    height: 90,
+    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -661,75 +669,84 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   dateDay: {
+    fontFamily: fonts.body,
     fontSize: 12,
     color: colors.textSecondary,
     marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   dateNum: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontFamily: fonts.bodyBold,
+    fontSize: 22,
     color: colors.text,
   },
   dateMonth: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.textTertiary,
+    marginTop: 2,
   },
   dateTextSelected: {
-    color: '#FFFFFF',
+    color: colors.textInverse,
   },
   slotsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 12,
   },
   slotButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     backgroundColor: colors.surface,
-    borderRadius: 10,
+    borderRadius: borderRadius.pill,
     borderWidth: 1,
     borderColor: colors.border,
-    minWidth: 80,
+    minWidth: 100,
     alignItems: 'center',
   },
   slotDisabled: {
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: 'rgba(18, 20, 17, 0.3)',
+    borderColor: 'transparent',
   },
   slotSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   slotText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
     color: colors.text,
   },
   slotTextDisabled: {
-    color: colors.textSecondary,
+    color: colors.textTertiary,
     textDecorationLine: 'line-through',
   },
   slotTextSelected: {
-    color: '#FFFFFF',
+    color: colors.textInverse,
   },
   noSlots: {
     alignItems: 'center',
-    padding: 32,
-    backgroundColor: colors.surfaceSecondary,
-    borderRadius: 12,
-    gap: 8,
+    padding: 40,
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
   },
   noSlotsText: {
-    color: colors.textSecondary,
+    fontFamily: fonts.body,
+    color: colors.textTertiary,
   },
   paymentOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    padding: 20,
+    backgroundColor: colors.surface,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     gap: 16,
   },
   paymentOptionSelected: {
@@ -737,24 +754,28 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   paymentIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#F8FAFC',
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   paymentTitle: {
+    fontFamily: fonts.bodyBold,
     fontSize: 16,
-    fontWeight: '700',
     color: colors.text,
   },
   paymentSub: {
+    fontFamily: fonts.body,
     fontSize: 12,
     color: colors.textSecondary,
+    marginTop: 2,
   },
   paymentTextSelected: {
-    color: '#FFFFFF',
+    color: colors.textInverse,
   },
   refreshBanner: {
     flexDirection: 'row',

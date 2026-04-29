@@ -52,11 +52,11 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     })();
   }, []);
 
-  const { data: salons, isLoading, refetch, isRefetching } = useQuery<Salon[]>({
-    queryKey: ['salons', searchQuery, location],
+  // Fetch salons near the location (refetches only when location changes)
+  const { data: allSalons, isLoading, refetch, isRefetching } = useQuery<Salon[]>({
+    queryKey: ['salons', location],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (searchQuery) params.append('search', searchQuery);
       if (location) {
         params.append('lat', location.lat.toString());
         params.append('lng', location.lng.toString());
@@ -67,9 +67,23 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     },
   });
 
+  // FAST LOCAL SEARCH: Filter the salons list locally as the user types
+  const filteredSalons = React.useMemo(() => {
+    if (!allSalons) return [];
+    if (!searchQuery) return allSalons;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return allSalons.filter(salon => 
+      salon.name.toLowerCase().includes(query) || 
+      salon.address.toLowerCase().includes(query) ||
+      salon.description?.toLowerCase().includes(query)
+    );
+  }, [allSalons, searchQuery]);
+
   const handleSalonPress = (salon: Salon) => {
     navigation.navigate('SalonDetail', { salonId: salon.id });
   };
+
 
   const mapRegion = location
     ? {
@@ -149,7 +163,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
       ) : viewMode === 'map' ? (
         /* Map View */
         <MapView style={styles.map} initialRegion={mapRegion} showsUserLocation>
-          {(salons || []).map((salon) =>
+          {filteredSalons.map((salon) =>
             salon.latitude && salon.longitude ? (
               <Marker
                 key={salon.id}
@@ -177,7 +191,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
       ) : (
         /* List View */
         <FlatList
-          data={salons}
+          data={filteredSalons}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <SalonCard salon={item} onPress={() => handleSalonPress(item)} />
@@ -224,36 +238,42 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   title: {
-    ...typography.h2,
+    fontFamily: fonts.heading,
+    fontSize: 34,
     color: colors.text,
     marginBottom: 4,
+    fontWeight: '700',
   },
   subtitle: {
-    ...typography.bodySmall,
+    fontFamily: fonts.body,
+    fontSize: 14,
     color: colors.textSecondary,
+    letterSpacing: 0.5,
   },
   viewToggle: {
     flexDirection: 'row',
     backgroundColor: colors.surfaceSecondary,
-    borderRadius: borderRadius.sm,
-    overflow: 'hidden',
+    borderRadius: borderRadius.pill,
+    padding: 4,
   },
   toggleBtn: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+    borderRadius: borderRadius.pill,
   },
   toggleBtnActive: {
     backgroundColor: colors.primary,
-    borderRadius: borderRadius.sm,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surfaceSecondary,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.pill,
+    paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   searchInput: {
     flex: 1,

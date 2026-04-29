@@ -14,9 +14,17 @@ import {
   Manrope_700Bold,
 } from '@expo-google-fonts/manrope';
 import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
   Inter_700Bold,
   Inter_800ExtraBold,
 } from '@expo-google-fonts/inter';
+import {
+  CormorantGaramond_400Regular,
+  CormorantGaramond_600SemiBold,
+  CormorantGaramond_700Bold,
+} from '@expo-google-fonts/cormorant-garamond';
 
 import { colors } from './src/lib/utils';
 import { registerForPushNotificationsAsync, handleNotificationResponse } from './src/lib/notifications';
@@ -42,8 +50,14 @@ const CUSTOM_FONTS = {
   Manrope_500Medium,
   Manrope_600SemiBold,
   Manrope_700Bold,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
   Inter_700Bold,
   Inter_800ExtraBold,
+  CormorantGaramond_400Regular,
+  CormorantGaramond_600SemiBold,
+  CormorantGaramond_700Bold,
 };
 
 function AppContent() {
