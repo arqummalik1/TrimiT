@@ -92,19 +92,18 @@ const BookingPage = () => {
       });
     },
     onError: (err) => {
-      // Show error toast with retry action
+      // Re-fetch slots immediately so user sees updated availability
+      queryClient.invalidateQueries(['slots', salonId, serviceId, selectedDate]);
+      setSelectedSlot(null);
+
       const errorMessage = err?.response?.data?.detail || 'Failed to create booking. Please try again.';
       error(errorMessage, {
         title: 'Booking Failed',
-        duration: 0, // Persistent until user dismisses
+        duration: 0,
         actions: [
           {
-            label: 'Try Again',
+            label: 'Pick Another Slot',
             primary: true,
-            onClick: () => handleBooking()
-          },
-          {
-            label: 'Cancel',
             onClick: () => {}
           }
         ]
@@ -325,25 +324,74 @@ const BookingPage = () => {
               ))}
             </div>
           ) : filteredSlots?.length > 0 ? (
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-              {filteredSlots.map((slot) => (
-                <button
-                  key={slot.time}
-                  onClick={() => slot.available && setSelectedSlot(slot.time)}
-                  disabled={!slot.available}
-                  data-testid={`slot-${slot.time}`}
-                  className={`py-3 px-2 rounded-xl text-sm font-medium transition-all ${
-                    !slot.available
-                      ? 'bg-stone-100 text-stone-400 cursor-not-allowed line-through'
-                      : selectedSlot === slot.time
-                      ? 'bg-orange-800 text-white'
-                      : 'bg-white border border-stone-200 text-stone-700 hover:border-orange-800 hover:text-orange-800'
-                  }`}
-                >
-                  {formatTime(slot.time)}
-                </button>
-              ))}
-            </div>
+            <>
+              {/* Show legend when multi-booking is enabled */}
+              {slotsData?.allow_multiple_bookings_per_slot && (
+                <div className="flex items-center gap-4 mb-3 text-xs text-stone-500">
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" /> Available
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" /> Filling up
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-red-400" /> Full
+                  </span>
+                </div>
+              )}
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                {filteredSlots.map((slot) => {
+                  const isMulti = slot.allow_multiple;
+                  const count = slot.booking_count || 0;
+                  const max = slot.max_bookings || 1;
+                  const fillRatio = isMulti ? count / max : count;
+                  const isFillingUp = isMulti && count > 0 && count < max;
+                  const isFull = !slot.available;
+
+                  return (
+                    <button
+                      key={slot.time}
+                      onClick={() => slot.available && setSelectedSlot(slot.time)}
+                      disabled={!slot.available}
+                      data-testid={`slot-${slot.time}`}
+                      className={`relative py-3 px-2 rounded-xl text-sm font-medium transition-all ${
+                        isFull
+                          ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
+                          : selectedSlot === slot.time
+                          ? 'bg-orange-800 text-white'
+                          : isFillingUp
+                          ? 'bg-amber-50 border border-amber-200 text-stone-700 hover:border-orange-800'
+                          : 'bg-white border border-stone-200 text-stone-700 hover:border-orange-800 hover:text-orange-800'
+                      }`}
+                    >
+                      <span className={isFull && !isMulti ? 'line-through' : ''}>
+                        {formatTime(slot.time)}
+                      </span>
+                      {/* Show booking count for multi-booking slots */}
+                      {isMulti && (
+                        <span className={`block text-[10px] mt-0.5 ${
+                          isFull
+                            ? 'text-red-400'
+                            : selectedSlot === slot.time
+                            ? 'text-white/70'
+                            : isFillingUp
+                            ? 'text-amber-600'
+                            : 'text-stone-400'
+                        }`}>
+                          {isFull ? 'Full' : `${count}/${max} booked`}
+                        </span>
+                      )}
+                      {/* Show "Booked" label for single-booking slots that are taken */}
+                      {!isMulti && isFull && (
+                        <span className="block text-[10px] mt-0.5 text-red-400 font-medium">
+                          Booked
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
           ) : (
             <div className="bg-stone-100 rounded-2xl p-6 text-center">
               <Warning size={32} weight="duotone" className="mx-auto text-stone-400 mb-2" />

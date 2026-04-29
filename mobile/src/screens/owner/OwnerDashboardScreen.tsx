@@ -1,20 +1,48 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../lib/api';
-import { Salon, Analytics } from '../../types';
+import { Salon, Analytics, Booking } from '../../types';
 import { colors, formatPrice } from '../../lib/utils';
 import { Button } from '../../components/Button';
 import { BookingsTrendChart, PopularServicesChart, StatusDistributionChart } from '../../components/charts';
 import { subscribeToSalonBookings, unsubscribeFromBookings } from '../../lib/supabase';
+import BookingCard from '../../components/BookingCard';
 
 interface OwnerDashboardScreenProps {
   navigation: any;
 }
 
 type Period = '7d' | '30d' | 'all';
+
+const PulseIndicator = () => {
+  const scale = React.useRef(new Animated.Value(1)).current;
+  const opacity = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(scale, { toValue: 1.5, duration: 1000, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1, duration: 1000, useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.timing(opacity, { toValue: 0.3, duration: 1000, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 1, duration: 1000, useNativeDriver: true }),
+        ]),
+      ])
+    ).start();
+  }, []);
+
+  return (
+    <View style={styles.pulseContainer}>
+      <Animated.View style={[styles.pulseCircle, { transform: [{ scale }], opacity }]} />
+      <View style={[styles.pulseCircle, { backgroundColor: colors.success }]} />
+    </View>
+  );
+};
 
 export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navigation }) => {
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('all');
@@ -29,10 +57,22 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
   });
 
   const { data: analytics, refetch: refetchAnalytics } = useQuery<Analytics>({
-    queryKey: ['ownerAnalytics', selectedPeriod],
+    queryKey: ['ownerAnalytics', selectedPeriod, salon?.id],
     queryFn: async () => {
       const response = await api.get(`/api/owner/analytics?period=${selectedPeriod}`);
       return response.data;
+    },
+    enabled: !!salon,
+  });
+
+  const { data: recentBookings, refetch: refetchRecentBookings } = useQuery<Booking[]>({
+    queryKey: ['recentBookings', salon?.id],
+    queryFn: async () => {
+      const response = await api.get('/api/bookings');
+      // Sort by latest and take first 3
+      return response.data.sort((a: Booking, b: Booking) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      ).slice(0, 3);
     },
     enabled: !!salon,
   });
@@ -41,8 +81,9 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
   useEffect(() => {
     if (salon?.id) {
       const channel = subscribeToSalonBookings(salon.id, () => {
-        // Refresh analytics when bookings change
+        // Refresh everything when bookings change
         refetchAnalytics();
+        refetchRecentBookings();
       });
       setRealtimeChannel(channel);
 
@@ -55,6 +96,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
   const handleRefresh = () => {
     refetchSalon();
     refetchAnalytics();
+    refetchRecentBookings();
   };
 
   const handlePeriodChange = (period: Period) => {
@@ -114,30 +156,41 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={salonLoading} onRefresh={handleRefresh} />
+          <RefreshControl refreshing={salonLoading} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Dashboard</Text>
-          <Text style={styles.subtitle}>Welcome back, {salon?.name}</Text>
+        {/* Modern Premium Header */}
+        <View style={styles.premiumHeader}>
+          <View>
+            <Text style={styles.welcomeText}>Good Day,</Text>
+            <Text style={styles.salonTitle}>{salon?.name}</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.notificationBell}
+            onPress={() => navigation.navigate('OwnerTabs', { screen: 'Bookings' })}
+          >
+            <Ionicons name="notifications-outline" size={24} color={colors.text} />
+            {analytics && analytics.pending_bookings > 0 && (
+              <View style={styles.bellDot} />
+            )}
+          </TouchableOpacity>
         </View>
 
-        {/* Period Selector */}
-        <View style={styles.periodSelector}>
+        {/* High-Density Period Selector */}
+        <View style={styles.periodRow}>
           {(['7d', '30d', 'all'] as Period[]).map((period) => (
             <TouchableOpacity
               key={period}
               style={[
-                styles.periodButton,
-                selectedPeriod === period && styles.periodButtonActive,
+                styles.periodTab,
+                selectedPeriod === period && styles.periodTabActive,
               ]}
               onPress={() => handlePeriodChange(period)}
             >
               <Text
                 style={[
-                  styles.periodButtonText,
-                  selectedPeriod === period && styles.periodButtonTextActive,
+                  styles.periodTabText,
+                  selectedPeriod === period && styles.periodTabTextActive,
                 ]}
               >
                 {period === '7d' ? '7 Days' : period === '30d' ? '30 Days' : 'All Time'}
@@ -146,120 +199,92 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
           ))}
         </View>
 
-        {/* Stats Grid */}
-        <View style={styles.statsGrid}>
+        {/* Compact Stats Grid (2-column) */}
+        <View style={styles.compactStatsGrid}>
           {statCards.map((stat, index) => (
-            <View key={index} style={styles.statCard}>
-              <View style={[styles.statIcon, { backgroundColor: stat.color }]}>
-                <Ionicons name={stat.icon as any} size={22} color={stat.iconColor} />
+            <View key={index} style={styles.compactStatCard}>
+              <View style={styles.compactStatTop}>
+                <View style={[styles.compactStatIcon, { backgroundColor: stat.color + '40' }]}>
+                  <Ionicons name={stat.icon as any} size={18} color={stat.iconColor} />
+                </View>
+                <Text style={styles.compactStatLabel}>{stat.title}</Text>
               </View>
-              <Text style={styles.statLabel}>{stat.title}</Text>
-              <Text style={styles.statValue}>{stat.value}</Text>
+              <Text style={styles.compactStatValue}>{stat.value}</Text>
             </View>
           ))}
         </View>
 
-        {/* Analytics Charts */}
+        {/* Live Bookings Feed */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={styles.sectionTitle}>Recent Activity</Text>
+              <PulseIndicator />
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('OwnerTabs', { screen: 'Bookings' })}>
+              <Text style={styles.seeAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          {recentBookings && recentBookings.length > 0 ? (
+            recentBookings.map((booking) => (
+              <BookingCard 
+                key={booking.id} 
+                booking={booking} 
+                isOwner 
+                compact 
+                onConfirm={() => handleRefresh()}
+                onReject={() => handleRefresh()}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyActivity}>
+              <Text style={styles.emptyActivityText}>No recent activity</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Performance Charts */}
         {analytics && (
-          <>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Business Performance</Text>
             <BookingsTrendChart data={analytics.bookings_trend} />
-            <PopularServicesChart data={analytics.popular_services} />
+            
+            <View style={styles.chartsGrid}>
+              <View style={{ flex: 1 }}>
+                <PopularServicesChart data={analytics.popular_services} />
+              </View>
+            </View>
+            
             <StatusDistributionChart data={analytics.status_distribution} />
-          </>
+          </View>
         )}
 
-        {/* Peak Hours Section */}
+        {/* Quick Insights */}
         {analytics?.peak_hours && analytics.peak_hours.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Peak Booking Hours</Text>
+            <Text style={styles.sectionTitle}>Peak Hours</Text>
             <View style={styles.peakHoursCard}>
-              {analytics.peak_hours.map((hour, index) => (
+              {analytics.peak_hours.slice(0, 3).map((hour, index) => (
                 <View key={index} style={styles.peakHourRow}>
-                  <View style={styles.peakHourRank}>
-                    <Text style={styles.peakHourRankText}>#{index + 1}</Text>
-                  </View>
-                  <View style={styles.peakHourTime}>
-                    <Ionicons name="time-outline" size={16} color={colors.primary} />
-                    <Text style={styles.peakHourTimeText}>
-                      {hour.hour}:00 - {hour.hour + 1}:00
-                    </Text>
-                  </View>
+                  <Text style={styles.peakHourTimeText}>
+                    {hour.hour}:00
+                  </Text>
                   <View style={styles.peakHourBar}>
                     <View
                       style={[
                         styles.peakHourFill,
-                        { width: `${Math.min((hour.bookings / analytics.total_bookings) * 500, 100)}%` },
+                        { width: `${Math.min((hour.bookings / analytics.total_bookings) * 100, 100)}%` },
                       ]}
                     />
                   </View>
-                  <Text style={styles.peakHourCount}>{hour.bookings} bookings</Text>
+                  <Text style={styles.peakHourCount}>{hour.bookings}</Text>
                 </View>
               ))}
             </View>
           </View>
         )}
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity
-              style={styles.actionCard}
-              onPress={() => navigation.navigate('ManageSalon')}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: colors.primaryLight }]}>
-                <Ionicons name="storefront" size={24} color={colors.primary} />
-              </View>
-              <Text style={styles.actionText}>Edit Salon</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionCard}
-              onPress={() => navigation.navigate('OwnerTabs', { screen: 'Bookings' })}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: '#D1FAE5' }]}>
-                <Ionicons name="calendar" size={24} color="#059669" />
-              </View>
-              <Text style={styles.actionText}>View Bookings</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionCard}
-              onPress={() => navigation.navigate('Settings')}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="settings" size={24} color="#92400E" />
-              </View>
-              <Text style={styles.actionText}>Settings</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Services Preview */}
-        {salon?.services && salon.services.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Your Services</Text>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('OwnerTabs', { screen: 'Services' })}
-              >
-                <Text style={styles.seeAllText}>Manage All</Text>
-              </TouchableOpacity>
-            </View>
-            {salon.services.slice(0, 4).map((service) => (
-              <View key={service.id} style={styles.serviceItem}>
-                <View>
-                  <Text style={styles.serviceName}>{service.name}</Text>
-                  <Text style={styles.serviceDuration}>{service.duration} mins</Text>
-                </View>
-                <Text style={styles.servicePrice}>{formatPrice(service.price)}</Text>
-              </View>
-            ))}
-          </View>
-        )}
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -268,106 +293,118 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#F8FAFC', // Sleek light background
   },
-  emptyContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
+  premiumHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 24,
+    paddingBottom: 16,
+  },
+  welcomeText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  salonTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.5,
+  },
+  notificationBell: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
-    gap: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  emptyTitle: {
+  bellDot: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  periodRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 24,
+    marginBottom: 20,
+    gap: 8,
+  },
+  periodTab: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#E2E8F0',
+  },
+  periodTabActive: {
+    backgroundColor: colors.text,
+  },
+  periodTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  periodTabTextActive: {
+    color: '#FFFFFF',
+  },
+  compactStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 18,
+    gap: 12,
+    marginBottom: 24,
+  },
+  compactStatCard: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  compactStatTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  compactStatIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compactStatLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  compactStatValue: {
     fontSize: 24,
     fontWeight: '700',
     color: colors.text,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  header: {
-    padding: 20,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  periodSelector: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  periodButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  periodButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  periodButtonText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  periodButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 16,
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
+    letterSpacing: -0.5,
   },
   section: {
-    padding: 20,
+    paddingHorizontal: 24,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -379,142 +416,98 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 16,
   },
   seeAllText: {
     fontSize: 14,
     color: colors.primary,
     fontWeight: '600',
   },
-  overviewCard: {
-    backgroundColor: colors.surface,
+  emptyActivity: {
+    padding: 32,
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
     borderRadius: 16,
-    padding: 16,
+    borderStyle: 'dashed',
     borderWidth: 1,
-    borderColor: colors.border,
-    gap: 16,
+    borderColor: '#CBD5E1',
   },
-  overviewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  overviewItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  overviewLabel: {
-    fontSize: 15,
+  emptyActivityText: {
     color: colors.textSecondary,
+    fontSize: 14,
   },
-  overviewValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  actionsGrid: {
-    gap: 12,
-  },
-  actionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
-    marginLeft: 16,
-  },
-  serviceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surfaceSecondary,
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-  serviceName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  serviceDuration: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  servicePrice: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.primary,
+  chartsGrid: {
+    marginBottom: 16,
   },
   peakHoursCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
     borderWidth: 1,
-    borderColor: colors.border,
-    gap: 12,
+    borderColor: '#F1F5F9',
+    gap: 16,
   },
   peakHourRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  peakHourRank: {
-    width: 28,
-    height: 28,
-    backgroundColor: colors.primaryLight,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  peakHourRankText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  peakHourTime: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    width: 100,
-  },
   peakHourTimeText: {
     fontSize: 13,
+    fontWeight: '600',
     color: colors.text,
+    width: 45,
   },
   peakHourBar: {
     flex: 1,
-    height: 8,
-    backgroundColor: colors.border,
-    borderRadius: 4,
+    height: 6,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 3,
     overflow: 'hidden',
   },
   peakHourFill: {
     height: '100%',
     backgroundColor: colors.primary,
-    borderRadius: 4,
+    borderRadius: 3,
   },
   peakHourCount: {
     fontSize: 12,
+    fontWeight: '700',
     color: colors.textSecondary,
-    width: 70,
+    width: 25,
     textAlign: 'right',
+  },
+  pulseContainer: {
+    width: 12,
+    height: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pulseCircle: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.success + '40',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    backgroundColor: colors.background,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });
 

@@ -134,7 +134,7 @@ export const useAuthStore = create(
           // Validate token by fetching current user
           const response = await api.get('/api/auth/me');
           const userData = response.data;
-          
+
           // Check if owner has a salon
           let hasSalon = false;
           if (userData.profile?.role === 'owner') {

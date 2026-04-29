@@ -16,7 +16,7 @@ import { colors, typography, spacing, borderRadius, shadows } from '../../theme'
 import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }: { navigation: any }) {
   const { user, logout, setUser, token } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -146,6 +146,28 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* Legal & Support */}
+        <View style={[styles.card, shadows.sm, styles.linksCard]}>
+          <Text style={styles.cardTitle}>Legal & Support</Text>
+          <View style={styles.linkList}>
+            <LinkRow
+              icon="shield-checkmark-outline"
+              label="Privacy Policy"
+              onPress={() => navigation.navigate('PrivacyPolicy')}
+            />
+            <LinkRow
+              icon="document-text-outline"
+              label="Terms of Service"
+              onPress={() => navigation.navigate('Terms')}
+            />
+            <LinkRow
+              icon="mail-outline"
+              label="Contact Us"
+              onPress={() => navigation.navigate('Contact')}
+            />
+          </View>
+        </View>
+
         {/* Logout */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={22} color={colors.error} />
@@ -175,6 +197,24 @@ function InfoRow({
         <Text style={styles.infoValue}>{value}</Text>
       </View>
     </View>
+  );
+}
+
+function LinkRow({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity style={styles.linkRow} onPress={onPress}>
+      <Ionicons name={icon} size={20} color={colors.textSecondary} />
+      <Text style={styles.linkLabel}>{label}</Text>
+      <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+    </TouchableOpacity>
   );
 }
 
@@ -296,5 +336,22 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     textAlign: 'center',
     marginTop: spacing.xxl,
+  },
+  linksCard: {
+    paddingVertical: spacing.md,
+  },
+  linkList: {
+    marginTop: spacing.sm,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  linkLabel: {
+    ...typography.bodySmallMedium,
+    color: colors.text,
+    flex: 1,
   },
 });

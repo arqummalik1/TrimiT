@@ -59,34 +59,33 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         if (payload.eventType === 'INSERT') {
           const newBooking = payload.new;
           if (!newBooking) return;
-          
-          // Find the slot that was booked
+
           const bookedTime = newBooking.time_slot;
-          
+
           if (!allowMultipleBookings) {
-            // Mark slot as unavailable
+            // Single mode: mark slot as unavailable immediately
             const updatedSlots = slots.map(slot =>
               slot.time === bookedTime
-                ? { ...slot, available: false, has_bookings: true, booking_count: (slot.booking_count || 0) + 1 }
+                ? { ...slot, available: false, booking_count: (slot.booking_count || 0) + 1 }
                 : slot
             );
-            
+
             set({
               slots: updatedSlots,
               justBookedSlots: new Set([...get().justBookedSlots, bookedTime]),
             });
-            
-            // Auto-clear the "just booked" indicator after 3 seconds
+
             setTimeout(() => {
               get().clearJustBookedSlot(bookedTime);
             }, 3000);
           } else {
-            // Multiple bookings allowed - just increment count
-            const updatedSlots = slots.map(slot =>
-              slot.time === bookedTime
-                ? { ...slot, has_bookings: true, booking_count: (slot.booking_count || 0) + 1 }
-                : slot
-            );
+            // Multi mode: increment count, mark full if at capacity
+            const updatedSlots = slots.map(slot => {
+              if (slot.time !== bookedTime) return slot;
+              const newCount = (slot.booking_count || 0) + 1;
+              const max = slot.max_bookings || 1;
+              return { ...slot, booking_count: newCount, available: newCount < max };
+            });
             set({ slots: updatedSlots });
           }
         } else if (payload.eventType === 'DELETE' || payload.eventType === 'UPDATE') {

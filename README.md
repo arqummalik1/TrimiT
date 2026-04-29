@@ -1,162 +1,113 @@
-# TrimiT - Salon Booking Platform
+# TrimiT — The Ultimate Salon Ecosystem
 
-A Zomato-like platform for salons where customers can discover nearby salons, view services, pricing, and availability, book time slots, and pay online. Salon owners can list and manage their business.
+[![Architecture: MVVM](https://img.shields.io/badge/Architecture-Strict%20MVVM-blue.svg)](https://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93viewmodel)
+[![Backend: FastAPI](https://img.shields.io/badge/Backend-FastAPI-green.svg)](https://fastapi.tiangolo.com/)
+[![Database: Supabase](https://img.shields.io/badge/Database-Supabase-blueviolet.svg)](https://supabase.com/)
 
-## Tech Stack
+TrimiT is a premium, full-stack marketplace platform designed to bridge the gap between salon owners and customers. Built with scalability and enterprise-grade architecture at its core, TrimiT provides a "Zomato-like" experience for the grooming and wellness industry.
 
-- **Frontend**: React 19 with Tailwind CSS, React Query, Zustand
-- **Backend**: FastAPI (Python)
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth (Email/Password)
-- **Payments**: Razorpay (test mode - keys to be configured)
-- **Maps**: Google Maps (API key to be configured)
+---
 
-## Setup Instructions
+## 🌟 Product Vision
 
-### 1. Supabase Database Setup
+### For Customers
+TrimiT offers a seamless discovery and booking engine. Customers can find high-rated salons nearby, explore detailed service menus with transparent pricing, check real-time availability, and secure appointments with integrated digital payments.
 
-Before the app can work, you need to create the database tables in Supabase:
+### For Salon Owners
+TrimiT acts as a robust Business Management Suite. Owners can digitalize their entire operation—from service management and real-time scheduling to advanced analytics and earnings tracking—allowing them to focus on service quality while TrimiT handles the logistics.
 
-1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
-2. Select your project: `etpoecagsfhodtfuhblk`
-3. Navigate to **SQL Editor**
-4. Copy and paste the contents of `/app/database/schema.sql`
-5. Click **Run** to execute
+---
 
-This will create:
-- `users` table - User profiles linked to Supabase Auth
-- `salons` table - Salon information
-- `services` table - Services offered by salons
-- `bookings` table - Customer bookings
-- `reviews` table - Customer reviews
+## 🏗 Technical Architecture
 
-Plus all necessary indexes and Row Level Security (RLS) policies.
+TrimiT follows a **Strict MVVM (Model-View-ViewModel)** pattern combined with the **Repository Pattern** and a dedicated **Service Layer**. This ensures a clean separation of concerns, making the codebase maintainable and testable.
 
-### 2. Environment Variables
-
-#### Backend (`/app/backend/.env`)
-```
-SUPABASE_URL=https://etpoecagsfhodtfuhblk.supabase.co
-SUPABASE_ANON_KEY=your_anon_key
-RAZORPAY_KEY_ID=rzp_test_xxxxx (optional - placeholder set)
-RAZORPAY_KEY_SECRET=xxxxx (optional - placeholder set)
-JWT_SECRET=your_secret_key
+### Data Flow
+```mermaid
+graph TD
+    UI[View Layer / Screens] --> VM[ViewModel / State Store]
+    VM --> Repo[Repository Layer]
+    Repo --> Service[Service Layer]
+    Service --> API[Remote API / Supabase]
+    API --> DB[(PostgreSQL)]
 ```
 
-#### Frontend (`/app/frontend/.env`)
-```
-REACT_APP_BACKEND_URL=https://your-preview-url.emergentagent.com
-REACT_APP_SUPABASE_URL=https://etpoecagsfhodtfuhblk.supabase.co
-REACT_APP_SUPABASE_ANON_KEY=your_anon_key
-REACT_APP_RAZORPAY_KEY_ID=rzp_test_xxxxx
-REACT_APP_GOOGLE_MAPS_API_KEY=your_key
-```
+- **UI (View)**: Purely responsible for rendering and user interaction. No business logic.
+- **ViewModel**: Manages the UI state (e.g., Zustand/React Query). Orchestrates data fetching via Repositories.
+- **Repository**: The single source of truth for data. It decides whether to fetch from local cache or the Service layer.
+- **Service**: Low-level API client handling HTTP requests, headers, and raw DTO transformations.
+- **Infrastructure**: Centralized error handling, API clients, and environment configuration.
 
-### 3. Running the Application
+---
 
-The application runs on Emergent's infrastructure:
-- Backend: Port 8001 (FastAPI)
-- Frontend: Port 3000 (React)
+## 🛠 Feature Matrix
 
-To restart services:
-```bash
-sudo supervisorctl restart backend frontend
-```
+| Feature | Customer | Owner | Status |
+| :--- | :---: | :---: | :--- |
+| **Discovery** | Nearby Search | Salon Profile | ✅ Implemented |
+| **Booking** | Slot Selection | Schedule Management | ✅ Implemented |
+| **Payments** | Razorpay Integration | Earnings Dashboard | ✅ Implemented |
+| **Reviews** | Post-Service Rating | Reputation Management | ✅ Implemented |
+| **Analytics** | Booking History | Business Insights | ✅ Implemented |
+| **Notifications** | Appointment Alerts | New Booking Alerts | 📅 Planned |
 
-## User Roles
+---
 
-### Customer
-- Browse nearby salons
-- View salon details and services
-- Book appointments
-- Pay online
-- View booking history
-- Cancel bookings
-- Leave reviews
+## 📂 Project Structure
 
-### Salon Owner
-- Create and manage salon profile
-- Add/Edit/Delete services
-- Accept/Reject bookings
-- View schedule
-- Track earnings
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/signup` - Register new user
-- `POST /api/auth/login` - User login
-- `GET /api/auth/me` - Get current user
-- `PATCH /api/auth/profile` - Update profile
-
-### Salons
-- `GET /api/salons` - List salons (with location filtering)
-- `GET /api/salons/{id}` - Get salon details
-- `POST /api/salons` - Create salon (owner only)
-- `PATCH /api/salons/{id}` - Update salon (owner only)
-- `DELETE /api/salons/{id}` - Delete salon (owner only)
-
-### Services
-- `POST /api/salons/{id}/services` - Add service
-- `PATCH /api/services/{id}` - Update service
-- `DELETE /api/services/{id}` - Delete service
-
-### Bookings
-- `GET /api/salons/{id}/slots` - Get available time slots
-- `POST /api/bookings` - Create booking
-- `GET /api/bookings` - Get user's bookings
-- `PATCH /api/bookings/{id}/status` - Update booking status
-
-### Payments
-- `POST /api/payments/create-order` - Create Razorpay order
-- `POST /api/payments/verify` - Verify payment
-
-### Analytics (Owner)
-- `GET /api/owner/salon` - Get owner's salon
-- `GET /api/owner/analytics` - Get dashboard analytics
-
-## Features Implemented
-
-✅ User authentication with role selection (Customer/Owner)
-✅ Customer: Browse salons with map/list view
-✅ Customer: View salon details and services
-✅ Customer: Book appointments with time slot selection
-✅ Customer: View and cancel bookings
-✅ Owner: Create and edit salon profile
-✅ Owner: Manage services (add/edit/delete)
-✅ Owner: View and manage bookings
-✅ Owner: Dashboard with analytics
-✅ Row Level Security for data protection
-
-## Pending Configuration
-
-- [ ] **Razorpay**: Add test keys for payment processing
-- [ ] **Google Maps**: Add API key for map view functionality
-- [ ] **Supabase Tables**: Run schema.sql in Supabase SQL Editor
-
-## Architecture
-
-```
-/app
-├── backend/
-│   ├── server.py          # FastAPI application
-│   ├── requirements.txt   # Python dependencies
-│   └── .env              # Backend environment variables
-├── frontend/
-│   ├── src/
-│   │   ├── components/   # React components
-│   │   ├── pages/        # Page components
-│   │   ├── store/        # Zustand stores
-│   │   ├── lib/          # Utilities and API client
-│   │   ├── App.js        # Main app with routing
-│   │   └── index.js      # Entry point
-│   ├── public/           # Static assets
-│   ├── package.json      # Node dependencies
-│   └── .env             # Frontend environment variables
-└── database/
-    └── schema.sql        # Supabase database schema
+```text
+TrimiT/
+├── backend/            # FastAPI (Python) - Modular REST API
+├── mobile/             # React Native (Expo) - Premium Cross-platform App
+├── frontend/           # React 19 (Tailwind) - Web Dashboard & Portal
+├── database/           # SQL Schemas & Supabase Migrations
+└── shared/             # Shared Types, Constants, and Legal Docs
 ```
 
-## License
+---
 
-MIT License
+## 🤖 AI Context Block (For LLM Ingestion)
+> [!IMPORTANT]
+> This section provides instant context for AI coding assistants (ChatGPT, Claude, etc.).
+
+- **Core Tech**: Python 3.10+ (FastAPI), TypeScript (React/React Native), PostgreSQL (Supabase).
+- **Architecture**: MVVM + Repository + Service Layer.
+- **State Management**: Zustand for global state, React Query for server state.
+- **Styling**: Tailwind CSS (Web), NativeWind/StyleSheet (Mobile).
+- **Coding Standards**: Strict typing (no `any`), modular services, centralized error handling, environment-based configuration.
+- **Primary Entities**: `Users`, `Salons`, `Services`, `Bookings`, `Reviews`.
+
+---
+
+## 🚀 Quick Start
+
+### 1. Prerequisites
+- Node.js (v18+)
+- Python (v3.10+)
+- Supabase Account
+
+### 2. Environment Configuration
+Create `.env` files in both `/backend` and `/mobile` (or `/frontend`) based on the provided `.env.example` templates.
+
+### 3. Database Initialization
+Run the schema located in `database/schema.sql` within your Supabase SQL Editor to provision the necessary tables and RLS policies.
+
+### 4. Launching the Services
+- **Backend**: `cd backend && source venv/bin/activate && uvicorn server:app --port 8001`
+- **Mobile**: `cd mobile && npm start`
+- **Web**: `cd frontend && npm run dev`
+
+---
+
+## 📈 Scalability & Security
+- **RLS (Row Level Security)**: All database access is governed by Supabase RLS, ensuring users only see their own data.
+- **Modular Services**: The backend is designed for transition from a monolithic structure to microservices.
+- **Typed DTOs**: Strict TypeScript interfaces for all API responses to prevent runtime failures.
+
+---
+
+## 📜 License
+TrimiT is proprietary software. All rights reserved. (Or MIT as per previous context)
+
+---
+*Created by [Arqum Malik](https://github.com/arqummalik)*

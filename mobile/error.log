@@ -1,0 +1,25 @@
+(node:31197) ExperimentalWarning: CommonJS module /opt/homebrew/lib/node_modules/npm/node_modules/debug/src/node.js is loading ES Module /opt/homebrew/lib/node_modules/npm/node_modules/supports-color/index.js using require().
+Support for loading ES Module in require() is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+env: load .env
+env: export EXPO_PUBLIC_API_URL EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+Starting Metro Bundler
+Web Bundling failed 595ms index.ts (1 module)
+SyntaxError: index.ts: Cannot find module 'babel-preset-expo'
+Require stack:
+- /Users/arqummalik/Software Development/trimit-emergent/TrimiT/mobile/node_modules/@babel/core/lib/config/files/plugins.js
+- /Users/arqummalik/Software Development/trimit-emergent/TrimiT/mobile/node_modules/@babel/core/lib/config/files/index.js
+- /Users/arqummalik/Software Development/trimit-emergent/TrimiT/mobile/node_modules/@babel/core/lib/index.js
+- /Users/arqummalik/Software Development/trimit-emergent/TrimiT/mobile/node_modules/expo/node_modules/@expo/metro-config/build/transform-worker/metro-transform-worker.js
+- /Users/arqummalik/Software Development/trimit-emergent/TrimiT/mobile/node_modules/expo/node_modules/@expo/metro-config/build/transform-worker/transform-worker.js
+- /Users/arqummalik/Software Development/trimit-emergent/TrimiT/mobile/node_modules/metro/src/DeltaBundler/Worker.flow.js
+- /Users/arqummalik/Software Development/trimit-emergent/TrimiT/mobile/node_modules/metro/src/DeltaBundler/Worker.js
+- /Users/arqummalik/Software Development/trimit-emergent/TrimiT/mobile/node_modules/jest-worker/build/workers/processChild.js
+
+Make sure that all the Babel plugins and presets you are using
+are defined as dependencies or devDependencies in your package.json
+file. It's possible that the missing plugin is loaded by a preset
+you are using that forgot to add the plugin to its dependencies: you
+can workaround this problem by explicitly adding the missing package
+to your top-level package.json.
+

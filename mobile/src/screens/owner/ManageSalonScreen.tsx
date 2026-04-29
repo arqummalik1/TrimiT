@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import MapView, { Marker, MapPressEvent } from 'react-native-maps';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
@@ -21,6 +21,9 @@ import api from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { showToast } from '../../store/toastStore';
 import { Salon } from '../../types';
+import { LocationPickerModal } from '../../components/LocationPickerModal';
+import { SalonMapMarker } from '../../components/SalonMapMarker';
+import type { Coordinates } from '../../lib/maps';
 
 interface ManageSalonScreenProps {
   navigation: any;
@@ -38,6 +41,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
   });
 
   const [uploading, setUploading] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -50,6 +54,20 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
     closing_time: '21:00',
     images: [] as string[],
   });
+
+  const selectedCoords: Coordinates = {
+    latitude: parseFloat(formData.latitude) || 28.6139,
+    longitude: parseFloat(formData.longitude) || 77.209,
+  };
+
+  const handleLocationConfirmed = useCallback((coords: Coordinates) => {
+    setFormData((prev) => ({
+      ...prev,
+      latitude: coords.latitude.toFixed(6),
+      longitude: coords.longitude.toFixed(6),
+    }));
+    setShowLocationPicker(false);
+  }, []);
 
   useEffect(() => {
     if (salon) {
@@ -244,38 +262,56 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
             onChangeText={(v) => handleChange('city', v)}
             placeholder="City name"
           />
-          <Text style={styles.mapLabel}>Tap the map to set your salon location</Text>
-          <View style={styles.mapContainer}>
-            <MapView
-              style={styles.locationMap}
-              initialRegion={{
-                latitude: parseFloat(formData.latitude) || 28.6139,
-                longitude: parseFloat(formData.longitude) || 77.209,
-                latitudeDelta: 0.02,
-                longitudeDelta: 0.02,
-              }}
-              onPress={(e: MapPressEvent) => {
-                const { latitude, longitude } = e.nativeEvent.coordinate;
-                setFormData((prev) => ({
-                  ...prev,
-                  latitude: latitude.toFixed(6),
-                  longitude: longitude.toFixed(6),
-                }));
-              }}
-            >
-              <Marker
-                coordinate={{
-                  latitude: parseFloat(formData.latitude) || 28.6139,
-                  longitude: parseFloat(formData.longitude) || 77.209,
+
+          {/* Location preview card — opens full-screen picker */}
+          <Text style={styles.mapLabel}>Pin your exact salon location on the map</Text>
+          <TouchableOpacity
+            style={styles.locationPreviewCard}
+            onPress={() => setShowLocationPicker(true)}
+            activeOpacity={0.9}
+          >
+            <View style={styles.locationMapPreview} pointerEvents="none">
+              <MapView
+                style={StyleSheet.absoluteFill}
+                region={{
+                  latitude: selectedCoords.latitude,
+                  longitude: selectedCoords.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
                 }}
-                pinColor={colors.primary}
-              />
-            </MapView>
-          </View>
-          <Text style={styles.coordText}>
-            {parseFloat(formData.latitude).toFixed(4)}, {parseFloat(formData.longitude).toFixed(4)}
-          </Text>
+                scrollEnabled={false}
+                zoomEnabled={false}
+                rotateEnabled={false}
+                pitchEnabled={false}
+              >
+                <SalonMapMarker
+                  coordinate={selectedCoords}
+                  trackViewChanges={false}
+                />
+              </MapView>
+            </View>
+            <View style={styles.locationPreviewFooter}>
+              <View style={styles.coordsBlock}>
+                <Ionicons name="location" size={14} color={colors.primary} />
+                <Text style={styles.coordsText}>
+                  {selectedCoords.latitude.toFixed(5)}, {selectedCoords.longitude.toFixed(5)}
+                </Text>
+              </View>
+              <View style={styles.changeLocationBtn}>
+                <Ionicons name="create-outline" size={14} color={colors.primary} />
+                <Text style={styles.changeLocationText}>Change Location</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
         </View>
+
+        {/* Full-screen location picker modal */}
+        <LocationPickerModal
+          visible={showLocationPicker}
+          initialCoordinates={selectedCoords}
+          onConfirm={handleLocationConfirmed}
+          onDismiss={() => setShowLocationPicker(false)}
+        />
 
         <View style={[styles.card, shadows.sm]}>
           <Text style={styles.sectionTitle}>Working Hours</Text>
@@ -389,22 +425,51 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.sm,
   },
-  mapContainer: {
-    height: 180,
-    borderRadius: borderRadius.md,
+  // Location preview card
+  locationPreviewCard: {
+    borderRadius: borderRadius.lg,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  locationMap: {
+  locationMapPreview: {
+    height: 200,
+    width: '100%',
+  },
+  locationPreviewFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  coordsBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     flex: 1,
   },
-  coordText: {
+  coordsText: {
     ...typography.caption,
-    color: colors.textTertiary,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-    marginBottom: spacing.md,
+    color: colors.textSecondary,
+    fontVariant: ['tabular-nums'],
+  },
+  changeLocationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.primaryLight,
+    borderRadius: borderRadius.sm,
+  },
+  changeLocationText: {
+    ...typography.captionMedium,
+    color: colors.primary,
   },
   imageRow: {
     flexDirection: 'row',

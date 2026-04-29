@@ -16,6 +16,7 @@ import api from '../../lib/api';
 import { Salon } from '../../types';
 import { colors } from '../../lib/utils';
 import { Button } from '../../components/Button';
+import { useAuthStore } from '../../store/authStore';
 
 interface SettingsScreenProps {
   navigation: any;
@@ -23,7 +24,9 @@ interface SettingsScreenProps {
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const queryClient = useQueryClient();
+  const { logout } = useAuthStore();
   const [allowMultipleBookings, setAllowMultipleBookings] = useState(false);
+  const [autoAccept, setAutoAccept] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
 
   // Get salon data
@@ -39,6 +42,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
   useEffect(() => {
     if (salon) {
       setAllowMultipleBookings(salon.allow_multiple_bookings_per_slot || false);
+      setAutoAccept(salon.auto_accept !== false); // Default to true if undefined
       setHasChanges(false);
     }
   }, [salon]);
@@ -49,6 +53,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
     setHasChanges(true);
   };
 
+  const handleAutoAcceptChange = (value: boolean) => {
+    setAutoAccept(value);
+    setHasChanges(true);
+  };
+
   // Save settings mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -56,6 +65,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
       
       const response = await api.patch(`/api/salons/${salon.id}`, {
         allow_multiple_bookings_per_slot: allowMultipleBookings,
+        auto_accept: autoAccept,
       });
       return response.data;
     },
@@ -136,6 +146,28 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
           <View style={styles.settingCard}>
             <View style={styles.settingHeader}>
               <View style={styles.settingIconContainer}>
+                <Ionicons name="flash" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>
+                  Auto-Accept Bookings
+                </Text>
+                <Text style={styles.settingDescription}>
+                  Automatically confirm new booking requests
+                </Text>
+              </View>
+              <Switch
+                value={autoAccept}
+                onValueChange={handleAutoAcceptChange}
+                trackColor={{ false: colors.border, true: colors.primaryLight }}
+                thumbColor={autoAccept ? colors.primary : '#f4f3f4'}
+              />
+            </View>
+          </View>
+
+          <View style={[styles.settingCard, { marginTop: 12 }]}>
+            <View style={styles.settingHeader}>
+              <View style={styles.settingIconContainer}>
                 <Ionicons name="people" size={24} color={colors.primary} />
               </View>
               <View style={styles.settingTextContainer}>
@@ -152,26 +184,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
                 trackColor={{ false: colors.border, true: colors.primaryLight }}
                 thumbColor={allowMultipleBookings ? colors.primary : '#f4f3f4'}
               />
-            </View>
-
-            {/* Visual indicator of current setting */}
-            <View style={styles.settingStatus}>
-              <View style={[
-                styles.statusBadge,
-                allowMultipleBookings ? styles.statusEnabled : styles.statusDisabled
-              ]}>
-                <Ionicons 
-                  name={allowMultipleBookings ? "checkmark-circle" : "close-circle"} 
-                  size={16} 
-                  color={allowMultipleBookings ? colors.success : colors.error} 
-                />
-                <Text style={[
-                  styles.statusText,
-                  allowMultipleBookings ? styles.statusTextEnabled : styles.statusTextDisabled
-                ]}>
-                  {allowMultipleBookings ? 'ENABLED - Multiple bookings allowed' : 'DISABLED - One booking per slot'}
-                </Text>
-              </View>
             </View>
           </View>
 
@@ -221,6 +233,78 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
+        </View>
+
+        {/* Legal & Support */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Legal & Support</Text>
+
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('PrivacyPolicy')}
+          >
+            <View style={styles.actionIconContainer}>
+              <Ionicons name="shield-checkmark" size={24} color={colors.primary} />
+            </View>
+            <View style={styles.actionTextContainer}>
+              <Text style={styles.actionTitle}>Privacy Policy</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('Terms')}
+          >
+            <View style={styles.actionIconContainer}>
+              <Ionicons name="document-text" size={24} color={colors.primary} />
+            </View>
+            <View style={styles.actionTextContainer}>
+              <Text style={styles.actionTitle}>Terms of Service</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('Contact')}
+          >
+            <View style={styles.actionIconContainer}>
+              <Ionicons name="mail" size={24} color={colors.primary} />
+            </View>
+            <View style={styles.actionTextContainer}>
+              <Text style={styles.actionTitle}>Contact Us</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Logout Section */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={() => {
+              Alert.alert(
+                'Logout',
+                'Are you sure you want to logout? All cached data will be cleared.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { 
+                    text: 'Logout', 
+                    style: 'destructive',
+                    onPress: async () => {
+                      queryClient.clear();
+                      await logout();
+                    }
+                  },
+                ]
+              );
+            }}
+          >
+            <Ionicons name="log-out-outline" size={22} color={colors.error} />
+            <Text style={styles.logoutText}>Logout from Account</Text>
+          </TouchableOpacity>
+          <Text style={styles.versionText}>Version 1.0.0 (Production)</Text>
         </View>
       </ScrollView>
 
@@ -449,6 +533,28 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.error + '40',
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.error,
+  },
+  versionText: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 16,
   },
 });
 

@@ -25,10 +25,6 @@ const NotificationBell = ({ isOwner = false }) => {
   const { profile } = useAuthStore();
   const { success, error } = useToastStore();
 
-  // Debug: log when notifications change
-  useEffect(() => {
-    console.log('[NotificationBell] Notifications state:', { count: notifications.length, unreadCount });
-  }, [notifications.length, unreadCount]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {

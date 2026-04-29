@@ -1,32 +1,51 @@
 from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, date, time, timedelta, timezone
 from enum import Enum
 import httpx
 import os
 import uuid
 import json
+import hmac
+import hashlib
+import logging
 from dotenv import load_dotenv
 from pathlib import Path
 
+from services.notifications import (
+    notify_owner_new_booking,
+    notify_customer_booking_confirmed,
+    notify_customer_booking_cancelled
+)
+
 load_dotenv(Path(__file__).parent / '.env')
+
+logger = logging.getLogger("trimit")
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="TrimiT API", version="1.0.0")
 
-# CORS
+# CORS — explicit allowlist via env, comma-separated. Default to known prod + local dev.
+_default_origins = "https://trimit.com,https://www.trimit.com,http://localhost:3000,http://localhost:8081"
+ALLOWED_ORIGINS = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", _default_origins).split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Default httpx timeout for all outbound calls
+HTTPX_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
+
 # Supabase config
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY')
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
 RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET')
 
@@ -74,6 +93,7 @@ class SalonCreate(BaseModel):
     opening_time: str = "09:00"
     closing_time: str = "21:00"
     images: List[str] = []
+    auto_accept: bool = True
 
 class SalonUpdate(BaseModel):
     name: Optional[str] = None
@@ -87,6 +107,8 @@ class SalonUpdate(BaseModel):
     closing_time: Optional[str] = None
     images: Optional[List[str]] = None
     allow_multiple_bookings_per_slot: Optional[bool] = None
+    max_bookings_per_slot: Optional[int] = None
+    auto_accept: Optional[bool] = None
 
 class ServiceCreate(BaseModel):
     name: str
@@ -117,6 +139,7 @@ class BookingCreate(BaseModel):
     service_id: str
     booking_date: str  # YYYY-MM-DD
     time_slot: str  # HH:MM
+    payment_method: str = "salon_cash"  # 'salon_cash' or 'online'
 
 class BookingStatusUpdate(BaseModel):
     status: BookingStatus
@@ -128,6 +151,9 @@ class ReviewCreate(BaseModel):
 
 class PaymentCreate(BaseModel):
     booking_id: str
+
+class PushTokenUpdate(BaseModel):
+    push_token: str
 
 # Password Reset Models
 class ForgotPasswordRequest(BaseModel):
@@ -153,7 +179,33 @@ async def supabase_request(method: str, endpoint: str, data: dict = None, token:
     
     url = f"{SUPABASE_URL}/rest/v1/{endpoint}"
     
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
+        if method == "GET":
+            response = await client.get(url, headers=headers)
+        elif method == "POST":
+            headers["Prefer"] = "return=representation"
+            response = await client.post(url, headers=headers, json=data)
+        elif method == "PATCH":
+            headers["Prefer"] = "return=representation"
+            response = await client.patch(url, headers=headers, json=data)
+        elif method == "DELETE":
+            response = await client.delete(url, headers=headers)
+        else:
+            raise ValueError(f"Unknown method: {method}")
+        
+        return response
+
+# Helper: Supabase Public Request (uses service role key to bypass RLS for public data)
+async def supabase_public_request(method: str, endpoint: str, data: dict = None):
+    headers = {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": "application/json",
+    }
+    
+    url = f"{SUPABASE_URL}/rest/v1/{endpoint}"
+    
+    async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
         if method == "GET":
             response = await client.get(url, headers=headers)
         elif method == "POST":
@@ -180,7 +232,7 @@ async def supabase_auth(endpoint: str, data: dict, token: str = None):
     
     url = f"{SUPABASE_URL}/auth/v1/{endpoint}"
     
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
         response = await client.post(url, headers=headers, json=data)
         return response
 
@@ -196,7 +248,7 @@ async def get_current_user(authorization: str = Header(None)):
         "Authorization": f"Bearer {token}",
     }
     
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
         response = await client.get(f"{SUPABASE_URL}/auth/v1/user", headers=headers)
         
         if response.status_code != 200:
@@ -204,13 +256,20 @@ async def get_current_user(authorization: str = Header(None)):
         
         auth_user = response.json()
         
-        # Get user profile from database
-        profile_response = await supabase_request("GET", f"users?id=eq.{auth_user['id']}&select=*", token=token)
+        # Get user profile from database using SERVICE ROLE KEY to bypass RLS
+        print(f"[DEBUG get_current_user] Fetching profile for user: {auth_user.get('id')}")
+        profile_response = await supabase_public_request("GET", f"users?id=eq.{auth_user['id']}&select=*")
+        
+        print(f"[DEBUG get_current_user] Profile response status: {profile_response.status_code}")
         
         if profile_response.status_code == 200:
             profiles = profile_response.json()
+            print(f"[DEBUG get_current_user] Found {len(profiles)} profiles")
             if profiles:
+                print(f"[DEBUG get_current_user] Profile role: {profiles[0].get('role')}")
                 return {**auth_user, "profile": profiles[0], "access_token": token}
+        else:
+            print(f"[ERROR get_current_user] Failed to fetch profile: {profile_response.status_code} - {profile_response.text}")
         
         return {**auth_user, "profile": None, "access_token": token}
 
@@ -252,7 +311,7 @@ async def signup(user: UserCreate):
     user_id = auth_data.get("user", {}).get("id")
     
     if user_id:
-        # Create user profile
+        # Create user profile using SERVICE ROLE KEY to bypass RLS
         profile_data = {
             "id": user_id,
             "email": user.email,
@@ -262,7 +321,15 @@ async def signup(user: UserCreate):
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         
-        await supabase_request("POST", "users", profile_data)
+        print(f"[DEBUG signup] Creating profile for user {user_id} with role {user.role.value}")
+        profile_response = await supabase_public_request("POST", "users", profile_data)
+        
+        if profile_response.status_code == 201:
+            print(f"[DEBUG signup] Profile created successfully")
+        elif profile_response.status_code == 409:
+            print(f"[DEBUG signup] Profile already exists (duplicate)")
+        else:
+            print(f"[ERROR signup] Failed to create profile: {profile_response.status_code} - {profile_response.text}")
     
     return {
         "message": "Signup successful",
@@ -295,14 +362,24 @@ async def login(user: UserLogin):
     auth_data = response.json()
     user_id = auth_data.get("user", {}).get("id")
     
-    # Get user profile
+    # Get user profile using SERVICE ROLE KEY to bypass RLS
     if user_id:
-        token = auth_data.get("access_token")
-        profile_response = await supabase_request("GET", f"users?id=eq.{user_id}&select=*", token=token)
+        print(f"[DEBUG login] Fetching profile for user_id: {user_id}")
+        # Use supabase_public_request which uses service role key
+        profile_response = await supabase_public_request("GET", f"users?id=eq.{user_id}&select=*")
+        
+        print(f"[DEBUG login] Profile response status: {profile_response.status_code}")
+        
         if profile_response.status_code == 200:
             profiles = profile_response.json()
+            print(f"[DEBUG login] Found {len(profiles)} profiles")
             if profiles:
                 auth_data["profile"] = profiles[0]
+                print(f"[DEBUG login] Profile role: {profiles[0].get('role')}")
+            else:
+                print(f"[ERROR login] No profile found for user {user_id}")
+        else:
+            print(f"[ERROR login] Failed to fetch profile: {profile_response.status_code} - {profile_response.text}")
     
     return auth_data
 
@@ -324,13 +401,29 @@ async def update_profile(data: UserUpdate, current_user: dict = Depends(get_curr
     
     return {"message": "Profile updated", "data": response.json()[0] if response.json() else None}
 
+@app.post("/api/auth/push-token")
+async def register_push_token(data: PushTokenUpdate, current_user: dict = Depends(get_current_user)):
+    """Register or update the user's Expo Push Token"""
+    user_id = current_user.get("id")
+    token = current_user.get("access_token")
+    
+    print(f"[DEBUG push-token] Registering token for user {user_id}: {data.push_token}")
+    
+    response = await supabase_request("PATCH", f"users?id=eq.{user_id}", {"push_token": data.push_token}, token=token)
+    
+    if response.status_code not in [200, 201, 204]:
+        print(f"[ERROR push-token] Failed: {response.status_code} - {response.text}")
+        raise HTTPException(status_code=400, detail="Failed to register push token")
+    
+    return {"message": "Push token registered successfully"}
+
 # ========== PASSWORD RESET ENDPOINTS ==========
 
 @app.post("/api/auth/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
     """Request password reset using Supabase Auth"""
     # Use Supabase Auth's password reset
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
         response = await client.post(
             f"{SUPABASE_URL}/auth/v1/recover",
             headers={
@@ -355,7 +448,7 @@ async def forgot_password(request: ForgotPasswordRequest):
 async def validate_reset_token(request: ValidateTokenRequest):
     """Validate if a reset token is valid by checking with Supabase"""
     # Verify token by attempting to get user info
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
         response = await client.get(
             f"{SUPABASE_URL}/auth/v1/user",
             headers={
@@ -374,7 +467,7 @@ async def validate_reset_token(request: ValidateTokenRequest):
 async def reset_password(request: ResetPasswordRequest):
     """Reset password using recovery token"""
     # Update password using the recovery token
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
         response = await client.put(
             f"{SUPABASE_URL}/auth/v1/user",
             headers={
@@ -406,6 +499,8 @@ async def get_salons(
     radius: Optional[float] = 10,  # km
     search: Optional[str] = None,
 ):
+    print(f"[DEBUG] get_salons called - city={city}, lat={lat}, lng={lng}, search={search}")
+    
     query = "salons?select=*,services(*),reviews(rating)"
     
     if city:
@@ -414,12 +509,26 @@ async def get_salons(
     if search:
         query += f"&name=ilike.%{search}%"
     
-    response = await supabase_request("GET", query)
+    print(f"[DEBUG] Supabase query: {query}")
+    
+    response = await supabase_public_request("GET", query)
+    
+    print(f"[DEBUG] Supabase response status: {response.status_code}")
     
     if response.status_code != 200:
-        raise HTTPException(status_code=400, detail="Failed to fetch salons")
+        error_text = response.text
+        print(f"[ERROR] Failed to fetch salons: {response.status_code} - {error_text}")
+        logger.error(f"Failed to fetch salons: {response.status_code} - {error_text}")
+        raise HTTPException(status_code=400, detail=f"Failed to fetch salons: {error_text}")
     
     salons = response.json()
+    print(f"[DEBUG] Found {len(salons)} salons")
+    
+    if salons:
+        for i, salon in enumerate(salons[:3]):  # Log first 3 salons
+            print(f"[DEBUG] Salon {i+1}: {salon.get('name')} (ID: {salon.get('id')[:8]}...), Services: {len(salon.get('services', []))}")
+    else:
+        print("[DEBUG] No salons found in database!")
     
     # Calculate distance if lat/lng provided and filter by radius
     if lat is not None and lng is not None:
@@ -458,7 +567,7 @@ async def get_salons(
 
 @app.get("/api/salons/{salon_id}")
 async def get_salon(salon_id: str):
-    response = await supabase_request("GET", f"salons?id=eq.{salon_id}&select=*,services(*),reviews(*,users(name))")
+    response = await supabase_public_request("GET", f"salons?id=eq.{salon_id}&select=*,services(*),reviews(*,users(name))")
     
     if response.status_code != 200:
         raise HTTPException(status_code=400, detail="Failed to fetch salon")
@@ -498,17 +607,12 @@ async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_curr
     response = await supabase_request("POST", "salons", salon_data, token=user_token)
     
     if response.status_code not in [200, 201]:
-        error_msg = "Failed to create salon"
         try:
-            error_data = response.json()
-            if isinstance(error_data, dict):
-                error_msg = error_data.get('message') or error_data.get('details') or str(error_data)
-            elif isinstance(error_data, list) and len(error_data) > 0:
-                error_msg = str(error_data[0])
-        except:
-            pass
-        raise HTTPException(status_code=400, detail=error_msg)
-    
+            logger.error("create_salon failed: status=%s body=%s", response.status_code, response.text)
+        except Exception:
+            logger.exception("create_salon failed (unreadable response)")
+        raise HTTPException(status_code=400, detail="Failed to create salon")
+
     return response.json()[0]
 
 @app.patch("/api/salons/{salon_id}")
@@ -725,17 +829,12 @@ async def create_service(salon_id: str, service: ServiceCreate, current_user: di
     response = await supabase_request("POST", "services", service_data, token=user_token)
     
     if response.status_code not in [200, 201]:
-        error_msg = "Failed to create service"
         try:
-            error_data = response.json()
-            if isinstance(error_data, dict):
-                error_msg = error_data.get('message') or error_data.get('details') or str(error_data)
-            elif isinstance(error_data, list) and len(error_data) > 0:
-                error_msg = str(error_data[0])
-        except:
-            pass
-        raise HTTPException(status_code=400, detail=error_msg)
-    
+            logger.error("create_service failed: status=%s body=%s", response.status_code, response.text)
+        except Exception:
+            logger.exception("create_service failed (unreadable response)")
+        raise HTTPException(status_code=400, detail="Failed to create service")
+
     return response.json()[0]
 
 @app.patch("/api/services/{service_id}")
@@ -794,7 +893,7 @@ async def delete_service(service_id: str, current_user: dict = Depends(get_curre
 @app.get("/api/salons/{salon_id}/slots")
 async def get_available_slots(salon_id: str, date: str, service_id: str):
     # Get salon and service (including the allow_multiple_bookings_per_slot setting)
-    salon_response = await supabase_request("GET", f"salons?id=eq.{salon_id}&select=opening_time,closing_time,allow_multiple_bookings_per_slot")
+    salon_response = await supabase_request("GET", f"salons?id=eq.{salon_id}&select=opening_time,closing_time,allow_multiple_bookings_per_slot,max_bookings_per_slot")
     service_response = await supabase_request("GET", f"services?id=eq.{service_id}&select=duration")
 
     if salon_response.status_code != 200 or not salon_response.json():
@@ -809,107 +908,127 @@ async def get_available_slots(salon_id: str, date: str, service_id: str):
     closing = datetime.strptime(salon.get("closing_time", "21:00"), "%H:%M")
     duration = service.get("duration", 30)
     allow_multiple = salon.get("allow_multiple_bookings_per_slot", False)
+    max_per_slot = salon.get("max_bookings_per_slot", 1) or 1  # fallback if NULL
 
-    # Get existing bookings for the date
+    # Get existing bookings for the date (exclude cancelled)
     bookings_response = await supabase_request(
         "GET",
         f"bookings?salon_id=eq.{salon_id}&booking_date=eq.{date}&status=neq.cancelled&select=time_slot,service_id,services(duration)"
     )
 
-    # Track which time slots have bookings and how many
+    # Track how many bookings each 30-min block has
     slot_booking_count = {}
-    booked_slots = set()
 
     if bookings_response.status_code == 200:
         for booking in bookings_response.json():
             slot_time = datetime.strptime(booking["time_slot"], "%H:%M")
             slot_duration = booking.get("services", {}).get("duration", 30)
-            # Mark all slots covered by this booking as having a booking
+            # Mark all 30-min blocks covered by this booking
             for i in range(0, slot_duration, 30):
                 blocked_time = (slot_time + timedelta(minutes=i)).strftime("%H:%M")
                 slot_booking_count[blocked_time] = slot_booking_count.get(blocked_time, 0) + 1
-                booked_slots.add(blocked_time)
 
-    # Generate available slots
+    # Generate slots with availability
     slots = []
     current = opening
     while current + timedelta(minutes=duration) <= closing:
         slot_str = current.strftime("%H:%M")
-        # Check if all required slots for this service are available
-        all_clear = True
-        conflict_detected = False
 
+        # Find the max booking count across all 30-min blocks this service would occupy
+        max_count_in_range = 0
         for i in range(0, duration, 30):
             check_time = (current + timedelta(minutes=i)).strftime("%H:%M")
-            if check_time in booked_slots:
-                if not allow_multiple:
-                    all_clear = False
-                    conflict_detected = True
-                    break
-                # If multiple bookings allowed, still show conflict but allow booking
-                conflict_detected = True
+            max_count_in_range = max(max_count_in_range, slot_booking_count.get(check_time, 0))
+
+        if allow_multiple:
+            # Multiple bookings allowed — available until capacity reached
+            is_available = max_count_in_range < max_per_slot
+        else:
+            # Single booking mode — any existing booking blocks the slot
+            is_available = max_count_in_range == 0
 
         slots.append({
             "time": slot_str,
-            "available": all_clear if not allow_multiple else True,
-            "has_bookings": slot_str in slot_booking_count,
+            "available": is_available,
             "booking_count": slot_booking_count.get(slot_str, 0),
+            "max_bookings": max_per_slot if allow_multiple else 1,
             "allow_multiple": allow_multiple
         })
         current += timedelta(minutes=30)
 
     return {
         "slots": slots,
-        "allow_multiple_bookings_per_slot": allow_multiple
+        "allow_multiple_bookings_per_slot": allow_multiple,
+        "max_bookings_per_slot": max_per_slot
     }
 
 @app.post("/api/bookings")
-async def create_booking(booking: BookingCreate, current_user: dict = Depends(get_current_user)):
-    profile = current_user.get("profile")
-    if not profile or profile.get("role") != "customer":
-        raise HTTPException(status_code=403, detail="Only customers can make bookings")
-
-    # Check slot availability - now returns dict with slots array
-    slots_response = await get_available_slots(booking.salon_id, booking.booking_date, booking.service_id)
-    slots = slots_response.get("slots", [])
-    slot_info = next((s for s in slots if s["time"] == booking.time_slot), None)
-
-    if not slot_info:
-        raise HTTPException(status_code=400, detail="Invalid time slot")
-
-    if not slot_info["available"]:
-        raise HTTPException(status_code=400, detail="This time slot is already booked")
-
-    # Get service price
-    service_response = await supabase_request("GET", f"services?id=eq.{booking.service_id}&select=price,name")
-    if service_response.status_code != 200 or not service_response.json():
+async def create_booking(data: BookingCreate, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id")
+    token = current_user.get("access_token")
+    
+    # 1. Fetch salon and service details
+    salon_resp = await supabase_request("GET", f"salons?id=eq.{data.salon_id}", token=token)
+    if salon_resp.status_code != 200 or not salon_resp.json():
+        raise HTTPException(status_code=404, detail="Salon not found")
+    
+    salon = salon_resp.json()[0]
+    auto_accept = salon.get("auto_accept", True)
+    
+    service_resp = await supabase_request("GET", f"services?id=eq.{data.service_id}", token=token)
+    if service_resp.status_code != 200 or not service_resp.json():
         raise HTTPException(status_code=404, detail="Service not found")
-
-    service = service_response.json()[0]
-
+    
+    service = service_resp.json()[0]
+    
+    # 2. Prepare booking data
     booking_data = {
-        "id": str(uuid.uuid4()),
-        "user_id": current_user.get("id"),
-        "salon_id": booking.salon_id,
-        "service_id": booking.service_id,
-        "booking_date": booking.booking_date,
-        "time_slot": booking.time_slot,
-        "status": BookingStatus.pending.value,
-        "payment_status": PaymentStatus.pending.value,
-        "amount": service.get("price", 0),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "user_id": user_id,
+        "salon_id": data.salon_id,
+        "service_id": data.service_id,
+        "booking_date": data.booking_date,
+        "time_slot": data.time_slot,
+        "status": "confirmed" if auto_accept else "pending",
+        "payment_status": "pending",
+        "payment_method": data.payment_method,
+        "amount": service.get("price", 0)
     }
-
-    response = await supabase_request("POST", "bookings", booking_data, token=current_user.get("access_token"))
-
+    
+    # 3. Insert booking
+    response = await supabase_request("POST", "bookings", booking_data, token=token)
+    
     if response.status_code not in [200, 201]:
-        # Check for unique constraint violation (slot already booked)
-        error_detail = response.text
-        if "idx_unique_booking_slot" in error_detail or "duplicate" in error_detail.lower():
-            raise HTTPException(status_code=409, detail="This time slot was just booked by someone else. Please choose another slot.")
+        print(f"[ERROR create_booking] Failed: {response.status_code} - {response.text}")
         raise HTTPException(status_code=400, detail="Failed to create booking")
-
-    return response.json()[0]
+    
+    booking = response.json()[0]
+    
+    # 4. Trigger Notifications
+    # Fetch owner's push token
+    owner_resp = await supabase_request("GET", f"users?id=eq.{salon['owner_id']}", token=token)
+    if owner_resp.status_code == 200 and owner_resp.json():
+        owner = owner_resp.json()[0]
+        if owner.get("push_token"):
+            await notify_owner_new_booking(
+                owner["push_token"],
+                salon["name"],
+                service["name"],
+                f"{data.booking_date} {data.time_slot}"
+            )
+            
+    # If auto-accepted, notify customer too
+    if auto_accept:
+        customer_resp = await supabase_request("GET", f"users?id=eq.{user_id}", token=token)
+        if customer_resp.status_code == 200 and customer_resp.json():
+            customer = customer_resp.json()[0]
+            if customer.get("push_token"):
+                await notify_customer_booking_confirmed(
+                    customer["push_token"],
+                    salon["name"],
+                    f"{data.booking_date} {data.time_slot}"
+                )
+    
+    return booking
 
 @app.get("/api/bookings")
 async def get_my_bookings(current_user: dict = Depends(get_current_user)):
@@ -936,33 +1055,31 @@ async def get_my_bookings(current_user: dict = Depends(get_current_user)):
 
 @app.patch("/api/bookings/{booking_id}/status")
 async def update_booking_status(booking_id: str, data: BookingStatusUpdate, current_user: dict = Depends(get_current_user)):
-    profile = current_user.get("profile")
-    user_token = current_user.get("access_token")
+    token = current_user.get("access_token")
     
-    # Get booking
-    response = await supabase_request("GET", f"bookings?id=eq.{booking_id}&select=*,salons(owner_id)", token=user_token)
-    if response.status_code != 200 or not response.json():
-        raise HTTPException(status_code=404, detail="Booking not found")
+    # 1. Update status
+    response = await supabase_request("PATCH", f"bookings?id=eq.{booking_id}", {"status": data.status.value}, token=token)
     
-    booking = response.json()[0]
-    
-    # Check authorization
-    is_customer = booking.get("user_id") == current_user.get("id")
-    is_owner = booking.get("salons", {}).get("owner_id") == current_user.get("id")
-    
-    if not is_customer and not is_owner:
-        raise HTTPException(status_code=403, detail="Not authorized")
-    
-    # Customers can only cancel
-    if is_customer and data.status != BookingStatus.cancelled:
-        raise HTTPException(status_code=403, detail="Customers can only cancel bookings")
-    
-    response = await supabase_request("PATCH", f"bookings?id=eq.{booking_id}", {"status": data.status.value}, token=user_token)
-
     if response.status_code not in [200, 201, 204]:
-        raise HTTPException(status_code=400, detail="Failed to update booking")
+        raise HTTPException(status_code=400, detail="Failed to update booking status")
+        
+    # 2. Trigger Notifications for status change
+    # Fetch booking, salon, and customer info
+    booking_resp = await supabase_request("GET", f"bookings?id=eq.{booking_id}&select=*,salons(name,owner_id),services(name),users(push_token)", token=token)
     
-    return {"message": "Booking status updated successfully"}
+    if booking_resp.status_code == 200 and booking_resp.json():
+        booking = booking_resp.json()[0]
+        salon_name = booking.get("salons", {}).get("name", "Salon")
+        customer_token = booking.get("users", {}).get("push_token")
+        booking_time = f"{booking['booking_date']} {booking['time_slot']}"
+        
+        if customer_token:
+            if data.status == "confirmed":
+                await notify_customer_booking_confirmed(customer_token, salon_name, booking_time)
+            elif data.status == "cancelled":
+                await notify_customer_booking_cancelled(customer_token, salon_name, booking_time)
+    
+    return {"message": f"Booking status updated to {data.status}"}
 
 @app.post("/api/owner/bookings/{booking_id}/accept")
 async def accept_booking(booking_id: str, current_user: dict = Depends(get_current_user)):
@@ -1044,28 +1161,62 @@ async def create_payment_order(data: PaymentCreate, current_user: dict = Depends
         "key_id": RAZORPAY_KEY_ID,
     }
 
+class PaymentVerifyRequest(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+    booking_id: str
+
 @app.post("/api/payments/verify")
 async def verify_payment(
-    razorpay_order_id: str,
-    razorpay_payment_id: str,
-    razorpay_signature: str,
-    booking_id: str,
+    payload: PaymentVerifyRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    # In production, verify signature with Razorpay
-    # For now, mock successful payment
-    
-    # Update booking payment status
-    response = await supabase_request("PATCH", f"bookings?id=eq.{booking_id}", {
+    # 1. Verify HMAC-SHA256 signature against Razorpay key secret
+    if not RAZORPAY_KEY_SECRET:
+        logger.error("RAZORPAY_KEY_SECRET not configured")
+        raise HTTPException(status_code=500, detail="Payment verification unavailable")
+
+    expected = hmac.new(
+        RAZORPAY_KEY_SECRET.encode("utf-8"),
+        f"{payload.razorpay_order_id}|{payload.razorpay_payment_id}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected, payload.razorpay_signature):
+        logger.warning("Razorpay signature mismatch for booking %s", payload.booking_id)
+        raise HTTPException(status_code=400, detail="Invalid payment signature")
+
+    # 2. Idempotency: load booking; if already paid, short-circuit success
+    user_token = current_user.get("access_token")
+    booking_lookup = await supabase_request(
+        "GET",
+        f"bookings?id=eq.{payload.booking_id}&select=id,user_id,payment_status",
+        token=user_token,
+    )
+    if booking_lookup.status_code != 200 or not booking_lookup.json():
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    booking = booking_lookup.json()[0]
+
+    if booking.get("user_id") != current_user.get("id"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    if booking.get("payment_status") == PaymentStatus.paid.value:
+        return {"message": "Payment already verified", "status": "success", "idempotent": True}
+
+    # 3. Update booking payment status
+    response = await supabase_request("PATCH", f"bookings?id=eq.{payload.booking_id}", {
         "payment_status": PaymentStatus.paid.value,
         "status": BookingStatus.confirmed.value,
-        "razorpay_order_id": razorpay_order_id,
-        "razorpay_payment_id": razorpay_payment_id,
-    }, token=current_user.get("access_token"))
-    
+        "razorpay_order_id": payload.razorpay_order_id,
+        "razorpay_payment_id": payload.razorpay_payment_id,
+    }, token=user_token)
+
     if response.status_code not in [200, 201, 204]:
-        raise HTTPException(status_code=400, detail="Failed to update payment status")
-    
+        logger.error("Failed to update booking %s after verified payment: %s", payload.booking_id, response.text)
+        raise HTTPException(status_code=500, detail="Failed to update payment status")
+
     return {"message": "Payment verified", "status": "success"}
 
 # ========== REVIEW ENDPOINTS ==========
@@ -1101,51 +1252,9 @@ async def create_review(review: ReviewCreate, current_user: dict = Depends(get_c
     
     return response.json()[0]
 
-# ========== ANALYTICS ENDPOINTS ==========
-
-@app.get("/api/owner/analytics")
-async def get_owner_analytics(current_user: dict = Depends(get_current_user)):
-    profile = current_user.get("profile")
-    if not profile or profile.get("role") != "owner":
-        raise HTTPException(status_code=403, detail="Only salon owners can access analytics")
-    
-    user_token = current_user.get("access_token")
-    
-    # Get salon
-    salon_response = await supabase_request("GET", f"salons?owner_id=eq.{current_user.get('id')}&select=id", token=user_token)
-    if salon_response.status_code != 200 or not salon_response.json():
-        return {"total_bookings": 0, "total_earnings": 0, "pending_bookings": 0, "completed_bookings": 0}
-    
-    salon_id = salon_response.json()[0].get("id")
-    
-    # Get bookings
-    bookings_response = await supabase_request("GET", f"bookings?salon_id=eq.{salon_id}&select=*", token=user_token)
-    
-    if bookings_response.status_code != 200:
-        raise HTTPException(status_code=400, detail="Failed to fetch analytics")
-    
-    bookings = bookings_response.json()
-    
-    total_earnings = sum(b.get("amount", 0) for b in bookings if b.get("payment_status") == "paid")
-    pending = len([b for b in bookings if b.get("status") == "pending"])
-    confirmed = len([b for b in bookings if b.get("status") == "confirmed"])
-    completed = len([b for b in bookings if b.get("status") == "completed"])
-    cancelled = len([b for b in bookings if b.get("status") == "cancelled"])
-    
-    # Get today's bookings
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    today_bookings = [b for b in bookings if b.get("booking_date") == today]
-    
-    return {
-        "total_bookings": len(bookings),
-        "total_earnings": total_earnings,
-        "pending_bookings": pending,
-        "confirmed_bookings": confirmed,
-        "completed_bookings": completed,
-        "cancelled_bookings": cancelled,
-        "today_bookings": len(today_bookings),
-    }
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    import os
+    port = int(os.getenv("PORT", 8001))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+

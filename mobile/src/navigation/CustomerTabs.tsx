@@ -1,13 +1,29 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomerTabParamList } from './types';
-import { colors, typography } from '../theme';
+import { colors } from '../theme';
 import CustomerStack from './CustomerStack';
 import MyBookingsScreen from '../screens/customer/MyBookingsScreen';
 import ProfileScreen from '../screens/customer/ProfileScreen';
+import PrivacyPolicyScreen from '../screens/legal/PrivacyPolicyScreen';
+import TermsScreen from '../screens/legal/TermsScreen';
+import ContactScreen from '../screens/legal/ContactScreen';
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
+
+const ProfileStack = createNativeStackNavigator();
+function ProfileStackScreen() {
+  return (
+    <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+      <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
+      <ProfileStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+      <ProfileStack.Screen name="Terms" component={TermsScreen} />
+      <ProfileStack.Screen name="Contact" component={ContactScreen} />
+    </ProfileStack.Navigator>
+  );
+}
 
 export default function CustomerTabs() {
   return (
@@ -49,7 +65,7 @@ export default function CustomerTabs() {
       />
       <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={ProfileStackScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />

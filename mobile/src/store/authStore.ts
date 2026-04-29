@@ -125,8 +125,9 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: () => {
+      logout: async () => {
         setAuthToken(null);
+        // Clear auth state
         set({
           user: null,
           token: null,

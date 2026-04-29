@@ -3,10 +3,12 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Booking } from '../types';
 import { colors, formatPrice, formatDate, formatTime, getStatusColor, getPaymentStatusColor } from '../lib/utils';
+import { openNativeDirections } from '../lib/maps';
 
 interface BookingCardProps {
   booking: Booking;
   isOwner?: boolean;
+  compact?: boolean;
   onCancel?: () => void;
   onConfirm?: () => void;
   onReject?: () => void;
@@ -16,6 +18,7 @@ interface BookingCardProps {
 export const BookingCard: React.FC<BookingCardProps> = ({
   booking,
   isOwner = false,
+  compact = false,
   onCancel,
   onConfirm,
   onReject,
@@ -77,49 +80,76 @@ export const BookingCard: React.FC<BookingCardProps> = ({
         )}
       </View>
 
-      <View style={styles.footer}>
-        <View style={styles.footerLeft}>
-          <View style={[styles.paymentBadge, { backgroundColor: paymentColors.bg }]}>
-            <Text style={[styles.paymentText, { color: paymentColors.text }]}>
-              {booking.payment_status}
-            </Text>
+      {!compact && (
+        <View style={styles.footer}>
+          <View style={styles.footerLeft}>
+            <View style={[styles.paymentBadge, { backgroundColor: paymentColors.bg }]}>
+              <Text style={[styles.paymentText, { color: paymentColors.text }]}>
+                {booking.payment_status}
+              </Text>
+            </View>
+            <Text style={styles.amountText}>{formatPrice(booking.amount || 0)}</Text>
           </View>
-          <Text style={styles.amountText}>{formatPrice(booking.amount || 0)}</Text>
-        </View>
 
-        <View style={styles.actions}>
-          {!isOwner && booking.status === 'pending' && onCancel && (
-            <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
-              <Ionicons name="close-circle-outline" size={18} color={colors.error} />
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
-          )}
+          <View style={styles.actions}>
+            {/* ── Customer: cancel pending ───────────────────── */}
+            {!isOwner && booking.status === 'pending' && onCancel && (
+              <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
+                <Ionicons name="close-circle-outline" size={18} color={colors.error} />
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
 
-          {isOwner && booking.status === 'pending' && (
-            <>
-              {onConfirm && (
-                <TouchableOpacity style={styles.confirmButton} onPress={onConfirm}>
-                  <Ionicons name="checkmark" size={16} color="#065F46" />
-                  <Text style={styles.confirmText}>Confirm</Text>
+            {/* ── Customer: get directions (confirmed / completed) ── */}
+            {!isOwner &&
+              (booking.status === 'confirmed' || booking.status === 'completed') &&
+              booking.salons?.latitude &&
+              booking.salons?.longitude && (
+                <TouchableOpacity
+                  style={styles.directionsButton}
+                  onPress={() =>
+                    openNativeDirections(
+                      {
+                        latitude: booking.salons!.latitude,
+                        longitude: booking.salons!.longitude,
+                      },
+                      booking.salons!.name
+                    )
+                  }
+                >
+                  <Ionicons name="navigate" size={15} color="#FFFFFF" />
+                  <Text style={styles.directionsText}>Get Directions</Text>
                 </TouchableOpacity>
               )}
-              {onReject && (
-                <TouchableOpacity style={styles.rejectButton} onPress={onReject}>
-                  <Ionicons name="close" size={16} color="#991B1B" />
-                  <Text style={styles.rejectText}>Reject</Text>
-                </TouchableOpacity>
-              )}
-            </>
-          )}
 
-          {isOwner && booking.status === 'confirmed' && onComplete && (
-            <TouchableOpacity style={styles.completeButton} onPress={onComplete}>
-              <Ionicons name="checkmark-done" size={16} color="#1E40AF" />
-              <Text style={styles.completeText}>Complete</Text>
-            </TouchableOpacity>
-          )}
+            {/* ── Owner: confirm / reject pending ───────────── */}
+            {isOwner && booking.status === 'pending' && (
+              <>
+                {onConfirm && (
+                  <TouchableOpacity style={styles.confirmButton} onPress={onConfirm}>
+                    <Ionicons name="checkmark" size={16} color="#065F46" />
+                    <Text style={styles.confirmText}>Confirm</Text>
+                  </TouchableOpacity>
+                )}
+                {onReject && (
+                  <TouchableOpacity style={styles.rejectButton} onPress={onReject}>
+                    <Ionicons name="close" size={16} color="#991B1B" />
+                    <Text style={styles.rejectText}>Reject</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+
+            {/* ── Owner: mark confirmed booking as complete ─── */}
+            {isOwner && booking.status === 'confirmed' && onComplete && (
+              <TouchableOpacity style={styles.completeButton} onPress={onComplete}>
+                <Ionicons name="checkmark-done" size={16} color="#1E40AF" />
+                <Text style={styles.completeText}>Complete</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      </View>
+      )}
     </View>
   );
 };
@@ -223,6 +253,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.error,
+  },
+  directionsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 5,
+  },
+  directionsText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   confirmButton: {
     flexDirection: 'row',

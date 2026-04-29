@@ -1,13 +1,15 @@
 import { createClient, RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import type { Booking } from '../types';
 
-// Supabase configuration — reads from environment, falls back to hardcoded for development
-const SUPABASE_URL =
-  process.env.EXPO_PUBLIC_SUPABASE_URL ||
-  'https://etpoecagsfhodtfuhblk.supabase.co';
-const SUPABASE_ANON_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0cG9lY2Fnc2Zob2R0ZnVoYmxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNjYwODksImV4cCI6MjA1OTY0MjA4OX0.8mE0D6eIE4iF4u6z9n6T4h8K3q0E1m5v7j2K5p3Q8r0';
+// Supabase configuration — must be provided via EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY.
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    'Supabase env vars missing. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.'
+  );
+}
 
 // Create Supabase client with realtime enabled
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -50,9 +52,7 @@ export const subscribeToBookings = (
         }
       }
     )
-    .subscribe((status: string) => {
-      console.log('Realtime subscription status:', status);
-    });
+    .subscribe();
 
   return channel;
 };
@@ -81,9 +81,7 @@ export const subscribeToSalonBookings = (
         onChange(payload);
       }
     )
-    .subscribe((status: string) => {
-      console.log('Salon bookings subscription status:', status);
-    });
+    .subscribe();
 
   return channel;
 };

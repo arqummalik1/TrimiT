@@ -19,7 +19,18 @@ export type CustomerDiscoverStackParamList = {
   DiscoverMain: undefined;
   SalonDetail: { salonId: string };
   Booking: { salonId: string; serviceId: string };
+  Payment: {
+    bookingId: string;
+    amount: number;
+    salonName: string;
+    serviceName: string;
+    bookingDate: string;
+    timeSlot: string;
+  };
   WriteReview: { salonId: string; bookingId?: string };
+  PrivacyPolicy: undefined;
+  Terms: undefined;
+  Contact: undefined;
 };
 
 export type CustomerTabParamList = {
@@ -36,11 +47,18 @@ export type OwnerDashboardStackParamList = {
   ManageSalon: undefined;
 };
 
+export type OwnerSettingsStackParamList = {
+  SettingsMain: undefined;
+  PrivacyPolicy: undefined;
+  Terms: undefined;
+  Contact: undefined;
+};
+
 export type OwnerTabParamList = {
   Dashboard: NavigatorScreenParams<OwnerDashboardStackParamList>;
   Bookings: undefined;
   Services: undefined;
-  Settings: undefined;
+  Settings: NavigatorScreenParams<OwnerSettingsStackParamList>;
 };
 
 // =============================================================================

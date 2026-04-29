@@ -56,8 +56,6 @@ const MyBookings = () => {
 
   // Handle booking status update
   const handleBookingUpdate = useCallback((payload) => {
-    console.log('[Realtime] Booking update received:', payload);
-    
     if (payload.eventType === 'UPDATE') {
       const oldBooking = payload.old;
       const newBooking = payload.new;
@@ -119,15 +117,12 @@ const MyBookings = () => {
   // Subscribe to real-time booking status updates
   useEffect(() => {
     if (!profile?.id) return;
-    
-    console.log('[Realtime] Setting up user bookings subscription for:', profile.id);
-    
+
     const channel = subscribeToUserBookings(profile.id, handleBookingUpdate);
-    
+
     setActiveChannel(channel);
-    
+
     return () => {
-      console.log('[Realtime] Cleaning up user bookings subscription');
       unsubscribeFromChannel(channel);
     };
   }, [profile?.id, handleBookingUpdate]);

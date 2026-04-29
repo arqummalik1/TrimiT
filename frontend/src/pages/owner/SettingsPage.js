@@ -1,21 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { 
-  ArrowLeft, 
-  ToggleRight, 
+import {
+  ArrowLeft,
+  ToggleRight,
   ToggleLeft,
   Info,
   Storefront,
   Scissors,
-  CheckCircle
+  CheckCircle,
+  Minus,
+  Plus,
+  Users
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 
 const SettingsPage = () => {
   const queryClient = useQueryClient();
   const [showSuccess, setShowSuccess] = useState(false);
+  const [maxBookings, setMaxBookings] = useState(1);
 
   const { data: salon, isLoading } = useQuery({
     queryKey: ['ownerSalon'],
@@ -24,6 +28,13 @@ const SettingsPage = () => {
       return response.data;
     },
   });
+
+  // Sync maxBookings from server data
+  useEffect(() => {
+    if (salon?.max_bookings_per_slot) {
+      setMaxBookings(salon.max_bookings_per_slot);
+    }
+  }, [salon?.max_bookings_per_slot]);
 
   const updateMutation = useMutation({
     mutationFn: async (data) => {
@@ -39,9 +50,20 @@ const SettingsPage = () => {
 
   const handleToggle = () => {
     if (!salon) return;
+    const turningOn = !salon.allow_multiple_bookings_per_slot;
     updateMutation.mutate({
-      allow_multiple_bookings_per_slot: !salon.allow_multiple_bookings_per_slot
+      allow_multiple_bookings_per_slot: turningOn,
+      // When turning ON, set max to current maxBookings (at least 2)
+      // When turning OFF, reset to 1
+      max_bookings_per_slot: turningOn ? Math.max(maxBookings, 2) : 1
     });
+    if (turningOn && maxBookings < 2) setMaxBookings(2);
+  };
+
+  const handleMaxBookingsChange = (delta) => {
+    const newVal = Math.max(2, Math.min(100, maxBookings + delta));
+    setMaxBookings(newVal);
+    updateMutation.mutate({ max_bookings_per_slot: newVal });
   };
 
   if (isLoading) {
@@ -167,6 +189,51 @@ const SettingsPage = () => {
               </button>
             </div>
 
+            {/* Max Bookings Per Slot — only shown when toggle is ON */}
+            {salon.allow_multiple_bookings_per_slot && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-4 p-4 bg-stone-50 rounded-xl border border-stone-200"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Users size={16} className="text-orange-800" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-stone-900 text-sm">
+                        Max Bookings Per Slot
+                      </h4>
+                      <p className="text-xs text-stone-500">
+                        How many customers can book the same time
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleMaxBookingsChange(-1)}
+                      disabled={maxBookings <= 2 || updateMutation.isPending}
+                      className="w-8 h-8 rounded-lg border border-stone-200 flex items-center justify-center text-stone-600 hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Minus size={14} weight="bold" />
+                    </button>
+                    <span className="w-10 text-center font-bold text-lg text-stone-900">
+                      {maxBookings}
+                    </span>
+                    <button
+                      onClick={() => handleMaxBookingsChange(1)}
+                      disabled={maxBookings >= 100 || updateMutation.isPending}
+                      className="w-8 h-8 rounded-lg border border-stone-200 flex items-center justify-center text-stone-600 hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Plus size={14} weight="bold" />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* Info Box */}
             <div className="mt-4 p-4 bg-blue-50 rounded-xl flex gap-3">
               <Info size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
@@ -174,7 +241,8 @@ const SettingsPage = () => {
                 <p className="font-medium mb-1">How this works:</p>
                 <ul className="space-y-1 text-blue-700">
                   <li>• When OFF: Only one booking per time slot (prevents double booking)</li>
-                  <li>• When ON: Multiple customers can book the same slot (for group services)</li>
+                  <li>• When ON: Up to {salon.allow_multiple_bookings_per_slot ? maxBookings : '—'} customers can book the same slot</li>
+                  <li>• Slots automatically show as "Full" when the limit is reached</li>
                 </ul>
               </div>
             </div>
@@ -195,7 +263,9 @@ const SettingsPage = () => {
                 <ToggleRight size={32} weight="fill" className="text-orange-800" />
                 <div>
                   <p className="font-medium text-stone-900">Multiple bookings enabled</p>
-                  <p className="text-sm text-stone-500">Multiple customers can book the same slot</p>
+                  <p className="text-sm text-stone-500">
+                    Up to <span className="font-semibold text-orange-800">{salon.max_bookings_per_slot || maxBookings}</span> customers can book the same slot
+                  </p>
                 </div>
               </>
             ) : (
@@ -203,7 +273,7 @@ const SettingsPage = () => {
                 <ToggleLeft size={32} weight="fill" className="text-stone-400" />
                 <div>
                   <p className="font-medium text-stone-900">Single booking per slot</p>
-                  <p className="text-sm text-stone-500">Only one customer per time slot</p>
+                  <p className="text-sm text-stone-500">Only one customer per time slot — shows "Already Booked" to others in real-time</p>
                 </div>
               </>
             )}

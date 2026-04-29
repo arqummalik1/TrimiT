@@ -4,6 +4,7 @@ export interface User {
   name: string;
   phone?: string;
   role: 'customer' | 'owner';
+  push_token?: string;
   created_at: string;
 }
 
@@ -21,6 +22,8 @@ export interface Salon {
   closing_time: string;
   images: string[];
   allow_multiple_bookings_per_slot?: boolean;
+  max_bookings_per_slot?: number;
+  auto_accept?: boolean;
   created_at: string;
   services?: Service[];
   reviews?: Review[];
@@ -48,6 +51,7 @@ export interface Booking {
   time_slot: string;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
+  payment_method?: 'salon_cash' | 'online';
   amount: number;
   created_at: string;
   salons?: Salon;
@@ -68,14 +72,20 @@ export interface Review {
 export interface TimeSlot {
   time: string;
   available: boolean;
-  has_bookings?: boolean;
   booking_count?: number;
+  max_bookings?: number;
   allow_multiple?: boolean;
 }
 
 export interface SlotsResponse {
   slots: TimeSlot[];
   allow_multiple_bookings_per_slot: boolean;
+  max_bookings_per_slot: number;
+}
+
+export interface SalonSettings {
+  allow_multiple_bookings_per_slot: boolean;
+  max_bookings_per_slot: number;
 }
 
 export interface TrendData {

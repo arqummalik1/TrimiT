@@ -9,6 +9,9 @@ import ManageBookingsScreen from '../screens/owner/ManageBookingsScreen';
 import ManageServicesScreen from '../screens/owner/ManageServicesScreen';
 import SettingsScreen from '../screens/owner/SettingsScreen';
 import ManageSalonScreen from '../screens/owner/ManageSalonScreen';
+import PrivacyPolicyScreen from '../screens/legal/PrivacyPolicyScreen';
+import TermsScreen from '../screens/legal/TermsScreen';
+import ContactScreen from '../screens/legal/ContactScreen';
 
 const Tab = createBottomTabNavigator<OwnerTabParamList>();
 
@@ -19,6 +22,9 @@ function SettingsStackScreen() {
     <SettingsStack.Navigator screenOptions={{ headerShown: false }}>
       <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} />
       <SettingsStack.Screen name="ManageSalon" component={ManageSalonScreen} />
+      <SettingsStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+      <SettingsStack.Screen name="Terms" component={TermsScreen} />
+      <SettingsStack.Screen name="Contact" component={ContactScreen} />
     </SettingsStack.Navigator>
   );
 }

@@ -5,6 +5,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Font from 'expo-font';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import {
   Manrope_400Regular,
   Manrope_500Medium,
@@ -16,13 +18,14 @@ import {
   Inter_800ExtraBold,
 } from '@expo-google-fonts/inter';
 
-import RootNavigator, { navigationRef } from './src/navigation';
+import { colors } from './src/lib/utils';
+import { registerForPushNotificationsAsync, handleNotificationResponse } from './src/lib/notifications';
+import RootNavigator, { navigationRef } from './src/navigation/index';
 import { useAuthStore } from './src/store/authStore';
-import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
-import Toast from './src/components/Toast';
+import { ThemeProvider } from './src/theme/ThemeContext';
 import ErrorBoundary from './src/components/ErrorBoundary';
-import OfflineBanner from './src/components/OfflineBanner';
-import { colors } from './src/theme';
+// import OfflineBanner from './src/components/OfflineBanner';
+import Toast from './src/components/Toast';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,8 +47,7 @@ const CUSTOM_FONTS = {
 };
 
 function AppContent() {
-  const { initializeAuth } = useAuthStore();
-  const { isDark } = useTheme();
+  const { isAuthenticated, initializeAuth } = useAuthStore();
   const [isReady, setIsReady] = useState(false);
   const [fontsLoaded, setFontsLoaded] = useState(false);
 
@@ -53,9 +55,9 @@ function AppContent() {
     try {
       await Font.loadAsync(CUSTOM_FONTS);
       setFontsLoaded(true);
-    } catch {
-      // Fonts failed to load — app continues with system fonts
-      setFontsLoaded(true);
+    } catch (e) {
+      console.warn('[App] Font loading failed:', e);
+      setFontsLoaded(true); // Continue with system fonts
     }
   }, []);
 
@@ -65,6 +67,21 @@ function AppContent() {
     const timeout = setTimeout(() => setIsReady(true), 300);
     return () => clearTimeout(timeout);
   }, []);
+
+  // Register push notifications when user logs in
+  useEffect(() => {
+    // Only register if authenticated AND NOT in Expo Go (remote notifications not supported in Go SDK 53+)
+    if (isAuthenticated && Constants.appOwnership !== 'expo') {
+      registerForPushNotificationsAsync();
+
+      // Listen for notification interactions
+      const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+        handleNotificationResponse(response, navigationRef);
+      });
+
+      return () => subscription.remove();
+    }
+  }, [isAuthenticated]);
 
   if (!isReady || !fontsLoaded) {
     return (
@@ -82,14 +99,24 @@ function AppContent() {
     );
   }
 
+  // Safety check: Ensure all critical components are defined
+  if (!ErrorBoundary || !RootNavigator || !Toast) {
+    console.error('[App] Critical components missing. Check imports.');
+    return (
+      <View style={styles.splash}>
+        <Text>Loading application modules...</Text>
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer ref={navigationRef}>
       <ErrorBoundary>
         <RootNavigator />
-        <OfflineBanner />
+        {/* <OfflineBanner /> */}
         <Toast />
       </ErrorBoundary>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <StatusBar style="auto" />
     </NavigationContainer>
   );
 }
@@ -98,7 +125,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider mode="system">
+        <ThemeProvider>
           <AppContent />
         </ThemeProvider>
       </QueryClientProvider>

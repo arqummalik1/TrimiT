@@ -7,18 +7,19 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Linking,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import MapView, { Marker } from 'react-native-maps';
+import MapView from 'react-native-maps';
 import api from '../../lib/api';
 import { Salon, Service } from '../../types';
 import { colors, formatPrice, formatDate } from '../../lib/utils';
 import { spacing, borderRadius } from '../../theme';
 import { Button } from '../../components/Button';
 import ImageCarousel from '../../components/ImageCarousel';
+import { SalonMapMarker } from '../../components/SalonMapMarker';
+import { openNativeDirections } from '../../lib/maps';
 
 interface SalonDetailScreenProps {
   navigation: any;
@@ -48,14 +49,10 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
 
   const handleDirections = () => {
     if (!salon?.latitude || !salon?.longitude) return;
-    const lat = salon.latitude;
-    const lng = salon.longitude;
-    const label = encodeURIComponent(salon.name);
-    const url = Platform.select({
-      ios: `maps:0,0?q=${label}@${lat},${lng}`,
-      android: `geo:${lat},${lng}?q=${lat},${lng}(${label})`,
-    });
-    if (url) Linking.openURL(url);
+    openNativeDirections(
+      { latitude: salon.latitude, longitude: salon.longitude },
+      salon.name
+    );
   };
 
   if (isLoading) {
@@ -131,7 +128,7 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
             ) : null}
           </View>
 
-          {/* Mini Map */}
+          {/* Mini Map with branded marker */}
           {salon.latitude && salon.longitude ? (
             <TouchableOpacity
               style={styles.miniMapContainer}
@@ -143,6 +140,7 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
                 scrollEnabled={false}
                 zoomEnabled={false}
                 rotateEnabled={false}
+                pitchEnabled={false}
                 initialRegion={{
                   latitude: salon.latitude,
                   longitude: salon.longitude,
@@ -150,17 +148,22 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
                   longitudeDelta: 0.005,
                 }}
               >
-                <Marker
+                <SalonMapMarker
                   coordinate={{
                     latitude: salon.latitude,
                     longitude: salon.longitude,
                   }}
-                  pinColor={colors.primary}
+                  label={salon.name}
+                  trackViewChanges={false}
                 />
               </MapView>
-              <View style={styles.miniMapLabel}>
-                <Ionicons name="navigate-outline" size={14} color={colors.textSecondary} />
-                <Text style={styles.miniMapText}>Tap to open in Maps</Text>
+
+              {/* Get Directions overlay */}
+              <View style={styles.directionsOverlay}>
+                <View style={styles.directionsOverlayPill}>
+                  <Ionicons name="navigate" size={14} color="#FFFFFF" />
+                  <Text style={styles.directionsOverlayText}>Get Directions</Text>
+                </View>
               </View>
             </TouchableOpacity>
           ) : null}
@@ -384,22 +387,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: spacing.xl,
+    position: 'relative',
   },
   miniMap: {
-    height: 150,
+    height: 200,
     width: '100%',
   },
-  miniMapLabel: {
+  directionsOverlay: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+  },
+  directionsOverlayPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surface,
+    gap: 6,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    // iOS shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    // Android
+    elevation: 4,
   },
-  miniMapText: {
-    fontSize: 12,
-    color: colors.textSecondary,
+  directionsOverlayText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   section: {
     marginBottom: 24,

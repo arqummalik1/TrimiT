@@ -18,6 +18,7 @@ import { colors, formatPrice, formatTime } from '../../lib/utils';
 import { Button } from '../../components/Button';
 import { useBookingStore } from '../../store/bookingStore';
 import { scheduleBookingReminder } from '../../lib/notifications';
+import { openNativeDirections } from '../../lib/maps';
 
 interface BookingScreenProps {
   navigation: any;
@@ -30,6 +31,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
 
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'cash' | 'card'>('cash');
   const [bookingComplete, setBookingComplete] = useState(false);
   const [slotConflictError, setSlotConflictError] = useState<string | null>(null);
 
@@ -91,11 +93,11 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
         service_id: serviceId,
         booking_date: selectedDate,
         time_slot: selectedSlot,
+        payment_method: selectedPaymentMethod,
       });
       return response.data;
     },
-    onSuccess: () => {
-      setBookingComplete(true);
+    onSuccess: (booking: any) => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       unsubscribeFromSlots();
 
@@ -108,13 +110,32 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
           service.name
         ).catch(() => {}); // Silently ignore if notifications not permitted
       }
+
+      // If online payment selected, route to payment screen
+      if (selectedPaymentMethod === 'card' && booking?.id && service && salon && selectedSlot) {
+        navigation.navigate('Payment', {
+          bookingId: booking.id,
+          amount: service.price,
+          salonName: salon.name,
+          serviceName: service.name,
+          bookingDate: selectedDate,
+          timeSlot: selectedSlot,
+        });
+      } else {
+        setBookingComplete(true);
+      }
     },
     onError: (error: any) => {
       const errorDetail = error.response?.data?.detail || 'Failed to create booking';
       const statusCode = error.response?.status;
 
+      // Always re-fetch slots on error so user sees updated availability
+      queryClient.invalidateQueries({ queryKey: ['slots', salonId, serviceId, selectedDate] });
+      refetchSlots();
+      setSelectedSlot(null);
+
       // Handle slot conflict specifically
-      if (statusCode === 409 || errorDetail.includes('already booked') || errorDetail.includes('someone else')) {
+      if (statusCode === 409 || statusCode === 400) {
         setSlotConflictError(errorDetail);
       } else {
         Alert.alert('Error', errorDetail);
@@ -225,6 +246,22 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
               style={{ flex: 1 }}
             />
           </View>
+
+          {/* Get Directions — only shown when salon has coordinates */}
+          {salon?.latitude && salon?.longitude && (
+            <Button
+              title="Get Directions to Salon"
+              onPress={() =>
+                openNativeDirections(
+                  { latitude: salon.latitude, longitude: salon.longitude },
+                  salon.name
+                )
+              }
+              variant="outline"
+              icon={<Ionicons name="navigate" size={18} color={colors.primary} />}
+              style={{ width: '100%', marginTop: 4 }}
+            />
+          )}
         </View>
       </SafeAreaView>
     );
@@ -332,7 +369,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
             <View style={styles.infoBanner}>
               <Ionicons name="information-circle" size={16} color={colors.primary} />
               <Text style={styles.infoText}>
-                This salon allows multiple bookings per slot
+                Up to {slotsData?.max_bookings_per_slot || 1} bookings per slot
               </Text>
             </View>
           )}
@@ -343,16 +380,21 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
             <View style={styles.slotsGrid}>
               {displaySlots.map((slot) => {
                 const isJustBooked = justBookedSlots.has(slot.time);
-                const showWarning = slot.has_bookings && effectiveAllowMultiple;
+                const isMulti = slot.allow_multiple;
+                const count = slot.booking_count || 0;
+                const max = slot.max_bookings || 1;
+                const isFillingUp = isMulti && count > 0 && count < max;
+                const isFull = !slot.available;
 
                 return (
                   <TouchableOpacity
                     key={slot.time}
                     style={[
                       styles.slotButton,
-                      !slot.available && styles.slotDisabled,
+                      isFull && styles.slotDisabled,
+                      isFillingUp && styles.slotFillingUp,
                       selectedSlot === slot.time && styles.slotSelected,
-                      isJustBooked && styles.slotJustBooked,
+                      isJustBooked && !isMulti && styles.slotJustBooked,
                     ]}
                     onPress={() => slot.available && setSelectedSlot(slot.time)}
                     disabled={!slot.available}
@@ -360,21 +402,32 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
                     <Text
                       style={[
                         styles.slotText,
-                        !slot.available && styles.slotTextDisabled,
+                        isFull && styles.slotTextDisabled,
                         selectedSlot === slot.time && styles.slotTextSelected,
-                        isJustBooked && styles.slotTextJustBooked,
+                        isJustBooked && !isMulti && styles.slotTextJustBooked,
                       ]}
                     >
                       {formatTime(slot.time)}
                     </Text>
-                    {showWarning && (
-                      <View style={styles.slotBadge}>
-                        <Text style={styles.slotBadgeText}>
-                          {slot.booking_count || 1} booked
-                        </Text>
-                      </View>
+                    {/* Multi-booking: show count/max */}
+                    {isMulti && (
+                      <Text
+                        style={[
+                          styles.slotCapacityText,
+                          isFull && styles.slotCapacityFull,
+                          selectedSlot === slot.time && styles.slotCapacitySelected,
+                          isFillingUp && styles.slotCapacityFilling,
+                        ]}
+                      >
+                        {isFull ? 'Full' : `${count}/${max}`}
+                      </Text>
                     )}
-                    {isJustBooked && (
+                    {/* Single booking: show "Booked" label */}
+                    {!isMulti && isFull && (
+                      <Text style={styles.slotBookedLabel}>Booked</Text>
+                    )}
+                    {/* Just taken indicator (single mode only) */}
+                    {isJustBooked && !isMulti && (
                       <View style={styles.justBookedIndicator}>
                         <Text style={styles.justBookedText}>Just taken!</Text>
                       </View>
@@ -391,7 +444,48 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
           )}
         </View>
 
-        {/* Booking Summary */}
+        {/* Payment Method */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="card" size={20} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Payment Method</Text>
+          </View>
+          
+          <TouchableOpacity 
+            style={[
+              styles.paymentOption, 
+              selectedPaymentMethod === 'cash' && styles.paymentOptionSelected
+            ]}
+            onPress={() => setSelectedPaymentMethod('cash')}
+          >
+            <View style={styles.paymentIconContainer}>
+              <Ionicons name="cash-outline" size={24} color={selectedPaymentMethod === 'cash' ? '#FFF' : colors.text} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.paymentTitle, selectedPaymentMethod === 'cash' && styles.paymentTextSelected]}>Cash at Salon</Text>
+              <Text style={[styles.paymentSub, selectedPaymentMethod === 'cash' && styles.paymentTextSelected]}>Pay after your service is completed</Text>
+            </View>
+            {selectedPaymentMethod === 'cash' && <Ionicons name="checkmark-circle" size={24} color="#FFF" />}
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[
+              styles.paymentOption, 
+              selectedPaymentMethod === 'card' && styles.paymentOptionSelected,
+              { marginTop: 12 }
+            ]}
+            onPress={() => setSelectedPaymentMethod('card')}
+          >
+            <View style={styles.paymentIconContainer}>
+              <Ionicons name="card-outline" size={24} color={selectedPaymentMethod === 'card' ? '#FFF' : colors.text} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.paymentTitle, selectedPaymentMethod === 'card' && styles.paymentTextSelected]}>Online Payment</Text>
+              <Text style={[styles.paymentSub, selectedPaymentMethod === 'card' && styles.paymentTextSelected]}>Secure payment via card or UPI</Text>
+            </View>
+            {selectedPaymentMethod === 'card' && <Ionicons name="checkmark-circle" size={24} color="#FFF" />}
+          </TouchableOpacity>
+        </View>
         {selectedSlot && (
           <View style={styles.bookingSummary}>
             <Text style={styles.summaryTitle}>Booking Summary</Text>
@@ -594,6 +688,40 @@ const styles = StyleSheet.create({
   noSlotsText: {
     color: colors.textSecondary,
   },
+  paymentOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 16,
+  },
+  paymentOptionSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  paymentIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paymentTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  paymentSub: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  paymentTextSelected: {
+    color: '#FFFFFF',
+  },
   refreshBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -622,18 +750,30 @@ const styles = StyleSheet.create({
     color: colors.secondary,
     fontWeight: '500',
   },
-  slotBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: colors.warning,
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+  slotFillingUp: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#F59E0B',
   },
-  slotBadgeText: {
-    fontSize: 9,
-    color: '#FFFFFF',
+  slotCapacityText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  slotCapacityFull: {
+    color: '#EF4444',
+    fontWeight: '600',
+  },
+  slotCapacitySelected: {
+    color: 'rgba(255,255,255,0.7)',
+  },
+  slotCapacityFilling: {
+    color: '#D97706',
+  },
+  slotBookedLabel: {
+    fontSize: 10,
+    color: '#EF4444',
+    marginTop: 2,
     fontWeight: '600',
   },
   slotJustBooked: {

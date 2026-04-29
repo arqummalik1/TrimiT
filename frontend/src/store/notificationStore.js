@@ -16,7 +16,6 @@ export const useNotificationStore = create(
           ...notification,
         };
 
-        console.log('[NotificationStore] Adding notification:', newNotification);
         set((state) => ({
           notifications: [newNotification, ...state.notifications].slice(0, 100),
           unreadCount: state.unreadCount + 1,

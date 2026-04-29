@@ -40,9 +40,7 @@ const LandingPage = () => {
   ];
 
   const getStartedLink = () => {
-    if (!isAuthenticated) return '/signup';
-    if (profile?.role === 'owner') return '/owner/dashboard';
-    return '/discover';
+    return !isAuthenticated ? '/signup' : profile?.role === 'owner' ? '/owner/dashboard' : '/discover';
   };
 
   return (

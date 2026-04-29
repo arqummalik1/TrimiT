@@ -18,23 +18,27 @@ import ManageSalon from './pages/owner/ManageSalon';
 import ManageServices from './pages/owner/ManageServices';
 import ManageBookings from './pages/owner/ManageBookings';
 import SettingsPage from './pages/owner/SettingsPage';
+import PrivacyPage from './pages/legal/PrivacyPage';
+import TermsPage from './pages/legal/TermsPage';
+import ContactPage from './pages/legal/ContactPage';
 
 // Components
 import Header from './components/Header';
+import Footer from './components/Footer';
 import Toast from './components/Toast';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, profile } = useAuthStore();
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
+
   if (allowedRoles && !allowedRoles.includes(profile?.role)) {
     return <Navigate to="/" replace />;
   }
-  
+
   return children;
 };
 
@@ -81,6 +85,9 @@ function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/contact" element={<ContactPage />} />
           
           {/* Customer Routes */}
           <Route 
@@ -162,7 +169,9 @@ function App() {
           <Route path="*" element={<Navigate to={getHomeRoute()} replace />} />
         </Routes>
       </main>
-      
+
+      <Footer />
+
       {/* Toast Notifications - Global */}
       <Toast />
     </div>
