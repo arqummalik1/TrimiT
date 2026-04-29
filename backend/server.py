@@ -891,7 +891,8 @@ async def delete_service(service_id: str, current_user: dict = Depends(get_curre
 # ========== BOOKING ENDPOINTS ==========
 
 @app.get("/api/salons/{salon_id}/slots")
-async def get_available_slots(salon_id: str, date: str, service_id: str):
+async def get_available_slots(salon_id: str, date: str, service_id: str, current_time: Optional[str] = None):
+
     # Get salon and service (including the allow_multiple_bookings_per_slot setting)
     salon_response = await supabase_request("GET", f"salons?id=eq.{salon_id}&select=opening_time,closing_time,allow_multiple_bookings_per_slot,max_bookings_per_slot")
     service_response = await supabase_request("GET", f"services?id=eq.{service_id}&select=duration")
@@ -928,6 +929,15 @@ async def get_available_slots(salon_id: str, date: str, service_id: str):
                 blocked_time = (slot_time + timedelta(minutes=i)).strftime("%H:%M")
                 slot_booking_count[blocked_time] = slot_booking_count.get(blocked_time, 0) + 1
 
+    # Determine if we are checking for today
+    now = datetime.now()
+    requested_date = datetime.strptime(date, "%Y-%m-%d").date()
+    is_today = requested_date == now.date()
+    
+    # Use client-provided time if available (for timezone accuracy), else fallback to server time
+    current_time_str = current_time if current_time else now.strftime("%H:%M")
+
+
     # Generate slots with availability
     slots = []
     current = opening
@@ -941,11 +951,13 @@ async def get_available_slots(salon_id: str, date: str, service_id: str):
             max_count_in_range = max(max_count_in_range, slot_booking_count.get(check_time, 0))
 
         if allow_multiple:
-            # Multiple bookings allowed — available until capacity reached
             is_available = max_count_in_range < max_per_slot
         else:
-            # Single booking mode — any existing booking blocks the slot
             is_available = max_count_in_range == 0
+            
+        # EXTRA CHECK: If it's today, mark past slots as unavailable
+        if is_today and slot_str < current_time_str:
+            is_available = False
 
         slots.append({
             "time": slot_str,
@@ -955,6 +967,7 @@ async def get_available_slots(salon_id: str, date: str, service_id: str):
             "allow_multiple": allow_multiple
         })
         current += timedelta(minutes=30)
+
 
     return {
         "slots": slots,
@@ -979,9 +992,32 @@ async def create_booking(data: BookingCreate, current_user: dict = Depends(get_c
     if service_resp.status_code != 200 or not service_resp.json():
         raise HTTPException(status_code=404, detail="Service not found")
     
+    # 2. Check for duplicate booking (prevent double-booking the same thing)
+    duplicate_check = await supabase_request(
+        "GET", 
+        f"bookings?user_id=eq.{user_id}&salon_id=eq.{data.salon_id}&service_id=eq.{data.service_id}&booking_date=eq.{data.booking_date}&time_slot=eq.{data.time_slot}",
+        token=token
+    )
+    if duplicate_check.status_code == 200 and duplicate_check.json():
+        raise HTTPException(
+            status_code=400,
+            detail="You already have a booking for this service at this time."
+        )
+
     service = service_resp.json()[0]
+
     
-    # 2. Prepare booking data
+    # 3. Double-check availability before booking (The "Final Guard")
+    availability_check = await get_available_slots(data.salon_id, data.booking_date, data.service_id)
+    slot_info = next((s for s in availability_check["slots"] if s["time"] == data.time_slot), None)
+    
+    if not slot_info or not slot_info["available"]:
+        raise HTTPException(
+            status_code=409, 
+            detail="This slot was just taken. Please choose another time."
+        )
+
+    # 4. Prepare booking data
     booking_data = {
         "user_id": user_id,
         "salon_id": data.salon_id,
@@ -993,6 +1029,7 @@ async def create_booking(data: BookingCreate, current_user: dict = Depends(get_c
         "payment_method": data.payment_method,
         "amount": service.get("price", 0)
     }
+
     
     # 3. Insert booking
     response = await supabase_request("POST", "bookings", booking_data, token=token)

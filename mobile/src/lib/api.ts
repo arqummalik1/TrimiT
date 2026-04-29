@@ -4,24 +4,39 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
 const PRODUCTION_API_URL = 'https://trimit-api.onrender.com';
-const ENV_API_URL = process.env.EXPO_PUBLIC_API_URL;
+const LOCAL_PORT = '8001';
 
-let API_BASE_URL = PRODUCTION_API_URL; // Default to production
+/**
+ * Senior Architect Logic: 
+ * Programmatically determines the best API URL.
+ * Priority: 1. Manual Env Var -> 2. Auto-detected Host IP -> 3. Production Fallback
+ */
+const getBaseURL = () => {
+  // If we are NOT in dev mode, always use production
+  if (!__DEV__) return PRODUCTION_API_URL;
 
-if (__DEV__) {
-  // Smart Discovery: Auto-detect host IP from Expo Metro Bundler
+  const ENV_URL = process.env.EXPO_PUBLIC_API_URL;
+  if (ENV_URL && !ENV_URL.includes('localhost') && !ENV_URL.includes('127.0.0.1')) {
+    return ENV_URL;
+  }
+
+  // Auto-detect Host IP (Your Laptop)
   const hostUri = Constants.expoConfig?.hostUri; 
   const hostIP = hostUri?.split(':')[0];
 
   if (hostIP && !hostIP.includes('127.0.0.1')) {
-    API_BASE_URL = `http://${hostIP}:8001`;
-    console.log('[API] Smart Discovery: Using host IP', hostIP);
-  } else if (Platform.OS === 'android') {
-    API_BASE_URL = 'http://10.0.2.2:8001';
-  } else {
-    API_BASE_URL = ENV_API_URL || 'http://localhost:8001';
+    const detectedUrl = `http://${hostIP}:${LOCAL_PORT}`;
+    console.log('[API] Senior Discovery: Using detected host', detectedUrl);
+    return detectedUrl;
   }
-}
+
+  // Final fallbacks for simulators
+  if (Platform.OS === 'android') return `http://10.0.2.2:${LOCAL_PORT}`;
+  return PRODUCTION_API_URL; // Ultimate fallback to LIVE if local fails
+};
+
+const API_BASE_URL = getBaseURL();
+console.log(`[API] Initialized with: ${API_BASE_URL}`);
 
 
 const api = axios.create({

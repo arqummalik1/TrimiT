@@ -62,11 +62,17 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
   const { data: slotsData, isLoading: slotsLoading, refetch: refetchSlots } = useQuery<SlotsResponse>({
     queryKey: ['slots', salonId, serviceId, selectedDate],
     queryFn: async () => {
+      const currentTime = format(new Date(), 'HH:mm');
       const response = await api.get(`/api/salons/${salonId}/slots`, {
-        params: { date: selectedDate, service_id: serviceId },
+        params: { 
+          date: selectedDate, 
+          service_id: serviceId,
+          current_time: currentTime
+        },
       });
       return response.data;
     },
+
     enabled: !!selectedDate,
   });
 
