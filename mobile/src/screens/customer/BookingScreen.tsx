@@ -254,26 +254,12 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
               <Text style={styles.summaryValue}>{formatTime(selectedSlot!)}</Text>
             </View>
             <View style={[styles.summaryRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalLabel}>Total Amount</Text>
               <Text style={styles.totalValue}>{formatPrice(service?.price || 0)}</Text>
             </View>
           </View>
 
-          <View style={styles.successButtons}>
-            <Button
-              title="View My Bookings"
-              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Bookings' })}
-              style={{ flex: 1 }}
-            />
-            <Button
-              title="Back to Home"
-              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Discover' })}
-              variant="outline"
-              style={{ flex: 1 }}
-            />
-          </View>
-
-          {/* Get Directions — only shown when salon has coordinates */}
+          {/* Get Directions — PRIMARY ACTION */}
           {salon?.latitude && salon?.longitude && (
             <Button
               title="Get Directions to Salon"
@@ -283,11 +269,29 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
                   salon.name
                 )
               }
-              variant="outline"
-              icon={<Ionicons name="navigate" size={18} color={colors.primary} />}
-              style={{ width: '100%', marginTop: 4 }}
+              variant="primary"
+              size="lg"
+              icon={<Ionicons name="location" size={20} color="#FFFFFF" />}
+              style={styles.heroButton}
             />
           )}
+
+          <View style={styles.successButtons}>
+            <Button
+              title="My Bookings"
+              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Bookings' })}
+              variant="outline"
+              style={{ flex: 1 }}
+              size="md"
+            />
+            <Button
+              title="Home"
+              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Discover' })}
+              variant="outline"
+              style={{ flex: 1 }}
+              size="md"
+            />
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -904,17 +908,33 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     backgroundColor: colors.surface,
-    padding: 20,
-    borderRadius: 16,
+    padding: 24,
+    borderRadius: 24,
     width: '100%',
-    marginBottom: 24,
+    marginBottom: 32,
     borderWidth: 1,
     borderColor: colors.border,
+    // Premium Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  heroButton: {
+    width: '100%',
+    marginBottom: 16,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   successButtons: {
     flexDirection: 'row',
     gap: 12,
     width: '100%',
+    marginTop: 8,
   },
 });
 
