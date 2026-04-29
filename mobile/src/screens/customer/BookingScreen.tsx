@@ -62,6 +62,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
   const { data: slotsData, isLoading: slotsLoading, refetch: refetchSlots } = useQuery<SlotsResponse>({
     queryKey: ['slots', salonId, serviceId, selectedDate],
     queryFn: async () => {
+      console.log('🔄 [Booking] Fetching fresh slots for:', { salonId, serviceId, selectedDate });
       const currentTime = format(new Date(), 'HH:mm');
       const response = await api.get(`/api/salons/${salonId}/slots`, {
         params: { 
@@ -70,9 +71,9 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
           current_time: currentTime
         },
       });
+      console.log('✅ [Booking] Slots received successfully:', response.data.slots?.length || 0, 'slots found');
       return response.data;
     },
-
     enabled: !!selectedDate,
   });
 
@@ -83,6 +84,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
   // Subscribe to real-time updates when slots are loaded
   useEffect(() => {
     if (slotsData?.slots && salonId && selectedDate) {
+      console.log('📡 [Booking] Subscribing to real-time slot updates...');
       subscribeToSlots(salonId, selectedDate, slotsData.slots, slotsData.allow_multiple_bookings_per_slot);
     }
 
@@ -94,16 +96,30 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
   // Create booking mutation
   const bookingMutation = useMutation({
     mutationFn: async () => {
+      // Senior Architect Fix: Map UI terms to Database terms
+      const dbPaymentMethod = selectedPaymentMethod === 'cash' ? 'salon_cash' : 'online';
+      
+      console.log('🚀 [Booking] ATTEMPTING TO BOOK NOW!', {
+        salon: salon?.name,
+        service: service?.name,
+        date: selectedDate,
+        slot: selectedSlot,
+        ui_payment: selectedPaymentMethod,
+        db_payment: dbPaymentMethod
+      });
+
       const response = await api.post('/api/bookings', {
         salon_id: salonId,
         service_id: serviceId,
         booking_date: selectedDate,
         time_slot: selectedSlot,
-        payment_method: selectedPaymentMethod,
+        payment_method: dbPaymentMethod,
       });
       return response.data;
     },
+
     onSuccess: (booking: any) => {
+      console.log('🎉 [Booking] SUCCESS! Booking ID:', booking?.id);
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       unsubscribeFromSlots();
 
@@ -134,6 +150,8 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
     onError: (error: any) => {
       const errorDetail = error.response?.data?.detail || 'Failed to create booking';
       const statusCode = error.response?.status;
+      
+      console.error('❌ [Booking] FAILED with status', statusCode, 'Error:', errorDetail);
 
       // Always re-fetch slots on error so user sees updated availability
       queryClient.invalidateQueries({ queryKey: ['slots', salonId, serviceId, selectedDate] });
@@ -142,12 +160,14 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
 
       // Handle slot conflict specifically
       if (statusCode === 409 || statusCode === 400) {
+        console.warn('⚠️ [Booking] Conflict detected! Displaying error to user.');
         setSlotConflictError(errorDetail);
       } else {
         Alert.alert('Error', errorDetail);
       }
     },
   });
+
 
   // Generate next 14 days
   const today = startOfToday();
@@ -320,6 +340,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
                   selectedDate === date.value && styles.dateCardSelected,
                 ]}
                 onPress={() => {
+                  console.log('📅 [Booking] Date changed to:', date.value);
                   setSelectedDate(date.value);
                   setSelectedSlot(null);
                   setSlotConflictError(null);
@@ -402,7 +423,10 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
                       selectedSlot === slot.time && styles.slotSelected,
                       isJustBooked && !isMulti && styles.slotJustBooked,
                     ]}
-                    onPress={() => slot.available && setSelectedSlot(slot.time)}
+                    onPress={() => {
+                      console.log('⏰ [Booking] Slot clicked:', slot.time, slot.available ? '✅' : '❌');
+                      setSelectedSlot(slot.time);
+                    }}
                     disabled={!slot.available}
                   >
                     <Text

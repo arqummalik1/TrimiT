@@ -1028,6 +1028,13 @@ async def create_booking(data: BookingCreate, current_user: dict = Depends(get_c
             detail="This slot was just taken or has already passed. Please choose another time."
         )
 
+    # Senior Architect Fix: Normalize payment method from mobile (cash/card) to DB (salon_cash/online)
+    payment_method = data.payment_method
+    if payment_method == 'cash':
+        payment_method = 'salon_cash'
+    elif payment_method == 'card':
+        payment_method = 'online'
+
     # 4. Prepare booking data
     booking_data = {
         "user_id": user_id,
@@ -1037,9 +1044,10 @@ async def create_booking(data: BookingCreate, current_user: dict = Depends(get_c
         "time_slot": data.time_slot,
         "status": "confirmed" if auto_accept else "pending",
         "payment_status": "pending",
-        "payment_method": data.payment_method,
+        "payment_method": payment_method,
         "amount": float(service.get("price", 0))
     }
+
 
     logger.info(f"Attempting to create booking for user {user_id} at {data.time_slot}")
     # 5. Insert booking

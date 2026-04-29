@@ -12,28 +12,31 @@ const LOCAL_PORT = '8001';
  * Priority: 1. Manual Env Var -> 2. Auto-detected Host IP -> 3. Production Fallback
  */
 const getBaseURL = () => {
-  // If we are NOT in dev mode, always use production
+  // 1. If we are NOT in dev mode, always use production
   if (!__DEV__) return PRODUCTION_API_URL;
 
+  // 2. Check for explicit Override in .env
   const ENV_URL = process.env.EXPO_PUBLIC_API_URL;
-  if (ENV_URL && !ENV_URL.includes('localhost') && !ENV_URL.includes('127.0.0.1')) {
+  if (ENV_URL && ENV_URL.startsWith('https://')) {
+    console.log('🚀 [API] Senior Decision: Using Production URL from .env', ENV_URL);
     return ENV_URL;
   }
 
-  // Auto-detect Host IP (Your Laptop)
+  // 3. Auto-detect Host IP (Your Laptop)
   const hostUri = Constants.expoConfig?.hostUri; 
   const hostIP = hostUri?.split(':')[0];
 
   if (hostIP && !hostIP.includes('127.0.0.1')) {
     const detectedUrl = `http://${hostIP}:${LOCAL_PORT}`;
-    console.log('[API] Senior Discovery: Using detected host', detectedUrl);
+    console.log('💻 [API] Senior Discovery: Using detected laptop host', detectedUrl);
     return detectedUrl;
   }
 
-  // Final fallbacks for simulators
+  // 4. Final fallbacks
   if (Platform.OS === 'android') return `http://10.0.2.2:${LOCAL_PORT}`;
-  return PRODUCTION_API_URL; // Ultimate fallback to LIVE if local fails
+  return PRODUCTION_API_URL;
 };
+
 
 const API_BASE_URL = getBaseURL();
 console.log(`[API] Initialized with: ${API_BASE_URL}`);
