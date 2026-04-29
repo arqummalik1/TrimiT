@@ -41,8 +41,13 @@ const BookingPage = () => {
   const { data: slotsData, isLoading: slotsLoading } = useQuery({
     queryKey: ['slots', salonId, serviceId, selectedDate],
     queryFn: async () => {
+      const currentTime = format(new Date(), 'HH:mm');
       const response = await api.get(`/api/salons/${salonId}/slots`, {
-        params: { date: selectedDate, service_id: serviceId },
+        params: { 
+          date: selectedDate, 
+          service_id: serviceId,
+          current_time: currentTime 
+        },
       });
       return response.data;
     },
@@ -61,12 +66,14 @@ const BookingPage = () => {
       return true;
     }
     
-    // For today, only show slots that are in the future
+    // For today, only show slots that are in the future (with 5-min grace)
     const now = new Date();
+    const graceTime = new Date(now.getTime() - 5 * 60000); // 5 minutes ago
     const [hours, minutes] = slot.time.split(':').map(Number);
     const slotTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
     
-    return slotTime > now;
+    return slotTime > graceTime;
+
   });
 
   // Create booking mutation
