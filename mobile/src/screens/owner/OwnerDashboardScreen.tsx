@@ -234,11 +234,36 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
   }
 
   // ── Stat cards ─────────────────────────────────────────────────────────────
+  const getPeriodLabel = () => {
+    switch(selectedPeriod) {
+      case 'today': return 'Today';
+      case '7d': return 'Last 7 Days';
+      case '30d': return 'Last 30 Days';
+      default: return 'Total';
+    }
+  };
+
   const statCards = [
-    { title: 'Total Earnings', value: formatPrice(analytics?.total_earnings || 0), icon: 'wallet-outline', color: '#10B981', iconColor: '#10B981' },
-    { title: 'Total Bookings', value: analytics?.total_bookings || 0, icon: 'calendar-outline', color: '#3B82F6', iconColor: '#3B82F6' },
-    { title: "Today's", value: analytics?.today_bookings || 0, icon: 'today-outline', color: '#F97316', iconColor: '#F97316' },
-    { title: 'Pending', value: analytics?.pending_bookings || 0, icon: 'hourglass-outline', color: '#F59E0B', iconColor: '#F59E0B' },
+    { 
+      title: selectedPeriod === 'all' ? 'Total Earnings' : 'Earnings', 
+      value: formatPrice(analytics?.total_earnings || 0), 
+      icon: 'wallet-outline', color: '#10B981', iconColor: '#10B981' 
+    },
+    { 
+      title: selectedPeriod === 'all' ? 'Total Bookings' : 'Bookings', 
+      value: analytics?.total_bookings || 0, 
+      icon: 'calendar-outline', color: '#3B82F6', iconColor: '#3B82F6' 
+    },
+    { 
+      title: "Today's", 
+      value: analytics?.today_bookings || 0, 
+      icon: 'today-outline', color: '#F97316', iconColor: '#F97316' 
+    },
+    { 
+      title: 'Pending', 
+      value: analytics?.pending_bookings || 0, 
+      icon: 'hourglass-outline', color: '#F59E0B', iconColor: '#F59E0B' 
+    },
   ];
 
   return (
