@@ -50,13 +50,10 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   const [containerWidth, setContainerWidth] = React.useState(0);
 
   // Use theme colors
-  const BASE_COLOR = theme.isDark 
-    ? theme.colors.surfaceSecondary 
-    : '#f0f0f0';
-  
+  const BASE_COLOR = theme.colors.shimmer;
   const HIGHLIGHT_COLOR = theme.isDark 
     ? theme.colors.surfaceHighlight 
-    : '#fcfcfc';
+    : '#FFFFFF'; // Pure white sweep for light mode premium feel
 
   useEffect(() => {
     const animation = Animated.loop(

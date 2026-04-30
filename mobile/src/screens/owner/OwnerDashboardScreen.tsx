@@ -137,7 +137,7 @@ const AnimatedStatCard: React.FC<StatCardProps> = ({ title, value, icon, color, 
 export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const [selectedPeriod, setSelectedPeriod] = useState<Period>('all');
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>('today');
 
   const {
     data: salon,
