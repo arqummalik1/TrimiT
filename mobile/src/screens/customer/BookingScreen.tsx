@@ -14,7 +14,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays, startOfToday } from 'date-fns';
 import api from '../../lib/api';
 import { Salon, TimeSlot, SlotsResponse } from '../../types';
-import { colors, formatPrice, formatTime } from '../../lib/utils';
+import { colors, fonts, borderRadius, formatPrice, formatTime } from '../../lib/utils';
+
 import { Button } from '../../components/Button';
 import { useBookingStore } from '../../store/bookingStore';
 import { scheduleBookingReminder } from '../../lib/notifications';

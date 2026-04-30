@@ -2,7 +2,8 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Salon } from '../types';
-import { colors, formatPrice } from '../lib/utils';
+import { colors, fonts, borderRadius, spacing, formatPrice } from '../lib/utils';
+
 
 interface SalonCardProps {
   salon: Salon;

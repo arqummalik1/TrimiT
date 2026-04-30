@@ -6,11 +6,8 @@ import { Platform, TextStyle, ViewStyle } from 'react-native';
 // =============================================================================
 
 // -- COLOR TYPES --------------------------------------------------------------
-// Use a flexible type so dark colors can have different hex values
 export type ColorScheme = { [K in keyof typeof lightColors]: string };
 
-// -- COLOR TYPES --------------------------------------------------------------
-export type ColorScheme = { [K in keyof typeof lightColors]: string };
 
 // -- LUXURY PALETTE (Quiet Confidence) ----------------------------------------
 // Note: We use the same dark-first palette for both modes to maintain 
@@ -20,6 +17,11 @@ export const luxuryColors = {
   primary: '#f1d18d',       // Light Gold (Accents/Highlights)
   primaryDark: '#d4b574',   // Muted Gold (Interactive/Active)
   primaryLight: '#f9e8c4',  // Cream Gold (Soft accents)
+
+  // Secondary brand (Deep Emerald/Forest)
+  secondary: '#1A2D22',       // Deep Forest
+  secondaryDark: '#111F17',   // Darker Forest
+  secondaryLight: '#243D2E',  // Mighter Forest
 
   // Backgrounds (Obsidian Layers)
   background: '#121411',    // Deep Obsidian

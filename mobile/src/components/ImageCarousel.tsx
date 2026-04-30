@@ -8,8 +8,8 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
-import { colors, borderRadius } from '../theme';
-import { DEFAULT_SALON_IMAGE } from '../theme';
+import { colors, borderRadius, DEFAULT_SALON_IMAGE } from '../lib/utils';
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 

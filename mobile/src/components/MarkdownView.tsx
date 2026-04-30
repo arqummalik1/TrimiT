@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Linking } from 'react-native';
-import { colors, typography } from '../theme';
+import { colors, typography } from '../lib/utils';
+
 
 interface MarkdownViewProps {
   content: string;

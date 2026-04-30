@@ -9,7 +9,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useToastStore, ToastType } from '../store/toastStore';
-import { colors, typography, borderRadius, spacing, shadows } from '../theme';
+import { colors, typography, borderRadius, spacing, shadows } from '../lib/utils';
+
 
 const ICONS: Record<ToastType, keyof typeof Ionicons.glyphMap> = {
   success: 'checkmark-circle',

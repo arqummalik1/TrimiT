@@ -18,7 +18,8 @@ import MapView, { Marker, Callout } from 'react-native-maps';
 import api from '../../lib/api';
 import { SalonCard } from '../../components/SalonCard';
 import { Salon } from '../../types';
-import { colors, spacing, borderRadius, typography } from '../../theme';
+import { colors, spacing, borderRadius, typography, fonts } from '../../lib/utils';
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 

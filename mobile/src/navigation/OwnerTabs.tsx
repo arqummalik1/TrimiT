@@ -3,7 +3,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { OwnerTabParamList } from './types';
-import { colors } from '../theme';
+import { colors } from '../lib/utils';
+
 import OwnerStack from './OwnerStack';
 import ManageBookingsScreen from '../screens/owner/ManageBookingsScreen';
 import ManageServicesScreen from '../screens/owner/ManageServicesScreen';

@@ -12,7 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import BookingCard from '../../components/BookingCard';
-import { colors, typography, spacing, borderRadius } from '../../theme';
+import { colors, typography, spacing, borderRadius } from '../../lib/utils';
+
 import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
 import { Booking, Salon } from '../../types';

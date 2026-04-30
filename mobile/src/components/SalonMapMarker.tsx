@@ -20,7 +20,9 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Marker } from 'react-native-maps';
+import { colors } from '../lib/utils';
 import type { Coordinates } from '../lib/maps';
+
 
 interface SalonMapMarkerProps {
   coordinate: Coordinates;
@@ -65,8 +67,9 @@ export const SalonMapMarker: React.FC<SalonMapMarkerProps> = ({
   );
 };
 
-const BRAND = '#9A3412';
-const BRAND_SELECTED = '#7C2D12';
+const BRAND = colors.primary;
+const BRAND_SELECTED = colors.primary; // Or a slightly darker variant if available
+
 
 const styles = StyleSheet.create({
   wrapper: {

@@ -12,7 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
+import { colors, typography, spacing, borderRadius, shadows } from '../../lib/utils';
+
 import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
 

@@ -48,7 +48,8 @@ import {
   buildLocationPickerRegion,
 } from '../lib/maps';
 import SalonMapMarker from './SalonMapMarker';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { colors, typography, spacing, borderRadius, shadows } from '../lib/utils';
+
 
 // ─── Props ─────────────────────────────────────────────────────────
 

@@ -14,7 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMutation } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { Button } from '../../components/Button';
-import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
+import { colors, typography, spacing, borderRadius, shadows } from '../../lib/utils';
+
 import { showToast } from '../../store/toastStore';
 
 interface WriteReviewScreenProps {

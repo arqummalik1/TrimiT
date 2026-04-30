@@ -14,8 +14,8 @@ import { useQuery } from '@tanstack/react-query';
 import MapView from 'react-native-maps';
 import api from '../../lib/api';
 import { Salon, Service } from '../../types';
-import { colors, formatPrice, formatDate } from '../../lib/utils';
-import { spacing, borderRadius } from '../../theme';
+import { colors, fonts, spacing, borderRadius, formatPrice, formatDate } from '../../lib/utils';
+
 import { Button } from '../../components/Button';
 import ImageCarousel from '../../components/ImageCarousel';
 import { SalonMapMarker } from '../../components/SalonMapMarker';

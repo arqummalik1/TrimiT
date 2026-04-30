@@ -17,8 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
-import { formatPrice } from '../../lib/utils';
+import { colors, typography, spacing, borderRadius, shadows, formatPrice } from '../../lib/utils';
+
 import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
 import { Service, Salon } from '../../types';

@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography, spacing } from '../theme';
+import { colors, typography, spacing } from '../lib/utils';
+
 
 export default function OfflineBanner() {
   const [isOffline, setIsOffline] = useState(false);

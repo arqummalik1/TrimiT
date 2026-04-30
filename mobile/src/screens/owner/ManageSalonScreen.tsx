@@ -16,7 +16,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
+import { colors, typography, spacing, borderRadius, shadows } from '../../lib/utils';
+
 import api from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { showToast } from '../../store/toastStore';

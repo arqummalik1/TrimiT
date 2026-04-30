@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing } from '../../theme';
+import { colors, spacing } from '../../lib/utils';
+
 import { MarkdownView } from '../../components/MarkdownView';
 
 interface LegalScreenProps {
