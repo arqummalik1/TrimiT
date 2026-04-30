@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays, startOfToday } from 'date-fns';
 import api from '../../lib/api';
 import { Salon, TimeSlot, SlotsResponse } from '../../types';
-import { colors, fonts, borderRadius, formatPrice, formatTime } from '../../lib/utils';
+import { fonts, borderRadius, formatPrice, formatTime } from '../../lib/utils';
+import { useTheme } from '../../theme/ThemeContext';
+import { Theme } from '../../theme/tokens';
 
 import { Button } from '../../components/Button';
 import { useBookingStore } from '../../store/bookingStore';
@@ -27,6 +29,8 @@ interface BookingScreenProps {
 }
 
 export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { salonId, serviceId } = route.params;
   const queryClient = useQueryClient();
 
@@ -63,7 +67,6 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
   const { data: slotsData, isLoading: slotsLoading, refetch: refetchSlots } = useQuery<SlotsResponse>({
     queryKey: ['slots', salonId, serviceId, selectedDate],
     queryFn: async () => {
-      console.log('🔄 [Booking] Fetching fresh slots for:', { salonId, serviceId, selectedDate });
       const currentTime = format(new Date(), 'HH:mm');
       const response = await api.get(`/api/salons/${salonId}/slots`, {
         params: { 
@@ -72,7 +75,6 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
           current_time: currentTime
         },
       });
-      console.log('✅ [Booking] Slots received successfully:', response.data.slots?.length || 0, 'slots found');
       return response.data;
     },
     enabled: !!selectedDate,
@@ -85,7 +87,6 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
   // Subscribe to real-time updates when slots are loaded
   useEffect(() => {
     if (slotsData?.slots && salonId && selectedDate) {
-      console.log('📡 [Booking] Subscribing to real-time slot updates...');
       subscribeToSlots(salonId, selectedDate, slotsData.slots, slotsData.allow_multiple_bookings_per_slot);
     }
 
@@ -97,17 +98,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
   // Create booking mutation
   const bookingMutation = useMutation({
     mutationFn: async () => {
-      // Senior Architect Fix: Map UI terms to Database terms
       const dbPaymentMethod = selectedPaymentMethod === 'cash' ? 'salon_cash' : 'online';
-      
-      console.log('🚀 [Booking] ATTEMPTING TO BOOK NOW!', {
-        salon: salon?.name,
-        service: service?.name,
-        date: selectedDate,
-        slot: selectedSlot,
-        ui_payment: selectedPaymentMethod,
-        db_payment: dbPaymentMethod
-      });
 
       const response = await api.post('/api/bookings', {
         salon_id: salonId,
@@ -120,7 +111,6 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
     },
 
     onSuccess: (booking: any) => {
-      console.log('🎉 [Booking] SUCCESS! Booking ID:', booking?.id);
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       unsubscribeFromSlots();
 
@@ -152,8 +142,6 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
       const errorDetail = error.response?.data?.detail || 'Failed to create booking';
       const statusCode = error.response?.status;
       
-      console.error('❌ [Booking] FAILED with status', statusCode, 'Error:', errorDetail);
-
       // Always re-fetch slots on error so user sees updated availability
       queryClient.invalidateQueries({ queryKey: ['slots', salonId, serviceId, selectedDate] });
       refetchSlots();
@@ -161,7 +149,6 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
 
       // Handle slot conflict specifically
       if (statusCode === 409 || statusCode === 400) {
-        console.warn('⚠️ [Booking] Conflict detected! Displaying error to user.');
         setSlotConflictError(errorDetail);
       } else {
         Alert.alert('Error', errorDetail);
@@ -231,7 +218,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
         <ScrollView contentContainerStyle={styles.successScroll} showsVerticalScrollIndicator={false}>
           <View style={styles.successContent}>
             <View style={styles.successIconContainer}>
-              <Ionicons name="checkmark" size={48} color={colors.primary} />
+              <Ionicons name="checkmark" size={48} color={theme.colors.primary} />
             </View>
             <Text style={styles.successTitle}>Reservation Confirmed</Text>
             <Text style={styles.successSubtitle}>Your luxury experience awaits at {salon?.name}</Text>
@@ -239,14 +226,14 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
             <View style={styles.confirmationCard}>
               <Text style={styles.confirmationHeader}>Booking Details</Text>
               
-              <View style={styles.summaryItem}>
+              <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Service</Text>
                 <Text style={styles.summaryValue}>{service?.name}</Text>
               </View>
               
               <View style={styles.summarySeparator} />
               
-              <View style={styles.summaryItem}>
+              <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Appointment</Text>
                 <Text style={styles.summaryValue}>
                   {format(new Date(selectedDate), 'EEEE, d MMM')} • {formatTime(selectedSlot!)}
@@ -255,7 +242,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
 
               <View style={styles.summarySeparator} />
 
-              <View style={styles.summaryItem}>
+              <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Investment</Text>
                 <Text style={styles.summaryValueGold}>{formatPrice(service?.price || 0)}</Text>
               </View>
@@ -272,7 +259,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
                   )
                 }
               >
-                <Ionicons name="location" size={20} color={colors.textInverse} />
+                <Ionicons name="location" size={20} color={theme.colors.textInverse} />
                 <Text style={styles.primaryDirectionText}>Get Directions to Salon</Text>
               </TouchableOpacity>
             )}
@@ -303,7 +290,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Book Appointment</Text>
@@ -318,7 +305,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
             <Text style={styles.serviceName}>{service.name}</Text>
             <View style={styles.serviceDetails}>
               <View style={styles.detailItem}>
-                <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+                <Ionicons name="time-outline" size={16} color={theme.colors.textSecondary} />
                 <Text style={styles.detailText}>{service.duration} mins</Text>
               </View>
               <Text style={styles.servicePrice}>{formatPrice(service.price)}</Text>
@@ -329,7 +316,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
         {/* Date Selection */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="calendar" size={20} color={colors.primary} />
+            <Ionicons name="calendar" size={20} color={theme.colors.primary} />
             <Text style={styles.sectionTitle}>Select Date</Text>
           </View>
           <ScrollView
@@ -345,7 +332,6 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
                   selectedDate === date.value && styles.dateCardSelected,
                 ]}
                 onPress={() => {
-                  console.log('📅 [Booking] Date changed to:', date.value);
                   setSelectedDate(date.value);
                   setSelectedSlot(null);
                   setSlotConflictError(null);
@@ -384,14 +370,14 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
         {/* Time Selection */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="time" size={20} color={colors.primary} />
+            <Ionicons name="time" size={20} color={theme.colors.primary} />
             <Text style={styles.sectionTitle}>Select Time</Text>
           </View>
 
           {/* Refresh needed indicator */}
           {needsRefresh && (
             <TouchableOpacity style={styles.refreshBanner} onPress={handleRefreshNeeded}>
-              <Ionicons name="refresh" size={16} color={colors.primary} />
+              <Ionicons name="refresh" size={16} color={theme.colors.primary} />
               <Text style={styles.refreshText}>Bookings updated. Tap to refresh.</Text>
             </TouchableOpacity>
           )}
@@ -399,7 +385,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
           {/* Multiple bookings info */}
           {effectiveAllowMultiple && (
             <View style={styles.infoBanner}>
-              <Ionicons name="information-circle" size={16} color={colors.primary} />
+              <Ionicons name="information-circle" size={16} color={theme.colors.primary} />
               <Text style={styles.infoText}>
                 Up to {slotsData?.max_bookings_per_slot || 1} bookings per slot
               </Text>
@@ -407,7 +393,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
           )}
 
           {slotsLoading ? (
-            <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
+            <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 20 }} />
           ) : displaySlots && displaySlots.length > 0 ? (
             <View style={styles.slotsGrid}>
               {displaySlots.map((slot) => {
@@ -429,7 +415,6 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
                       isJustBooked && !isMulti && styles.slotJustBooked,
                     ]}
                     onPress={() => {
-                      console.log('⏰ [Booking] Slot clicked:', slot.time, slot.available ? '✅' : '❌');
                       setSelectedSlot(slot.time);
                     }}
                     disabled={!slot.available}
@@ -473,7 +458,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
             </View>
           ) : (
             <View style={styles.noSlots}>
-              <Ionicons name="alert-circle-outline" size={32} color={colors.textSecondary} />
+              <Ionicons name="alert-circle-outline" size={32} color={theme.colors.textSecondary} />
               <Text style={styles.noSlotsText}>No available slots for this date</Text>
             </View>
           )}
@@ -482,7 +467,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
         {/* Payment Method */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="card" size={20} color={colors.primary} />
+            <Ionicons name="card" size={20} color={theme.colors.primary} />
             <Text style={styles.sectionTitle}>Payment Method</Text>
           </View>
           
@@ -494,7 +479,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
             onPress={() => setSelectedPaymentMethod('cash')}
           >
             <View style={styles.paymentIconContainer}>
-              <Ionicons name="cash-outline" size={24} color={selectedPaymentMethod === 'cash' ? '#FFF' : colors.text} />
+              <Ionicons name="cash-outline" size={24} color={selectedPaymentMethod === 'cash' ? '#FFF' : theme.colors.text} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.paymentTitle, selectedPaymentMethod === 'cash' && styles.paymentTextSelected]}>Cash at Salon</Text>
@@ -512,7 +497,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
             onPress={() => setSelectedPaymentMethod('card')}
           >
             <View style={styles.paymentIconContainer}>
-              <Ionicons name="card-outline" size={24} color={selectedPaymentMethod === 'card' ? '#FFF' : colors.text} />
+              <Ionicons name="card-outline" size={24} color={selectedPaymentMethod === 'card' ? '#FFF' : theme.colors.text} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.paymentTitle, selectedPaymentMethod === 'card' && styles.paymentTextSelected]}>Online Payment</Text>
@@ -561,28 +546,28 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: theme.colors.border,
   },
   backButton: {
     width: 44,
     height: 44,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
   },
   headerText: {
     marginLeft: 16,
@@ -590,12 +575,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: fonts.heading,
     fontSize: 24,
-    color: colors.text,
+    color: theme.colors.text,
   },
   headerSubtitle: {
     fontFamily: fonts.body,
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: 2,
   },
   content: {
@@ -603,17 +588,17 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   serviceCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     padding: 24,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     marginBottom: 32,
   },
   serviceName: {
     fontFamily: fonts.heading,
     fontSize: 22,
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: 12,
   },
   serviceDetails: {
@@ -629,12 +614,12 @@ const styles = StyleSheet.create({
   detailText: {
     fontFamily: fonts.body,
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   servicePrice: {
     fontFamily: fonts.bodyBold,
     fontSize: 20,
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   section: {
     marginBottom: 32,
@@ -648,7 +633,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: fonts.heading,
     fontSize: 22,
-    color: colors.text,
+    color: theme.colors.text,
     letterSpacing: 0.5,
   },
   datesContainer: {
@@ -660,19 +645,19 @@ const styles = StyleSheet.create({
     height: 90,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
   },
   dateCardSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   dateDay: {
     fontFamily: fonts.body,
     fontSize: 12,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -680,16 +665,16 @@ const styles = StyleSheet.create({
   dateNum: {
     fontFamily: fonts.bodyBold,
     fontSize: 22,
-    color: colors.text,
+    color: theme.colors.text,
   },
   dateMonth: {
     fontFamily: fonts.body,
     fontSize: 11,
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
     marginTop: 2,
   },
   dateTextSelected: {
-    color: colors.textInverse,
+    color: theme.colors.textInverse,
   },
   slotsGrid: {
     flexDirection: 'row',
@@ -699,10 +684,10 @@ const styles = StyleSheet.create({
   slotButton: {
     paddingVertical: 14,
     paddingHorizontal: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: borderRadius.pill,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     minWidth: 100,
     alignItems: 'center',
   },
@@ -711,140 +696,140 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   slotSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   slotText: {
     fontFamily: fonts.bodyBold,
     fontSize: 15,
-    color: colors.text,
+    color: theme.colors.text,
   },
   slotTextDisabled: {
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
     textDecorationLine: 'line-through',
   },
   slotTextSelected: {
-    color: colors.textInverse,
+    color: theme.colors.textInverse,
   },
   noSlots: {
     alignItems: 'center',
     padding: 40,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 24,
     gap: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     borderStyle: 'dashed',
   },
   noSlotsText: {
     fontFamily: fonts.body,
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
   },
   paymentOption: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     gap: 16,
   },
   paymentOptionSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   paymentIconContainer: {
     width: 52,
     height: 52,
     borderRadius: 16,
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: theme.colors.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
   },
   paymentTitle: {
     fontFamily: fonts.bodyBold,
     fontSize: 16,
-    color: colors.text,
+    color: theme.colors.text,
   },
   paymentSub: {
     fontFamily: fonts.body,
     fontSize: 12,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: 2,
   },
   paymentTextSelected: {
-    color: colors.textInverse,
+    color: theme.colors.textInverse,
   },
   refreshBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primary + '1A', // transparent primary
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
   },
   refreshText: {
     fontSize: 13,
-    color: colors.primary,
+    color: theme.colors.primary,
     fontWeight: '500',
   },
   infoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.secondaryLight,
+    backgroundColor: theme.colors.secondary + '1A',
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
   },
   infoText: {
     fontSize: 13,
-    color: colors.secondary,
+    color: theme.colors.secondary,
     fontWeight: '500',
   },
   slotFillingUp: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#F59E0B',
+    backgroundColor: theme.colors.warning + '1A',
+    borderColor: theme.colors.warning,
   },
   slotCapacityText: {
     fontSize: 10,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: 2,
     fontWeight: '500',
   },
   slotCapacityFull: {
-    color: '#EF4444',
+    color: theme.colors.error,
     fontWeight: '600',
   },
   slotCapacitySelected: {
     color: 'rgba(255,255,255,0.7)',
   },
   slotCapacityFilling: {
-    color: '#D97706',
+    color: theme.colors.warning,
   },
   slotBookedLabel: {
     fontSize: 10,
-    color: '#EF4444',
+    color: theme.colors.error,
     marginTop: 2,
     fontWeight: '600',
   },
   slotJustBooked: {
-    borderColor: colors.error,
+    borderColor: theme.colors.error,
     borderWidth: 2,
   },
   slotTextJustBooked: {
-    color: colors.error,
+    color: theme.colors.error,
   },
   justBookedIndicator: {
     position: 'absolute',
     bottom: -6,
     left: '50%',
     transform: [{ translateX: -30 }],
-    backgroundColor: colors.error,
+    backgroundColor: theme.colors.error,
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -855,16 +840,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   bookingSummary: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
   },
   summaryTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: 16,
   },
   summaryRow: {
@@ -874,16 +859,16 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   summaryValue: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.text,
+    color: theme.colors.text,
   },
   totalRow: {
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: theme.colors.border,
     paddingTop: 12,
     marginTop: 4,
     marginBottom: 0,
@@ -891,22 +876,25 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
+    color: theme.colors.text,
   },
   totalValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   footer: {
     padding: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: theme.colors.border,
   },
   successContainer: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
+  },
+  successScroll: {
+    flexGrow: 1,
   },
   successContent: {
     flex: 1,
@@ -914,49 +902,91 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  successIcon: {
+  successIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: theme.colors.primary + '1A',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 24,
   },
   successTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 8,
+    fontFamily: fonts.heading,
+    fontSize: 28,
+    color: theme.colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
   },
-  successText: {
+  successSubtitle: {
+    fontFamily: fonts.body,
     fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 32,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 40,
+    paddingHorizontal: 20,
   },
-  summaryCard: {
-    backgroundColor: colors.surface,
-    padding: 24,
+  confirmationCard: {
+    backgroundColor: theme.colors.surface,
     borderRadius: 24,
+    padding: 24,
     width: '100%',
-    marginBottom: 32,
     borderWidth: 1,
-    borderColor: colors.border,
-    // Premium Shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
+    borderColor: theme.colors.border,
+    marginBottom: 24,
   },
-  heroButton: {
+  confirmationHeader: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: theme.colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 20,
+  },
+  summarySeparator: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginVertical: 16,
+  },
+  summaryValueGold: {
+    fontFamily: fonts.heading,
+    fontSize: 24,
+    color: theme.colors.primary,
+  },
+  primaryDirectionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 16,
+    borderRadius: borderRadius.pill,
     width: '100%',
     marginBottom: 16,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    gap: 8,
   },
-  successButtons: {
+  primaryDirectionText: {
+    fontFamily: fonts.bodyBold,
+    color: theme.colors.textInverse,
+    fontSize: 16,
+  },
+  successActionRow: {
     flexDirection: 'row',
     gap: 12,
     width: '100%',
-    marginTop: 8,
+  },
+  secondaryButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: borderRadius.pill,
+    backgroundColor: theme.colors.surfaceSecondary,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  secondaryButtonText: {
+    fontFamily: fonts.bodySemiBold,
+    color: theme.colors.text,
+    fontSize: 15,
   },
 });
 

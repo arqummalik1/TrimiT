@@ -1,36 +1,19 @@
 /**
  * SalonMapMarker.tsx
- * ─────────────────────────────────────────────────────────────────
- * Custom, branded map marker for TrimiT salons.
- * Used in:
- *   - SalonDetailScreen   (static marker on mini-map)
- *   - DiscoverScreen      (multiple markers on discover map)
- *   - ManageSalonScreen   (owner's movable pin)
- *
- * Design: scissors icon inside an orange pill with a downward triangle
- * pointer, matching the TrimiT brand color (#9A3412 / orange-800).
- *
- * Performance: Pure functional component with no internal state.
- * The Marker's tracksViewChanges is set to false by default — this is
- * CRITICAL on Android; leaving it true causes continuous re-renders and
- * jank on map scroll.
+ * Custom branded map marker — uses theme primary color.
  */
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Marker } from 'react-native-maps';
-import { colors } from '../lib/utils';
+import { useTheme } from '../theme/ThemeContext';
 import type { Coordinates } from '../lib/maps';
-
 
 interface SalonMapMarkerProps {
   coordinate: Coordinates;
-  /** Optional label shown below the icon pill */
   label?: string;
-  /** If true, renders a pulsing "selected" ring around the marker */
   selected?: boolean;
-  /** If true, marker updates when coordinate prop changes (use only on the draggable owner pin) */
   trackViewChanges?: boolean;
   onPress?: () => void;
 }
@@ -42,34 +25,49 @@ export const SalonMapMarker: React.FC<SalonMapMarkerProps> = ({
   trackViewChanges = false,
   onPress,
 }) => {
+  const { theme } = useTheme();
+  const brand         = theme.colors.primary;
+  const brandSelected = theme.colors.primaryDark;
+
   return (
     <Marker
       coordinate={coordinate}
       onPress={onPress}
-      // tracksViewChanges=false prevents continuous re-renders on Android
       tracksViewChanges={trackViewChanges}
-      anchor={{ x: 0.5, y: 1 }} // bottom-center of marker aligns with pin point
+      anchor={{ x: 0.5, y: 1 }}
     >
       <View style={styles.wrapper}>
-        {/* Outer glow ring when selected */}
-        {selected && <View style={styles.selectedRing} />}
-
-        {/* Pill body */}
-        <View style={[styles.pill, selected && styles.pillSelected]}>
+        {selected && (
+          <View
+            style={[
+              styles.selectedRing,
+              { borderColor: brand },
+            ]}
+          />
+        )}
+        <View
+          style={[
+            styles.pill,
+            { backgroundColor: selected ? brandSelected : brand },
+          ]}
+        >
           <Ionicons name="cut" size={14} color="#FFFFFF" />
-          {label ? <Text style={styles.label} numberOfLines={1}>{label}</Text> : null}
+          {label ? (
+            <Text style={styles.label} numberOfLines={1}>
+              {label}
+            </Text>
+          ) : null}
         </View>
-
-        {/* Downward triangle pointer */}
-        <View style={[styles.pointer, selected && styles.pointerSelected]} />
+        <View
+          style={[
+            styles.pointer,
+            { borderTopColor: selected ? brandSelected : brand },
+          ]}
+        />
       </View>
     </Marker>
   );
 };
-
-const BRAND = colors.primary;
-const BRAND_SELECTED = colors.primary; // Or a slightly darker variant if available
-
 
 const styles = StyleSheet.create({
   wrapper: {
@@ -82,27 +80,20 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 2,
-    borderColor: BRAND,
     opacity: 0.3,
   },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: BRAND,
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 20,
     gap: 4,
-    // iOS shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
-    // Android elevation
     elevation: 4,
-  },
-  pillSelected: {
-    backgroundColor: BRAND_SELECTED,
   },
   label: {
     color: '#FFFFFF',
@@ -118,11 +109,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 8,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderTopColor: BRAND,
     marginTop: -1,
-  },
-  pointerSelected: {
-    borderTopColor: BRAND_SELECTED,
   },
 });
 

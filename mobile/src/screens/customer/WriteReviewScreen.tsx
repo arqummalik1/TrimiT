@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,9 +14,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMutation } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { Button } from '../../components/Button';
-import { colors, typography, spacing, borderRadius, shadows } from '../../lib/utils';
-
+import { typography, spacing, borderRadius, shadows } from '../../lib/utils';
 import { showToast } from '../../store/toastStore';
+import { useTheme } from '../../theme/ThemeContext';
+import { Theme } from '../../theme/tokens';
 
 interface WriteReviewScreenProps {
   navigation: any;
@@ -24,6 +25,8 @@ interface WriteReviewScreenProps {
 }
 
 export default function WriteReviewScreen({ navigation, route }: WriteReviewScreenProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { salonId } = route.params;
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -71,7 +74,7 @@ export default function WriteReviewScreen({ navigation, route }: WriteReviewScre
               onPress={() => navigation.goBack()}
               style={styles.backButton}
             >
-              <Ionicons name="arrow-back" size={24} color={colors.text} />
+              <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
             </TouchableOpacity>
             <Text style={styles.title}>Write a Review</Text>
             <View style={{ width: 40 }} />
@@ -90,7 +93,7 @@ export default function WriteReviewScreen({ navigation, route }: WriteReviewScre
                   <Ionicons
                     name={star <= rating ? 'star' : 'star-outline'}
                     size={44}
-                    color={star <= rating ? colors.star : colors.border}
+                    color={star <= rating ? theme.colors.star : theme.colors.border}
                   />
                 </TouchableOpacity>
               ))}
@@ -118,7 +121,7 @@ export default function WriteReviewScreen({ navigation, route }: WriteReviewScre
               value={comment}
               onChangeText={setComment}
               placeholder="Share your experience..."
-              placeholderTextColor={colors.textTertiary}
+              placeholderTextColor={theme.colors.textTertiary}
               multiline
               numberOfLines={5}
               textAlignVertical="top"
@@ -140,10 +143,10 @@ export default function WriteReviewScreen({ navigation, route }: WriteReviewScre
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     paddingHorizontal: spacing.xl,
@@ -160,19 +163,19 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h3,
-    color: colors.text,
+    color: theme.colors.text,
   },
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.xxl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     marginBottom: spacing.lg,
   },
   sectionTitle: {
     ...typography.h4,
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: spacing.lg,
     textAlign: 'center',
   },
@@ -184,22 +187,22 @@ const styles = StyleSheet.create({
   },
   ratingLabel: {
     ...typography.bodySmallMedium,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   textInput: {
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: theme.colors.surfaceSecondary,
     borderRadius: borderRadius.md,
     padding: spacing.lg,
     ...typography.body,
-    color: colors.text,
+    color: theme.colors.text,
     minHeight: 120,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
   },
   charCount: {
     ...typography.caption,
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
     textAlign: 'right',
     marginTop: spacing.xs,
   },

@@ -1,4 +1,16 @@
-import React, { useState } from 'react';
+/**
+ * LoginScreen.tsx
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Production-grade login screen with:
+ *   • Inline field validation (no API call for empty/malformed input)
+ *   • Inputs disabled during loading
+ *   • Inline error banner (ErrorState variant='inline') for API errors
+ *   • Button uses loading state (no double-tap possible)
+ *   • Toast on unrecoverable errors
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,35 +19,86 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { colors } from '../../lib/utils';
+import { ErrorState } from '../../components/ErrorState';
+import { showToast } from '../../store/toastStore';
+import { typography, spacing, borderRadius } from '../../lib/utils';
+import { useTheme } from '../../theme/ThemeContext';
+import { Theme } from '../../theme/tokens';
+
+// ─── Validation ───────────────────────────────────────────────────────────────
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface ValidationErrors {
+  email?: string;
+  password?: string;
+}
+
+function validateForm(email: string, password: string): ValidationErrors {
+  const errors: ValidationErrors = {};
+  if (!email.trim()) {
+    errors.email = 'Email is required.';
+  } else if (!EMAIL_REGEX.test(email.trim())) {
+    errors.email = 'Enter a valid email address.';
+  }
+  if (!password) {
+    errors.password = 'Password is required.';
+  } else if (password.length < 6) {
+    errors.password = 'Password must be at least 6 characters.';
+  }
+  return errors;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 interface LoginScreenProps {
   navigation: any;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { login, isLoading, error: authError, clearError } = useAuthStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
+
+  const handleFieldChange = useCallback(
+    (field: 'email' | 'password', value: string) => {
+      if (field === 'email') setEmail(value);
+      else setPassword(value);
+
+      // Clear both field-level and API-level errors on input
+      if (fieldErrors[field]) setFieldErrors((e) => ({ ...e, [field]: undefined }));
+      if (authError) clearError();
+    },
+    [fieldErrors, authError, clearError]
+  );
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
+    // 1. Client-side validation first
+    const errors = validateForm(email, password);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
-    const result = await login(email, password);
+    // 2. API call
+    const result = await login(email.trim(), password);
     if (!result.success) {
-      Alert.alert('Login Failed', result.error || 'Please try again');
+      // Auth error is already stored in authStore.error — displayed inline
+      // For network-level failures, api interceptor already showed a toast
+      if (!result.error) {
+        showToast('Login failed. Please try again.', 'error');
+      }
     }
   };
 
@@ -53,7 +116,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.logoContainer}>
-              <Ionicons name="cut" size={40} color="#FFFFFF" />
+              <Ionicons name="cut" size={40} color={theme.colors.textInverse} />
             </View>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>Sign in to continue to TrimiT</Text>
@@ -61,23 +124,26 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
           {/* Form */}
           <View style={styles.form}>
-            {error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
+            {/* API error inline banner */}
+            {authError && (
+              <ErrorState
+                variant="inline"
+                message={authError}
+                type="validation"
+                style={{ marginBottom: spacing.lg }}
+              />
             )}
 
             <Input
               label="Email Address"
               placeholder="you@example.com"
               value={email}
-              onChangeText={(value) => {
-                setEmail(value);
-                if (error) clearError();
-              }}
+              onChangeText={(v) => handleFieldChange('email', v)}
               keyboardType="email-address"
               autoCapitalize="none"
-              icon={<Ionicons name="mail-outline" size={20} color={colors.textSecondary} />}
+              editable={!isLoading}
+              icon={<Ionicons name="mail-outline" size={20} color={theme.colors.textSecondary} />}
+              error={fieldErrors.email}
             />
 
             <View style={styles.passwordContainer}>
@@ -85,21 +151,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 label="Password"
                 placeholder="Enter your password"
                 value={password}
-                onChangeText={(value) => {
-                  setPassword(value);
-                  if (error) clearError();
-                }}
+                onChangeText={(v) => handleFieldChange('password', v)}
                 secureTextEntry={!showPassword}
-                icon={<Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />}
+                editable={!isLoading}
+                icon={<Ionicons name="lock-closed-outline" size={20} color={theme.colors.textSecondary} />}
+                error={fieldErrors.password}
               />
               <TouchableOpacity
                 style={styles.eyeButton}
-                onPress={() => setShowPassword(!showPassword)}
+                onPress={() => setShowPassword((prev) => !prev)}
+                disabled={isLoading}
               >
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
-                  color={colors.textSecondary}
+                  color={theme.colors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
@@ -107,10 +173,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             <TouchableOpacity
               onPress={() => navigation.navigate('ForgotPassword')}
               style={styles.forgotButton}
+              disabled={isLoading}
             >
               <Text style={styles.forgotText}>Forgot Password?</Text>
             </TouchableOpacity>
-
             <Button
               title="Sign In"
               onPress={handleLogin}
@@ -122,7 +188,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account?</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('RoleSelect')}>
+            <TouchableOpacity onPress={() => navigation.navigate('RoleSelect')} disabled={isLoading}>
               <Text style={styles.linkText}>Sign up</Text>
             </TouchableOpacity>
           </View>
@@ -132,90 +198,79 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
-  keyboardView: {
-    flex: 1,
-  },
+  keyboardView: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xxl,
     justifyContent: 'center',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: spacing.xxxxl,
   },
   logoContainer: {
     width: 80,
     height: 80,
-    backgroundColor: colors.primary,
-    borderRadius: 20,
+    backgroundColor: theme.colors.primary,
+    borderRadius: borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 8,
+    ...typography.h2,
+    color: theme.colors.text,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
+    ...typography.bodySmall,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
   },
   form: {
-    marginBottom: 24,
-  },
-  errorContainer: {
-    backgroundColor: '#FEE2E2',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#991B1B',
-    fontSize: 14,
+    marginBottom: spacing.xxl,
+    gap: spacing.md,
   },
   passwordContainer: {
     position: 'relative',
   },
   eyeButton: {
     position: 'absolute',
-    right: 16,
+    right: spacing.lg,
     top: 42,
-    padding: 4,
+    padding: spacing.xs,
   },
   forgotButton: {
     alignSelf: 'flex-end',
-    marginBottom: 8,
   },
   forgotText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.primary,
+    ...typography.bodySmallMedium,
+    color: theme.colors.primary,
   },
   submitButton: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
+    paddingBottom: spacing.xl,
   },
   footerText: {
-    fontSize: 14,
-    color: colors.textSecondary,
+    ...typography.bodySmall,
+    color: theme.colors.textSecondary,
   },
   linkText: {
-    fontSize: 14,
+    ...typography.bodySmall,
     fontWeight: '600',
-    color: colors.primary,
+    color: theme.colors.primary,
   },
 });
 

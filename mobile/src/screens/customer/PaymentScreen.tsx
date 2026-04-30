@@ -12,9 +12,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
-import { colors, formatPrice, formatTime } from '../../lib/utils';
+import { formatPrice, formatTime } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
+import { useTheme } from '../../theme/ThemeContext';
+import { Theme } from '../../theme/tokens';
 
 type Props = CustomerDiscoverScreenProps<'Payment'>;
 
@@ -27,6 +29,8 @@ interface CreateOrderResponse {
 }
 
 const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { bookingId, amount, salonName, serviceName, bookingDate, timeSlot } = route.params;
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
@@ -68,11 +72,11 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
         email: user?.email || '',
         contact: user?.phone || '',
       },
-      theme: { color: '#9A3412' },
+      theme: { color: theme.colors.primary },
     };
     // The HTML opens Razorpay automatically and forwards success/failure to RN.
     return `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Pay</title>
-<style>body{margin:0;background:#FAFAF9;font-family:-apple-system,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;color:#1c1917}</style>
+<style>body{margin:0;background:${theme.colors.background};font-family:-apple-system,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;color:${theme.colors.text}}</style>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script></head>
 <body><div>Loading payment…</div>
 <script>
@@ -91,7 +95,7 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
   });
   rzp.open();
 </script></body></html>`;
-  }, [order, serviceName, salonName, user]);
+  }, [order, serviceName, salonName, user, theme]);
 
   const verifyMutation = useMutation({
     mutationFn: async (resp: {
@@ -147,7 +151,7 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Payment</Text>
@@ -156,20 +160,20 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
       </View>
 
       <View style={styles.summaryCard}>
-        <Row label="Service" value={serviceName} />
-        <Row label="Date" value={bookingDate} />
-        <Row label="Time" value={formatTime(timeSlot)} />
-        <Row label="Amount" value={formatPrice(amount)} bold />
+        <Row label="Service" value={serviceName} styles={styles} />
+        <Row label="Date" value={bookingDate} styles={styles} />
+        <Row label="Time" value={formatTime(timeSlot)} styles={styles} />
+        <Row label="Amount" value={formatPrice(amount)} bold styles={styles} />
       </View>
 
       {orderError ? (
         <View style={styles.errorBox}>
-          <Ionicons name="alert-circle" size={20} color={colors.error} />
+          <Ionicons name="alert-circle" size={20} color={theme.colors.error} />
           <Text style={styles.errorText}>{orderError}</Text>
         </View>
       ) : !order ? (
         <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} />
+          <ActivityIndicator color={theme.colors.primary} />
           <Text style={styles.loadingText}>Preparing secure checkout…</Text>
         </View>
       ) : (
@@ -187,7 +191,7 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
 
       {verifying && (
         <View style={styles.verifyOverlay}>
-          <ActivityIndicator color={colors.primary} size="large" />
+          <ActivityIndicator color={theme.colors.primary} size="large" />
           <Text style={styles.verifyText}>Verifying payment…</Text>
         </View>
       )}
@@ -195,59 +199,59 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
   );
 };
 
-const Row: React.FC<{ label: string; value: string; bold?: boolean }> = ({ label, value, bold }) => (
+const Row: React.FC<{ label: string; value: string; bold?: boolean; styles: any }> = ({ label, value, bold, styles }) => (
   <View style={styles.row}>
     <Text style={styles.rowLabel}>{label}</Text>
     <Text style={[styles.rowValue, bold && styles.rowValueBold]}>{value}</Text>
   </View>
 );
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+const createStyles = (theme: Theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.background },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: theme.colors.border,
   },
   backButton: {
     width: 40,
     height: 40,
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: theme.colors.surfaceSecondary,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerText: { marginLeft: 12 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
-  headerSubtitle: { fontSize: 14, color: colors.textSecondary },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.text },
+  headerSubtitle: { fontSize: 14, color: theme.colors.textSecondary },
   summaryCard: {
     margin: 20,
     padding: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     gap: 8,
   },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
-  rowLabel: { fontSize: 14, color: colors.textSecondary },
-  rowValue: { fontSize: 14, color: colors.text, fontWeight: '500' },
-  rowValueBold: { fontSize: 16, fontWeight: '700', color: colors.primary },
+  rowLabel: { fontSize: 14, color: theme.colors.textSecondary },
+  rowValue: { fontSize: 14, color: theme.colors.text, fontWeight: '500' },
+  rowValueBold: { fontSize: 16, fontWeight: '700', color: theme.colors.primary },
   webviewWrap: { flex: 1, marginHorizontal: 12, marginBottom: 12, borderRadius: 12, overflow: 'hidden' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  loadingText: { color: colors.textSecondary },
+  loadingText: { color: theme.colors.textSecondary },
   errorBox: {
     flexDirection: 'row',
     gap: 8,
     margin: 20,
     padding: 12,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: theme.colors.error + '1A', // transparent error
     borderRadius: 8,
   },
-  errorText: { color: colors.error, flex: 1 },
+  errorText: { color: theme.colors.error, flex: 1 },
   verifyOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',

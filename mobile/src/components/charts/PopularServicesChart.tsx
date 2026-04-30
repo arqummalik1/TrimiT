@@ -2,7 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { BarChart } from 'react-native-gifted-charts';
 import type { PopularServiceData } from '../../types';
-import { colors } from '../../lib/utils';
+import { spacing } from '../../lib/utils';
+import { useTheme, Theme } from '../../theme/ThemeContext';
 
 interface PopularServicesChartProps {
   data: PopularServiceData[];
@@ -11,6 +12,9 @@ interface PopularServicesChartProps {
 const { width } = Dimensions.get('window');
 
 export const PopularServicesChart: React.FC<PopularServicesChartProps> = ({ data }) => {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  
   if (!data || data.length === 0) {
     return (
       <View style={styles.emptyContainer}>
@@ -25,7 +29,7 @@ export const PopularServicesChart: React.FC<PopularServicesChartProps> = ({ data
   const chartData = topServices.map((item, index) => ({
     value: item.bookings,
     label: item.name.length > 8 ? item.name.slice(0, 6) + '...' : item.name,
-    frontColor: index === 0 ? colors.primary : index === 1 ? '#C2410C' : index === 2 ? '#9A3412' : `${colors.primary}${60 - index * 10}`,
+    frontColor: index === 0 ? theme.colors.primary : index === 1 ? theme.colors.primaryDark : index === 2 ? theme.colors.secondary : `${theme.colors.primary}99`,
     topLabelComponent: () => (
       <Text style={styles.barLabel}>{item.bookings}</Text>
     ),
@@ -47,19 +51,19 @@ export const PopularServicesChart: React.FC<PopularServicesChartProps> = ({ data
         maxValue={Math.max(...chartData.map(d => d.value), 5)}
         yAxisTextStyle={styles.axisText}
         xAxisLabelTextStyle={styles.axisText}
-        xAxisColor={colors.border}
-        yAxisColor={colors.border}
+        xAxisColor={theme.colors.border}
+        yAxisColor={theme.colors.border}
         showVerticalLines
-        verticalLinesColor={colors.border}
+        verticalLinesColor={theme.colors.border}
         showYAxisIndices
       />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -67,16 +71,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: 12,
   },
   emptyContainer: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
@@ -84,15 +88,15 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   axisText: {
     fontSize: 10,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   barLabel: {
     fontSize: 10,
-    color: colors.text,
+    color: theme.colors.text,
     fontWeight: '600',
     marginBottom: 4,
   },

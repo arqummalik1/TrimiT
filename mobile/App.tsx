@@ -26,7 +26,8 @@ import {
   CormorantGaramond_700Bold,
 } from '@expo-google-fonts/cormorant-garamond';
 
-import { colors } from './src/lib/utils';
+import { lightPalette } from './src/theme/colors';
+import { useTheme } from './src/theme/ThemeContext';
 import { registerForPushNotificationsAsync, handleNotificationResponse } from './src/lib/notifications';
 import RootNavigator, { navigationRef } from './src/navigation/index';
 import { useAuthStore } from './src/store/authStore';
@@ -61,6 +62,7 @@ const CUSTOM_FONTS = {
 };
 
 function AppContent() {
+  const { isDark } = useTheme();
   const { isAuthenticated, initializeAuth } = useAuthStore();
   const [isReady, setIsReady] = useState(false);
   const [fontsLoaded, setFontsLoaded] = useState(false);
@@ -106,7 +108,7 @@ function AppContent() {
         <Text style={styles.splashTitle}>TrimiT</Text>
         <ActivityIndicator
           size="large"
-          color={colors.primary}
+          color={lightPalette.primary}
           style={{ marginTop: 24 }}
         />
       </View>
@@ -130,7 +132,7 @@ function AppContent() {
         {/* <OfflineBanner /> */}
         <Toast />
       </ErrorBoundary>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
     </NavigationContainer>
   );
 }
@@ -147,10 +149,11 @@ export default function App() {
   );
 }
 
+// Splash uses light palette — it shows before theme hydrates from AsyncStorage
 const styles = StyleSheet.create({
   splash: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: lightPalette.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -158,7 +161,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 20,
-    backgroundColor: colors.primary,
+    backgroundColor: lightPalette.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -170,6 +173,6 @@ const styles = StyleSheet.create({
   splashTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: colors.text,
+    color: lightPalette.text,
   },
 });

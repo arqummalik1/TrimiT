@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { OwnerTabParamList } from './types';
-import { colors } from '../lib/utils';
+import { useTheme } from '../theme/ThemeContext';
 
 import OwnerStack from './OwnerStack';
 import ManageBookingsScreen from '../screens/owner/ManageBookingsScreen';
@@ -31,6 +31,9 @@ function SettingsStackScreen() {
 }
 
 export default function OwnerTabs() {
+  const { theme } = useTheme();
+  const { colors } = theme;
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -38,8 +41,8 @@ export default function OwnerTabs() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
+          backgroundColor: colors.tabBar,
+          borderTopColor: colors.tabBarBorder,
           borderTopWidth: 1,
           paddingBottom: 4,
           height: 60,

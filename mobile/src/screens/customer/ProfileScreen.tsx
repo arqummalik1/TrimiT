@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { colors, typography, spacing, borderRadius, shadows } from '../../lib/utils';
+import { typography, spacing, borderRadius, shadows } from '../../lib/utils';
 
 import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
+import { useTheme } from '../../theme/ThemeContext';
+import { Theme } from '../../theme/tokens';
 
 export default function ProfileScreen({ navigation }: { navigation: any }) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { user, logout, setUser, token } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -71,7 +75,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
             <Ionicons
               name={user?.role === 'owner' ? 'storefront' : 'person'}
               size={14}
-              color={colors.primary}
+              color={theme.colors.primary}
             />
             <Text style={styles.roleText}>
               {user?.role === 'owner' ? 'Salon Owner' : 'Customer'}
@@ -85,7 +89,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
             <Text style={styles.cardTitle}>Personal Information</Text>
             {!isEditing && (
               <TouchableOpacity onPress={() => setIsEditing(true)}>
-                <Ionicons name="create-outline" size={22} color={colors.primary} />
+                <Ionicons name="create-outline" size={22} color={theme.colors.primary} />
               </TouchableOpacity>
             )}
           </View>
@@ -97,7 +101,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
                 value={name}
                 onChangeText={setName}
                 placeholder="Your name"
-                icon={<Ionicons name="person-outline" size={20} color={colors.textSecondary} />}
+                icon={<Ionicons name="person-outline" size={20} color={theme.colors.textSecondary} />}
               />
               <Input
                 label="Phone Number"
@@ -105,7 +109,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
                 onChangeText={setPhone}
                 placeholder="+91 98765 43210"
                 keyboardType="phone-pad"
-                icon={<Ionicons name="call-outline" size={20} color={colors.textSecondary} />}
+                icon={<Ionicons name="call-outline" size={20} color={theme.colors.textSecondary} />}
               />
               <View style={styles.editActions}>
                 <Button
@@ -128,9 +132,9 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
             </View>
           ) : (
             <View style={styles.infoList}>
-              <InfoRow icon="person-outline" label="Name" value={user?.name || 'Not set'} />
-              <InfoRow icon="mail-outline" label="Email" value={user?.email || 'Not set'} />
-              <InfoRow icon="call-outline" label="Phone" value={user?.phone || 'Not set'} />
+              <InfoRow icon="person-outline" label="Name" value={user?.name || 'Not set'} styles={styles} theme={theme} />
+              <InfoRow icon="mail-outline" label="Email" value={user?.email || 'Not set'} styles={styles} theme={theme} />
+              <InfoRow icon="call-outline" label="Phone" value={user?.phone || 'Not set'} styles={styles} theme={theme} />
               <InfoRow
                 icon="calendar-outline"
                 label="Joined"
@@ -142,6 +146,8 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
                       })
                     : 'N/A'
                 }
+                styles={styles}
+                theme={theme}
               />
             </View>
           )}
@@ -155,23 +161,29 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
               icon="shield-checkmark-outline"
               label="Privacy Policy"
               onPress={() => navigation.navigate('PrivacyPolicy')}
+              styles={styles}
+              theme={theme}
             />
             <LinkRow
               icon="document-text-outline"
               label="Terms of Service"
               onPress={() => navigation.navigate('Terms')}
+              styles={styles}
+              theme={theme}
             />
             <LinkRow
               icon="mail-outline"
               label="Contact Us"
               onPress={() => navigation.navigate('Contact')}
+              styles={styles}
+              theme={theme}
             />
           </View>
         </View>
 
         {/* Logout */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={22} color={colors.error} />
+          <Ionicons name="log-out-outline" size={22} color={theme.colors.error} />
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
 
@@ -185,14 +197,18 @@ function InfoRow({
   icon,
   label,
   value,
+  styles,
+  theme,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
+  styles: any;
+  theme: Theme;
 }) {
   return (
     <View style={styles.infoRow}>
-      <Ionicons name={icon} size={20} color={colors.textSecondary} />
+      <Ionicons name={icon} size={20} color={theme.colors.textSecondary} />
       <View style={styles.infoContent}>
         <Text style={styles.infoLabel}>{label}</Text>
         <Text style={styles.infoValue}>{value}</Text>
@@ -205,24 +221,28 @@ function LinkRow({
   icon,
   label,
   onPress,
+  styles,
+  theme,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
+  styles: any;
+  theme: Theme;
 }) {
   return (
     <TouchableOpacity style={styles.linkRow} onPress={onPress}>
-      <Ionicons name={icon} size={20} color={colors.textSecondary} />
+      <Ionicons name={icon} size={20} color={theme.colors.textSecondary} />
       <Text style={styles.linkLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+      <Ionicons name="chevron-forward" size={18} color={theme.colors.textTertiary} />
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     paddingHorizontal: spacing.xl,
@@ -233,7 +253,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h2,
-    color: colors.text,
+    color: theme.colors.text,
   },
   avatarSection: {
     alignItems: 'center',
@@ -243,7 +263,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
@@ -251,17 +271,17 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 32,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textInverse,
   },
   userName: {
     ...typography.h3,
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: spacing.sm,
   },
   roleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primary + '1A', // transparent primary
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
@@ -269,14 +289,14 @@ const styles = StyleSheet.create({
   },
   roleText: {
     ...typography.captionMedium,
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     marginBottom: spacing.xxl,
   },
   cardHeader: {
@@ -287,7 +307,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...typography.h4,
-    color: colors.text,
+    color: theme.colors.text,
   },
   form: {
     gap: spacing.xs,
@@ -310,12 +330,12 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: 2,
   },
   infoValue: {
     ...typography.bodySmallMedium,
-    color: colors.text,
+    color: theme.colors.text,
   },
   logoutButton: {
     flexDirection: 'row',
@@ -325,16 +345,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.errorLight,
-    backgroundColor: colors.surface,
+    borderColor: theme.colors.error + '40', // light error border
+    backgroundColor: theme.colors.surface,
   },
   logoutText: {
     ...typography.bodyMedium,
-    color: colors.error,
+    color: theme.colors.error,
   },
   version: {
     ...typography.caption,
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
     textAlign: 'center',
     marginTop: spacing.xxl,
   },
@@ -352,7 +372,7 @@ const styles = StyleSheet.create({
   },
   linkLabel: {
     ...typography.bodySmallMedium,
-    color: colors.text,
+    color: theme.colors.text,
     flex: 1,
   },
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,9 @@ import { useQuery } from '@tanstack/react-query';
 import MapView from 'react-native-maps';
 import api from '../../lib/api';
 import { Salon, Service } from '../../types';
-import { colors, fonts, spacing, borderRadius, formatPrice, formatDate } from '../../lib/utils';
+import { fonts, spacing, borderRadius, formatPrice, formatDate } from '../../lib/utils';
+import { useTheme } from '../../theme/ThemeContext';
+import { Theme } from '../../theme/tokens';
 
 import { Button } from '../../components/Button';
 import ImageCarousel from '../../components/ImageCarousel';
@@ -27,6 +29,8 @@ interface SalonDetailScreenProps {
 }
 
 export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation, route }) => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { salonId } = route.params;
 
   const { data: salon, isLoading, error } = useQuery<Salon>({
@@ -58,7 +62,7 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
   if (isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </SafeAreaView>
     );
   }
@@ -66,7 +70,7 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
   if (error || !salon) {
     return (
       <SafeAreaView style={styles.errorContainer}>
-        <Ionicons name="alert-circle" size={64} color={colors.border} />
+        <Ionicons name="alert-circle" size={64} color={theme.colors.border} />
         <Text style={styles.errorTitle}>Salon Not Found</Text>
         <Button title="Go Back" onPress={() => navigation.goBack()} variant="outline" />
       </SafeAreaView>
@@ -87,7 +91,7 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
               style={styles.backButton}
               onPress={() => navigation.goBack()}
             >
-              <Ionicons name="arrow-back" size={24} color={colors.text} />
+              <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
             </TouchableOpacity>
           </SafeAreaView>
 
@@ -117,12 +121,12 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
           {/* Action Buttons */}
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.callButton} onPress={handleCall}>
-              <Ionicons name="call" size={20} color={colors.primary} />
+              <Ionicons name="call" size={20} color={theme.colors.primary} />
               <Text style={styles.callText}>Call</Text>
             </TouchableOpacity>
             {salon.latitude && salon.longitude ? (
               <TouchableOpacity style={styles.directionsButton} onPress={handleDirections}>
-                <Ionicons name="navigate" size={20} color={colors.secondary} />
+                <Ionicons name="navigate" size={20} color={theme.colors.secondary} />
                 <Text style={styles.directionsText}>Directions</Text>
               </TouchableOpacity>
             ) : null}
@@ -141,6 +145,7 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
                 zoomEnabled={false}
                 rotateEnabled={false}
                 pitchEnabled={false}
+                userInterfaceStyle={isDark ? 'dark' : 'light'}
                 initialRegion={{
                   latitude: salon.latitude,
                   longitude: salon.longitude,
@@ -189,7 +194,7 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
                     )}
                     <View style={styles.serviceDetails}>
                       <View style={styles.detailItem}>
-                        <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+                        <Ionicons name="time-outline" size={14} color={theme.colors.textSecondary} />
                         <Text style={styles.detailText}>{service.duration} mins</Text>
                       </View>
                       <Text style={styles.servicePrice}>{formatPrice(service.price)}</Text>
@@ -204,7 +209,7 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
               ))
             ) : (
               <View style={styles.emptyServices}>
-                <Ionicons name="cut-outline" size={40} color={colors.border} />
+                <Ionicons name="cut-outline" size={40} color={theme.colors.border} />
                 <Text style={styles.emptyText}>No services available</Text>
               </View>
             )}
@@ -219,7 +224,7 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
                   <View style={styles.reviewHeader}>
                     <View style={styles.reviewUser}>
                       <View style={styles.avatar}>
-                        <Ionicons name="person" size={16} color={colors.textSecondary} />
+                        <Ionicons name="person" size={16} color={theme.colors.textSecondary} />
                       </View>
                       <Text style={styles.reviewerName}>{review.users?.name || 'Anonymous'}</Text>
                     </View>
@@ -229,7 +234,7 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
                           key={i}
                           name={i < review.rating ? 'star' : 'star-outline'}
                           size={14}
-                          color={i < review.rating ? '#FBBF24' : colors.border}
+                          color={i < review.rating ? '#FBBF24' : theme.colors.border}
                         />
                       ))}
                     </View>
@@ -248,29 +253,29 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   errorContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     gap: 16,
   },
   errorTitle: {
     fontFamily: fonts.heading,
     fontSize: 24,
-    color: colors.text,
+    color: theme.colors.text,
   },
   heroContainer: {
     height: 380,
@@ -313,7 +318,7 @@ const styles = StyleSheet.create({
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     alignSelf: 'flex-start',
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -323,7 +328,7 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontFamily: fonts.bodyBold,
-    color: colors.textInverse,
+    color: theme.colors.textInverse,
     fontSize: 14,
   },
   reviewCount: {
@@ -334,7 +339,7 @@ const styles = StyleSheet.create({
   salonName: {
     fontFamily: fonts.heading,
     fontSize: 34,
-    color: colors.text,
+    color: '#FFFFFF',
     marginBottom: 8,
     fontWeight: '700',
   },
@@ -346,13 +351,13 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontFamily: fonts.body,
-    color: colors.textSecondary,
+    color: '#E7E5E4',
     fontSize: 14,
     letterSpacing: 0.2,
   },
   content: {
     padding: 24,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     marginTop: -32,
@@ -367,16 +372,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     padding: 16,
     borderRadius: borderRadius.pill,
     gap: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
   },
   callText: {
     fontFamily: fonts.bodySemiBold,
-    color: colors.text,
+    color: theme.colors.text,
     fontSize: 15,
   },
   directionsButton: {
@@ -384,21 +389,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     padding: 16,
     borderRadius: borderRadius.pill,
     gap: 8,
   },
   directionsText: {
     fontFamily: fonts.bodySemiBold,
-    color: colors.textInverse,
+    color: '#FFFFFF',
     fontSize: 15,
   },
   miniMapContainer: {
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     marginBottom: 32,
     position: 'relative',
   },
@@ -415,16 +420,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: borderRadius.pill,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
   },
   directionsOverlayText: {
     fontFamily: fonts.bodyBold,
-    color: colors.primary,
+    color: theme.colors.primary,
     fontSize: 12,
     letterSpacing: 0.5,
   },
@@ -434,24 +439,24 @@ const styles = StyleSheet.create({
   description: {
     fontFamily: fonts.body,
     fontSize: 15,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     lineHeight: 24,
     letterSpacing: 0.3,
   },
   sectionTitle: {
     fontFamily: fonts.heading,
     fontSize: 26,
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: 20,
   },
   serviceCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     padding: 20,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     marginBottom: 16,
   },
   serviceInfo: {
@@ -461,13 +466,13 @@ const styles = StyleSheet.create({
   serviceName: {
     fontFamily: fonts.bodyBold,
     fontSize: 16,
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: 6,
   },
   serviceDescription: {
     fontFamily: fonts.body,
     fontSize: 13,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: 12,
     lineHeight: 18,
   },
@@ -484,33 +489,33 @@ const styles = StyleSheet.create({
   detailText: {
     fontFamily: fonts.bodyMedium,
     fontSize: 13,
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
   },
   servicePrice: {
     fontFamily: fonts.bodyBold,
     fontSize: 17,
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   emptyServices: {
     alignItems: 'center',
     padding: 40,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     borderStyle: 'dashed',
   },
   emptyText: {
     fontFamily: fonts.body,
     marginTop: 12,
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
   },
   reviewCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     padding: 20,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     marginBottom: 16,
   },
   reviewHeader: {
@@ -527,16 +532,16 @@ const styles = StyleSheet.create({
   avatar: {
     width: 36,
     height: 36,
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: theme.colors.surfaceSecondary,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
   },
   reviewerName: {
     fontFamily: fonts.bodySemiBold,
-    color: colors.text,
+    color: theme.colors.text,
     fontSize: 15,
   },
   stars: {
@@ -546,14 +551,14 @@ const styles = StyleSheet.create({
   reviewComment: {
     fontFamily: fonts.body,
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: 12,
     lineHeight: 20,
   },
   reviewDate: {
     fontFamily: fonts.body,
     fontSize: 12,
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
   },
 });
 

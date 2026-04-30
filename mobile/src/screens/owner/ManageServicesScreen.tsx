@@ -17,7 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { colors, typography, spacing, borderRadius, shadows, formatPrice } from '../../lib/utils';
+import { typography, spacing, borderRadius, shadows, formatPrice } from '../../lib/utils';
+import { useTheme, Theme } from '../../theme/ThemeContext';
 
 import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
@@ -31,6 +32,8 @@ const EMPTY_FORM = {
 };
 
 export default function ManageServicesScreen() {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const queryClient = useQueryClient();
   const [modalVisible, setModalVisible] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
@@ -152,7 +155,7 @@ export default function ManageServicesScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       </SafeAreaView>
     );
@@ -162,7 +165,7 @@ export default function ManageServicesScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
-          <Ionicons name="storefront-outline" size={64} color={colors.textTertiary} />
+          <Ionicons name="storefront-outline" size={64} color={theme.colors.textTertiary} />
           <Text style={styles.emptyTitle}>No Salon Yet</Text>
           <Text style={styles.emptyText}>Create your salon first to manage services.</Text>
         </View>
@@ -176,7 +179,7 @@ export default function ManageServicesScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Services</Text>
         <TouchableOpacity style={styles.addButton} onPress={() => openModal()}>
-          <Ionicons name="add" size={22} color={colors.white} />
+          <Ionicons name="add" size={22} color={theme.colors.background} />
           <Text style={styles.addButtonText}>Add</Text>
         </TouchableOpacity>
       </View>
@@ -187,7 +190,7 @@ export default function ManageServicesScreen() {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="pricetag-outline" size={48} color={colors.textTertiary} />
+            <Ionicons name="pricetag-outline" size={48} color={theme.colors.textTertiary} />
             <Text style={styles.emptyTitle}>No Services</Text>
             <Text style={styles.emptyText}>Add your first service to get started.</Text>
           </View>
@@ -208,23 +211,23 @@ export default function ManageServicesScreen() {
                   onPress={() => openModal(item)}
                   style={styles.iconBtn}
                 >
-                  <Ionicons name="create-outline" size={20} color={colors.primary} />
+                  <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => handleDelete(item)}
                   style={styles.iconBtn}
                 >
-                  <Ionicons name="trash-outline" size={20} color={colors.error} />
+                  <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
                 </TouchableOpacity>
               </View>
             </View>
             <View style={styles.serviceMeta}>
               <View style={styles.metaItem}>
-                <Ionicons name="cash-outline" size={16} color={colors.textSecondary} />
+                <Ionicons name="cash-outline" size={16} color={theme.colors.textSecondary} />
                 <Text style={styles.metaText}>{formatPrice(item.price)}</Text>
               </View>
               <View style={styles.metaItem}>
-                <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+                <Ionicons name="time-outline" size={16} color={theme.colors.textSecondary} />
                 <Text style={styles.metaText}>{item.duration} min</Text>
               </View>
             </View>
@@ -249,7 +252,7 @@ export default function ManageServicesScreen() {
                 {editingService ? 'Edit Service' : 'Add Service'}
               </Text>
               <TouchableOpacity onPress={closeModal}>
-                <Ionicons name="close" size={28} color={colors.text} />
+                <Ionicons name="close" size={28} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -262,7 +265,7 @@ export default function ManageServicesScreen() {
                 value={formData.name}
                 onChangeText={(v) => setFormData({ ...formData, name: v })}
                 placeholder="e.g., Haircut"
-                icon={<Ionicons name="cut-outline" size={20} color={colors.textSecondary} />}
+                icon={<Ionicons name="cut-outline" size={20} color={theme.colors.textSecondary} />}
               />
               <Input
                 label="Description"
@@ -278,7 +281,7 @@ export default function ManageServicesScreen() {
                     onChangeText={(v) => setFormData({ ...formData, price: v })}
                     placeholder="500"
                     keyboardType="numeric"
-                    icon={<Ionicons name="cash-outline" size={20} color={colors.textSecondary} />}
+                    icon={<Ionicons name="cash-outline" size={20} color={theme.colors.textSecondary} />}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -288,7 +291,7 @@ export default function ManageServicesScreen() {
                     onChangeText={(v) => setFormData({ ...formData, duration: v })}
                     placeholder="30"
                     keyboardType="numeric"
-                    icon={<Ionicons name="time-outline" size={20} color={colors.textSecondary} />}
+                    icon={<Ionicons name="time-outline" size={20} color={theme.colors.textSecondary} />}
                   />
                 </View>
               </View>
@@ -307,10 +310,10 @@ export default function ManageServicesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -326,12 +329,12 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h2,
-    color: colors.text,
+    color: theme.colors.text,
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
@@ -339,18 +342,18 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     ...typography.buttonSmall,
-    color: colors.white,
+    color: theme.colors.background,
   },
   listContent: {
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxxxl,
   },
   serviceCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     marginBottom: spacing.md,
   },
   serviceHeader: {
@@ -359,12 +362,12 @@ const styles = StyleSheet.create({
   },
   serviceName: {
     ...typography.bodySemiBold,
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: spacing.xs,
   },
   serviceDesc: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   serviceActions: {
     flexDirection: 'row',
@@ -379,7 +382,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: theme.colors.border,
   },
   metaItem: {
     flexDirection: 'row',
@@ -388,7 +391,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     ...typography.bodySmallMedium,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   emptyContainer: {
     flex: 1,
@@ -399,17 +402,17 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...typography.h3,
-    color: colors.text,
+    color: theme.colors.text,
   },
   emptyText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   // Modal
   modalContainer: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -418,11 +421,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: theme.colors.border,
   },
   modalTitle: {
     ...typography.h3,
-    color: colors.text,
+    color: theme.colors.text,
   },
   modalContent: {
     padding: spacing.xl,

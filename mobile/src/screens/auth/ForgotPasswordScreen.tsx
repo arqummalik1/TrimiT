@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { colors, typography, spacing, borderRadius } from '../../lib/utils';
+import { typography, spacing, borderRadius } from '../../lib/utils';
+import { useTheme } from '../../theme/ThemeContext';
+import { Theme } from '../../theme/tokens';
 
 import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
@@ -22,6 +24,8 @@ interface ForgotPasswordScreenProps {
 }
 
 export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScreenProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
@@ -49,7 +53,7 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
       <SafeAreaView style={styles.container}>
         <View style={styles.sentContainer}>
           <View style={styles.successIcon}>
-            <Ionicons name="mail" size={48} color={colors.primary} />
+            <Ionicons name="mail" size={48} color={theme.colors.primary} />
           </View>
           <Text style={styles.sentTitle}>Check Your Email</Text>
           <Text style={styles.sentText}>
@@ -89,12 +93,12 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
 
           <View style={styles.header}>
             <View style={styles.iconContainer}>
-              <Ionicons name="key" size={36} color={colors.primary} />
+              <Ionicons name="key" size={36} color={theme.colors.primary} />
             </View>
             <Text style={styles.title}>Forgot Password?</Text>
             <Text style={styles.subtitle}>
@@ -110,7 +114,7 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
-              icon={<Ionicons name="mail-outline" size={20} color={colors.textSecondary} />}
+              icon={<Ionicons name="mail-outline" size={20} color={theme.colors.textSecondary} />}
             />
 
             <Button
@@ -126,10 +130,10 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -148,7 +152,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 80,
     height: 80,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
     borderRadius: borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
@@ -156,12 +160,12 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h2,
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: spacing.sm,
   },
   subtitle: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: spacing.xl,
   },
@@ -177,7 +181,7 @@ const styles = StyleSheet.create({
   successIcon: {
     width: 96,
     height: 96,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
     borderRadius: 48,
     alignItems: 'center',
     justifyContent: 'center',
@@ -185,17 +189,17 @@ const styles = StyleSheet.create({
   },
   sentTitle: {
     ...typography.h2,
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: spacing.md,
   },
   sentText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },
   retryText: {
     ...typography.bodySmallMedium,
-    color: colors.primary,
+    color: theme.colors.primary,
   },
 });

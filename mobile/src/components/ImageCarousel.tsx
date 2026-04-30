@@ -8,7 +8,9 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
-import { colors, borderRadius, DEFAULT_SALON_IMAGE } from '../lib/utils';
+import { borderRadius, DEFAULT_SALON_IMAGE } from '../lib/utils';
+import { useTheme } from '../theme/ThemeContext';
+
 
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -19,6 +21,7 @@ interface ImageCarouselProps {
 }
 
 export default function ImageCarousel({ images, height = 280 }: ImageCarouselProps) {
+  const { theme } = useTheme();
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
@@ -43,7 +46,7 @@ export default function ImageCarousel({ images, height = 280 }: ImageCarouselPro
         renderItem={({ item }) => (
           <Image
             source={{ uri: item }}
-            style={[styles.image, { height, width: SCREEN_WIDTH }]}
+            style={[styles.image, { height, width: SCREEN_WIDTH, backgroundColor: theme.colors.shimmer }]}
             resizeMode="cover"
           />
         )}
@@ -55,7 +58,9 @@ export default function ImageCarousel({ images, height = 280 }: ImageCarouselPro
               key={index}
               style={[
                 styles.dot,
-                index === activeIndex ? styles.dotActive : styles.dotInactive,
+                index === activeIndex
+                  ? [styles.dotActive, { backgroundColor: '#FFFFFF' }]
+                  : { backgroundColor: 'rgba(255,255,255,0.5)' },
               ]}
             />
           ))}
@@ -70,7 +75,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   image: {
-    backgroundColor: colors.shimmer,
+    // backgroundColor applied inline from theme
   },
   pagination: {
     position: 'absolute',
@@ -87,10 +92,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   dotActive: {
-    backgroundColor: colors.white,
     width: 24,
   },
-  dotInactive: {
-    backgroundColor: 'rgba(255,255,255,0.5)',
-  },
+  dotInactive: {},
 });

@@ -9,44 +9,30 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useToastStore, ToastType } from '../store/toastStore';
-import { colors, typography, borderRadius, spacing, shadows } from '../lib/utils';
-
+import { typography, borderRadius, spacing, shadows } from '../lib/utils';
+import { useTheme } from '../theme/ThemeContext';
+import { Theme } from '../theme/tokens';
 
 const ICONS: Record<ToastType, keyof typeof Ionicons.glyphMap> = {
   success: 'checkmark-circle',
-  error: 'close-circle',
+  error:   'close-circle',
   warning: 'warning',
-  info: 'information-circle',
-};
-
-const BG_COLORS: Record<ToastType, string> = {
-  success: colors.successLight,
-  error: colors.errorLight,
-  warning: colors.warningLight,
-  info: colors.infoLight,
-};
-
-const ICON_COLORS: Record<ToastType, string> = {
-  success: colors.success,
-  error: colors.error,
-  warning: colors.warning,
-  info: colors.info,
-};
-
-const TEXT_COLORS: Record<ToastType, string> = {
-  success: '#065F46',
-  error: '#991B1B',
-  warning: '#92400E',
-  info: '#1E40AF',
+  info:    'information-circle',
 };
 
 const AUTO_DISMISS_MS = 3000;
 
 export default function Toast() {
-  const { visible, message, type, hide } = useToastStore();
+  const { current, dismiss } = useToastStore();
   const insets = useSafeAreaInsets();
+  const { theme, isDark } = useTheme();
   const translateY = useRef(new Animated.Value(-100)).current;
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Derive simple states for animation
+  const visible = !!current;
+  const type = current?.type || 'info';
+  const message = current?.message || '';
 
   useEffect(() => {
     if (visible) {
@@ -65,7 +51,7 @@ export default function Toast() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [visible, message]);
+  }, [current]);
 
   const dismissToast = () => {
     Animated.timing(translateY, {
@@ -73,9 +59,29 @@ export default function Toast() {
       duration: 200,
       useNativeDriver: true,
     }).start(() => {
-      hide();
+      dismiss();
     });
   };
+
+  // Theme-aware toast colors
+  const bgColors: Record<ToastType, string> = {
+    success: theme.colors.successLight,
+    error:   theme.colors.errorLight,
+    warning: theme.colors.warningLight,
+    info:    theme.colors.infoLight,
+  };
+
+  const iconColors: Record<ToastType, string> = {
+    success: theme.colors.success,
+    error:   theme.colors.error,
+    warning: theme.colors.warning,
+    info:    theme.colors.info,
+  };
+
+  // Text color must have strong contrast on both palette backgrounds
+  const textColors: Record<ToastType, string> = isDark
+    ? { success: '#82E0AA', error: '#FF5F5F', warning: '#F7DC6F', info: '#85C1E9' }
+    : { success: '#065F46', error: '#991B1B', warning: '#92400E', info: '#1E40AF' };
 
   if (!visible) return null;
 
@@ -85,7 +91,7 @@ export default function Toast() {
         styles.container,
         {
           top: insets.top + spacing.sm,
-          backgroundColor: BG_COLORS[type],
+          backgroundColor: bgColors[type],
           transform: [{ translateY }],
         },
         shadows.md,
@@ -96,16 +102,17 @@ export default function Toast() {
         activeOpacity={0.8}
         onPress={dismissToast}
       >
-        <Ionicons name={ICONS[type]} size={22} color={ICON_COLORS[type]} />
-        <Text style={[styles.message, { color: TEXT_COLORS[type] }]} numberOfLines={2}>
+        <Ionicons name={ICONS[type]} size={22} color={iconColors[type]} />
+        <Text style={[styles.message, { color: textColors[type] }]} numberOfLines={2}>
           {message}
         </Text>
-        <Ionicons name="close" size={18} color={TEXT_COLORS[type]} />
+        <Ionicons name="close" size={18} color={textColors[type]} />
       </TouchableOpacity>
     </Animated.View>
   );
 }
 
+// Static styles — only layout, no colors
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',

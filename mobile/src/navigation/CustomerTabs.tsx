@@ -3,7 +3,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomerTabParamList } from './types';
-import { colors, fonts } from '../lib/utils';
+import { fonts } from '../lib/utils';
+import { useTheme } from '../theme/ThemeContext';
 
 import CustomerStack from './CustomerStack';
 import MyBookingsScreen from '../screens/customer/MyBookingsScreen';
@@ -27,6 +28,9 @@ function ProfileStackScreen() {
 }
 
 export default function CustomerTabs() {
+  const { theme } = useTheme();
+  const { colors } = theme;
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -34,8 +38,8 @@ export default function CustomerTabs() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
-          backgroundColor: colors.background,
-          borderTopColor: colors.border,
+          backgroundColor: colors.tabBar,
+          borderTopColor: colors.tabBarBorder,
           borderTopWidth: 1,
           height: 65,
           paddingBottom: 10,

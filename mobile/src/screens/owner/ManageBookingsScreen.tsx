@@ -12,7 +12,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import BookingCard from '../../components/BookingCard';
-import { colors, typography, spacing, borderRadius } from '../../lib/utils';
+import { BookingListSkeleton } from '../../components/skeletons/BookingListSkeleton';
+import { ErrorState } from '../../components/ErrorState';
+import { EmptyState } from '../../components/EmptyState';
+import { useMinLoadingTime } from '../../hooks/useMinLoadingTime';
+import { typography, spacing, borderRadius } from '../../lib/utils';
+import { useTheme, Theme } from '../../theme/ThemeContext';
 
 import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
@@ -22,6 +27,8 @@ const STATUSES = ['all', 'pending', 'confirmed', 'completed', 'cancelled'] as co
 type StatusFilter = (typeof STATUSES)[number];
 
 export default function ManageBookingsScreen() {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -34,7 +41,7 @@ export default function ManageBookingsScreen() {
     },
   });
 
-  const { data: bookings, isLoading } = useQuery<Booking[]>({
+  const { data: bookings, isLoading: rawIsLoading, error: bookingsError, refetch: refetchBookings } = useQuery<Booking[]>({
     queryKey: ['ownerBookings'],
     queryFn: async () => {
       const response = await api.get('/api/bookings');
@@ -42,6 +49,8 @@ export default function ManageBookingsScreen() {
     },
     enabled: !!salon,
   });
+
+  const isLoading = useMinLoadingTime(rawIsLoading);
 
   const statusMutation = useMutation({
     mutationFn: async ({ bookingId, status }: { bookingId: string; status: string }) => {
@@ -70,9 +79,22 @@ export default function ManageBookingsScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={styles.header}>
+          <Text style={styles.title}>Bookings</Text>
         </View>
+        <BookingListSkeleton />
+      </SafeAreaView>
+    );
+  }
+
+  if (bookingsError) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ErrorState 
+          title="Failed to load bookings"
+          message="We encountered an issue while loading your salon bookings. Please check your connection and try again."
+          onRetry={refetchBookings}
+        />
       </SafeAreaView>
     );
   }
@@ -80,11 +102,11 @@ export default function ManageBookingsScreen() {
   if (!salon) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.emptyContainer}>
-          <Ionicons name="storefront-outline" size={64} color={colors.textTertiary} />
-          <Text style={styles.emptyTitle}>No Salon Yet</Text>
-          <Text style={styles.emptyText}>Create your salon first to see bookings.</Text>
-        </View>
+        <EmptyState 
+          title="No Salon Yet"
+          message="Create your salon first to see bookings."
+          icon="storefront-outline"
+        />
       </SafeAreaView>
     );
   }
@@ -137,18 +159,16 @@ export default function ManageBookingsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.primary}
+            tintColor={theme.colors.primary}
           />
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="calendar-outline" size={48} color={colors.textTertiary} />
-            <Text style={styles.emptyTitle}>No Bookings</Text>
-            <Text style={styles.emptyText}>
-              {filter === 'all'
-                ? 'No bookings yet for your salon.'
-                : `No ${filter} bookings.`}
-            </Text>
+          <View style={{ paddingTop: 40 }}>
+            <EmptyState 
+              title="No Bookings"
+              message={filter === 'all' ? 'No bookings yet for your salon.' : `No ${filter} bookings.`}
+              icon="calendar-outline"
+            />
           </View>
         }
         renderItem={({ item }) => (
@@ -171,10 +191,10 @@ export default function ManageBookingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -190,11 +210,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h2,
-    color: colors.text,
+    color: theme.colors.text,
   },
   countText: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   filterContainer: {
     marginBottom: spacing.md,
@@ -207,20 +227,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
   },
   filterChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   filterText: {
     ...typography.bodySmallMedium,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   filterTextActive: {
-    color: colors.white,
+    color: theme.colors.background,
   },
   listContent: {
     paddingHorizontal: spacing.xl,
@@ -235,11 +255,11 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...typography.h3,
-    color: colors.text,
+    color: theme.colors.text,
   },
   emptyText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
 });
