@@ -1096,7 +1096,7 @@ async def get_my_bookings(current_user: dict = Depends(get_current_user)):
     user_token = current_user.get("access_token")
     
     if profile.get("role") == "customer":
-        query = f"bookings?user_id=eq.{current_user.get('id')}&select=*,salons(name,address,phone),services(name,duration)&order=booking_date.desc,time_slot.desc"
+        query = f"bookings?user_id=eq.{current_user.get('id')}&select=*,salons(name,address,phone),services(name,duration)&order=created_at.desc"
     else:
         # Get owner's salon bookings
         salon_response = await supabase_request("GET", f"salons?owner_id=eq.{current_user.get('id')}&select=id", token=user_token)
@@ -1104,7 +1104,7 @@ async def get_my_bookings(current_user: dict = Depends(get_current_user)):
             return []
         
         salon_id = salon_response.json()[0].get("id")
-        query = f"bookings?salon_id=eq.{salon_id}&select=*,users(name,phone),services(name,duration)&order=booking_date.desc,time_slot.desc"
+        query = f"bookings?salon_id=eq.{salon_id}&select=*,users(name,phone),services(name,duration)&order=created_at.desc"
     
     response = await supabase_request("GET", query, token=user_token)
     
