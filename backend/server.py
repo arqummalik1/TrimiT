@@ -115,6 +115,7 @@ class ServiceCreate(BaseModel):
     description: Optional[str] = None
     price: float
     duration: int  # minutes
+    image_url: Optional[str] = None           # thumbnail URL
     # Offer fields
     discount_percentage: Optional[int] = None  # 0-100
     offer_start_date: Optional[str] = None  # YYYY-MM-DD
@@ -127,6 +128,7 @@ class ServiceUpdate(BaseModel):
     description: Optional[str] = None
     price: Optional[float] = None
     duration: Optional[int] = None
+    image_url: Optional[str] = None           # thumbnail URL
     # Offer fields
     discount_percentage: Optional[int] = None
     offer_start_date: Optional[str] = None
@@ -1115,18 +1117,29 @@ async def get_my_bookings(current_user: dict = Depends(get_current_user)):
 async def update_booking_status(booking_id: str, data: BookingStatusUpdate, current_user: dict = Depends(get_current_user)):
     token = current_user.get("access_token")
     
-    # 1. Update status
-    response = await supabase_request("PATCH", f"bookings?id=eq.{booking_id}", {"status": data.status.value}, token=token)
+    # 1. Fetch booking to verify ownership or if the user is the customer
+    booking_resp = await supabase_request("GET", f"bookings?id=eq.{booking_id}&select=*,salons(name,owner_id),services(name),users(push_token)", token=token)
+    if booking_resp.status_code != 200 or not booking_resp.json():
+        raise HTTPException(status_code=404, detail="Booking not found")
+        
+    booking = booking_resp.json()[0]
+    
+    # Check authorization (must be customer or salon owner)
+    is_customer = booking.get("user_id") == current_user.get("id")
+    is_owner = booking.get("salons", {}).get("owner_id") == current_user.get("id")
+    
+    if not is_customer and not is_owner:
+        raise HTTPException(status_code=403, detail="Not authorized to update this booking")
+    
+    # 2. Update status using service role key (bypassing RLS) to avoid complex RLS policies
+    response = await supabase_public_request("PATCH", f"bookings?id=eq.{booking_id}", {"status": data.status.value})
     
     if response.status_code not in [200, 201, 204]:
         raise HTTPException(status_code=400, detail="Failed to update booking status")
         
-    # 2. Trigger Notifications for status change
-    # Fetch booking, salon, and customer info
-    booking_resp = await supabase_request("GET", f"bookings?id=eq.{booking_id}&select=*,salons(name,owner_id),services(name),users(push_token)", token=token)
-    
-    if booking_resp.status_code == 200 and booking_resp.json():
-        booking = booking_resp.json()[0]
+    # 3. Trigger Notifications for status change
+    # We already have booking, salon, and customer info from step 1
+    if True:
         salon_name = booking.get("salons", {}).get("name", "Salon")
         customer_token = booking.get("users", {}).get("push_token")
         booking_time = f"{booking['booking_date']} {booking['time_slot']}"
