@@ -17,7 +17,18 @@ export type AnalyticsEvent =
   | 'booking_started'
   | 'booking_confirmed'
   | 'payment_failed'
-  | 'review_submitted';
+  | 'review_submitted'
+  // Promo code events
+  | 'promo_applied'
+  | 'promo_failed'
+  | 'promo_validation_error'
+  | 'promo_removed'
+  // Staff selection events
+  | 'staff_selected'
+  | 'staff_deactivated'
+  // Rescheduling events
+  | 'booking_rescheduled'
+  | 'reschedule_failed';
 
 interface EventProperties {
   [key: string]: any;

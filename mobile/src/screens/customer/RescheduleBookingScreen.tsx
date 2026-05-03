@@ -96,7 +96,10 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
         [
           {
             text: 'View Bookings',
-            onPress: () => navigation.navigate('CustomerTabs', { screen: 'Bookings' }),
+            onPress: () => {
+              // Navigate to root, then to CustomerTabs, then to Bookings
+              navigation.getParent()?.navigate('CustomerTabs', { screen: 'Bookings' });
+            },
           },
           {
             text: 'OK',

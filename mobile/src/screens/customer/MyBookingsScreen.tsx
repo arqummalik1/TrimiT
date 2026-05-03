@@ -97,14 +97,18 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
   };
 
   const handleReschedule = (booking: Booking) => {
-    navigation.navigate('RescheduleBooking', {
-      bookingId: booking.id,
-      currentDate: booking.booking_date,
-      currentSlot: booking.time_slot,
-      salonId: booking.salon_id,
-      serviceId: booking.service_id,
-      salonName: booking.salons?.name || 'Salon',
-      serviceName: booking.services?.name || 'Service',
+    // Navigate to Discover stack which contains RescheduleBooking screen
+    navigation.navigate('Discover', {
+      screen: 'RescheduleBooking',
+      params: {
+        bookingId: booking.id,
+        currentDate: booking.booking_date,
+        currentSlot: booking.time_slot,
+        salonId: booking.salon_id,
+        serviceId: booking.service_id,
+        salonName: booking.salons?.name || 'Salon',
+        serviceName: booking.services?.name || 'Service',
+      },
     });
   };
 
