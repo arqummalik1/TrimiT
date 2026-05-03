@@ -18,10 +18,11 @@ import {
   TouchableOpacity,
   RefreshControl,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { Salon, Analytics, Booking } from '../../types';
 import { formatPrice, typography, spacing, borderRadius } from '../../lib/utils';
@@ -33,12 +34,12 @@ import { EmptyState } from '../../components/EmptyState';
 import { handleApiError } from '../../lib/errorHandler';
 import { useMinLoadingTime } from '../../hooks/useMinLoadingTime';
 import { BookingsTrendChart, PopularServicesChart, StatusDistributionChart } from '../../components/charts';
-import { subscribeToSalonBookings, unsubscribeFromBookings } from '../../lib/supabase';
 import BookingCard from '../../components/BookingCard';
 
-interface OwnerDashboardScreenProps {
-  navigation: any;
-}
+import { OwnerDashboardScreenProps as NavigationProps } from '../../navigation/types';
+import { ComponentProps } from 'react';
+
+type OwnerDashboardProps = NavigationProps<'DashboardMain'>;
 
 type Period = 'today' | '7d' | '30d' | 'all';
 
@@ -123,7 +124,7 @@ const AnimatedStatCard: React.FC<StatCardProps> = ({ title, value, icon, color, 
             { backgroundColor: color + '25', transform: [{ scale: iconScale }] }
           ]}
         >
-          <Ionicons name={icon as any} size={20} color={iconColor} />
+          <Ionicons name={icon as ComponentProps<typeof Ionicons>['name']} size={20} color={iconColor} />
         </Animated.View>
         <Text style={styles.compactStatLabel} numberOfLines={1}>{title}</Text>
       </View>
@@ -134,10 +135,19 @@ const AnimatedStatCard: React.FC<StatCardProps> = ({ title, value, icon, color, 
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
-export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navigation }) => {
+export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('today');
+  const [showCharts, setShowCharts] = useState(false);
+
+  useEffect(() => {
+    // Delay chart rendering to keep initial screen transition smooth
+    const timer = setTimeout(() => {
+      setShowCharts(true);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
 
   const {
     data: salon,
@@ -151,7 +161,10 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
       const response = await api.get('/api/owner/salon');
       return response.data;
     },
-    retry: (count, err: any) => err?.type !== 'auth' && count < 2,
+    retry: (count, err: unknown) => {
+      const appErr = handleApiError(err);
+      return appErr.kind !== 'unauthorized' && count < 2;
+    },
   });
 
   const { data: analytics, refetch: refetchAnalytics } = useQuery<Analytics>({
@@ -176,31 +189,38 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
     enabled: !!salon,
   });
 
+  const queryClient = useQueryClient();
+  const statusMutation = useMutation({
+    mutationFn: async ({ bookingId, status }: { bookingId: string; status: string }) => {
+      await api.patch(`/api/bookings/${bookingId}/status`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recentBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
+      queryClient.invalidateQueries({ queryKey: ['salonBookings'] });
+    },
+    onError: (err: unknown) => {
+      const appErr = handleApiError(err);
+      console.error('[Dashboard] Status update failed:', appErr);
+    },
+  });
+
   const handleRefresh = async () => {
     await Promise.all([refetchSalon(), refetchAnalytics(), refetchRecentBookings()]);
   };
 
-  // Real-time subscription
-  useEffect(() => {
-    if (salon?.id) {
-      const channel = subscribeToSalonBookings(salon.id, () => {
-        refetchAnalytics();
-        refetchRecentBookings();
-      });
-      return () => {
-        unsubscribeFromBookings(channel);
-      };
-    }
-  }, [salon?.id]);
+  // Note: Real-time subscription is handled globally in OwnerTabs.tsx
+  // When a new booking comes in, OwnerTabs invalidates the query cache,
+  // causing this screen to automatically re-fetch and update.
 
   const showSkeleton = useMinLoadingTime(salonLoading, 500);
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (showSkeleton) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <ScreenWrapper variant="tab">
         <DashboardSkeleton />
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
@@ -208,28 +228,28 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
   if (salonError) {
     const appErr = handleApiError(salonRawError);
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <ScreenWrapper variant="tab">
         <ErrorState
           title="Couldn't load dashboard"
           message={appErr.message}
-          type={appErr.type}
+          kind={appErr.kind}
           onRetry={handleRefresh}
         />
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   // ── No salon yet ───────────────────────────────────────────────────────────
   if (!salon) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <ScreenWrapper variant="tab">
         <EmptyState
           icon="storefront-outline"
           title="Create Your Salon"
           message="Set up your salon profile to start accepting bookings and tracking your business."
           action={{ label: 'Create Salon', onPress: () => navigation.navigate('ManageSalon') }}
         />
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
@@ -267,7 +287,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
   ];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <ScreenWrapper variant="tab">
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -334,8 +354,10 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
                 booking={booking}
                 isOwner
                 compact
-                onConfirm={handleRefresh}
-                onReject={handleRefresh}
+                isLoading={statusMutation.isPending && statusMutation.variables?.bookingId === booking.id}
+                onConfirm={() => statusMutation.mutate({ bookingId: booking.id, status: 'confirmed' })}
+                onReject={() => statusMutation.mutate({ bookingId: booking.id, status: 'cancelled' })}
+                onComplete={() => statusMutation.mutate({ bookingId: booking.id, status: 'completed' })}
               />
             ))
           ) : (
@@ -349,7 +371,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
         </View>
 
         {/* Performance Charts */}
-        {analytics && (
+        {analytics && showCharts ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Business Performance</Text>
             <BookingsTrendChart data={analytics.bookings_trend} />
@@ -359,6 +381,13 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
               </View>
             </View>
             <StatusDistributionChart data={analytics.status_distribution} />
+          </View>
+        ) : analytics && (
+          <View style={[styles.section, { height: 300, justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator color={theme.colors.primary} />
+            <Text style={{ marginTop: 12, color: theme.colors.textSecondary, fontSize: 12 }}>
+              Preparing charts...
+            </Text>
           </View>
         )}
 
@@ -374,7 +403,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
                     <View
                       style={[
                         styles.peakHourFill,
-                        { width: `${Math.min((hour.bookings / analytics.total_bookings) * 100, 100)}%` as any },
+                        { width: `${Math.min((hour.bookings / analytics.total_bookings) * 100, 100)}%` as const },
                       ]}
                     />
                   </View>
@@ -387,12 +416,12 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
+  container: { flex: 1 },
   premiumHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

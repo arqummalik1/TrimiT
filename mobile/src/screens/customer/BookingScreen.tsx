@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays, startOfToday } from 'date-fns';
-import api from '../../lib/api';
+import api, { axios } from '../../lib/api';
 import { Salon, TimeSlot, SlotsResponse } from '../../types';
 import { fonts, borderRadius, formatPrice, formatTime } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
@@ -22,16 +23,38 @@ import { Button } from '../../components/Button';
 import { useBookingStore } from '../../store/bookingStore';
 import { scheduleBookingReminder } from '../../lib/notifications';
 import { openNativeDirections } from '../../lib/maps';
+import { handleApiError } from '../../lib/errorHandler';
+import { CustomerDiscoverScreenProps } from '../../navigation/types';
 
-interface BookingScreenProps {
-  navigation: any;
-  route: any;
-}
+import { BookingParamsSchema } from '../../navigation/params';
 
-export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route }) => {
+import { analytics } from '../../lib/analytics';
+
+// Staff selection imports
+import StaffPicker from '../../components/StaffPicker';
+import StaffProfileCard from '../../components/StaffProfileCard';
+import type { AvailableStaffResponse, StaffWithServices } from '../../types/staff';
+
+export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { salonId, serviceId } = route.params;
+  
+  // Validate params
+  const validation = BookingParamsSchema.safeParse(route.params);
+  if (!validation.success) {
+    console.error('[BookingScreen] Invalid params:', validation.error);
+    return (
+      <ScreenWrapper variant="stack">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Ionicons name="alert-circle" size={48} color={theme.colors.error} />
+          <Text style={{ marginTop: 16, textAlign: 'center', color: theme.colors.text }}>Invalid booking parameters.</Text>
+          <Button title="Go Back" onPress={() => navigation.goBack()} style={{ marginTop: 24 }} />
+        </View>
+      </ScreenWrapper>
+    );
+  }
+  
+  const { salonId, serviceId } = validation.data;
   const queryClient = useQueryClient();
 
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -39,6 +62,26 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'cash' | 'card'>('cash');
   const [bookingComplete, setBookingComplete] = useState(false);
   const [slotConflictError, setSlotConflictError] = useState<string | null>(null);
+  
+  // Promo code state
+  const [promoCode, setPromoCode] = useState('');
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [validatingPromo, setValidatingPromo] = useState(false);
+  
+  // Staff selection state
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
+  const [anyStaffSelected, setAnyStaffSelected] = useState(true); // Default to "Any Available"
+  const [staffProfileVisible, setStaffProfileVisible] = useState(false);
+  const [selectedStaffForProfile, setSelectedStaffForProfile] = useState<StaffWithServices | null>(null);
+  const [effectivePrice, setEffectivePrice] = useState<number>(0);
+  const [effectiveDuration, setEffectiveDuration] = useState<number>(0);
+  
+  // Hold state
+  const [holdId, setHoldId] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Real-time booking store
   const {
@@ -81,8 +124,53 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
   });
 
   // Use real-time slots if available, otherwise use fetched slots
-  const displaySlots = realtimeSlots.length > 0 ? realtimeSlots : (slotsData?.slots || []);
+  const displaySlots = useMemo(() => {
+    return realtimeSlots.length > 0 ? realtimeSlots : (slotsData?.slots || []);
+  }, [realtimeSlots, slotsData]);
+
   const effectiveAllowMultiple = slotsData?.allow_multiple_bookings_per_slot ?? allowMultipleBookings;
+
+  // Get available staff for selected date/time/service
+  const { data: availableStaffData, isLoading: staffLoading } = useQuery<AvailableStaffResponse>({
+    queryKey: ['availableStaff', salonId, serviceId, selectedDate, selectedSlot],
+    queryFn: async () => {
+      if (!selectedSlot) throw new Error('No slot selected');
+      
+      const response = await api.get(
+        `/api/v1/staff/available/${salonId}/${serviceId}`,
+        {
+          params: {
+            booking_date: selectedDate,
+            time_slot: selectedSlot,
+          },
+        }
+      );
+      return response.data;
+    },
+    enabled: !!selectedSlot && !!selectedDate && !!serviceId,
+  });
+
+  // Update effective price and duration when staff selection changes
+  useEffect(() => {
+    if (!service) return;
+
+    if (selectedStaffId && availableStaffData) {
+      const selectedStaff = availableStaffData.available_staff.find(
+        (s) => s.staff_id === selectedStaffId
+      );
+      
+      if (selectedStaff) {
+        setEffectivePrice(selectedStaff.custom_price ?? service.price);
+        setEffectiveDuration(selectedStaff.custom_duration ?? service.duration);
+      } else {
+        setEffectivePrice(service.price);
+        setEffectiveDuration(service.duration);
+      }
+    } else {
+      setEffectivePrice(service.price);
+      setEffectiveDuration(service.duration);
+    }
+  }, [selectedStaffId, availableStaffData, service]);
 
   // Subscribe to real-time updates when slots are loaded
   useEffect(() => {
@@ -92,8 +180,180 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
 
     return () => {
       unsubscribeFromSlots();
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [salonId, serviceId, selectedDate, slotsData]);
+
+  // Reserve slot mutation
+  const reserveMutation = useMutation({
+    mutationFn: async (slot: string) => {
+      const response = await api.post('/bookings/reserve', {
+        salon_id: salonId,
+        service_id: serviceId,
+        booking_date: selectedDate,
+        time_slot: slot,
+      });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setHoldId(data.hold_id);
+      setTimeLeft(90); // backend default is 90s
+      
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev === null || prev <= 1) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    },
+    onError: (error: unknown) => {
+      let errorMsg = 'This slot is currently being held by someone else.';
+      if (axios.isAxiosError(error)) {
+        // Handle nested error message if available
+        const detail = error.response?.data?.detail;
+        errorMsg = typeof detail === 'string' ? detail : detail?.message || errorMsg;
+      }
+      Alert.alert('Slot Unavailable', errorMsg);
+      setSelectedSlot(null);
+      setHoldId(null);
+      setTimeLeft(null);
+    }
+  });
+
+  // Timer expiration effect
+  useEffect(() => {
+    if (timeLeft === 0) {
+      setSelectedSlot(null);
+      setHoldId(null);
+      setTimeLeft(null);
+      Alert.alert('Hold Expired', 'Your temporary slot reservation has expired. Please select a slot again to continue.');
+    }
+  }, [timeLeft]);
+
+  // Validate promo code with proper error handling and analytics
+  const handleApplyPromo = useCallback(async () => {
+    if (!promoCode.trim()) {
+      setPromoError('Please enter a promo code');
+      return;
+    }
+
+    if (!service?.price) {
+      setPromoError('Service price not available');
+      return;
+    }
+
+    setValidatingPromo(true);
+    setPromoError(null);
+
+    const startTime = Date.now();
+
+    try {
+      const response = await api.post('/api/v1/promotions/validate', {
+        code: promoCode.trim().toUpperCase(),
+        salon_id: salonId,
+        booking_amount: service.price,
+      });
+
+      const validationTime = Date.now() - startTime;
+
+      if (response.data.valid) {
+        setPromoApplied(true);
+        setPromoDiscount(response.data.discount_amount || 0);
+        setPromoError(null);
+        
+        // Track successful promo application
+        analytics.track('promo_applied', {
+          code: promoCode.trim().toUpperCase(),
+          discount: response.data.discount_amount,
+          original_amount: service.price,
+          final_amount: response.data.final_amount,
+          validation_time: validationTime,
+        });
+
+        Alert.alert(
+          'Promo Applied! 🎉',
+          `You saved ${formatPrice(response.data.discount_amount || 0)}`,
+          [{ text: 'Great!', style: 'default' }]
+        );
+      } else {
+        setPromoApplied(false);
+        setPromoDiscount(0);
+        setPromoError(response.data.error || 'Invalid promo code');
+        
+        // Track failed promo attempt
+        analytics.track('promo_failed', {
+          code: promoCode.trim().toUpperCase(),
+          error: response.data.error,
+          validation_time: validationTime,
+        });
+      }
+    } catch (error) {
+      setPromoApplied(false);
+      setPromoDiscount(0);
+      
+      let errorMessage = 'Failed to validate promo code';
+      if (axios.isAxiosError(error)) {
+        const detail = error.response?.data?.detail;
+        errorMessage = typeof detail === 'string' ? detail : errorMessage;
+      }
+      
+      setPromoError(errorMessage);
+      
+      // Track validation error
+      analytics.track('promo_validation_error', {
+        code: promoCode.trim().toUpperCase(),
+        error: errorMessage,
+      });
+    } finally {
+      setValidatingPromo(false);
+    }
+  }, [promoCode, salonId, service?.price]);
+
+  const handleRemovePromo = useCallback(() => {
+    analytics.track('promo_removed', {
+      code: promoCode.trim().toUpperCase(),
+      discount: promoDiscount,
+    });
+    
+    setPromoCode('');
+    setPromoApplied(false);
+    setPromoDiscount(0);
+    setPromoError(null);
+  }, [promoCode, promoDiscount]);
+
+  // Staff selection handlers
+  const handleSelectStaff = useCallback((staffId: string | null, isAnyStaff: boolean) => {
+    setSelectedStaffId(staffId);
+    setAnyStaffSelected(isAnyStaff);
+    
+    // Track staff selection
+    analytics.track('staff_selected', {
+      staff_id: staffId,
+      any_staff: isAnyStaff,
+      salon_id: salonId,
+      service_id: serviceId,
+    });
+  }, [salonId, serviceId]);
+
+  const handleViewStaffProfile = useCallback(async (staffId: string) => {
+    try {
+      const response = await api.get(`/api/v1/staff/${staffId}`);
+      setSelectedStaffForProfile(response.data);
+      setStaffProfileVisible(true);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load staff profile');
+    }
+  }, []);
+
+  const handleSelectFromProfile = useCallback(() => {
+    if (selectedStaffForProfile) {
+      handleSelectStaff(selectedStaffForProfile.id, false);
+    }
+  }, [selectedStaffForProfile, handleSelectStaff]);
 
   // Create booking mutation
   const bookingMutation = useMutation({
@@ -106,16 +366,27 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
         booking_date: selectedDate,
         time_slot: selectedSlot,
         payment_method: dbPaymentMethod,
+        promo_code: promoApplied ? promoCode.trim().toUpperCase() : undefined,
+        staff_id: selectedStaffId,
+        any_staff: anyStaffSelected,
       });
       return response.data;
     },
 
-    onSuccess: (booking: any) => {
+    onSuccess: (booking) => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       unsubscribeFromSlots();
 
       // Schedule a reminder notification 1 hour before
       if (selectedDate && selectedSlot && salon && service) {
+        analytics.track('booking_confirmed', {
+          salon_id: salonId,
+          service_id: serviceId,
+          date: selectedDate,
+          slot: selectedSlot,
+          price: service.price
+        });
+
         scheduleBookingReminder(
           selectedDate,
           selectedSlot,
@@ -138,36 +409,46 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
         setBookingComplete(true);
       }
     },
-    onError: (error: any) => {
-      const errorDetail = error.response?.data?.detail || 'Failed to create booking';
-      const statusCode = error.response?.status;
+    onError: (error: unknown) => {
+      let errorDetail = 'Failed to create booking';
+      let statusCode: number | undefined;
+
+      if (axios.isAxiosError(error)) {
+        const detail = error.response?.data?.detail;
+        errorDetail = typeof detail === 'string' ? detail : detail?.message || errorDetail;
+        statusCode = error.response?.status;
+      }
       
       // Always re-fetch slots on error so user sees updated availability
       queryClient.invalidateQueries({ queryKey: ['slots', salonId, serviceId, selectedDate] });
       refetchSlots();
       setSelectedSlot(null);
+      setHoldId(null);
+      setTimeLeft(null);
 
       // Handle slot conflict specifically
       if (statusCode === 409 || statusCode === 400) {
         setSlotConflictError(errorDetail);
       } else {
-        Alert.alert('Error', errorDetail);
+        handleApiError(error);
       }
     },
   });
 
 
   // Generate next 14 days
-  const today = startOfToday();
-  const dates = [...Array(14)].map((_, i) => {
-    const date = addDays(today, i);
-    return {
-      value: format(date, 'yyyy-MM-dd'),
-      day: format(date, 'EEE'),
-      date: format(date, 'd'),
-      month: format(date, 'MMM'),
-    };
-  });
+  const dates = useMemo(() => {
+    const today = startOfToday();
+    return [...Array(14)].map((_, i) => {
+      const date = addDays(today, i);
+      return {
+        value: format(date, 'yyyy-MM-dd'),
+        day: format(date, 'EEE'),
+        date: format(date, 'd'),
+        month: format(date, 'MMM'),
+      };
+    });
+  }, []);
 
   const handleConfirmBooking = () => {
     if (!selectedSlot) {
@@ -182,9 +463,17 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
         'This time slot was just booked by someone else. Please select another slot.',
         [{ text: 'OK', onPress: () => {
           setSelectedSlot(null);
+          setHoldId(null);
+          setTimeLeft(null);
           refetchSlots();
         }}]
       );
+      return;
+    }
+
+    if (!holdId && !effectiveAllowMultiple) {
+      Alert.alert('Error', 'Slot reservation not found. Please re-select your slot.');
+      setSelectedSlot(null);
       return;
     }
 
@@ -214,7 +503,7 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
 
   if (bookingComplete) {
     return (
-      <SafeAreaView style={styles.successContainer}>
+      <ScreenWrapper variant="auth">
         <ScrollView contentContainerStyle={styles.successScroll} showsVerticalScrollIndicator={false}>
           <View style={styles.successContent}>
             <View style={styles.successIconContainer}>
@@ -274,19 +563,19 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
               
               <TouchableOpacity
                 style={styles.secondaryButton}
-                onPress={() => navigation.navigate('CustomerTabs', { screen: 'Discover' })}
+                onPress={() => navigation.navigate('DiscoverMain')}
               >
                 <Text style={styles.secondaryButtonText}>Back to Home</Text>
               </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <ScreenWrapper variant="stack">
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -382,6 +671,16 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
             </TouchableOpacity>
           )}
 
+          {/* Hold Countdown */}
+          {timeLeft !== null && timeLeft > 0 && selectedSlot && (
+            <View style={[styles.infoBanner, { backgroundColor: theme.colors.primary + '10', borderColor: theme.colors.primary }]}>
+              <Ionicons name="timer-outline" size={18} color={theme.colors.primary} />
+              <Text style={[styles.infoText, { color: theme.colors.primary, fontFamily: fonts.bodyBold }]}>
+                Slot held for {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+              </Text>
+            </View>
+          )}
+
           {/* Multiple bookings info */}
           {effectiveAllowMultiple && (
             <View style={styles.infoBanner}>
@@ -415,7 +714,13 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
                       isJustBooked && !isMulti && styles.slotJustBooked,
                     ]}
                     onPress={() => {
-                      setSelectedSlot(slot.time);
+                      if (selectedSlot !== slot.time) {
+                        setSelectedSlot(slot.time);
+                        reserveMutation.mutate(slot.time);
+                        // Reset staff selection when slot changes
+                        setSelectedStaffId(null);
+                        setAnyStaffSelected(true);
+                      }
                     }}
                     disabled={!slot.available}
                   >
@@ -464,6 +769,18 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
           )}
         </View>
 
+        {/* Staff Selection - Only show when slot is selected */}
+        {selectedSlot && availableStaffData && (
+          <StaffPicker
+            availableStaff={availableStaffData.available_staff}
+            selectedStaffId={selectedStaffId}
+            anyStaffSelected={anyStaffSelected}
+            onSelectStaff={handleSelectStaff}
+            loading={staffLoading}
+            basePrice={service?.price}
+          />
+        )}
+
         {/* Payment Method */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -479,13 +796,13 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
             onPress={() => setSelectedPaymentMethod('cash')}
           >
             <View style={styles.paymentIconContainer}>
-              <Ionicons name="cash-outline" size={24} color={selectedPaymentMethod === 'cash' ? '#FFF' : theme.colors.text} />
+              <Ionicons name="cash-outline" size={24} color={selectedPaymentMethod === 'cash' ? theme.colors.textInverse : theme.colors.text} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.paymentTitle, selectedPaymentMethod === 'cash' && styles.paymentTextSelected]}>Cash at Salon</Text>
               <Text style={[styles.paymentSub, selectedPaymentMethod === 'cash' && styles.paymentTextSelected]}>Pay after your service is completed</Text>
             </View>
-            {selectedPaymentMethod === 'cash' && <Ionicons name="checkmark-circle" size={24} color="#FFF" />}
+            {selectedPaymentMethod === 'cash' && <Ionicons name="checkmark-circle" size={24} color={theme.colors.textInverse} />}
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -497,15 +814,77 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
             onPress={() => setSelectedPaymentMethod('card')}
           >
             <View style={styles.paymentIconContainer}>
-              <Ionicons name="card-outline" size={24} color={selectedPaymentMethod === 'card' ? '#FFF' : theme.colors.text} />
+              <Ionicons name="card-outline" size={24} color={selectedPaymentMethod === 'card' ? theme.colors.textInverse : theme.colors.text} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.paymentTitle, selectedPaymentMethod === 'card' && styles.paymentTextSelected]}>Online Payment</Text>
               <Text style={[styles.paymentSub, selectedPaymentMethod === 'card' && styles.paymentTextSelected]}>Secure payment via card or UPI</Text>
             </View>
-            {selectedPaymentMethod === 'card' && <Ionicons name="checkmark-circle" size={24} color="#FFF" />}
+            {selectedPaymentMethod === 'card' && <Ionicons name="checkmark-circle" size={24} color={theme.colors.textInverse} />}
           </TouchableOpacity>
         </View>
+
+        {/* Promo Code Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="pricetag" size={20} color={theme.colors.primary} />
+            <Text style={styles.sectionTitle}>Promo Code</Text>
+          </View>
+
+          {!promoApplied ? (
+            <View style={styles.promoInputContainer}>
+              <View style={styles.promoInputWrapper}>
+                <Ionicons name="ticket-outline" size={20} color={theme.colors.textSecondary} style={{ marginLeft: 16 }} />
+                <TextInput
+                  style={styles.promoInput}
+                  placeholder="Enter promo code"
+                  placeholderTextColor={theme.colors.textSecondary}
+                  value={promoCode}
+                  onChangeText={(text) => {
+                    setPromoCode(text.toUpperCase());
+                    setPromoError(null);
+                  }}
+                  autoCapitalize="characters"
+                  editable={!validatingPromo}
+                />
+              </View>
+              <TouchableOpacity
+                style={[styles.applyPromoButton, validatingPromo && styles.applyPromoButtonDisabled]}
+                onPress={handleApplyPromo}
+                disabled={validatingPromo || !promoCode.trim()}
+              >
+                {validatingPromo ? (
+                  <ActivityIndicator size="small" color={theme.colors.textInverse} />
+                ) : (
+                  <Text style={styles.applyPromoText}>Apply</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.promoAppliedContainer}>
+              <View style={styles.promoAppliedContent}>
+                <Ionicons name="checkmark-circle" size={24} color={theme.colors.success} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.promoAppliedCode}>{promoCode}</Text>
+                  <Text style={styles.promoAppliedSavings}>
+                    You saved {formatPrice(promoDiscount)}!
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={handleRemovePromo}>
+                <Ionicons name="close-circle" size={24} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {promoError && (
+            <View style={styles.promoErrorContainer}>
+              <Ionicons name="alert-circle" size={16} color={theme.colors.error} />
+              <Text style={styles.promoErrorText}>{promoError}</Text>
+            </View>
+          )}
+        </View>
+
         {selectedSlot && (
           <View style={styles.bookingSummary}>
             <Text style={styles.summaryTitle}>Booking Summary</Text>
@@ -521,11 +900,46 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Duration</Text>
-              <Text style={styles.summaryValue}>{service?.duration} mins</Text>
+              <Text style={styles.summaryValue}>{effectiveDuration} mins</Text>
             </View>
+            {/* Show staff selection */}
+            {selectedStaffId && availableStaffData && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Stylist</Text>
+                <Text style={styles.summaryValue}>
+                  {availableStaffData.available_staff.find(s => s.staff_id === selectedStaffId)?.staff_name || 'Selected'}
+                </Text>
+              </View>
+            )}
+            {anyStaffSelected && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Stylist</Text>
+                <Text style={styles.summaryValue}>Any Available</Text>
+              </View>
+            )}
+            {promoApplied && promoDiscount > 0 && (
+              <>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Original Price</Text>
+                  <Text style={[styles.summaryValue, styles.strikethrough]}>
+                    {formatPrice(effectivePrice)}
+                  </Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <Text style={[styles.summaryLabel, { color: theme.colors.success }]}>
+                    Discount ({promoCode})
+                  </Text>
+                  <Text style={[styles.summaryValue, { color: theme.colors.success }]}>
+                    -{formatPrice(promoDiscount)}
+                  </Text>
+                </View>
+              </>
+            )}
             <View style={[styles.summaryRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>{formatPrice(service?.price || 0)}</Text>
+              <Text style={styles.totalValue}>
+                {formatPrice(effectivePrice - promoDiscount)}
+              </Text>
             </View>
           </View>
         )}
@@ -538,11 +952,20 @@ export const BookingScreen: React.FC<BookingScreenProps> = ({ navigation, route 
             title="Confirm Booking"
             onPress={handleConfirmBooking}
             loading={bookingMutation.isPending}
-            icon={<Ionicons name="card-outline" size={20} color="#FFFFFF" />}
+            icon={<Ionicons name="card-outline" size={20} color={theme.colors.textInverse} />}
           />
         </View>
       )}
-    </SafeAreaView>
+
+      {/* Staff Profile Modal */}
+      <StaffProfileCard
+        staff={selectedStaffForProfile}
+        visible={staffProfileVisible}
+        onClose={() => setStaffProfileVisible(false)}
+        onSelect={handleSelectFromProfile}
+        showSelectButton={true}
+      />
+    </ScreenWrapper>
   );
 };
 
@@ -987,6 +1410,90 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     color: theme.colors.text,
     fontSize: 15,
+  },
+  // Promo Code Styles
+  promoInputContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  promoInputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+  },
+  promoInput: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    color: theme.colors.text,
+    fontFamily: fonts.bodyBold,
+  },
+  applyPromoButton: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: borderRadius.pill,
+    minWidth: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  applyPromoButtonDisabled: {
+    opacity: 0.6,
+  },
+  applyPromoText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: theme.colors.textInverse,
+  },
+  promoAppliedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.success + '1A',
+    padding: 16,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: theme.colors.success,
+  },
+  promoAppliedContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  promoAppliedCode: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 16,
+    color: theme.colors.text,
+  },
+  promoAppliedSavings: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: theme.colors.success,
+    marginTop: 2,
+  },
+  promoErrorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  promoErrorText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: theme.colors.error,
+  },
+  strikethrough: {
+    textDecorationLine: 'line-through',
+    color: theme.colors.textTertiary,
   },
 });
 

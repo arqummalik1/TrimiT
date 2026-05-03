@@ -18,7 +18,8 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { BookingCard } from '../../components/BookingCard';
@@ -33,13 +34,15 @@ import { typography, spacing, fonts } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 
-interface MyBookingsScreenProps {
-  navigation?: any;
-}
+import { AppError } from '../../types/error';
+import { CustomerTabScreenProps } from '../../navigation/types';
 
-export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({ navigation }) => {
+type MyBookingsProps = CustomerTabScreenProps<'Bookings'>;
+
+export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
   const {
@@ -55,8 +58,9 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({ navigation }
       const response = await api.get('/api/bookings');
       return response.data;
     },
-    retry: (failureCount, err: any) => {
-      if (err?.type === 'auth') return false;
+    retry: (failureCount, error) => {
+      const appErr = handleApiError(error);
+      if (appErr.kind === 'unauthorized') return false;
       return failureCount < 2;
     },
   });
@@ -71,8 +75,8 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({ navigation }
       queryClient.invalidateQueries({ queryKey: ['myBookings'] });
       showToast('Booking cancelled successfully.', 'success');
     },
-    onError: (err: any) => {
-      const appErr = handleApiError(err);
+    onError: (error: unknown) => {
+      const appErr = handleApiError(error);
       showToast(appErr.message, 'error');
     },
   });
@@ -92,26 +96,38 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({ navigation }
     );
   };
 
+  const handleReschedule = (booking: Booking) => {
+    navigation.navigate('RescheduleBooking', {
+      bookingId: booking.id,
+      currentDate: booking.booking_date,
+      currentSlot: booking.time_slot,
+      salonId: booking.salon_id,
+      serviceId: booking.service_id,
+      salonName: booking.salons?.name || 'Salon',
+      serviceName: booking.services?.name || 'Service',
+    });
+  };
+
   // ── Error state ────────────────────────────────────────────────────────────
   if (isError && !showSkeleton) {
     const appErr = handleApiError(rawError);
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <ScreenWrapper variant="tab">
         <View style={styles.header}>
           <Text style={styles.title}>My Bookings</Text>
         </View>
         <ErrorState
           title="Couldn't load bookings"
           message={appErr.message}
-          type={appErr.type}
+          kind={appErr.kind}
           onRetry={refetch}
         />
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <ScreenWrapper variant="tab">
       <View style={styles.header}>
         <Text style={styles.title}>My Bookings</Text>
         <Text style={styles.subtitle}>View and manage your appointments</Text>
@@ -124,9 +140,13 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({ navigation }
           data={bookings}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <BookingCard booking={item} onCancel={() => handleCancel(item.id)} />
+            <BookingCard 
+              booking={item} 
+              onCancel={() => handleCancel(item.id)}
+              onReschedule={() => handleReschedule(item)}
+            />
           )}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -144,20 +164,19 @@ export const MyBookingsScreen: React.FC<MyBookingsScreenProps> = ({ navigation }
               compact
               action={{
                 label: 'Discover Salons',
-                onPress: () => navigation?.navigate('Discover'),
+                onPress: () => navigation.navigate('Discover', { screen: 'DiscoverMain' }),
               }}
             />
           }
         />
       )}
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   header: {
     padding: spacing.xl,

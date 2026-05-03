@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Booking } from '../types';
 import { formatPrice, formatDate, formatTime } from '../lib/utils';
@@ -11,20 +11,24 @@ interface BookingCardProps {
   booking: Booking;
   isOwner?: boolean;
   compact?: boolean;
+  isLoading?: boolean;
   onCancel?: () => void;
   onConfirm?: () => void;
   onReject?: () => void;
   onComplete?: () => void;
+  onReschedule?: () => void;
 }
 
 export const BookingCard: React.FC<BookingCardProps> = ({
   booking,
   isOwner = false,
   compact = false,
+  isLoading = false,
   onCancel,
   onConfirm,
   onReject,
   onComplete,
+  onReschedule,
 }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -95,6 +99,16 @@ export const BookingCard: React.FC<BookingCardProps> = ({
           </View>
 
           <View style={styles.actions}>
+            {/* Customer: reschedule (pending or confirmed) */}
+            {!isOwner && 
+              (booking.status === 'pending' || booking.status === 'confirmed') && 
+              onReschedule && (
+              <TouchableOpacity style={styles.rescheduleButton} onPress={onReschedule}>
+                <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} />
+                <Text style={styles.rescheduleText}>Reschedule</Text>
+              </TouchableOpacity>
+            )}
+
             {/* Customer: cancel pending */}
             {!isOwner && booking.status === 'pending' && onCancel && (
               <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
@@ -125,17 +139,23 @@ export const BookingCard: React.FC<BookingCardProps> = ({
             {/* Owner: confirm / reject pending */}
             {isOwner && booking.status === 'pending' && (
               <>
-                {onConfirm && (
-                  <TouchableOpacity style={styles.confirmButton} onPress={onConfirm}>
-                    <Ionicons name="checkmark" size={16} color={theme.colors.success} />
-                    <Text style={styles.confirmText}>Confirm</Text>
-                  </TouchableOpacity>
-                )}
-                {onReject && (
-                  <TouchableOpacity style={styles.rejectButton} onPress={onReject}>
-                    <Ionicons name="close" size={16} color={theme.colors.error} />
-                    <Text style={styles.rejectText}>Reject</Text>
-                  </TouchableOpacity>
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginHorizontal: 16 }} />
+                ) : (
+                  <>
+                    {onConfirm && (
+                      <TouchableOpacity style={styles.confirmButton} onPress={onConfirm}>
+                        <Ionicons name="checkmark" size={16} color={theme.colors.success} />
+                        <Text style={styles.confirmText}>Confirm</Text>
+                      </TouchableOpacity>
+                    )}
+                    {onReject && (
+                      <TouchableOpacity style={styles.rejectButton} onPress={onReject}>
+                        <Ionicons name="close" size={16} color={theme.colors.error} />
+                        <Text style={styles.rejectText}>Reject</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -252,6 +272,20 @@ const createStyles = (theme: Theme) =>
       fontSize: 14,
       fontWeight: '500',
       color: theme.colors.error,
+    },
+    rescheduleButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.primary + '15',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      gap: 4,
+    },
+    rescheduleText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.primary,
     },
     directionsButton: {
       flexDirection: 'row',

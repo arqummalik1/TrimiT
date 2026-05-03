@@ -9,28 +9,30 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Sentry from '@sentry/react-native';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { Salon } from '../../types';
-import { colors } from '../../lib/utils';
 import { Button } from '../../components/Button';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme, ThemeMode } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
+import { handleApiError } from '../../lib/errorHandler';
 
-interface SettingsScreenProps {
-  navigation: any;
-}
+import { OwnerSettingsScreenProps } from '../../navigation/types';
 
-export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
+type SettingsProps = OwnerSettingsScreenProps<'SettingsMain'>;
+
+export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
   const { theme, themeMode, setThemeMode } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const queryClient = useQueryClient();
   const { logout } = useAuthStore();
   const [allowMultipleBookings, setAllowMultipleBookings] = useState(false);
   const [autoAccept, setAutoAccept] = useState(true);
+  const [enableOffers, setEnableOffers] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
 
   // Get salon data
@@ -46,7 +48,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
   useEffect(() => {
     if (salon) {
       setAllowMultipleBookings(salon.allow_multiple_bookings_per_slot || false);
-      setAutoAccept(salon.auto_accept !== false); // Default to true if undefined
+      setAutoAccept(salon.auto_accept !== false);
+      setEnableOffers(salon.show_offers !== false); // default true
       setHasChanges(false);
     }
   }, [salon]);
@@ -70,6 +73,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
       const response = await api.patch(`/api/salons/${salon.id}`, {
         allow_multiple_bookings_per_slot: allowMultipleBookings,
         auto_accept: autoAccept,
+        show_offers: enableOffers,
       });
       return response.data;
     },
@@ -78,10 +82,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
       queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
       Alert.alert('Success', 'Settings saved successfully');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const appErr = handleApiError(error);
       Alert.alert(
         'Error',
-        error.response?.data?.detail || 'Failed to save settings'
+        appErr.message
       );
     },
   });
@@ -92,18 +97,18 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
 
   if (salonLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenWrapper variant="stack">
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Loading settings...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   if (!salon) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenWrapper variant="stack">
         <View style={styles.emptyContainer}>
           <Ionicons name="storefront-outline" size={64} color={theme.colors.textSecondary} />
           <Text style={styles.emptyTitle}>No Salon Found</Text>
@@ -115,12 +120,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
             onPress={() => navigation.navigate('ManageSalon')}
           />
         </View>
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <ScreenWrapper variant="stack">
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -242,6 +247,40 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
           </View>
         </View>
 
+        {/* Service Offers Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Service Offers</Text>
+
+          <View style={styles.settingCard}>
+            <View style={styles.settingHeader}>
+              <View style={styles.settingIconContainer}>
+                <Ionicons name="pricetag" size={24} color={theme.colors.primary} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Enable Service Offers</Text>
+                <Text style={styles.settingDescription}>
+                  Show discount badges on services marked as on offer
+                </Text>
+              </View>
+              <Switch
+                value={enableOffers}
+                onValueChange={(v) => { setEnableOffers(v); setHasChanges(true); }}
+                trackColor={{ false: theme.colors.border, true: theme.colors.primary + '80' }}
+                thumbColor={enableOffers ? theme.colors.primary : '#f4f3f4'}
+              />
+            </View>
+          </View>
+
+          <View style={styles.infoBox}>
+            <Ionicons name="information-circle" size={20} color={theme.colors.primary} />
+            <Text style={styles.infoBoxText}>
+              {enableOffers
+                ? 'Customers will see discount badges (e.g. "20% OFF") on services where you have enabled an offer.'
+                : 'Offer badges are currently hidden from customers even if a service is marked as on offer.'}
+            </Text>
+          </View>
+        </View>
+
         {/* Other Settings Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -321,6 +360,26 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
+
+          {/* Debug Action */}
+          <TouchableOpacity
+            style={[styles.actionCard, { borderColor: theme.colors.primary + '40' }]}
+            onPress={() => {
+              Sentry.captureException(new Error("Owner Test Error: Sentry is working!"));
+              Alert.alert("Success", "Test error sent to Sentry!");
+            }}
+          >
+            <View style={styles.actionIconContainer}>
+              <Ionicons name="bug" size={24} color={theme.colors.primary} />
+            </View>
+            <View style={styles.actionTextContainer}>
+              <Text style={styles.actionTitle}>Test Sentry Error</Text>
+              <Text style={styles.actionDescription}>
+                Send a test report to your dashboard
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
         </View>
 
         {/* Logout Section */}
@@ -363,14 +422,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
           />
         </View>
       )}
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   loadingContainer: {
     flex: 1,

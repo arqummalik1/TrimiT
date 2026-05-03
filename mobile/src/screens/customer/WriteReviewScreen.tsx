@@ -9,22 +9,19 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation } from '@tanstack/react-query';
 import api from '../../lib/api';
+import { handleApiError } from '../../lib/errorHandler';
 import { Button } from '../../components/Button';
 import { typography, spacing, borderRadius, shadows } from '../../lib/utils';
 import { showToast } from '../../store/toastStore';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
+import { CustomerDiscoverScreenProps } from '../../navigation/types';
 
-interface WriteReviewScreenProps {
-  navigation: any;
-  route: any;
-}
-
-export default function WriteReviewScreen({ navigation, route }: WriteReviewScreenProps) {
+export default function WriteReviewScreen({ navigation, route }: CustomerDiscoverScreenProps<'WriteReview'>) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { salonId } = route.params;
@@ -42,11 +39,8 @@ export default function WriteReviewScreen({ navigation, route }: WriteReviewScre
       showToast('Review submitted successfully!', 'success');
       navigation.goBack();
     },
-    onError: (error: any) => {
-      showToast(
-        error.response?.data?.detail || 'Failed to submit review',
-        'error'
-      );
+    onError: (error) => {
+      handleApiError(error);
     },
   });
 
@@ -59,7 +53,7 @@ export default function WriteReviewScreen({ navigation, route }: WriteReviewScre
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper variant="stack">
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -139,7 +133,7 @@ export default function WriteReviewScreen({ navigation, route }: WriteReviewScre
           />
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

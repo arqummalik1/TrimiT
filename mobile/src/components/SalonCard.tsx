@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Salon } from '../types';
 import { fonts, borderRadius, spacing, formatPrice } from '../lib/utils';
@@ -27,7 +28,9 @@ export const SalonCard: React.FC<SalonCardProps> = ({ salon, onPress }) => {
         <Image
           source={{ uri: salon.images?.[0] || DEFAULT_IMAGE }}
           style={styles.image}
-          resizeMode="cover"
+          contentFit="cover"
+          transition={300}
+          cachePolicy="memory-disk"
         />
         {salon.distance !== undefined && (
           <View style={styles.distanceBadge}>

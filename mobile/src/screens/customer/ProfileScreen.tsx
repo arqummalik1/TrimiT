@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
+import * as Sentry from '@sentry/react-native';
 import { useAuthStore } from '../../store/authStore';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
@@ -16,11 +17,15 @@ import { typography, spacing, borderRadius, shadows } from '../../lib/utils';
 
 import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
-import { useTheme } from '../../theme/ThemeContext';
+import { useTheme, ThemeMode } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
+import { handleApiError } from '../../lib/errorHandler';
+import { ProfileStackScreenProps } from '../../navigation/types';
 
-export default function ProfileScreen({ navigation }: { navigation: any }) {
-  const { theme } = useTheme();
+type ProfileStyles = ReturnType<typeof createStyles>;
+
+export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'ProfileMain'>) {
+  const { theme, themeMode, setThemeMode } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { user, logout, setUser, token } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
@@ -37,8 +42,9 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
       }
       setIsEditing(false);
       showToast('Profile updated successfully', 'success');
-    } catch (error: any) {
-      showToast(error.response?.data?.detail || 'Failed to update profile', 'error');
+    } catch (error) {
+      const appErr = handleApiError(error);
+      showToast(appErr.message, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +62,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper variant="tab">
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
@@ -153,6 +159,35 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
           )}
         </View>
 
+        {/* Appearance Settings */}
+        <View style={[styles.card, shadows.sm, styles.linksCard, { marginBottom: spacing.lg }]}>
+          <Text style={[styles.cardTitle, { paddingHorizontal: spacing.xl, paddingTop: spacing.md }]}>Appearance</Text>
+          <View style={styles.themeToggleContainer}>
+            {(['light', 'dark', 'system'] as ThemeMode[]).map((mode) => (
+              <TouchableOpacity
+                key={mode}
+                style={[
+                  styles.themeOption,
+                  themeMode === mode && styles.themeOptionActive,
+                ]}
+                onPress={() => setThemeMode(mode)}
+              >
+                <Ionicons 
+                  name={mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'phone-portrait'} 
+                  size={20} 
+                  color={themeMode === mode ? '#FFFFFF' : theme.colors.textSecondary} 
+                />
+                <Text style={[
+                  styles.themeOptionText,
+                  themeMode === mode && styles.themeOptionTextActive,
+                ]}>
+                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         {/* Legal & Support */}
         <View style={[styles.card, shadows.sm, styles.linksCard]}>
           <Text style={styles.cardTitle}>Legal & Support</Text>
@@ -181,6 +216,23 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
           </View>
         </View>
 
+        {/* Debug Section (Testing only) */}
+        <View style={[styles.card, shadows.sm, styles.linksCard, { borderColor: theme.colors.primary + '40', marginTop: spacing.lg }]}>
+          <Text style={[styles.cardTitle, { paddingHorizontal: spacing.xl, color: theme.colors.primary, paddingTop: spacing.md }]}>Developer Tools</Text>
+          <View style={styles.linkList}>
+            <LinkRow
+              icon="bug-outline"
+              label="Trigger Sentry Test Error"
+              onPress={() => {
+                Sentry.captureException(new Error("Customer Test Error: Sentry is working!"));
+                Alert.alert("Success", "Test error sent to Sentry!");
+              }}
+              styles={styles}
+              theme={theme}
+            />
+          </View>
+        </View>
+
         {/* Logout */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={22} color={theme.colors.error} />
@@ -189,7 +241,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 
         <Text style={styles.version}>TrimiT v1.0.0</Text>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
@@ -203,7 +255,7 @@ function InfoRow({
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
-  styles: any;
+  styles: ProfileStyles;
   theme: Theme;
 }) {
   return (
@@ -227,7 +279,7 @@ function LinkRow({
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
-  styles: any;
+  styles: ProfileStyles;
   theme: Theme;
 }) {
   return (
@@ -374,5 +426,35 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     ...typography.bodySmallMedium,
     color: theme.colors.text,
     flex: 1,
+  },
+  themeToggleContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.lg,
+  },
+  themeOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  themeOptionActive: {
+    backgroundColor: theme.colors.primary,
+  },
+  themeOptionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  themeOptionTextActive: {
+    color: '#FFFFFF',
   },
 });

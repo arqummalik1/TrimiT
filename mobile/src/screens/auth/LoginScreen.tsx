@@ -19,6 +19,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,6 +31,7 @@ import { showToast } from '../../store/toastStore';
 import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -57,11 +59,11 @@ function validateForm(email: string, password: string): ValidationErrors {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-interface LoginScreenProps {
-  navigation: any;
-}
+import { AuthScreenProps } from '../../navigation/types';
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
+type LoginProps = AuthScreenProps<'Login'>;
+
+export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { login, isLoading, error: authError, clearError } = useAuthStore();
@@ -103,7 +105,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper variant="auth">
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -116,7 +118,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.logoContainer}>
-              <Ionicons name="cut" size={40} color={theme.colors.textInverse} />
+              <Image source={require('../../../assets/logo.png')} style={{ width: 40, height: 40, resizeMode: 'contain', tintColor: theme.colors.textInverse }} />
             </View>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>Sign in to continue to TrimiT</Text>
@@ -129,7 +131,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               <ErrorState
                 variant="inline"
                 message={authError}
-                type="validation"
+                kind="validation"
                 style={{ marginBottom: spacing.lg }}
               />
             )}
@@ -194,14 +196,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   keyboardView: { flex: 1 },
   scrollContent: {

@@ -9,7 +9,9 @@ import { View, StyleSheet } from 'react-native';
 import { Skeleton } from '../Skeleton';
 import { useTheme, Theme } from '../../theme/ThemeContext';
 
-const SalonCardSkeleton: React.FC<{ theme: Theme; styles: any }> = ({ theme, styles }) => (
+type SalonListStyles = ReturnType<typeof createStyles>;
+
+const SalonCardSkeleton: React.FC<{ theme: Theme; styles: SalonListStyles }> = ({ theme, styles }) => (
   <View style={styles.card}>
     {/* Image placeholder */}
     <Skeleton width="100%" height={180} borderRadius={theme.borderRadius.xl} />

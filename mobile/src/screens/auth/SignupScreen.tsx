@@ -18,8 +18,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { Input } from '../../components/Input';
@@ -29,90 +30,65 @@ import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 
-// ─── Validation ───────────────────────────────────────────────────────────────
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX = /^[+\d\s\-()]{7,15}$/;
+// ─── Validation Schema ────────────────────────────────────────────────────────
 
-interface ValidationErrors {
-  name?: string;
-  email?: string;
-  phone?: string;
-  password?: string;
-}
+const signupSchema = z.object({
+  name: z.string().min(1, 'Full name is required'),
+  email: z.string().email('Enter a valid email address'),
+  phone: z.string().regex(/^[+\d\s\-()]{7,15}$/, 'Enter a valid phone number').optional().or(z.literal('')),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
 
-function validateSignupForm(
-  name: string,
-  email: string,
-  phone: string,
-  password: string
-): ValidationErrors {
-  const errors: ValidationErrors = {};
-  if (!name.trim()) errors.name = 'Full name is required.';
-  if (!email.trim()) errors.email = 'Email is required.';
-  else if (!EMAIL_REGEX.test(email.trim())) errors.email = 'Enter a valid email address.';
-  if (phone && !PHONE_REGEX.test(phone.trim())) errors.phone = 'Enter a valid phone number.';
-  if (!password) errors.password = 'Password is required.';
-  else if (password.length < 6) errors.password = 'Password must be at least 6 characters.';
-  return errors;
-}
+type SignupFormData = z.infer<typeof signupSchema>;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-interface SignupScreenProps {
-  navigation: any;
-  route: any;
-}
+import { AuthScreenProps } from '../../navigation/types';
 
-export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation, route }) => {
+type SignupProps = AuthScreenProps<'Signup'>;
+
+export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const role: 'customer' | 'owner' = route.params?.role || 'customer';
   const { signup, isLoading, error: authError, clearError } = useAuthStore();
 
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
 
-  const handleChange = useCallback(
-    (field: keyof typeof formData, value: string) => {
-      setFormData((prev) => ({ ...prev, [field]: value }));
-      if (fieldErrors[field]) setFieldErrors((e) => ({ ...e, [field]: undefined }));
-      if (authError) clearError();
-    },
-    [fieldErrors, authError, clearError]
-  );
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignupFormData>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: { name: '', email: '', phone: '', password: '' },
+  });
 
-  const handleSubmit = async () => {
-    const errors = validateSignupForm(
-      formData.name,
-      formData.email,
-      formData.phone,
-      formData.password
-    );
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      return;
-    }
-
+  const onSignupSubmit = async (data: SignupFormData) => {
+    if (authError) clearError();
+    
     const result = await signup(
-      formData.email.trim(),
-      formData.password,
-      formData.name.trim(),
-      formData.phone.trim(),
+      data.email.trim(),
+      data.password,
+      data.name.trim(),
+      data.phone || '',
       role
     );
 
-    if (!result.success && !result.error) {
-      // Network-level failure — toast already shown by interceptor
+    if (result.success) {
+      // Logic for redirect is handled by auth observer in App.tsx
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       <KeyboardAvoidingView
-        style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -130,7 +106,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation, route })
             </TouchableOpacity>
 
             <View style={styles.logoContainer}>
-              <Ionicons name="cut" size={32} color={theme.colors.textInverse} />
+              <Image source={require('../../../assets/logo.png')} style={{ width: 32, height: 32, resizeMode: 'contain', tintColor: theme.colors.textInverse }} />
             </View>
             <Text style={styles.title}>Create Account</Text>
 
@@ -153,55 +129,83 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation, route })
               <ErrorState
                 variant="inline"
                 message={authError}
-                type="validation"
+                kind="validation"
                 style={{ marginBottom: spacing.lg }}
               />
             )}
 
-            <Input
-              label="Full Name *"
-              placeholder="John Doe"
-              value={formData.name}
-              onChangeText={(v) => handleChange('name', v)}
-              autoCapitalize="words"
-              editable={!isLoading}
-              icon={<Ionicons name="person-outline" size={20} color={theme.colors.textSecondary} />}
-              error={fieldErrors.name}
+            <Controller
+              control={control}
+              name="name"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input
+                  label="Full Name *"
+                  placeholder="John Doe"
+                  value={value}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  autoCapitalize="words"
+                  editable={!isLoading}
+                  icon={<Ionicons name="person-outline" size={20} color={theme.colors.textSecondary} />}
+                  error={errors.name?.message}
+                />
+              )}
             />
 
-            <Input
-              label="Email Address *"
-              placeholder="you@example.com"
-              value={formData.email}
-              onChangeText={(v) => handleChange('email', v)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              editable={!isLoading}
-              icon={<Ionicons name="mail-outline" size={20} color={theme.colors.textSecondary} />}
-              error={fieldErrors.email}
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input
+                  label="Email Address *"
+                  placeholder="you@example.com"
+                  value={value}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                  icon={<Ionicons name="mail-outline" size={20} color={theme.colors.textSecondary} />}
+                  error={errors.email?.message}
+                />
+              )}
             />
 
-            <Input
-              label="Phone Number"
-              placeholder="+91 98765 43210"
-              value={formData.phone}
-              onChangeText={(v) => handleChange('phone', v)}
-              keyboardType="phone-pad"
-              editable={!isLoading}
-              icon={<Ionicons name="call-outline" size={20} color={theme.colors.textSecondary} />}
-              error={fieldErrors.phone}
+            <Controller
+              control={control}
+              name="phone"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input
+                  label="Phone Number"
+                  placeholder="+91 98765 43210"
+                  value={value}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  keyboardType="phone-pad"
+                  editable={!isLoading}
+                  icon={<Ionicons name="call-outline" size={20} color={theme.colors.textSecondary} />}
+                  error={errors.phone?.message}
+                />
+              )}
             />
 
             <View style={styles.passwordContainer}>
-              <Input
-                label="Password *"
-                placeholder="Min 6 characters"
-                value={formData.password}
-                onChangeText={(v) => handleChange('password', v)}
-                secureTextEntry={!showPassword}
-                editable={!isLoading}
-                icon={<Ionicons name="lock-closed-outline" size={20} color={theme.colors.textSecondary} />}
-                error={fieldErrors.password}
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="Password *"
+                    placeholder="Min 6 characters"
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    secureTextEntry={!showPassword}
+                    editable={!isLoading}
+                    icon={<Ionicons name="lock-closed-outline" size={20} color={theme.colors.textSecondary} />}
+                    error={errors.password?.message}
+                  />
+                )}
               />
               <TouchableOpacity
                 style={styles.eyeButton}
@@ -218,7 +222,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation, route })
 
             <Button
               title="Create Account"
-              onPress={handleSubmit}
+              onPress={handleSubmit(onSignupSubmit)}
               loading={isLoading}
               style={styles.submitButton}
             />
@@ -233,12 +237,12 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation, route })
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
+  container: { flex: 1 },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingHorizontal: spacing.xxl },
   header: {

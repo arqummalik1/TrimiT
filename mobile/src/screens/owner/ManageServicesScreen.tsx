@@ -2,42 +2,55 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   FlatList,
   TouchableOpacity,
   Modal,
   Alert,
+  Switch,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import * as ImagePicker from 'expo-image-picker';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
+import { ServiceCard } from '../../components/ServiceCard';
+import { ServiceListSkeleton } from '../../components/skeletons/ServiceListSkeleton';
 import { typography, spacing, borderRadius, shadows, formatPrice } from '../../lib/utils';
 import { useTheme, Theme } from '../../theme/ThemeContext';
 
 import api from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { showToast } from '../../store/toastStore';
 import { Service, Salon } from '../../types';
+import { handleApiError } from '../../lib/errorHandler';
 
 const EMPTY_FORM = {
   name: '',
   description: '',
   price: '',
   duration: '30',
+  image_url: '' as string,
+  is_on_offer: false,
+  discount_percentage: '',
 };
 
 export default function ManageServicesScreen() {
   const { theme } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [modalVisible, setModalVisible] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [uploading, setUploading] = useState(false);
 
   const { data: salon, isLoading } = useQuery<Salon | null>({
     queryKey: ['ownerSalon'],
@@ -54,6 +67,11 @@ export default function ManageServicesScreen() {
         description: data.description,
         price: parseFloat(data.price),
         duration: parseInt(data.duration),
+        image_url: data.image_url || null,
+        is_on_offer: data.is_on_offer,
+        discount_percentage: data.is_on_offer && data.discount_percentage
+          ? parseInt(data.discount_percentage)
+          : null,
       });
       return response.data;
     },
@@ -62,8 +80,9 @@ export default function ManageServicesScreen() {
       closeModal();
       showToast('Service created!', 'success');
     },
-    onError: (error: any) => {
-      showToast(error.response?.data?.detail || 'Failed to create service', 'error');
+    onError: (error: unknown) => {
+      const appErr = handleApiError(error);
+      showToast(appErr.message, 'error');
     },
   });
 
@@ -74,6 +93,11 @@ export default function ManageServicesScreen() {
         description: data.description,
         price: parseFloat(data.price),
         duration: parseInt(data.duration),
+        image_url: data.image_url || null,
+        is_on_offer: data.is_on_offer,
+        discount_percentage: data.is_on_offer && data.discount_percentage
+          ? parseInt(data.discount_percentage)
+          : null,
       });
       return response.data;
     },
@@ -82,8 +106,9 @@ export default function ManageServicesScreen() {
       closeModal();
       showToast('Service updated!', 'success');
     },
-    onError: (error: any) => {
-      showToast(error.response?.data?.detail || 'Failed to update service', 'error');
+    onError: (error: unknown) => {
+      const appErr = handleApiError(error);
+      showToast(appErr.message, 'error');
     },
   });
 
@@ -95,8 +120,9 @@ export default function ManageServicesScreen() {
       queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
       showToast('Service deleted', 'info');
     },
-    onError: (error: any) => {
-      showToast(error.response?.data?.detail || 'Failed to delete service', 'error');
+    onError: (error: unknown) => {
+      const appErr = handleApiError(error);
+      showToast(appErr.message, 'error');
     },
   });
 
@@ -108,6 +134,9 @@ export default function ManageServicesScreen() {
         description: service.description || '',
         price: String(service.price),
         duration: String(service.duration),
+        image_url: service.image_url || '',
+        is_on_offer: service.is_on_offer ?? false,
+        discount_percentage: service.discount_percentage ? String(service.discount_percentage) : '',
       });
     } else {
       setEditingService(null);
@@ -120,6 +149,79 @@ export default function ManageServicesScreen() {
     setModalVisible(false);
     setEditingService(null);
     setFormData(EMPTY_FORM);
+  };
+
+  // ── Image picker helpers (mirrors ManageSalonScreen pattern) ──────────────
+  const pickServiceImage = () => {
+    Alert.alert(
+      'Service Photo',
+      'Choose an option',
+      [
+        { text: 'Take Photo', onPress: () => launchCamera() },
+        { text: 'Choose from Gallery', onPress: () => launchGallery() },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const launchCamera = async () => {
+    const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+    if (!granted) {
+      Alert.alert('Permission Required', 'Please allow camera access to take a photo.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [16, 9],
+    });
+    if (!result.canceled && result.assets[0]) {
+      await uploadServiceImage(result.assets[0].uri);
+    }
+  };
+
+  const launchGallery = async () => {
+    const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!granted) {
+      Alert.alert('Permission Required', 'Please allow access to your photo library.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [16, 9],
+    });
+    if (!result.canceled && result.assets[0]) {
+      await uploadServiceImage(result.assets[0].uri);
+    }
+  };
+
+  const uploadServiceImage = async (uri: string) => {
+    setUploading(true);
+    try {
+      const fileName = `service-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      const { data, error } = await supabase.storage
+        .from('salon-images')
+        .upload(fileName, blob, { contentType: 'image/jpeg' });
+
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from('salon-images')
+        .getPublicUrl(data.path);
+
+      setFormData((prev) => ({ ...prev, image_url: urlData.publicUrl }));
+      showToast('Image uploaded!', 'success');
+    } catch {
+      showToast('Failed to upload image. Please try again.', 'error');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSubmit = () => {
@@ -153,28 +255,31 @@ export default function ManageServicesScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+      <ScreenWrapper variant="tab">
+        <View style={styles.header}>
+          <Text style={styles.title}>Services</Text>
         </View>
-      </SafeAreaView>
+        <View style={styles.skeletonContainer}>
+          <ServiceListSkeleton count={3} />
+        </View>
+      </ScreenWrapper>
     );
   }
 
   if (!salon) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenWrapper variant="tab">
         <View style={styles.emptyContainer}>
           <Ionicons name="storefront-outline" size={64} color={theme.colors.textTertiary} />
           <Text style={styles.emptyTitle}>No Salon Yet</Text>
           <Text style={styles.emptyText}>Create your salon first to manage services.</Text>
         </View>
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper variant="tab">
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Services</Text>
@@ -187,7 +292,7 @@ export default function ManageServicesScreen() {
       <FlatList
         data={services}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }]}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="pricetag-outline" size={48} color={theme.colors.textTertiary} />
@@ -196,42 +301,13 @@ export default function ManageServicesScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <View style={[styles.serviceCard, shadows.sm]}>
-            <View style={styles.serviceHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.serviceName}>{item.name}</Text>
-                {item.description ? (
-                  <Text style={styles.serviceDesc} numberOfLines={2}>
-                    {item.description}
-                  </Text>
-                ) : null}
-              </View>
-              <View style={styles.serviceActions}>
-                <TouchableOpacity
-                  onPress={() => openModal(item)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleDelete(item)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
-                </TouchableOpacity>
-              </View>
-            </View>
-            <View style={styles.serviceMeta}>
-              <View style={styles.metaItem}>
-                <Ionicons name="cash-outline" size={16} color={theme.colors.textSecondary} />
-                <Text style={styles.metaText}>{formatPrice(item.price)}</Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons name="time-outline" size={16} color={theme.colors.textSecondary} />
-                <Text style={styles.metaText}>{item.duration} min</Text>
-              </View>
-            </View>
-          </View>
+          <ServiceCard
+            service={item}
+            variant="owner"
+            onPress={() => openModal(item)}
+            onEdit={() => openModal(item)}
+            onDelete={() => handleDelete(item)}
+          />
         )}
       />
 
@@ -242,7 +318,7 @@ export default function ManageServicesScreen() {
         presentationStyle="pageSheet"
         onRequestClose={closeModal}
       >
-        <SafeAreaView style={styles.modalContainer}>
+        <ScreenWrapper variant="modal">
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -260,6 +336,42 @@ export default function ManageServicesScreen() {
               contentContainerStyle={styles.modalContent}
               keyboardShouldPersistTaps="handled"
             >
+              {/* ── Service Photo picker ── */}
+              <Text style={styles.photoLabel}>Service Photo</Text>
+              <View style={styles.photoRow}>
+                {formData.image_url ? (
+                  <View style={styles.photoPreviewWrapper}>
+                    <Image
+                      source={{ uri: formData.image_url }}
+                      style={styles.photoPreview}
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      style={styles.photoRemoveBtn}
+                      onPress={() => setFormData((p) => ({ ...p, image_url: '' }))}
+                    >
+                      <Ionicons name="close-circle" size={22} color={theme.colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+                <TouchableOpacity
+                  style={styles.photoPickerBtn}
+                  onPress={pickServiceImage}
+                  disabled={uploading}
+                >
+                  {uploading ? (
+                    <ActivityIndicator color={theme.colors.primary} />
+                  ) : (
+                    <>
+                      <Ionicons name="camera" size={26} color={theme.colors.primary} />
+                      <Text style={styles.photoPickerText}>
+                        {formData.image_url ? 'Change' : 'Add Photo'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
               <Input
                 label="Service Name *"
                 value={formData.name}
@@ -296,6 +408,32 @@ export default function ManageServicesScreen() {
                 </View>
               </View>
 
+              {/* ── Offer section ── */}
+              <View style={styles.offerSection}>
+                <View style={styles.offerHeaderRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.offerTitle}>On Offer</Text>
+                    <Text style={styles.offerSubtitle}>Show a discount badge on this service</Text>
+                  </View>
+                  <Switch
+                    value={formData.is_on_offer}
+                    onValueChange={(v) => setFormData((p) => ({ ...p, is_on_offer: v, discount_percentage: v ? p.discount_percentage : '' }))}
+                    trackColor={{ false: theme.colors.border, true: theme.colors.primary + '80' }}
+                    thumbColor={formData.is_on_offer ? theme.colors.primary : '#f4f3f4'}
+                  />
+                </View>
+                {formData.is_on_offer && (
+                  <Input
+                    label="Discount %"
+                    value={formData.discount_percentage}
+                    onChangeText={(v) => setFormData((p) => ({ ...p, discount_percentage: v }))}
+                    placeholder="e.g. 20"
+                    keyboardType="numeric"
+                    icon={<Ionicons name="pricetag-outline" size={20} color={theme.colors.textSecondary} />}
+                  />
+                )}
+              </View>
+
               <Button
                 title={editingService ? 'Update Service' : 'Create Service'}
                 onPress={handleSubmit}
@@ -304,9 +442,9 @@ export default function ManageServicesScreen() {
               />
             </ScrollView>
           </KeyboardAvoidingView>
-        </SafeAreaView>
+        </ScreenWrapper>
       </Modal>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
@@ -315,10 +453,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  skeletonContainer: {
+    paddingHorizontal: spacing.xl,
   },
   header: {
     flexDirection: 'row',
@@ -347,51 +483,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxxxl,
-  },
-  serviceCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginBottom: spacing.md,
-  },
-  serviceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  serviceName: {
-    ...typography.bodySemiBold,
-    color: theme.colors.text,
-    marginBottom: spacing.xs,
-  },
-  serviceDesc: {
-    ...typography.bodySmall,
-    color: theme.colors.textSecondary,
-  },
-  serviceActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  iconBtn: {
-    padding: spacing.xs,
-  },
-  serviceMeta: {
-    flexDirection: 'row',
-    gap: spacing.xl,
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  metaText: {
-    ...typography.bodySmallMedium,
-    color: theme.colors.textSecondary,
   },
   emptyContainer: {
     flex: 1,
@@ -433,5 +524,71 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: spacing.md,
+  },
+  // ── Photo picker ──
+  photoLabel: {
+    ...typography.bodySmallMedium,
+    color: theme.colors.textSecondary,
+    marginBottom: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  photoRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+    alignItems: 'flex-start',
+  },
+  photoPreviewWrapper: {
+    position: 'relative',
+  },
+  photoPreview: {
+    width: 90,
+    height: 90,
+    borderRadius: borderRadius.md,
+  },
+  photoRemoveBtn: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 11,
+  },
+  photoPickerBtn: {
+    width: 90,
+    height: 90,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  photoPickerText: {
+    ...typography.caption,
+    color: theme.colors.primary,
+  },
+  // ── Offer section ──
+  offerSection: {
+    backgroundColor: theme.colors.surfaceSecondary,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  offerHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  offerTitle: {
+    ...typography.bodySemiBold,
+    color: theme.colors.text,
+  },
+  offerSubtitle: {
+    ...typography.caption,
+    color: theme.colors.textSecondary,
   },
 });

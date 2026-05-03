@@ -1,8 +1,10 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { CustomerTabParamList } from './types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CustomerTabParamList, ProfileStackParamList } from './types';
 import { fonts } from '../lib/utils';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -15,7 +17,7 @@ import ContactScreen from '../screens/legal/ContactScreen';
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
 
-const ProfileStack = createNativeStackNavigator();
+const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 function ProfileStackScreen() {
   return (
     <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
@@ -30,6 +32,7 @@ function ProfileStackScreen() {
 export default function CustomerTabs() {
   const { theme } = useTheme();
   const { colors } = theme;
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -40,10 +43,10 @@ export default function CustomerTabs() {
         tabBarStyle: {
           backgroundColor: colors.tabBar,
           borderTopColor: colors.tabBarBorder,
-          borderTopWidth: 1,
-          height: 65,
-          paddingBottom: 10,
-          paddingTop: 8,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          height: 56 + insets.bottom,
+          paddingBottom: insets.bottom,
+          paddingTop: 6,
         },
         tabBarLabelStyle: {
           fontFamily: fonts.bodyMedium,

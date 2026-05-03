@@ -1,17 +1,15 @@
 import React, { useState, useRef } from 'react';
 import {
   View,
-  Image,
   FlatList,
   StyleSheet,
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { borderRadius, DEFAULT_SALON_IMAGE } from '../lib/utils';
 import { useTheme } from '../theme/ThemeContext';
-
-
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -42,12 +40,13 @@ export default function ImageCarousel({ images, height = 280 }: ImageCarouselPro
         showsHorizontalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        keyExtractor={(_, index) => index.toString()}
+        keyExtractor={(item) => item}
         renderItem={({ item }) => (
           <Image
             source={{ uri: item }}
             style={[styles.image, { height, width: SCREEN_WIDTH, backgroundColor: theme.colors.shimmer }]}
-            resizeMode="cover"
+            contentFit="cover"
+            transition={300}
           />
         )}
       />

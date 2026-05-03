@@ -23,21 +23,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../lib/utils';
-import { AppErrorType } from '../lib/errorHandler';
+import { ErrorKind } from '../types/error';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 type ErrorVariant = 'fullscreen' | 'card' | 'inline';
 
-const ERROR_ICONS: Record<AppErrorType, keyof typeof Ionicons.glyphMap> = {
+const ERROR_ICONS: Record<ErrorKind, keyof typeof Ionicons.glyphMap> = {
   network:    'cloud-offline-outline',
-  timeout:    'timer-outline',
   server:     'warning-outline',
-  auth:       'lock-closed-outline',
-  forbidden:  'ban-outline',
-  not_found:  'search-outline',
+  unauthorized: 'lock-closed-outline',
   validation: 'alert-circle-outline',
   conflict:   'git-compare-outline',
+  rate_limit: 'speedometer-outline',
   unknown:    'help-circle-outline',
 };
 
@@ -46,7 +44,7 @@ const ERROR_ICONS: Record<AppErrorType, keyof typeof Ionicons.glyphMap> = {
 interface ErrorStateProps {
   title?: string;
   message?: string;
-  type?: AppErrorType;
+  kind?: ErrorKind;
   variant?: ErrorVariant;
   onRetry?: () => void;
   retryLabel?: string;
@@ -58,13 +56,13 @@ interface ErrorStateProps {
 export const ErrorState: React.FC<ErrorStateProps> = ({
   title = 'Something went wrong',
   message = 'An unexpected error occurred. Please try again.',
-  type = 'unknown',
+  kind = 'unknown',
   variant = 'fullscreen',
   onRetry,
   retryLabel = 'Try Again',
   style,
 }) => {
-  const iconName = ERROR_ICONS[type] ?? 'alert-circle-outline';
+  const iconName = ERROR_ICONS[kind] ?? 'alert-circle-outline';
 
   if (variant === 'inline') {
     return (

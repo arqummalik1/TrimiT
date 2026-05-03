@@ -19,12 +19,16 @@ import {
   TouchableOpacity,
   RefreshControl,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import MapView, { Marker, Callout } from 'react-native-maps';
+import ClusteredMapView from 'react-native-map-clustering';
+import { CustomerDiscoverScreenProps } from '../../navigation/types';
 import api from '../../lib/api';
 import { SalonCard } from '../../components/SalonCard';
 import { SalonListSkeleton } from '../../components/skeletons/SalonListSkeleton';
@@ -36,74 +40,121 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { showToast } from '../../store/toastStore';
 import { Salon } from '../../types';
 import { spacing, borderRadius, typography, fonts } from '../../lib/utils';
+import { PermissionPrimer } from '../../components/PermissionPrimer';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-interface DiscoverScreenProps {
-  navigation: any;
-}
+type DiscoverScreenProps = CustomerDiscoverScreenProps<'DiscoverMain'>;
 
 export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [showLocationPrimer, setShowLocationPrimer] = useState(false);
 
   const { isOnline } = useNetworkStatus();
+  const mapRef = React.useRef<MapView>(null);
 
-  // Location acquisition
-  useEffect(() => {
-    (async () => {
+  // Check if we already have permission before showing primer
+  const checkLocationPermission = async () => {
+    const { status } = await Location.getForegroundPermissionsAsync();
+    if (status === 'undetermined') {
+      setShowLocationPrimer(true);
+    } else if (status === 'granted') {
+      acquireLocation();
+    } else {
+      setLocationError('Location permission denied');
+    }
+  };
+
+  const acquireLocation = async () => {
+    try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setLocationError('Location permission denied');
         return;
       }
-      try {
-        const loc = await Location.getCurrentPositionAsync({});
-        setLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-      } catch {
-        setLocationError('Unable to get location');
+      
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      
+      const coords = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+      setLocation(coords);
+      
+      if (mapRef.current) {
+        mapRef.current.animateToRegion({
+          latitude: coords.lat,
+          longitude: coords.lng,
+          latitudeDelta: 0.15,
+          longitudeDelta: 0.15,
+        }, 1000);
       }
-    })();
+    } catch (err) {
+      setLocationError('Unable to get location');
+    }
+  };
+
+  useEffect(() => {
+    checkLocationPermission();
   }, []);
 
-  // Salon fetch
+  // Salon fetch with pagination
   const {
-    data: allSalons,
+    data: salonPages,
     isLoading,
     isError,
     error: rawError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
     refetch,
     isRefetching,
-  } = useQuery<Salon[]>({
+  } = useInfiniteQuery({
     queryKey: ['salons', location],
-    queryFn: async () => {
+    initialPageParam: 0,
+    queryFn: async ({ pageParam = 0 }) => {
       const params = new URLSearchParams();
       if (location) {
         params.append('lat', location.lat.toString());
         params.append('lng', location.lng.toString());
         params.append('radius', '50');
       }
+      params.append('limit', '20');
+      params.append('offset', pageParam.toString());
+      
       const response = await api.get(`/api/salons?${params.toString()}`);
-      return response.data;
+      return response.data; // Now returns { data: Salon[], pagination: { ... } }
     },
-    retry: (failureCount, err: any) => {
-      // Don't retry on auth/validation errors
-      const type = err?.type;
-      if (type === 'auth' || type === 'validation') return false;
+    getNextPageParam: (lastPage) => {
+      const { data, pagination } = lastPage;
+      if (pagination.has_more) {
+        return pagination.offset + pagination.limit;
+      }
+      return undefined;
+    },
+    retry: (failureCount, err: unknown) => {
+      const appErr = handleApiError(err);
+      if (appErr.kind === 'unauthorized' || appErr.kind === 'validation') return false;
       return failureCount < 2;
     },
   });
 
+  // Flatten all pages into a single array for filtering/display
+  const allSalons = useMemo(() => {
+    return salonPages?.pages.flatMap((page) => page.data) ?? [];
+  }, [salonPages]);
+
   // Enforce minimum 500ms skeleton display
   const showSkeleton = useMinLoadingTime(isLoading);
 
-  // Local search filter
+  // Local search filter (across all loaded salons)
   const filteredSalons = React.useMemo(() => {
     if (!allSalons) return [];
     if (!searchQuery) return allSalons;
@@ -134,22 +185,38 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   if (isError && !showSkeleton) {
     const appErr = handleApiError(rawError);
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <ScreenWrapper variant="tab">
         <View style={styles.header}>
           <Text style={styles.title}>Find Your Perfect Salon</Text>
         </View>
         <ErrorState
           title="Couldn't load salons"
           message={appErr.message}
-          type={appErr.type}
           onRetry={refetch}
+          kind={appErr.kind}
         />
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <ScreenWrapper variant="tab">
+      {/* Permission Primer */}
+      <PermissionPrimer
+        isVisible={showLocationPrimer}
+        title="Find Salons Near You"
+        message="TrimiT uses your location to show the closest salons, estimated travel times, and accurate distance."
+        icon="location"
+        onAllow={() => {
+          setShowLocationPrimer(false);
+          acquireLocation();
+        }}
+        onDeny={() => {
+          setShowLocationPrimer(false);
+          setLocationError('Location permission denied');
+        }}
+      />
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerRow}>
@@ -162,25 +229,35 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
             </Text>
           </View>
           {/* View Mode Toggle */}
-          <View style={styles.viewToggle}>
+          <View 
+            style={styles.viewToggle}
+            accessibilityRole="tablist"
+            accessibilityLabel="View mode toggle"
+          >
             <TouchableOpacity
               style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
               onPress={() => setViewMode('list')}
+              accessibilityRole="tab"
+              accessibilityLabel="List view"
+              accessibilityState={{ selected: viewMode === 'list' }}
             >
               <Ionicons
                 name="list"
                 size={18}
-                color={viewMode === 'list' ? '#FFFFFF' : theme.colors.textSecondary}
+                color={viewMode === 'list' ? theme.colors.textInverse : theme.colors.textSecondary}
               />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.toggleBtn, viewMode === 'map' && styles.toggleBtnActive]}
               onPress={() => setViewMode('map')}
+              accessibilityRole="tab"
+              accessibilityLabel="Map view"
+              accessibilityState={{ selected: viewMode === 'map' }}
             >
               <Ionicons
                 name="map"
                 size={18}
-                color={viewMode === 'map' ? '#FFFFFF' : theme.colors.textSecondary}
+                color={viewMode === 'map' ? theme.colors.textInverse : theme.colors.textSecondary}
               />
             </TouchableOpacity>
           </View>
@@ -191,6 +268,8 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           activeOpacity={isOnline ? 1 : 0.6}
           onPress={handleOfflineTap}
           disabled={isOnline}
+          accessibilityLabel={isOnline ? "Search salons" : "Search unavailable - offline"}
+          accessibilityHint="Type to filter salons by name or address"
         >
           <View style={[styles.searchContainer, !isOnline && styles.searchContainerDisabled]}>
             <Ionicons
@@ -205,9 +284,14 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
               value={searchQuery}
               onChangeText={setSearchQuery}
               editable={isOnline}
+              accessibilityRole="search"
             />
             {searchQuery.length > 0 && isOnline && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <TouchableOpacity 
+                onPress={() => setSearchQuery('')}
+                accessibilityLabel="Clear search"
+                accessibilityRole="button"
+              >
                 <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             )}
@@ -219,11 +303,17 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
       {showSkeleton ? (
         <SalonListSkeleton />
       ) : viewMode === 'map' ? (
-        <MapView 
+        <ClusteredMapView
+          ref={mapRef}
           style={styles.map} 
-          initialRegion={mapRegion} 
+          region={mapRegion} 
           showsUserLocation
+          showsMyLocationButton
           userInterfaceStyle={isDark ? 'dark' : 'light'}
+          accessibilityLabel="Salon map"
+          radius={40}
+          clusterColor={theme.colors.primary}
+          clusterTextColor="#FFFFFF"
         >
           {filteredSalons.map((salon) =>
             salon.latitude && salon.longitude ? (
@@ -231,6 +321,8 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
                 key={salon.id}
                 coordinate={{ latitude: salon.latitude, longitude: salon.longitude }}
                 pinColor={theme.colors.primary}
+                title={salon.name}
+                description={salon.address}
               >
                 <Callout onPress={() => handleSalonPress(salon)}>
                   <View style={styles.callout}>
@@ -246,7 +338,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
               </Marker>
             ) : null
           )}
-        </MapView>
+        </ClusteredMapView>
       ) : (
         <FlatList
           data={filteredSalons}
@@ -254,14 +346,28 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           renderItem={({ item }) => (
             <SalonCard salon={item} onPress={() => handleSalonPress(item)} />
           )}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }]}
           showsVerticalScrollIndicator={false}
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) {
+              fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View style={styles.loaderContainer}>
+                <ActivityIndicator color={theme.colors.primary} />
+              </View>
+            ) : null
+          }
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={refetch}
               colors={[theme.colors.primary]}
               tintColor={theme.colors.primary}
+              accessibilityLabel="Pull to refresh salon list"
             />
           }
           ListEmptyComponent={
@@ -283,14 +389,13 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           }
         />
       )}
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   header: {
     padding: spacing.xl,
@@ -356,6 +461,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flexGrow: 1,
   },
   map: { flex: 1 },
+  loaderContainer: {
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
+  },
   callout: { padding: spacing.sm, minWidth: 160, maxWidth: 220 },
   calloutTitle: { ...typography.bodySmallMedium, color: theme.colors.text, marginBottom: 2 },
   calloutText: { ...typography.caption, color: theme.colors.textSecondary },

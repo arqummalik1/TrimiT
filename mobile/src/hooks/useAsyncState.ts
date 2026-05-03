@@ -14,7 +14,8 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { handleApiError, AppError } from '../lib/errorHandler';
+import { handleApiError } from '../lib/errorHandler';
+import { AppError } from '../types/error';
 
 // ─── Domain Types ─────────────────────────────────────────────────────────────
 

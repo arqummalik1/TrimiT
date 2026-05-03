@@ -9,37 +9,77 @@ import {
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import MapView from 'react-native-maps';
 import api from '../../lib/api';
 import { Salon, Service } from '../../types';
-import { fonts, spacing, borderRadius, formatPrice, formatDate } from '../../lib/utils';
+import { fonts, spacing, borderRadius, formatDate } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 
 import { Button } from '../../components/Button';
+import { ServiceCard } from '../../components/ServiceCard';
 import ImageCarousel from '../../components/ImageCarousel';
 import { SalonMapMarker } from '../../components/SalonMapMarker';
 import { openNativeDirections } from '../../lib/maps';
 
-interface SalonDetailScreenProps {
-  navigation: any;
-  route: any;
-}
+import { analytics } from '../../lib/analytics';
+import { handleApiError } from '../../lib/errorHandler';
+import { CustomerDiscoverScreenProps } from '../../navigation/types';
+import { SalonDetailParamsSchema } from '../../navigation/params';
 
-export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation, route }) => {
+type Props = CustomerDiscoverScreenProps<'SalonDetail'>;
+
+export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { salonId } = route.params;
+  
+  // Validate params
+  const validation = SalonDetailParamsSchema.safeParse(route.params);
+  if (!validation.success) {
+    console.error('[SalonDetailScreen] Invalid params:', validation.error);
+    return (
+      <ScreenWrapper variant="stack">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Ionicons name="alert-circle" size={48} color={theme.colors.error} />
+          <Text style={{ marginTop: 16, textAlign: 'center', color: theme.colors.text }}>Invalid salon ID.</Text>
+          <Button title="Go Back" onPress={() => navigation.goBack()} style={{ marginTop: 24 }} />
+        </View>
+      </ScreenWrapper>
+    );
+  }
+  
+  const { salonId } = validation.data;
 
   const { data: salon, isLoading, error } = useQuery<Salon>({
     queryKey: ['salon', salonId],
     queryFn: async () => {
-      const response = await api.get(`/api/salons/${salonId}`);
-      return response.data;
+      try {
+        const response = await api.get(`/api/salons/${salonId}`);
+        
+        // Track salon view
+        analytics.track('salon_viewed', {
+          salon_id: salonId,
+          salon_name: response.data?.name
+        });
+        
+        return response.data;
+      } catch (err) {
+        handleApiError(err);
+        throw err;
+      }
     },
   });
+
+  const handleViewService = (service: Service) => {
+    navigation.navigate('ServiceDetail', {
+      serviceId: service.id,
+      salonId,
+      salonName: salon?.name ?? '',
+    });
+  };
 
   const handleBookService = (service: Service) => {
     navigation.navigate('Booking', { salonId, serviceId: service.id });
@@ -61,19 +101,19 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <ScreenWrapper variant="stack">
         <ActivityIndicator size="large" color={theme.colors.primary} />
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   if (error || !salon) {
     return (
-      <SafeAreaView style={styles.errorContainer}>
+      <ScreenWrapper variant="stack">
         <Ionicons name="alert-circle" size={64} color={theme.colors.border} />
         <Text style={styles.errorTitle}>Salon Not Found</Text>
         <Button title="Go Back" onPress={() => navigation.goBack()} variant="outline" />
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
@@ -99,7 +139,7 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
           <View style={styles.heroContent}>
             {(salon.avg_rating ?? 0) > 0 && (
               <View style={styles.ratingBadge}>
-                <Ionicons name="star" size={14} color="#FFFFFF" />
+                <Ionicons name="star" size={14} color={theme.colors.textInverse} />
                 <Text style={styles.ratingText}>{salon.avg_rating}</Text>
                 <Text style={styles.reviewCount}>({salon.review_count} reviews)</Text>
               </View>
@@ -166,7 +206,7 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
               {/* Get Directions overlay */}
               <View style={styles.directionsOverlay}>
                 <View style={styles.directionsOverlayPill}>
-                  <Ionicons name="navigate" size={14} color="#FFFFFF" />
+                  <Ionicons name="navigate" size={14} color={theme.colors.primary} />
                   <Text style={styles.directionsOverlayText}>Get Directions</Text>
                 </View>
               </View>
@@ -183,29 +223,15 @@ export const SalonDetailScreen: React.FC<SalonDetailScreenProps> = ({ navigation
           {/* Services */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Services</Text>
-            
+
             {salon.services && salon.services.length > 0 ? (
               salon.services.map((service) => (
-                <View key={service.id} style={styles.serviceCard}>
-                  <View style={styles.serviceInfo}>
-                    <Text style={styles.serviceName}>{service.name}</Text>
-                    {service.description && (
-                      <Text style={styles.serviceDescription}>{service.description}</Text>
-                    )}
-                    <View style={styles.serviceDetails}>
-                      <View style={styles.detailItem}>
-                        <Ionicons name="time-outline" size={14} color={theme.colors.textSecondary} />
-                        <Text style={styles.detailText}>{service.duration} mins</Text>
-                      </View>
-                      <Text style={styles.servicePrice}>{formatPrice(service.price)}</Text>
-                    </View>
-                  </View>
-                  <Button
-                    title="Book"
-                    onPress={() => handleBookService(service)}
-                    size="sm"
-                  />
-                </View>
+                <ServiceCard
+                  key={service.id}
+                  service={service}
+                  variant="customer"
+                  onPress={() => handleViewService(service)}
+                />
               ))
             ) : (
               <View style={styles.emptyServices}>
@@ -339,7 +365,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   salonName: {
     fontFamily: fonts.heading,
     fontSize: 34,
-    color: '#FFFFFF',
+    color: theme.colors.white,
     marginBottom: 8,
     fontWeight: '700',
   },
@@ -396,7 +422,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   directionsText: {
     fontFamily: fonts.bodySemiBold,
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 15,
   },
   miniMapContainer: {
@@ -448,53 +474,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 26,
     color: theme.colors.text,
     marginBottom: 20,
-  },
-  serviceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    padding: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginBottom: 16,
-  },
-  serviceInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  serviceName: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 16,
-    color: theme.colors.text,
-    marginBottom: 6,
-  },
-  serviceDescription: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    marginBottom: 12,
-    lineHeight: 18,
-  },
-  serviceDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  detailText: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 13,
-    color: theme.colors.textTertiary,
-  },
-  servicePrice: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 17,
-    color: theme.colors.primary,
   },
   emptyServices: {
     alignItems: 'center',

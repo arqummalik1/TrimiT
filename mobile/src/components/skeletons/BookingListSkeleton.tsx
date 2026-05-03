@@ -8,7 +8,9 @@ import { View, StyleSheet } from 'react-native';
 import { Skeleton } from '../Skeleton';
 import { useTheme, Theme } from '../../theme/ThemeContext';
 
-const BookingCardSkeleton: React.FC<{ theme: Theme; styles: any }> = ({ theme, styles }) => (
+type BookingListStyles = ReturnType<typeof createStyles>;
+
+const BookingCardSkeleton: React.FC<{ theme: Theme; styles: BookingListStyles }> = ({ theme, styles }) => (
   <View style={styles.card}>
     {/* Status badge + date */}
     <View style={styles.headerRow}>

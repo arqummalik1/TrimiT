@@ -8,7 +8,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
@@ -19,11 +19,12 @@ import { Theme } from '../../theme/tokens';
 import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
 
-interface ForgotPasswordScreenProps {
-  navigation: any;
-}
+import { handleApiError } from '../../lib/errorHandler';
+import { AuthScreenProps } from '../../navigation/types';
 
-export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScreenProps) {
+type ForgotPasswordProps = AuthScreenProps<'ForgotPassword'>;
+
+export default function ForgotPasswordScreen({ navigation }: ForgotPasswordProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [email, setEmail] = useState('');
@@ -40,9 +41,16 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
     try {
       await api.post('/api/auth/forgot-password', { email });
       setIsSent(true);
-    } catch (error: any) {
-      // Always show success to prevent email enumeration
-      setIsSent(true);
+    } catch (error) {
+      // For forgot password, we sometimes want to swallow the error to prevent email enumeration,
+      // but we should still log it or handle it gracefully if it's a network error.
+      const appErr = handleApiError(error);
+      if (appErr.kind === 'network') {
+        showToast(appErr.message, 'error');
+      } else {
+        // Always show success for security reasons (don't reveal if account exists)
+        setIsSent(true);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -50,7 +58,7 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
 
   if (isSent) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenWrapper variant="auth">
         <View style={styles.sentContainer}>
           <View style={styles.successIcon}>
             <Ionicons name="mail" size={48} color={theme.colors.primary} />
@@ -74,12 +82,12 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
             <Text style={styles.retryText}>Try a different email</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper variant="auth">
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -126,14 +134,13 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordScree
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     flexGrow: 1,

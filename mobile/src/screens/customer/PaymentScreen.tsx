@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,8 +6,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -17,6 +19,8 @@ import { useAuthStore } from '../../store/authStore';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
+import axios from 'axios';
+import { handleApiError } from '../../lib/errorHandler';
 
 type Props = CustomerDiscoverScreenProps<'Payment'>;
 
@@ -26,6 +30,17 @@ interface CreateOrderResponse {
   currency: string;
   booking_id: string;
   key_id: string;
+}
+
+interface RazorpayResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
+
+interface PaymentMessage {
+  type: 'success' | 'failed' | 'dismissed';
+  payload?: unknown;
 }
 
 const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
@@ -38,6 +53,35 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
   const [order, setOrder] = useState<CreateOrderResponse | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
+  const [isPaying, setIsPaying] = useState(false);
+
+  // AppState listener for payment recovery
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active' && isPaying && order) {
+        // App came back to foreground during payment
+        setVerifying(true);
+        try {
+          const res = await api.get(`/api/payments/status?order_id=${order.order_id}`);
+          if (res.data.status === 'paid') {
+            queryClient.invalidateQueries({ queryKey: ['bookings'] });
+            Alert.alert('Payment Successful', 'Your booking has been confirmed.', [
+              { text: 'OK', onPress: () => navigation.navigate('DiscoverMain') }
+            ]);
+          } else {
+            setVerifying(false);
+            // Stay on screen, user might need to retry or continue in WebView
+          }
+        } catch (err) {
+          setVerifying(false);
+          console.warn('[Payment] Status check failed:', err);
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [isPaying, order, navigation, queryClient]);
 
   const createOrderMutation = useMutation({
     mutationFn: async () => {
@@ -47,8 +91,13 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
       return res.data;
     },
     onSuccess: (data) => setOrder(data),
-    onError: (err: any) => {
-      setOrderError(err.response?.data?.detail || 'Could not start payment');
+    onError: (err: unknown) => {
+      if (axios.isAxiosError(err)) {
+        setOrderError(err.response?.data?.detail || 'Could not start payment');
+      } else {
+        setOrderError('Could not start payment');
+      }
+      handleApiError(err);
     },
   });
 
@@ -98,11 +147,7 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [order, serviceName, salonName, user, theme]);
 
   const verifyMutation = useMutation({
-    mutationFn: async (resp: {
-      razorpay_payment_id: string;
-      razorpay_order_id: string;
-      razorpay_signature: string;
-    }) => {
+    mutationFn: async (resp: RazorpayResponse) => {
       const res = await api.post('/api/payments/verify', {
         booking_id: bookingId,
         razorpay_payment_id: resp.razorpay_payment_id,
@@ -120,35 +165,38 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
         },
       ]);
     },
-    onError: (err: any) => {
-      Alert.alert(
-        'Verification failed',
-        err.response?.data?.detail ||
-          'Payment was taken but we could not verify it. Contact support with your booking ID.'
-      );
+    onError: (err: unknown) => {
+      const appErr = handleApiError(err);
+      Alert.alert('Verification Failed', appErr.message);
     },
     onSettled: () => setVerifying(false),
   });
 
   const onMessage = (e: WebViewMessageEvent) => {
-    let msg: any;
     try {
-      msg = JSON.parse(e.nativeEvent.data);
+      const msg: PaymentMessage = JSON.parse(e.nativeEvent.data);
+      if (msg.type === 'success' && msg.payload) {
+        setIsPaying(false);
+        setVerifying(true);
+        verifyMutation.mutate(msg.payload as RazorpayResponse);
+      } else if (msg.type === 'failed') {
+        setIsPaying(false);
+        const payload = msg.payload as { description?: string } | undefined;
+        Alert.alert('Payment failed', payload?.description || 'Please try again.');
+      } else if (msg.type === 'dismissed') {
+        setIsPaying(false);
+        navigation.goBack();
+      }
     } catch {
       return;
     }
-    if (msg.type === 'success' && msg.payload) {
-      setVerifying(true);
-      verifyMutation.mutate(msg.payload);
-    } else if (msg.type === 'failed') {
-      Alert.alert('Payment failed', msg.payload?.description || 'Please try again.');
-    } else if (msg.type === 'dismissed') {
-      navigation.goBack();
-    }
   };
 
+  // Track when webview starts loading or modal opens
+  const onLoadStart = () => setIsPaying(true);
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <ScreenWrapper variant="stack">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
@@ -182,6 +230,7 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
             originWhitelist={['*']}
             source={{ html: checkoutHtml }}
             onMessage={onMessage}
+            onLoadStart={onLoadStart}
             javaScriptEnabled
             domStorageEnabled
             startInLoadingState
@@ -195,11 +244,11 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={styles.verifyText}>Verifying payment…</Text>
         </View>
       )}
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
-const Row: React.FC<{ label: string; value: string; bold?: boolean; styles: any }> = ({ label, value, bold, styles }) => (
+const Row: React.FC<{ label: string; value: string; bold?: boolean; styles: ReturnType<typeof createStyles> }> = ({ label, value, bold, styles }) => (
   <View style={styles.row}>
     <Text style={styles.rowLabel}>{label}</Text>
     <Text style={[styles.rowValue, bold && styles.rowValueBold]}>{value}</Text>
@@ -259,7 +308,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
   },
-  verifyText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  verifyText: { color: theme.colors.white, fontSize: 16, fontWeight: '600' },
 });
 
 export default PaymentScreen;

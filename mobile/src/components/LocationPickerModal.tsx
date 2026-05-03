@@ -51,6 +51,7 @@ import SalonMapMarker from './SalonMapMarker';
 import { typography, spacing, borderRadius, shadows } from '../lib/utils';
 import { useTheme } from '../theme/ThemeContext';
 import { Theme } from '../theme/tokens';
+import { handleApiError } from '../lib/errorHandler';
 
 // ─── Props ─────────────────────────────────────────────────────────
 
@@ -139,8 +140,9 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         buildLocationPickerRegion(result.coordinates),
         600
       );
-    } catch (error: any) {
-      setSearchError(error.message ?? 'Address not found. Please try again.');
+    } catch (error) {
+      const appErr = handleApiError(error);
+      setSearchError(appErr.message ?? 'Address not found. Please try again.');
     } finally {
       setIsSearching(false);
     }
