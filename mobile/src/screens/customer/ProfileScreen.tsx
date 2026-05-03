@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,26 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
+import * as Sentry from '@sentry/react-native';
 import { useAuthStore } from '../../store/authStore';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
+import { typography, spacing, borderRadius, shadows } from '../../lib/utils';
+
 import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
+import { useTheme, ThemeMode } from '../../theme/ThemeContext';
+import { Theme } from '../../theme/tokens';
+import { handleApiError } from '../../lib/errorHandler';
+import { ProfileStackScreenProps } from '../../navigation/types';
 
-export default function ProfileScreen({ navigation }: { navigation: any }) {
+type ProfileStyles = ReturnType<typeof createStyles>;
+
+export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'ProfileMain'>) {
+  const { theme, themeMode, setThemeMode } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { user, logout, setUser, token } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -32,8 +42,9 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
       }
       setIsEditing(false);
       showToast('Profile updated successfully', 'success');
-    } catch (error: any) {
-      showToast(error.response?.data?.detail || 'Failed to update profile', 'error');
+    } catch (error) {
+      const appErr = handleApiError(error);
+      showToast(appErr.message, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +62,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper variant="tab">
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
@@ -70,7 +81,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
             <Ionicons
               name={user?.role === 'owner' ? 'storefront' : 'person'}
               size={14}
-              color={colors.primary}
+              color={theme.colors.primary}
             />
             <Text style={styles.roleText}>
               {user?.role === 'owner' ? 'Salon Owner' : 'Customer'}
@@ -84,7 +95,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
             <Text style={styles.cardTitle}>Personal Information</Text>
             {!isEditing && (
               <TouchableOpacity onPress={() => setIsEditing(true)}>
-                <Ionicons name="create-outline" size={22} color={colors.primary} />
+                <Ionicons name="create-outline" size={22} color={theme.colors.primary} />
               </TouchableOpacity>
             )}
           </View>
@@ -96,7 +107,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
                 value={name}
                 onChangeText={setName}
                 placeholder="Your name"
-                icon={<Ionicons name="person-outline" size={20} color={colors.textSecondary} />}
+                icon={<Ionicons name="person-outline" size={20} color={theme.colors.textSecondary} />}
               />
               <Input
                 label="Phone Number"
@@ -104,7 +115,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
                 onChangeText={setPhone}
                 placeholder="+91 98765 43210"
                 keyboardType="phone-pad"
-                icon={<Ionicons name="call-outline" size={20} color={colors.textSecondary} />}
+                icon={<Ionicons name="call-outline" size={20} color={theme.colors.textSecondary} />}
               />
               <View style={styles.editActions}>
                 <Button
@@ -127,9 +138,9 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
             </View>
           ) : (
             <View style={styles.infoList}>
-              <InfoRow icon="person-outline" label="Name" value={user?.name || 'Not set'} />
-              <InfoRow icon="mail-outline" label="Email" value={user?.email || 'Not set'} />
-              <InfoRow icon="call-outline" label="Phone" value={user?.phone || 'Not set'} />
+              <InfoRow icon="person-outline" label="Name" value={user?.name || 'Not set'} styles={styles} theme={theme} />
+              <InfoRow icon="mail-outline" label="Email" value={user?.email || 'Not set'} styles={styles} theme={theme} />
+              <InfoRow icon="call-outline" label="Phone" value={user?.phone || 'Not set'} styles={styles} theme={theme} />
               <InfoRow
                 icon="calendar-outline"
                 label="Joined"
@@ -141,9 +152,40 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
                       })
                     : 'N/A'
                 }
+                styles={styles}
+                theme={theme}
               />
             </View>
           )}
+        </View>
+
+        {/* Appearance Settings */}
+        <View style={[styles.card, shadows.sm, styles.linksCard, { marginBottom: spacing.lg }]}>
+          <Text style={[styles.cardTitle, { paddingHorizontal: spacing.xl, paddingTop: spacing.md }]}>Appearance</Text>
+          <View style={styles.themeToggleContainer}>
+            {(['light', 'dark', 'system'] as ThemeMode[]).map((mode) => (
+              <TouchableOpacity
+                key={mode}
+                style={[
+                  styles.themeOption,
+                  themeMode === mode && styles.themeOptionActive,
+                ]}
+                onPress={() => setThemeMode(mode)}
+              >
+                <Ionicons 
+                  name={mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'phone-portrait'} 
+                  size={20} 
+                  color={themeMode === mode ? '#FFFFFF' : theme.colors.textSecondary} 
+                />
+                <Text style={[
+                  styles.themeOptionText,
+                  themeMode === mode && styles.themeOptionTextActive,
+                ]}>
+                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {/* Legal & Support */}
@@ -154,29 +196,52 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
               icon="shield-checkmark-outline"
               label="Privacy Policy"
               onPress={() => navigation.navigate('PrivacyPolicy')}
+              styles={styles}
+              theme={theme}
             />
             <LinkRow
               icon="document-text-outline"
               label="Terms of Service"
               onPress={() => navigation.navigate('Terms')}
+              styles={styles}
+              theme={theme}
             />
             <LinkRow
               icon="mail-outline"
               label="Contact Us"
               onPress={() => navigation.navigate('Contact')}
+              styles={styles}
+              theme={theme}
+            />
+          </View>
+        </View>
+
+        {/* Debug Section (Testing only) */}
+        <View style={[styles.card, shadows.sm, styles.linksCard, { borderColor: theme.colors.primary + '40', marginTop: spacing.lg }]}>
+          <Text style={[styles.cardTitle, { paddingHorizontal: spacing.xl, color: theme.colors.primary, paddingTop: spacing.md }]}>Developer Tools</Text>
+          <View style={styles.linkList}>
+            <LinkRow
+              icon="bug-outline"
+              label="Trigger Sentry Test Error"
+              onPress={() => {
+                Sentry.captureException(new Error("Customer Test Error: Sentry is working!"));
+                Alert.alert("Success", "Test error sent to Sentry!");
+              }}
+              styles={styles}
+              theme={theme}
             />
           </View>
         </View>
 
         {/* Logout */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={22} color={colors.error} />
+          <Ionicons name="log-out-outline" size={22} color={theme.colors.error} />
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
 
         <Text style={styles.version}>TrimiT v1.0.0</Text>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
@@ -184,14 +249,18 @@ function InfoRow({
   icon,
   label,
   value,
+  styles,
+  theme,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
+  styles: ProfileStyles;
+  theme: Theme;
 }) {
   return (
     <View style={styles.infoRow}>
-      <Ionicons name={icon} size={20} color={colors.textSecondary} />
+      <Ionicons name={icon} size={20} color={theme.colors.textSecondary} />
       <View style={styles.infoContent}>
         <Text style={styles.infoLabel}>{label}</Text>
         <Text style={styles.infoValue}>{value}</Text>
@@ -204,24 +273,28 @@ function LinkRow({
   icon,
   label,
   onPress,
+  styles,
+  theme,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
+  styles: ProfileStyles;
+  theme: Theme;
 }) {
   return (
     <TouchableOpacity style={styles.linkRow} onPress={onPress}>
-      <Ionicons name={icon} size={20} color={colors.textSecondary} />
+      <Ionicons name={icon} size={20} color={theme.colors.textSecondary} />
       <Text style={styles.linkLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+      <Ionicons name="chevron-forward" size={18} color={theme.colors.textTertiary} />
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     paddingHorizontal: spacing.xl,
@@ -232,7 +305,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h2,
-    color: colors.text,
+    color: theme.colors.text,
   },
   avatarSection: {
     alignItems: 'center',
@@ -242,7 +315,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
@@ -250,17 +323,17 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 32,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textInverse,
   },
   userName: {
     ...typography.h3,
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: spacing.sm,
   },
   roleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primary + '1A', // transparent primary
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
@@ -268,14 +341,14 @@ const styles = StyleSheet.create({
   },
   roleText: {
     ...typography.captionMedium,
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     marginBottom: spacing.xxl,
   },
   cardHeader: {
@@ -286,7 +359,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...typography.h4,
-    color: colors.text,
+    color: theme.colors.text,
   },
   form: {
     gap: spacing.xs,
@@ -309,12 +382,12 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: 2,
   },
   infoValue: {
     ...typography.bodySmallMedium,
-    color: colors.text,
+    color: theme.colors.text,
   },
   logoutButton: {
     flexDirection: 'row',
@@ -324,16 +397,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.errorLight,
-    backgroundColor: colors.surface,
+    borderColor: theme.colors.error + '40', // light error border
+    backgroundColor: theme.colors.surface,
   },
   logoutText: {
     ...typography.bodyMedium,
-    color: colors.error,
+    color: theme.colors.error,
   },
   version: {
     ...typography.caption,
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
     textAlign: 'center',
     marginTop: spacing.xxl,
   },
@@ -351,7 +424,37 @@ const styles = StyleSheet.create({
   },
   linkLabel: {
     ...typography.bodySmallMedium,
-    color: colors.text,
+    color: theme.colors.text,
     flex: 1,
+  },
+  themeToggleContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.lg,
+  },
+  themeOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  themeOptionActive: {
+    backgroundColor: theme.colors.primary,
+  },
+  themeOptionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  themeOptionTextActive: {
+    color: '#FFFFFF',
   },
 });

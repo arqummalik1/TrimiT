@@ -1,23 +1,26 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../lib/utils';
+import { useTheme, Theme } from '../../theme/ThemeContext';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 
-interface RoleSelectScreenProps {
-  navigation: any;
-}
+import { AuthScreenProps } from '../../navigation/types';
 
-export const RoleSelectScreen: React.FC<RoleSelectScreenProps> = ({ navigation }) => {
+type RoleSelectProps = AuthScreenProps<'RoleSelect'>;
+
+export const RoleSelectScreen: React.FC<RoleSelectProps> = ({ navigation }) => {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
+
   const handleRoleSelect = (role: 'customer' | 'owner') => {
     navigation.navigate('Signup', { role });
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper variant="auth">
       <View style={styles.header}>
         <View style={styles.logoContainer}>
-          <Ionicons name="cut" size={40} color="#FFFFFF" />
+          <Image source={require('../../../assets/logo.png')} style={{ width: 40, height: 40, resizeMode: 'contain', tintColor: theme.colors.textInverse }} />
         </View>
         <Text style={styles.title}>Join TrimiT</Text>
         <Text style={styles.subtitle}>Create your account to get started</Text>
@@ -33,7 +36,7 @@ export const RoleSelectScreen: React.FC<RoleSelectScreenProps> = ({ navigation }
             activeOpacity={0.8}
           >
             <View style={styles.iconWrapper}>
-              <Ionicons name="people" size={40} color={colors.primary} />
+              <Ionicons name="people" size={40} color={theme.colors.primary} />
             </View>
             <Text style={styles.roleTitle}>Customer</Text>
             <Text style={styles.roleDescription}>Book appointments</Text>
@@ -45,7 +48,7 @@ export const RoleSelectScreen: React.FC<RoleSelectScreenProps> = ({ navigation }
             activeOpacity={0.8}
           >
             <View style={styles.iconWrapper}>
-              <Ionicons name="storefront" size={40} color={colors.primary} />
+              <Ionicons name="storefront" size={40} color={theme.colors.primary} />
             </View>
             <Text style={styles.roleTitle}>Salon Owner</Text>
             <Text style={styles.roleDescription}>List your business</Text>
@@ -59,14 +62,13 @@ export const RoleSelectScreen: React.FC<RoleSelectScreenProps> = ({ navigation }
           <Text style={styles.linkText}>Sign in</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   header: {
     alignItems: 'center',
@@ -76,7 +78,7 @@ const styles = StyleSheet.create({
   logoContainer: {
     width: 80,
     height: 80,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
@@ -85,12 +87,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   content: {
     flex: 1,
@@ -99,7 +101,7 @@ const styles = StyleSheet.create({
   question: {
     fontSize: 20,
     fontWeight: '600',
-    color: colors.text,
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -109,17 +111,17 @@ const styles = StyleSheet.create({
   },
   roleCard: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
   },
   iconWrapper: {
     width: 72,
     height: 72,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -128,12 +130,12 @@ const styles = StyleSheet.create({
   roleTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: 4,
   },
   roleDescription: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   footer: {
     flexDirection: 'row',
@@ -144,12 +146,12 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   linkText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.primary,
+    color: theme.colors.primary,
   },
 });
 

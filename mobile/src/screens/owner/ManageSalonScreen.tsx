@@ -9,27 +9,44 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
+import { typography, spacing, borderRadius, shadows } from '../../lib/utils';
+import { useTheme, Theme } from '../../theme/ThemeContext';
+
 import api from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { showToast } from '../../store/toastStore';
 import { Salon } from '../../types';
+import { handleApiError } from '../../lib/errorHandler';
+import { OwnerDashboardScreenProps, OwnerSettingsScreenProps } from '../../navigation/types';
 import { LocationPickerModal } from '../../components/LocationPickerModal';
 import { SalonMapMarker } from '../../components/SalonMapMarker';
 import type { Coordinates } from '../../lib/maps';
 
-interface ManageSalonScreenProps {
-  navigation: any;
+type ManageSalonProps = OwnerDashboardScreenProps<'ManageSalon'> | OwnerSettingsScreenProps<'ManageSalon'>;
+
+interface SalonPayload {
+  name: string;
+  description: string;
+  address: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  phone: string;
+  opening_time: string;
+  closing_time: string;
+  images: string[];
 }
 
-export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps) {
+export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const queryClient = useQueryClient();
 
   const { data: salon, isLoading } = useQuery<Salon | null>({
@@ -87,7 +104,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
   }, [salon]);
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: SalonPayload) => {
       const response = await api.post('/api/salons', data);
       return response.data;
     },
@@ -96,13 +113,14 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
       showToast('Salon created successfully!', 'success');
       navigation.goBack();
     },
-    onError: (error: any) => {
-      showToast(error.response?.data?.detail || 'Failed to create salon', 'error');
+    onError: (error) => {
+      const appErr = handleApiError(error);
+      showToast(appErr.message, 'error');
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: SalonPayload) => {
       const response = await api.patch(`/api/salons/${salon!.id}`, data);
       return response.data;
     },
@@ -110,8 +128,9 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
       queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
       showToast('Salon updated successfully!', 'success');
     },
-    onError: (error: any) => {
-      showToast(error.response?.data?.detail || 'Failed to update salon', 'error');
+    onError: (error) => {
+      const appErr = handleApiError(error);
+      showToast(appErr.message, 'error');
     },
   });
 
@@ -178,8 +197,9 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
         images: [...prev.images, urlData.publicUrl],
       }));
       showToast('Image uploaded!', 'success');
-    } catch (error: any) {
-      showToast('Failed to upload image', 'error');
+    } catch (error) {
+      const appErr = handleApiError(error);
+      showToast(appErr.message, 'error');
     } finally {
       setUploading(false);
     }
@@ -194,18 +214,18 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenWrapper variant="stack">
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper variant="stack">
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -213,7 +233,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.title}>
             {salon ? 'Edit Salon' : 'Create Salon'}
@@ -229,7 +249,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
             value={formData.name}
             onChangeText={(v) => handleChange('name', v)}
             placeholder="Enter salon name"
-            icon={<Ionicons name="storefront-outline" size={20} color={colors.textSecondary} />}
+            icon={<Ionicons name="storefront-outline" size={20} color={theme.colors.textSecondary} />}
           />
           <Input
             label="Description"
@@ -243,7 +263,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
             onChangeText={(v) => handleChange('phone', v)}
             placeholder="+91 98765 43210"
             keyboardType="phone-pad"
-            icon={<Ionicons name="call-outline" size={20} color={colors.textSecondary} />}
+            icon={<Ionicons name="call-outline" size={20} color={theme.colors.textSecondary} />}
           />
         </View>
 
@@ -254,7 +274,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
             value={formData.address}
             onChangeText={(v) => handleChange('address', v)}
             placeholder="Street address"
-            icon={<Ionicons name="location-outline" size={20} color={colors.textSecondary} />}
+            icon={<Ionicons name="location-outline" size={20} color={theme.colors.textSecondary} />}
           />
           <Input
             label="City *"
@@ -292,13 +312,13 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
             </View>
             <View style={styles.locationPreviewFooter}>
               <View style={styles.coordsBlock}>
-                <Ionicons name="location" size={14} color={colors.primary} />
+                <Ionicons name="location" size={14} color={theme.colors.primary} />
                 <Text style={styles.coordsText}>
                   {selectedCoords.latitude.toFixed(5)}, {selectedCoords.longitude.toFixed(5)}
                 </Text>
               </View>
               <View style={styles.changeLocationBtn}>
-                <Ionicons name="create-outline" size={14} color={colors.primary} />
+                <Ionicons name="create-outline" size={14} color={theme.colors.primary} />
                 <Text style={styles.changeLocationText}>Change Location</Text>
               </View>
             </View>
@@ -322,7 +342,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
                 value={formData.opening_time}
                 onChangeText={(v) => handleChange('opening_time', v)}
                 placeholder="09:00"
-                icon={<Ionicons name="time-outline" size={20} color={colors.textSecondary} />}
+                icon={<Ionicons name="time-outline" size={20} color={theme.colors.textSecondary} />}
               />
             </View>
             <View style={{ flex: 1 }}>
@@ -331,7 +351,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
                 value={formData.closing_time}
                 onChangeText={(v) => handleChange('closing_time', v)}
                 placeholder="21:00"
-                icon={<Ionicons name="time-outline" size={20} color={colors.textSecondary} />}
+                icon={<Ionicons name="time-outline" size={20} color={theme.colors.textSecondary} />}
               />
             </View>
           </View>
@@ -348,16 +368,16 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
                   style={styles.removeImageBtn}
                   onPress={() => removeImage(index)}
                 >
-                  <Ionicons name="close-circle" size={24} color={colors.error} />
+                  <Ionicons name="close-circle" size={24} color={theme.colors.error} />
                 </TouchableOpacity>
               </View>
             ))}
             <TouchableOpacity style={styles.addImageBtn} onPress={pickImage} disabled={uploading}>
               {uploading ? (
-                <ActivityIndicator color={colors.primary} />
+                <ActivityIndicator color={theme.colors.primary} />
               ) : (
                 <>
-                  <Ionicons name="camera" size={28} color={colors.primary} />
+                  <Ionicons name="camera" size={28} color={theme.colors.primary} />
                   <Text style={styles.addImageText}>Add Photo</Text>
                 </>
               )}
@@ -372,14 +392,13 @@ export default function ManageSalonScreen({ navigation }: ManageSalonScreenProps
           style={{ marginTop: spacing.lg, marginBottom: spacing.xxxxl }}
         />
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -401,19 +420,19 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h3,
-    color: colors.text,
+    color: theme.colors.text,
   },
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     marginBottom: spacing.lg,
   },
   sectionTitle: {
     ...typography.h4,
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: spacing.lg,
   },
   row: {
@@ -422,7 +441,7 @@ const styles = StyleSheet.create({
   },
   mapLabel: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: spacing.sm,
   },
   // Location preview card
@@ -430,8 +449,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
   },
   locationMapPreview: {
     height: 200,
@@ -443,9 +462,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: theme.colors.border,
   },
   coordsBlock: {
     flexDirection: 'row',
@@ -455,7 +474,7 @@ const styles = StyleSheet.create({
   },
   coordsText: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontVariant: ['tabular-nums'],
   },
   changeLocationBtn: {
@@ -464,12 +483,12 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
     borderRadius: borderRadius.sm,
   },
   changeLocationText: {
     ...typography.captionMedium,
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   imageRow: {
     flexDirection: 'row',
@@ -487,7 +506,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -8,
     right: -8,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
   },
   addImageBtn: {
@@ -495,7 +514,7 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: borderRadius.md,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -503,6 +522,6 @@ const styles = StyleSheet.create({
   },
   addImageText: {
     ...typography.caption,
-    color: colors.primary,
+    color: theme.colors.primary,
   },
 });
