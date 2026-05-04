@@ -27,6 +27,11 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
 class SignatureMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # Skip signature validation if API_SIGNING_SECRET is not configured
+        if not settings.API_SIGNING_SECRET:
+            logger.warning("API_SIGNING_SECRET not configured - signature validation disabled")
+            return await call_next(request)
+        
         # Exclude specific routes and non-mutating methods
         if request.method in ["POST", "PATCH", "PUT", "DELETE"]:
             # Standardize path for comparison

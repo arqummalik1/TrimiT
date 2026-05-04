@@ -7,7 +7,7 @@ from core.supabase import supabase
 from core.limiter import limiter
 from core.idempotency import idempotency_required
 from dependencies.auth import get_current_user
-from models.bookings import BookingCreate, BookingStatusUpdate, BookingStatus, ReviewCreate
+from models.bookings import BookingCreate, BookingStatusUpdate, BookingStatus, ReviewCreate, SlotReserve
 from models.promotions import PromoCodeValidate
 from services.notifications import (
     notify_owner_new_booking,

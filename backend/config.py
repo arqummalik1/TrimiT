@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     
     # Auth Secret
     JWT_SECRET: str
-    API_SIGNING_SECRET: str
+    API_SIGNING_SECRET: Optional[str] = None  # Made optional with default
     
     # Sentry Configuration
     SENTRY_DSN: Optional[str] = None
