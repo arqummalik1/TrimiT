@@ -39,3 +39,7 @@ class SupabaseClient:
                 raise
 
 supabase = SupabaseClient()
+
+def get_supabase_client():
+    """Returns the Supabase client instance."""
+    return supabase
