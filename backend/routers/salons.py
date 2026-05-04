@@ -89,10 +89,27 @@ async def get_salon(salon_id: str):
 
 @router.post("/")
 async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_current_user)):
+    logger.info(f"[CREATE_SALON] Received request from user {current_user.get('id')}")
+    logger.info(f"[CREATE_SALON] Salon data: {salon.model_dump()}")
+    
     profile = current_user.get("profile")
     if not profile or profile.get("role") != "owner":
+        logger.error(f"[CREATE_SALON] User {current_user.get('id')} is not an owner: {profile}")
         raise HTTPException(status_code=403, detail="Only owners can create salons")
     
+    # Check if owner already has a salon
+    check_existing = await supabase.request(
+        "GET", 
+        f"rest/v1/salons?owner_id=eq.{current_user.get('id')}&select=id",
+        token=current_user.get("access_token")
+    )
+    if check_existing.status_code == 200 and check_existing.json():
+        logger.error(f"[CREATE_SALON] User {current_user.get('id')} already has a salon")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="You already have a salon registered. Please update the existing one."
+        )
+
     salon_data = {
         "id": str(uuid.uuid4()),
         "owner_id": current_user.get("id"),
@@ -100,11 +117,36 @@ async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_curr
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     
+    logger.info(f"[CREATE_SALON] Sending to Supabase: {salon_data}")
+    
     response = await supabase.request("POST", "rest/v1/salons", json=salon_data, token=current_user.get("access_token"))
+    
+    logger.info(f"[CREATE_SALON] Supabase response status: {response.status_code}")
+    logger.info(f"[CREATE_SALON] Supabase response body: {response.text}")
+    
     if response.status_code not in [200, 201]:
-        raise HTTPException(status_code=400, detail="Failed to create salon")
+        error_detail = response.text
+        logger.error(f"[CREATE_SALON] Failed to create salon: {error_detail}")
         
-    return response.json()[0]
+        # Try to parse the error for better user feedback
+        try:
+            error_json = response.json()
+            if 'message' in error_json:
+                error_detail = error_json['message']
+            elif 'details' in error_json:
+                error_detail = error_json['details']
+        except:
+            pass
+            
+        raise HTTPException(status_code=400, detail=f"Database error: {error_detail}")
+        
+    res_data = response.json()
+    if not res_data:
+        logger.error("[CREATE_SALON] Salon created but no data returned")
+        raise HTTPException(status_code=500, detail="Salon created but no data returned")
+        
+    logger.info(f"[CREATE_SALON] Success: {res_data[0]}")
+    return res_data[0]
 
 @router.patch("/{salon_id}")
 async def update_salon(salon_id: str, data: SalonUpdate, current_user: dict = Depends(get_current_user)):
