@@ -1,1 +1,1 @@
-from . import auth, salons, bookings, payments, promotions, staff
+from . import auth, salons, bookings, payments, promotions, staff, owner
