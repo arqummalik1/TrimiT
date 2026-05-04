@@ -18,13 +18,13 @@ module.exports = ({ config }) => {
       slug: 'trimit',
       version: '1.0.0',
       orientation: 'portrait',
-      icon: './assets/icon.png',
+      icon: './assets/SquareLogo.png',
       userInterfaceStyle: 'automatic',
       newArchEnabled: true,
       splash: {
-        image: './assets/splash-icon.png',
+        image: './assets/SquareLogo.png',
         resizeMode: 'contain',
-        backgroundColor: '#FAFAF9',
+        backgroundColor: '#000000',
       },
       ios: {
         supportsTablet: true,
@@ -42,8 +42,8 @@ module.exports = ({ config }) => {
       android: {
         package: 'com.trimit.app',
         adaptiveIcon: {
-          foregroundImage: './assets/adaptive-icon.png',
-          backgroundColor: '#FAFAF9',
+          foregroundImage: './assets/SquareLogo.png',
+          backgroundColor: '#000000',
         },
         edgeToEdgeEnabled: true,
         permissions: [
@@ -61,9 +61,22 @@ module.exports = ({ config }) => {
         },
       },
       web: {
-        favicon: './assets/favicon.png',
+        favicon: './assets/SquareLogo.png',
       },
-      plugins: ['expo-font', 'expo-notifications', 'expo-location', 'expo-image-picker'],
+      plugins: [
+        'expo-font',
+        'expo-notifications',
+        'expo-location',
+        'expo-image-picker',
+        'expo-secure-store',
+        [
+          '@sentry/react-native/expo',
+          {
+            organization: 'trimit-inc',
+            project: 'trimit-mobile',
+          },
+        ],
+      ],
       extra: {
         eas: {
           projectId: 'e4f2eade-fe15-4a16-8766-83b0771a4643',

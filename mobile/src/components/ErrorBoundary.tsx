@@ -2,7 +2,9 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, typography, spacing, borderRadius } from '../theme';
+import { colors, typography, spacing, borderRadius } from '../lib/utils';
+import { logger } from '../lib/logger';
+
 
 interface Props {
   children: ReactNode;
@@ -21,7 +23,9 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('[ErrorBoundary] CRITICAL:', error, info.componentStack);
+    logger.error('CRITICAL: App Crash (ErrorBoundary)', error, { 
+      componentStack: info.componentStack 
+    });
   }
 
   handleRetry = () => {

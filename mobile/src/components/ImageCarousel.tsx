@@ -1,15 +1,15 @@
 import React, { useState, useRef } from 'react';
 import {
   View,
-  Image,
   FlatList,
   StyleSheet,
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
-import { colors, borderRadius } from '../theme';
-import { DEFAULT_SALON_IMAGE } from '../theme';
+import { Image } from 'expo-image';
+import { borderRadius, DEFAULT_SALON_IMAGE } from '../lib/utils';
+import { useTheme } from '../theme/ThemeContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -19,6 +19,7 @@ interface ImageCarouselProps {
 }
 
 export default function ImageCarousel({ images, height = 280 }: ImageCarouselProps) {
+  const { theme } = useTheme();
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
@@ -39,12 +40,13 @@ export default function ImageCarousel({ images, height = 280 }: ImageCarouselPro
         showsHorizontalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        keyExtractor={(_, index) => index.toString()}
+        keyExtractor={(item) => item}
         renderItem={({ item }) => (
           <Image
             source={{ uri: item }}
-            style={[styles.image, { height, width: SCREEN_WIDTH }]}
-            resizeMode="cover"
+            style={[styles.image, { height, width: SCREEN_WIDTH, backgroundColor: theme.colors.shimmer }]}
+            contentFit="cover"
+            transition={300}
           />
         )}
       />
@@ -55,7 +57,9 @@ export default function ImageCarousel({ images, height = 280 }: ImageCarouselPro
               key={index}
               style={[
                 styles.dot,
-                index === activeIndex ? styles.dotActive : styles.dotInactive,
+                index === activeIndex
+                  ? [styles.dotActive, { backgroundColor: '#FFFFFF' }]
+                  : { backgroundColor: 'rgba(255,255,255,0.5)' },
               ]}
             />
           ))}
@@ -70,7 +74,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   image: {
-    backgroundColor: colors.shimmer,
+    // backgroundColor applied inline from theme
   },
   pagination: {
     position: 'absolute',
@@ -87,10 +91,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   dotActive: {
-    backgroundColor: colors.white,
     width: 24,
   },
-  dotInactive: {
-    backgroundColor: 'rgba(255,255,255,0.5)',
-  },
+  dotInactive: {},
 });

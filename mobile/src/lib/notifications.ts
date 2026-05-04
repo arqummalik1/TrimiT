@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { NavigationContainerRefWithCurrent } from '@react-navigation/native';
 import api from './api';
 
 // Configure how notifications are handled when the app is foregrounded
@@ -62,11 +63,20 @@ export async function registerForPushNotificationsAsync() {
   }
 }
 
+interface NotificationData {
+  type?: string;
+  booking_id?: string;
+  [key: string]: unknown;
+}
+
 /**
  * Handle user interaction with notifications (Deep Linking)
  */
-export function handleNotificationResponse(response: Notifications.NotificationResponse, navRef: any) {
-  const data = response.notification.request.content.data;
+export function handleNotificationResponse(
+  response: Notifications.NotificationResponse, 
+  navRef: NavigationContainerRefWithCurrent<Record<string, unknown>>
+) {
+  const data = response.notification.request.content.data as NotificationData;
   
   if (!navRef.isReady()) return;
 
@@ -77,9 +87,9 @@ export function handleNotificationResponse(response: Notifications.NotificationR
     const currentRoute = state?.routes[state.index]?.name;
 
     if (currentRoute === 'OwnerTabs') {
-      navRef.navigate('OwnerTabs', { screen: 'Bookings' });
+      navRef.navigate('OwnerTabs' as any, { screen: 'Bookings' } as any);
     } else if (currentRoute === 'CustomerTabs') {
-      navRef.navigate('CustomerTabs', { screen: 'Bookings' });
+      navRef.navigate('CustomerTabs' as any, { screen: 'Bookings' } as any);
     }
   }
 }

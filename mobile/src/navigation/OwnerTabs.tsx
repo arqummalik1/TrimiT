@@ -1,12 +1,32 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { OwnerTabParamList } from './types';
-import { colors } from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import * as Notifications from 'expo-notifications';
+import { OwnerTabParamList, OwnerSettingsStackParamList } from './types';
+import { useTheme } from '../theme/ThemeContext';
+import { subscribeToSalonBookings, unsubscribeFromBookings } from '../lib/supabase';
+import api from '../lib/api';
+
+// Configure notifications to show and play sound when app is in foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
 import OwnerStack from './OwnerStack';
 import ManageBookingsScreen from '../screens/owner/ManageBookingsScreen';
 import ManageServicesScreen from '../screens/owner/ManageServicesScreen';
+import StaffManagementScreen from '../screens/owner/StaffManagementScreen';
+import PromoManagementScreen from '../screens/owner/PromoManagementScreen';
 import SettingsScreen from '../screens/owner/SettingsScreen';
 import ManageSalonScreen from '../screens/owner/ManageSalonScreen';
 import PrivacyPolicyScreen from '../screens/legal/PrivacyPolicyScreen';
@@ -16,7 +36,7 @@ import ContactScreen from '../screens/legal/ContactScreen';
 const Tab = createBottomTabNavigator<OwnerTabParamList>();
 
 // Settings needs its own stack so it can navigate to ManageSalon
-const SettingsStack = createNativeStackNavigator();
+const SettingsStack = createNativeStackNavigator<OwnerSettingsStackParamList>();
 function SettingsStackScreen() {
   return (
     <SettingsStack.Navigator screenOptions={{ headerShown: false }}>
@@ -30,6 +50,62 @@ function SettingsStackScreen() {
 }
 
 export default function OwnerTabs() {
+  const { theme } = useTheme();
+  const { colors } = theme;
+  const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
+
+  const { data: salon } = useQuery({
+    queryKey: ['ownerSalon'],
+    queryFn: async () => {
+      const response = await api.get('/api/owner/salon');
+      return response.data;
+    },
+    retry: false,
+  });
+
+  const { data: analytics } = useQuery({
+    queryKey: ['ownerAnalytics', 'today', salon?.id],
+    queryFn: async () => {
+      const response = await api.get('/api/owner/analytics?period=today');
+      return response.data;
+    },
+    enabled: !!salon,
+  });
+
+  useEffect(() => {
+    if (!salon?.id) return;
+
+    // Request permissions for notifications
+    Notifications.requestPermissionsAsync();
+
+    const channel = subscribeToSalonBookings(salon.id, (payload) => {
+      // Invalidate queries so UI updates instantly across the app
+      queryClient.invalidateQueries({ queryKey: ['ownerBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
+      queryClient.invalidateQueries({ queryKey: ['recentBookings'] });
+
+      // Trigger local notification on new booking
+      if (payload.eventType === 'INSERT') {
+        const newBooking = payload.new as any;
+        Notifications.scheduleNotificationAsync({
+          content: {
+            title: '🔔 New Booking Received!',
+            body: `${newBooking.service_name} on ${newBooking.booking_date} at ${newBooking.booking_time}`,
+            sound: true, // Will play default notification sound
+          },
+          trigger: null, // Send immediately
+        });
+      }
+    });
+
+    return () => {
+      unsubscribeFromBookings(channel);
+    };
+  }, [salon?.id, queryClient]);
+
+  const pendingCount = analytics?.pending_bookings || 0;
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -37,15 +113,18 @@ export default function OwnerTabs() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
-          paddingBottom: 4,
-          height: 60,
+          backgroundColor: colors.tabBar,
+          borderTopColor: colors.tabBarBorder,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          // Dynamic height: base chrome (56) + system bottom inset.
+          // This prevents clipping on Android gesture nav and iPhone home indicator.
+          height: 56 + insets.bottom,
+          paddingBottom: insets.bottom,
+          paddingTop: 6,
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '500',
+          fontWeight: '600',
         },
       }}
     >
@@ -62,6 +141,8 @@ export default function OwnerTabs() {
         name="Bookings"
         component={ManageBookingsScreen}
         options={{
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: colors.error, color: '#fff' },
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar" size={size} color={color} />
           ),
@@ -73,6 +154,24 @@ export default function OwnerTabs() {
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="pricetag" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Staff"
+        component={StaffManagementScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Promos"
+        component={PromoManagementScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="ticket" size={size} color={color} />
           ),
         }}
       />

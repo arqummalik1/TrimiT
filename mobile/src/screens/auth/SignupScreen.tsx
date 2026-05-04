@@ -1,4 +1,15 @@
-import React, { useState } from 'react';
+/**
+ * SignupScreen.tsx
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Production-grade signup screen with:
+ *   • Client-side field validation before API call
+ *   • Inline ErrorState for API errors (replaces raw Alert)
+ *   • Inputs disabled during loading
+ *   • Button loading state prevents double-submit
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,63 +18,77 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
+  Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { colors } from '../../lib/utils';
+import { ErrorState } from '../../components/ErrorState';
+import { typography, spacing, borderRadius } from '../../lib/utils';
+import { useTheme } from '../../theme/ThemeContext';
+import { Theme } from '../../theme/tokens';
 
-interface SignupScreenProps {
-  navigation: any;
-  route: any;
-}
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 
-export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation, route }) => {
-  const role = route.params?.role || 'customer';
-  const { signup, isLoading, error, clearError } = useAuthStore();
+// ─── Validation Schema ────────────────────────────────────────────────────────
 
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    password: '',
-  });
+const signupSchema = z.object({
+  name: z.string().min(1, 'Full name is required'),
+  email: z.string().email('Enter a valid email address'),
+  phone: z.string().regex(/^[+\d\s\-()]{7,15}$/, 'Enter a valid phone number').optional().or(z.literal('')),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+type SignupFormData = z.infer<typeof signupSchema>;
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+import { AuthScreenProps } from '../../navigation/types';
+
+type SignupProps = AuthScreenProps<'Signup'>;
+
+export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const role: 'customer' | 'owner' = route.params?.role || 'customer';
+  const { signup, isLoading, error: authError, clearError } = useAuthStore();
+
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleChange = (field: string, value: string) => {
-    setFormData({ ...formData, [field]: value });
-    if (error) clearError();
-  };
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignupFormData>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: { name: '', email: '', phone: '', password: '' },
+  });
 
-  const handleSubmit = async () => {
-    if (!formData.name || !formData.email || !formData.password) {
-      Alert.alert('Error', 'Please fill in all required fields');
-      return;
-    }
-
+  const onSignupSubmit = async (data: SignupFormData) => {
+    if (authError) clearError();
+    
     const result = await signup(
-      formData.email,
-      formData.password,
-      formData.name,
-      formData.phone,
+      data.email.trim(),
+      data.password,
+      data.name.trim(),
+      data.phone || '',
       role
     );
 
     if (result.success) {
-      // Navigation will be handled by auth state change
-    } else {
-      Alert.alert('Signup Failed', result.error || 'Please try again');
+      // Logic for redirect is handled by auth observer in App.tsx
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenWrapper style={styles.container}>
       <KeyboardAvoidingView
-        style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -75,12 +100,13 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation, route })
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => navigation.goBack()}
+              disabled={isLoading}
             >
-              <Ionicons name="arrow-back" size={24} color={colors.text} />
+              <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
             </TouchableOpacity>
 
             <View style={styles.logoContainer}>
-              <Ionicons name="cut" size={32} color="#FFFFFF" />
+              <Image source={require('../../../assets/logo.png')} style={{ width: 32, height: 32, resizeMode: 'contain', tintColor: theme.colors.textInverse }} />
             </View>
             <Text style={styles.title}>Create Account</Text>
 
@@ -88,7 +114,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation, route })
               <Ionicons
                 name={role === 'customer' ? 'people' : 'storefront'}
                 size={16}
-                color={colors.primary}
+                color={theme.colors.primary}
               />
               <Text style={styles.roleText}>
                 {role === 'customer' ? 'Customer' : 'Salon Owner'}
@@ -98,64 +124,105 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation, route })
 
           {/* Form */}
           <View style={styles.form}>
-            {error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
+            {/* API error banner */}
+            {authError && (
+              <ErrorState
+                variant="inline"
+                message={authError}
+                kind="validation"
+                style={{ marginBottom: spacing.lg }}
+              />
             )}
 
-            <Input
-              label="Full Name *"
-              placeholder="John Doe"
-              value={formData.name}
-              onChangeText={(value) => handleChange('name', value)}
-              autoCapitalize="words"
-              icon={<Ionicons name="person-outline" size={20} color={colors.textSecondary} />}
+            <Controller
+              control={control}
+              name="name"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input
+                  label="Full Name *"
+                  placeholder="John Doe"
+                  value={value}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  autoCapitalize="words"
+                  editable={!isLoading}
+                  icon={<Ionicons name="person-outline" size={20} color={theme.colors.textSecondary} />}
+                  error={errors.name?.message}
+                />
+              )}
             />
 
-            <Input
-              label="Email Address *"
-              placeholder="you@example.com"
-              value={formData.email}
-              onChangeText={(value) => handleChange('email', value)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              icon={<Ionicons name="mail-outline" size={20} color={colors.textSecondary} />}
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input
+                  label="Email Address *"
+                  placeholder="you@example.com"
+                  value={value}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                  icon={<Ionicons name="mail-outline" size={20} color={theme.colors.textSecondary} />}
+                  error={errors.email?.message}
+                />
+              )}
             />
 
-            <Input
-              label="Phone Number"
-              placeholder="+91 98765 43210"
-              value={formData.phone}
-              onChangeText={(value) => handleChange('phone', value)}
-              keyboardType="phone-pad"
-              icon={<Ionicons name="call-outline" size={20} color={colors.textSecondary} />}
+            <Controller
+              control={control}
+              name="phone"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input
+                  label="Phone Number"
+                  placeholder="+91 98765 43210"
+                  value={value}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  keyboardType="phone-pad"
+                  editable={!isLoading}
+                  icon={<Ionicons name="call-outline" size={20} color={theme.colors.textSecondary} />}
+                  error={errors.phone?.message}
+                />
+              )}
             />
 
             <View style={styles.passwordContainer}>
-              <Input
-                label="Password *"
-                placeholder="Min 6 characters"
-                value={formData.password}
-                onChangeText={(value) => handleChange('password', value)}
-                secureTextEntry={!showPassword}
-                icon={<Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />}
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="Password *"
+                    placeholder="Min 6 characters"
+                    value={value}
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    secureTextEntry={!showPassword}
+                    editable={!isLoading}
+                    icon={<Ionicons name="lock-closed-outline" size={20} color={theme.colors.textSecondary} />}
+                    error={errors.password?.message}
+                  />
+                )}
               />
               <TouchableOpacity
                 style={styles.eyeButton}
-                onPress={() => setShowPassword(!showPassword)}
+                onPress={() => setShowPassword((prev) => !prev)}
+                disabled={isLoading}
               >
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
-                  color={colors.textSecondary}
+                  color={theme.colors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
 
             <Button
               title="Create Account"
-              onPress={handleSubmit}
+              onPress={handleSubmit(onSignupSubmit)}
               loading={isLoading}
               style={styles.submitButton}
             />
@@ -164,109 +231,79 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation, route })
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account?</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')} disabled={isLoading}>
               <Text style={styles.linkText}>Sign in</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-  },
+const createStyles = (theme: Theme) => StyleSheet.create({
+  container: { flex: 1 },
+  keyboardView: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: spacing.xxl },
   header: {
     alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 30,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxxl,
   },
   backButton: {
     position: 'absolute',
     left: 0,
-    top: 20,
-    padding: 8,
+    top: spacing.xl,
+    padding: spacing.sm,
   },
   logoContainer: {
     width: 64,
     height: 64,
-    backgroundColor: colors.primary,
-    borderRadius: 16,
+    backgroundColor: theme.colors.primary,
+    borderRadius: borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
+    ...typography.h3,
+    color: theme.colors.text,
+    marginBottom: spacing.md,
   },
   roleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 8,
+    backgroundColor: theme.colors.primaryLight,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.pill,
+    gap: spacing.sm,
   },
   roleText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
+    ...typography.bodySmallMedium,
+    color: theme.colors.primary,
   },
   form: {
-    flex: 1,
+    gap: spacing.md,
+    marginBottom: spacing.xl,
   },
-  errorContainer: {
-    backgroundColor: '#FEE2E2',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#991B1B',
-    fontSize: 14,
-  },
-  passwordContainer: {
-    position: 'relative',
-  },
+  passwordContainer: { position: 'relative' },
   eyeButton: {
     position: 'absolute',
-    right: 16,
+    right: spacing.lg,
     top: 42,
-    padding: 4,
+    padding: spacing.xs,
   },
-  submitButton: {
-    marginTop: 8,
-  },
+  submitButton: { marginTop: spacing.sm },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 24,
-    gap: 6,
+    paddingVertical: spacing.xxl,
+    gap: spacing.sm,
   },
-  footerText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  linkText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-  },
+  footerText: { ...typography.bodySmall, color: theme.colors.textSecondary },
+  linkText: { ...typography.bodySmall, fontWeight: '600', color: theme.colors.primary },
 });
 
 export default SignupScreen;

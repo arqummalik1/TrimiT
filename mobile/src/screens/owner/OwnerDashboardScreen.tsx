@@ -1,23 +1,52 @@
+/**
+ * OwnerDashboardScreen.tsx
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Owner dashboard upgraded with:
+ *   • DashboardSkeleton with 500ms minimum display
+ *   • ErrorState for API failures with retry
+ *   • EmptyState (styled) for no-salon state
+ *   • Real-time subscription unchanged
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  Animated,
+  ActivityIndicator,
+} from 'react-native';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { Salon, Analytics, Booking } from '../../types';
-import { colors, formatPrice } from '../../lib/utils';
+import { formatPrice, typography, spacing, borderRadius } from '../../lib/utils';
+import { useTheme, Theme } from '../../theme/ThemeContext';
 import { Button } from '../../components/Button';
+import { DashboardSkeleton } from '../../components/skeletons/DashboardSkeleton';
+import { ErrorState } from '../../components/ErrorState';
+import { EmptyState } from '../../components/EmptyState';
+import { handleApiError } from '../../lib/errorHandler';
+import { useMinLoadingTime } from '../../hooks/useMinLoadingTime';
 import { BookingsTrendChart, PopularServicesChart, StatusDistributionChart } from '../../components/charts';
-import { subscribeToSalonBookings, unsubscribeFromBookings } from '../../lib/supabase';
 import BookingCard from '../../components/BookingCard';
 
-interface OwnerDashboardScreenProps {
-  navigation: any;
-}
+import { OwnerDashboardScreenProps as NavigationProps } from '../../navigation/types';
+import { ComponentProps } from 'react';
 
-type Period = '7d' | '30d' | 'all';
+type OwnerDashboardProps = NavigationProps<'DashboardMain'>;
 
+type Period = 'today' | '7d' | '30d' | 'all';
+
+// ── Pulse Indicator (live feed dot) ───────────────────────────────────────────
 const PulseIndicator = () => {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const scale = React.useRef(new Animated.Value(1)).current;
   const opacity = React.useRef(new Animated.Value(1)).current;
 
@@ -39,20 +68,102 @@ const PulseIndicator = () => {
   return (
     <View style={styles.pulseContainer}>
       <Animated.View style={[styles.pulseCircle, { transform: [{ scale }], opacity }]} />
-      <View style={[styles.pulseCircle, { backgroundColor: colors.success }]} />
+      <View style={[styles.pulseCircle, { backgroundColor: theme.colors.success }]} />
     </View>
   );
 };
 
-export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navigation }) => {
-  const [selectedPeriod, setSelectedPeriod] = useState<Period>('all');
-  const [realtimeChannel, setRealtimeChannel] = useState<any>(null);
+// ── Animated Stat Card ────────────────────────────────────────────────────────
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  icon: string;
+  color: string;
+  iconColor: string;
+  index: number;
+}
 
-  const { data: salon, isLoading: salonLoading, refetch: refetchSalon } = useQuery<Salon | null>({
+const AnimatedStatCard: React.FC<StatCardProps> = ({ title, value, icon, color, iconColor, index }) => {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const translateY = React.useRef(new Animated.Value(20)).current;
+  const opacity = React.useRef(new Animated.Value(0)).current;
+  const iconScale = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 600,
+        delay: index * 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 600,
+        delay: index * 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Subtle icon float animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(iconScale, { toValue: 1.1, duration: 2000, useNativeDriver: true }),
+        Animated.timing(iconScale, { toValue: 1, duration: 2000, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  return (
+    <Animated.View style={[styles.compactStatCard, { opacity, transform: [{ translateY }] }]}>
+      <View style={styles.compactStatTop}>
+        <Animated.View 
+          style={[
+            styles.compactStatIcon, 
+            { backgroundColor: color + '25', transform: [{ scale: iconScale }] }
+          ]}
+        >
+          <Ionicons name={icon as ComponentProps<typeof Ionicons>['name']} size={20} color={iconColor} />
+        </Animated.View>
+        <Text style={styles.compactStatLabel} numberOfLines={1}>{title}</Text>
+      </View>
+      <Text style={styles.compactStatValue} numberOfLines={1}>{value}</Text>
+    </Animated.View>
+  );
+};
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
+export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation }) => {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>('today');
+  const [showCharts, setShowCharts] = useState(false);
+
+  useEffect(() => {
+    // Delay chart rendering to keep initial screen transition smooth
+    const timer = setTimeout(() => {
+      setShowCharts(true);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const {
+    data: salon,
+    isLoading: salonLoading,
+    isError: salonError,
+    error: salonRawError,
+    refetch: refetchSalon,
+  } = useQuery<Salon | null>({
     queryKey: ['ownerSalon'],
     queryFn: async () => {
       const response = await api.get('/api/owner/salon');
       return response.data;
+    },
+    retry: (count, err: unknown) => {
+      const appErr = handleApiError(err);
+      return appErr.kind !== 'unauthorized' && count < 2;
     },
   });
 
@@ -69,148 +180,158 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
     queryKey: ['recentBookings', salon?.id],
     queryFn: async () => {
       const response = await api.get('/api/bookings');
-      // Sort by latest and take first 3
-      return response.data.sort((a: Booking, b: Booking) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      ).slice(0, 3);
+      return response.data
+        .sort((a: Booking, b: Booking) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+        .slice(0, 3);
     },
     enabled: !!salon,
   });
 
-  // Subscribe to real-time booking updates
-  useEffect(() => {
-    if (salon?.id) {
-      const channel = subscribeToSalonBookings(salon.id, () => {
-        // Refresh everything when bookings change
-        refetchAnalytics();
-        refetchRecentBookings();
-      });
-      setRealtimeChannel(channel);
+  const queryClient = useQueryClient();
+  const statusMutation = useMutation({
+    mutationFn: async ({ bookingId, status }: { bookingId: string; status: string }) => {
+      await api.patch(`/api/bookings/${bookingId}/status`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recentBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
+      queryClient.invalidateQueries({ queryKey: ['salonBookings'] });
+    },
+    onError: (err: unknown) => {
+      const appErr = handleApiError(err);
+      console.error('[Dashboard] Status update failed:', appErr);
+    },
+  });
 
-      return () => {
-        unsubscribeFromBookings(channel);
-      };
-    }
-  }, [salon?.id]);
-
-  const handleRefresh = () => {
-    refetchSalon();
-    refetchAnalytics();
-    refetchRecentBookings();
+  const handleRefresh = async () => {
+    await Promise.all([refetchSalon(), refetchAnalytics(), refetchRecentBookings()]);
   };
 
-  const handlePeriodChange = (period: Period) => {
-    setSelectedPeriod(period);
-  };
+  // Note: Real-time subscription is handled globally in OwnerTabs.tsx
+  // When a new booking comes in, OwnerTabs invalidates the query cache,
+  // causing this screen to automatically re-fetch and update.
 
-  const statCards = [
-    {
-      title: 'Total Earnings',
-      value: formatPrice(analytics?.total_earnings || 0),
-      icon: 'wallet',
-      color: '#D1FAE5',
-      iconColor: '#059669',
-    },
-    {
-      title: 'Total Bookings',
-      value: analytics?.total_bookings || 0,
-      icon: 'calendar',
-      color: '#DBEAFE',
-      iconColor: '#1E40AF',
-    },
-    {
-      title: "Today's Bookings",
-      value: analytics?.today_bookings || 0,
-      icon: 'today',
-      color: '#FFEDD5',
-      iconColor: '#C2410C',
-    },
-    {
-      title: 'Pending',
-      value: analytics?.pending_bookings || 0,
-      icon: 'hourglass',
-      color: '#FEF3C7',
-      iconColor: '#92400E',
-    },
-  ];
+  const showSkeleton = useMinLoadingTime(salonLoading, 500);
 
-  if (!salon && !salonLoading) {
+  // ── Loading ────────────────────────────────────────────────────────────────
+  if (showSkeleton) {
     return (
-      <SafeAreaView style={styles.emptyContainer}>
-        <Ionicons name="storefront-outline" size={80} color={colors.border} />
-        <Text style={styles.emptyTitle}>Create Your Salon</Text>
-        <Text style={styles.emptyText}>
-          Set up your salon profile to start receiving bookings
-        </Text>
-        <Button
-          title="Create Salon"
-          onPress={() => navigation.navigate('ManageSalon')}
-          icon={<Ionicons name="add" size={20} color="#FFFFFF" />}
-        />
-      </SafeAreaView>
+      <ScreenWrapper variant="tab">
+        <DashboardSkeleton />
+      </ScreenWrapper>
     );
   }
 
+  // ── Error ──────────────────────────────────────────────────────────────────
+  if (salonError) {
+    const appErr = handleApiError(salonRawError);
+    return (
+      <ScreenWrapper variant="tab">
+        <ErrorState
+          title="Couldn't load dashboard"
+          message={appErr.message}
+          kind={appErr.kind}
+          onRetry={handleRefresh}
+        />
+      </ScreenWrapper>
+    );
+  }
+
+  // ── No salon yet ───────────────────────────────────────────────────────────
+  if (!salon) {
+    return (
+      <ScreenWrapper variant="tab">
+        <EmptyState
+          icon="storefront-outline"
+          title="Create Your Salon"
+          message="Set up your salon profile to start accepting bookings and tracking your business."
+          action={{ label: 'Create Salon', onPress: () => navigation.navigate('ManageSalon') }}
+        />
+      </ScreenWrapper>
+    );
+  }
+
+  // ── Stat cards ─────────────────────────────────────────────────────────────
+  const getPeriodLabel = () => {
+    switch(selectedPeriod) {
+      case 'today': return 'Today';
+      case '7d': return 'Last 7 Days';
+      case '30d': return 'Last 30 Days';
+      default: return 'Total';
+    }
+  };
+
+  const statCards = [
+    { 
+      title: selectedPeriod === 'all' ? 'Total Earnings' : 'Earnings', 
+      value: formatPrice(analytics?.total_earnings || 0), 
+      icon: 'wallet-outline', color: '#10B981', iconColor: '#10B981' 
+    },
+    { 
+      title: selectedPeriod === 'all' ? 'Total Bookings' : 'Bookings', 
+      value: analytics?.total_bookings || 0, 
+      icon: 'calendar-outline', color: '#3B82F6', iconColor: '#3B82F6' 
+    },
+    { 
+      title: "Today's", 
+      value: analytics?.today_bookings || 0, 
+      icon: 'today-outline', color: '#F97316', iconColor: '#F97316' 
+    },
+    { 
+      title: 'Pending', 
+      value: analytics?.pending_bookings || 0, 
+      icon: 'hourglass-outline', color: '#F59E0B', iconColor: '#F59E0B' 
+    },
+  ];
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <ScreenWrapper variant="tab">
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={salonLoading} onRefresh={handleRefresh} tintColor={colors.primary} />
+          <RefreshControl
+            refreshing={salonLoading}
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.primary}
+          />
         }
       >
-        {/* Modern Premium Header */}
+        {/* Premium Header */}
         <View style={styles.premiumHeader}>
           <View>
             <Text style={styles.welcomeText}>Good Day,</Text>
-            <Text style={styles.salonTitle}>{salon?.name}</Text>
+            <Text style={styles.salonTitle}>{salon.name}</Text>
           </View>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.notificationBell}
             onPress={() => navigation.navigate('OwnerTabs', { screen: 'Bookings' })}
           >
-            <Ionicons name="notifications-outline" size={24} color={colors.text} />
-            {analytics && analytics.pending_bookings > 0 && (
-              <View style={styles.bellDot} />
-            )}
+            <Ionicons name="notifications-outline" size={24} color={theme.colors.text} />
+            {analytics && analytics.pending_bookings > 0 && <View style={styles.bellDot} />}
           </TouchableOpacity>
         </View>
 
-        {/* High-Density Period Selector */}
+        {/* Period Selector */}
         <View style={styles.periodRow}>
-          {(['7d', '30d', 'all'] as Period[]).map((period) => (
+          {(['today', '7d', '30d', 'all'] as Period[]).map((period) => (
             <TouchableOpacity
               key={period}
-              style={[
-                styles.periodTab,
-                selectedPeriod === period && styles.periodTabActive,
-              ]}
-              onPress={() => handlePeriodChange(period)}
+              style={[styles.periodTab, selectedPeriod === period && styles.periodTabActive]}
+              onPress={() => setSelectedPeriod(period)}
             >
-              <Text
-                style={[
-                  styles.periodTabText,
-                  selectedPeriod === period && styles.periodTabTextActive,
-                ]}
-              >
-                {period === '7d' ? '7 Days' : period === '30d' ? '30 Days' : 'All Time'}
+              <Text style={[styles.periodTabText, selectedPeriod === period && styles.periodTabTextActive]}>
+                {period === 'today' ? 'Today' : period === '7d' ? '7 Days' : period === '30d' ? '30 Days' : 'All Time'}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Compact Stats Grid (2-column) */}
+        {/* Stats Grid 2x2 */}
         <View style={styles.compactStatsGrid}>
           {statCards.map((stat, index) => (
-            <View key={index} style={styles.compactStatCard}>
-              <View style={styles.compactStatTop}>
-                <View style={[styles.compactStatIcon, { backgroundColor: stat.color + '40' }]}>
-                  <Ionicons name={stat.icon as any} size={18} color={stat.iconColor} />
-                </View>
-                <Text style={styles.compactStatLabel}>{stat.title}</Text>
-              </View>
-              <Text style={styles.compactStatValue}>{stat.value}</Text>
-            </View>
+            <AnimatedStatCard key={index} {...stat} index={index} />
           ))}
         </View>
 
@@ -225,55 +346,64 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
               <Text style={styles.seeAllText}>View All</Text>
             </TouchableOpacity>
           </View>
+
           {recentBookings && recentBookings.length > 0 ? (
             recentBookings.map((booking) => (
-              <BookingCard 
-                key={booking.id} 
-                booking={booking} 
-                isOwner 
-                compact 
-                onConfirm={() => handleRefresh()}
-                onReject={() => handleRefresh()}
+              <BookingCard
+                key={booking.id}
+                booking={booking}
+                isOwner
+                compact
+                isLoading={statusMutation.isPending && statusMutation.variables?.bookingId === booking.id}
+                onConfirm={() => statusMutation.mutate({ bookingId: booking.id, status: 'confirmed' })}
+                onReject={() => statusMutation.mutate({ bookingId: booking.id, status: 'cancelled' })}
+                onComplete={() => statusMutation.mutate({ bookingId: booking.id, status: 'completed' })}
               />
             ))
           ) : (
-            <View style={styles.emptyActivity}>
-              <Text style={styles.emptyActivityText}>No recent activity</Text>
-            </View>
+            <EmptyState
+              icon="calendar-outline"
+              title="No Recent Activity"
+              message="New bookings will appear here in real-time."
+              compact
+            />
           )}
         </View>
 
         {/* Performance Charts */}
-        {analytics && (
+        {analytics && showCharts ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Business Performance</Text>
             <BookingsTrendChart data={analytics.bookings_trend} />
-            
             <View style={styles.chartsGrid}>
               <View style={{ flex: 1 }}>
                 <PopularServicesChart data={analytics.popular_services} />
               </View>
             </View>
-            
             <StatusDistributionChart data={analytics.status_distribution} />
+          </View>
+        ) : analytics && (
+          <View style={[styles.section, { height: 300, justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator color={theme.colors.primary} />
+            <Text style={{ marginTop: 12, color: theme.colors.textSecondary, fontSize: 12 }}>
+              Preparing charts...
+            </Text>
           </View>
         )}
 
-        {/* Quick Insights */}
+        {/* Peak Hours */}
         {analytics?.peak_hours && analytics.peak_hours.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Peak Hours</Text>
             <View style={styles.peakHoursCard}>
               {analytics.peak_hours.slice(0, 3).map((hour, index) => (
                 <View key={index} style={styles.peakHourRow}>
-                  <Text style={styles.peakHourTimeText}>
-                    {hour.hour}:00
-                  </Text>
+                  <Text style={styles.peakHourTimeText}>{hour.hour}:00</Text>
                   <View style={styles.peakHourBar}>
                     <View
                       style={[
                         styles.peakHourFill,
-                        { width: `${Math.min((hour.bookings / analytics.total_bookings) * 100, 100)}%` },
+                        { width: `${Math.min((hour.bookings / analytics.total_bookings) * 100, 100)}%` as const },
                       ]}
                     />
                   </View>
@@ -286,229 +416,74 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardScreenProps> = ({ navi
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC', // Sleek light background
-  },
+const createStyles = (theme: Theme) => StyleSheet.create({
+  container: { flex: 1 },
   premiumHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 24,
-    paddingBottom: 16,
+    padding: spacing.xxl,
+    paddingBottom: spacing.lg,
   },
-  welcomeText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  salonTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.5,
-  },
+  welcomeText: { fontSize: 14, color: theme.colors.textSecondary, fontWeight: '500' },
+  salonTitle: { fontSize: 24, fontWeight: '800', color: theme.colors.text, letterSpacing: -0.5 },
   notificationBell: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.surface,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: theme.colors.border,
   },
   bellDot: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+    position: 'absolute', top: 12, right: 12,
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: theme.colors.primary, borderWidth: 2, borderColor: theme.colors.surface,
   },
-  periodRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 24,
-    marginBottom: 20,
-    gap: 8,
-  },
-  periodTab: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    backgroundColor: '#E2E8F0',
-  },
-  periodTabActive: {
-    backgroundColor: colors.text,
-  },
-  periodTabText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  periodTabTextActive: {
-    color: '#FFFFFF',
-  },
+  periodRow: { flexDirection: 'row', paddingHorizontal: spacing.xxl, marginBottom: spacing.xl, gap: spacing.sm },
+  periodTab: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: theme.colors.surfaceHighlight },
+  periodTabActive: { backgroundColor: theme.colors.text },
+  periodTabText: { fontSize: 12, fontWeight: '600', color: theme.colors.textSecondary },
+  periodTabTextActive: { color: theme.colors.background },
   compactStatsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 18,
-    gap: 12,
-    marginBottom: 24,
+    paddingHorizontal: spacing.xxl,
+    justifyContent: 'space-between',
+    marginBottom: spacing.xxl,
   },
   compactStatCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 20,
+    width: '48%',
+    backgroundColor: theme.colors.surface,
+    padding: spacing.md,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: theme.colors.border,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowRadius: 8,
     elevation: 2,
   },
-  compactStatTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  compactStatIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  compactStatLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  compactStatValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    letterSpacing: -0.5,
-  },
-  section: {
-    paddingHorizontal: 24,
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  seeAllText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  emptyActivity: {
-    padding: 32,
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 16,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  emptyActivityText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
-  chartsGrid: {
-    marginBottom: 16,
-  },
-  peakHoursCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    gap: 16,
-  },
-  peakHourRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  peakHourTimeText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    width: 45,
-  },
-  peakHourBar: {
-    flex: 1,
-    height: 6,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  peakHourFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 3,
-  },
-  peakHourCount: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    width: 25,
-    textAlign: 'right',
-  },
-  pulseContainer: {
-    width: 12,
-    height: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pulseCircle: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.success + '40',
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-    backgroundColor: colors.background,
-  },
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
+  compactStatTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  compactStatIcon: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  compactStatLabel: { fontSize: 11, fontWeight: '600', color: theme.colors.textSecondary },
+  compactStatValue: { fontSize: 20, fontWeight: '700', color: theme.colors.text, letterSpacing: -0.5 },
+  section: { paddingHorizontal: spacing.xxl, marginBottom: spacing.xxl },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.text },
+  seeAllText: { fontSize: 14, color: theme.colors.primary, fontWeight: '600' },
+  chartsGrid: { marginBottom: spacing.lg },
+  peakHoursCard: { backgroundColor: theme.colors.surface, borderRadius: 20, padding: spacing.xl, borderWidth: 1, borderColor: theme.colors.border, gap: spacing.lg },
+  peakHourRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  peakHourTimeText: { fontSize: 13, fontWeight: '600', color: theme.colors.text, width: 45 },
+  peakHourBar: { flex: 1, height: 6, backgroundColor: theme.colors.surfaceHighlight, borderRadius: 3, overflow: 'hidden' },
+  peakHourFill: { height: '100%', backgroundColor: theme.colors.primary, borderRadius: 3 },
+  peakHourCount: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, width: 25, textAlign: 'right' },
+  pulseContainer: { width: 12, height: 12, alignItems: 'center', justifyContent: 'center' },
+  pulseCircle: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.success + '40' },
 });
 
 export default OwnerDashboardScreen;

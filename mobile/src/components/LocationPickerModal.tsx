@@ -23,7 +23,7 @@
  *  - Get directions (not here, but in directions flow): ZERO — uses native app.
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -38,7 +38,7 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
-import MapView, { MapPressEvent, Region } from 'react-native-maps';
+import MapView, { MapPressEvent } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 
@@ -48,7 +48,10 @@ import {
   buildLocationPickerRegion,
 } from '../lib/maps';
 import SalonMapMarker from './SalonMapMarker';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { typography, spacing, borderRadius, shadows } from '../lib/utils';
+import { useTheme } from '../theme/ThemeContext';
+import { Theme } from '../theme/tokens';
+import { handleApiError } from '../lib/errorHandler';
 
 // ─── Props ─────────────────────────────────────────────────────────
 
@@ -67,6 +70,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   onConfirm,
   onDismiss,
 }) => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const mapRef = useRef<MapView>(null);
 
   const [selectedCoords, setSelectedCoords] = useState<Coordinates>(initialCoordinates);
@@ -135,8 +140,9 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         buildLocationPickerRegion(result.coordinates),
         600
       );
-    } catch (error: any) {
-      setSearchError(error.message ?? 'Address not found. Please try again.');
+    } catch (error) {
+      const appErr = handleApiError(error);
+      setSearchError(appErr.message ?? 'Address not found. Please try again.');
     } finally {
       setIsSearching(false);
     }
@@ -157,12 +163,12 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       onRequestClose={onDismiss}
     >
       <SafeAreaView style={styles.root}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.surface} />
 
         {/* ── Top bar ─────────────────────────────────────────── */}
         <View style={styles.topBar}>
           <TouchableOpacity onPress={onDismiss} style={styles.closeBtn} hitSlop={8}>
-            <Ionicons name="close" size={24} color={colors.text} />
+            <Ionicons name="close" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.topTitle}>Pin Your Salon Location</Text>
           <View style={{ width: 40 }} />
@@ -174,11 +180,11 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           style={styles.searchWrapper}
         >
           <View style={[styles.searchRow, shadows.sm]}>
-            <Ionicons name="search" size={18} color={colors.textSecondary} style={styles.searchIcon} />
+            <Ionicons name="search" size={18} color={theme.colors.textSecondary} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search address..."
-              placeholderTextColor={colors.textTertiary}
+              placeholderTextColor={theme.colors.textTertiary}
               value={searchText}
               onChangeText={(t) => {
                 setSearchText(t);
@@ -195,7 +201,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                 hitSlop={8}
                 style={styles.clearBtn}
               >
-                <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+                <Ionicons name="close-circle" size={18} color={theme.colors.textTertiary} />
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -214,7 +220,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           {/* Search error feedback */}
           {searchError ? (
             <View style={styles.errorBanner}>
-              <Ionicons name="warning-outline" size={14} color={colors.error} />
+              <Ionicons name="warning-outline" size={14} color={theme.colors.error} />
               <Text style={styles.errorText}>{searchError}</Text>
             </View>
           ) : null}
@@ -232,6 +238,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             showsCompass
             showsScale
             mapType="standard"
+            userInterfaceStyle={isDark ? 'dark' : 'light'}
           >
             <SalonMapMarker
               coordinate={selectedCoords}
@@ -247,15 +254,15 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             disabled={isLocating}
           >
             {isLocating ? (
-              <ActivityIndicator size="small" color={colors.primary} />
+              <ActivityIndicator size="small" color={theme.colors.primary} />
             ) : (
-              <Ionicons name="locate" size={22} color={colors.primary} />
+              <Ionicons name="locate" size={22} color={theme.colors.primary} />
             )}
           </TouchableOpacity>
 
           {/* Tap hint */}
           <View style={styles.tapHint} pointerEvents="none">
-            <Ionicons name="information-circle-outline" size={14} color={colors.textSecondary} />
+            <Ionicons name="information-circle-outline" size={14} color={theme.colors.textSecondary} />
             <Text style={styles.tapHintText}>Tap the map to move the pin</Text>
           </View>
         </View>
@@ -263,7 +270,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         {/* ── Coordinate display + Confirm ─────────────────────── */}
         <View style={styles.footer}>
           <View style={styles.coordsRow}>
-            <Ionicons name="location" size={16} color={colors.primary} />
+            <Ionicons name="location" size={16} color={theme.colors.primary} />
             <Text style={styles.coordsLabel}>Selected Location</Text>
           </View>
           <Text style={styles.coordsValue}>
@@ -282,10 +289,10 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
 // ─── Styles ────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
 
   // Top bar
@@ -295,9 +302,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: theme.colors.border,
   },
   closeBtn: {
     width: 40,
@@ -307,7 +314,7 @@ const styles = StyleSheet.create({
   },
   topTitle: {
     ...typography.h4,
-    color: colors.text,
+    color: theme.colors.text,
   },
 
   // Search
@@ -315,15 +322,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
   },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: theme.colors.surfaceSecondary,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     overflow: 'hidden',
   },
   searchIcon: {
@@ -334,13 +341,13 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     ...typography.bodyMedium,
-    color: colors.text,
+    color: theme.colors.text,
   },
   clearBtn: {
     padding: spacing.sm,
   },
   findBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: spacing.lg,
     height: 44,
     alignItems: 'center',
@@ -360,7 +367,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...typography.bodySmall,
-    color: colors.error,
+    color: theme.colors.error,
     flex: 1,
   },
 
@@ -375,12 +382,12 @@ const styles = StyleSheet.create({
     right: 16,
     width: 48,
     height: 48,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     // iOS shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -396,24 +403,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: 'rgba(255,255,255,0.88)',
+    backgroundColor: theme.colors.surfaceSecondary,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
   },
   tapHintText: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
 
   // Footer
   footer: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
     paddingBottom: Platform.OS === 'ios' ? spacing.xl : spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: theme.colors.border,
     gap: spacing.sm,
   },
   coordsRow: {
@@ -423,18 +430,18 @@ const styles = StyleSheet.create({
   },
   coordsLabel: {
     ...typography.bodySmallMedium,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   coordsValue: {
     ...typography.bodySmall,
-    color: colors.text,
+    color: theme.colors.text,
     fontVariant: ['tabular-nums'],
   },
   confirmBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.lg,
     gap: spacing.sm,

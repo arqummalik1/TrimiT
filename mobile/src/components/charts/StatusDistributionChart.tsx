@@ -2,13 +2,16 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { PieChart } from 'react-native-gifted-charts';
 import type { StatusDistributionData } from '../../types';
-import { colors } from '../../lib/utils';
+import { useTheme, Theme } from '../../theme';
 
 interface StatusDistributionChartProps {
   data: StatusDistributionData[];
 }
 
 export const StatusDistributionChart: React.FC<StatusDistributionChartProps> = ({ data }) => {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
+
   if (!data || data.length === 0 || data.every(d => d.count === 0)) {
     return (
       <View style={styles.emptyContainer}>
@@ -38,11 +41,11 @@ export const StatusDistributionChart: React.FC<StatusDistributionChartProps> = (
           radius={70}
           innerRadius={40}
           showText
-          textColor={colors.text}
+          textColor={theme.colors.text}
           textSize={10}
           fontWeight="bold"
           strokeWidth={2}
-          strokeColor={colors.surface}
+          strokeColor={theme.colors.surface}
         />
         
         {/* Legend */}
@@ -61,17 +64,19 @@ export const StatusDistributionChart: React.FC<StatusDistributionChartProps> = (
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   title: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: 16,
   },
   chartRow: {
@@ -96,17 +101,19 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 13,
-    color: colors.text,
+    color: theme.colors.textSecondary,
   },
   emptyContainer: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   emptyText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
 });

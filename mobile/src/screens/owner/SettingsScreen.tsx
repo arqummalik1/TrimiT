@@ -9,24 +9,30 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Sentry from '@sentry/react-native';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { Salon } from '../../types';
-import { colors } from '../../lib/utils';
 import { Button } from '../../components/Button';
 import { useAuthStore } from '../../store/authStore';
+import { useTheme, ThemeMode } from '../../theme/ThemeContext';
+import { Theme } from '../../theme/tokens';
+import { handleApiError } from '../../lib/errorHandler';
 
-interface SettingsScreenProps {
-  navigation: any;
-}
+import { OwnerSettingsScreenProps } from '../../navigation/types';
 
-export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
+type SettingsProps = OwnerSettingsScreenProps<'SettingsMain'>;
+
+export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
+  const { theme, themeMode, setThemeMode } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const queryClient = useQueryClient();
   const { logout } = useAuthStore();
   const [allowMultipleBookings, setAllowMultipleBookings] = useState(false);
   const [autoAccept, setAutoAccept] = useState(true);
+  const [enableOffers, setEnableOffers] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
 
   // Get salon data
@@ -42,7 +48,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
   useEffect(() => {
     if (salon) {
       setAllowMultipleBookings(salon.allow_multiple_bookings_per_slot || false);
-      setAutoAccept(salon.auto_accept !== false); // Default to true if undefined
+      setAutoAccept(salon.auto_accept !== false);
+      setEnableOffers(salon.show_offers !== false); // default true
       setHasChanges(false);
     }
   }, [salon]);
@@ -66,6 +73,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
       const response = await api.patch(`/api/salons/${salon.id}`, {
         allow_multiple_bookings_per_slot: allowMultipleBookings,
         auto_accept: autoAccept,
+        show_offers: enableOffers,
       });
       return response.data;
     },
@@ -74,10 +82,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
       queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
       Alert.alert('Success', 'Settings saved successfully');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const appErr = handleApiError(error);
       Alert.alert(
         'Error',
-        error.response?.data?.detail || 'Failed to save settings'
+        appErr.message
       );
     },
   });
@@ -88,20 +97,20 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
 
   if (salonLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenWrapper variant="stack">
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Loading settings...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   if (!salon) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenWrapper variant="stack">
         <View style={styles.emptyContainer}>
-          <Ionicons name="storefront-outline" size={64} color={colors.textSecondary} />
+          <Ionicons name="storefront-outline" size={64} color={theme.colors.textSecondary} />
           <Text style={styles.emptyTitle}>No Salon Found</Text>
           <Text style={styles.emptyText}>
             You need to create a salon before accessing settings
@@ -111,19 +120,19 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
             onPress={() => navigation.navigate('ManageSalon')}
           />
         </View>
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <ScreenWrapper variant="stack">
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Salon Settings</Text>
         <View style={styles.headerRight} />
@@ -132,10 +141,50 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Salon Info Card */}
         <View style={styles.infoCard}>
-          <Ionicons name="storefront" size={32} color={colors.primary} />
+          <Ionicons name="storefront" size={32} color={theme.colors.primary} />
           <View style={styles.infoTextContainer}>
             <Text style={styles.salonName}>{salon.name}</Text>
             <Text style={styles.salonAddress}>{salon.address}</Text>
+          </View>
+        </View>
+
+        {/* Appearance Settings Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Appearance</Text>
+          <View style={styles.settingCard}>
+            <View style={styles.settingHeader}>
+              <View style={styles.settingIconContainer}>
+                <Ionicons name="color-palette" size={24} color={theme.colors.primary} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Theme Preference</Text>
+                <Text style={styles.settingDescription}>Choose how the app looks</Text>
+              </View>
+            </View>
+            <View style={styles.themeToggleContainer}>
+              {(['light', 'dark', 'system'] as ThemeMode[]).map((mode) => (
+                <TouchableOpacity
+                  key={mode}
+                  style={[
+                    styles.themeOption,
+                    themeMode === mode && styles.themeOptionActive,
+                  ]}
+                  onPress={() => setThemeMode(mode)}
+                >
+                  <Ionicons 
+                    name={mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'phone-portrait'} 
+                    size={20} 
+                    color={themeMode === mode ? '#FFFFFF' : theme.colors.textSecondary} 
+                  />
+                  <Text style={[
+                    styles.themeOptionText,
+                    themeMode === mode && styles.themeOptionTextActive,
+                  ]}>
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
 
@@ -146,7 +195,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
           <View style={styles.settingCard}>
             <View style={styles.settingHeader}>
               <View style={styles.settingIconContainer}>
-                <Ionicons name="flash" size={24} color={colors.primary} />
+                <Ionicons name="flash" size={24} color={theme.colors.primary} />
               </View>
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingTitle}>
@@ -159,8 +208,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               <Switch
                 value={autoAccept}
                 onValueChange={handleAutoAcceptChange}
-                trackColor={{ false: colors.border, true: colors.primaryLight }}
-                thumbColor={autoAccept ? colors.primary : '#f4f3f4'}
+                trackColor={{ false: theme.colors.border, true: theme.colors.primary + '80' }}
+                thumbColor={autoAccept ? theme.colors.primary : '#f4f3f4'}
               />
             </View>
           </View>
@@ -168,7 +217,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
           <View style={[styles.settingCard, { marginTop: 12 }]}>
             <View style={styles.settingHeader}>
               <View style={styles.settingIconContainer}>
-                <Ionicons name="people" size={24} color={colors.primary} />
+                <Ionicons name="people" size={24} color={theme.colors.primary} />
               </View>
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingTitle}>
@@ -181,19 +230,53 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               <Switch
                 value={allowMultipleBookings}
                 onValueChange={handleToggleChange}
-                trackColor={{ false: colors.border, true: colors.primaryLight }}
-                thumbColor={allowMultipleBookings ? colors.primary : '#f4f3f4'}
+                trackColor={{ false: theme.colors.border, true: theme.colors.primary + '80' }}
+                thumbColor={allowMultipleBookings ? theme.colors.primary : '#f4f3f4'}
               />
             </View>
           </View>
 
           {/* Info Card */}
           <View style={styles.infoBox}>
-            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <Ionicons name="information-circle" size={20} color={theme.colors.primary} />
             <Text style={styles.infoBoxText}>
               {allowMultipleBookings 
                 ? "Multiple customers can now book the same time slot. This is useful for salons with multiple staff members or chairs."
                 : "Only one customer can book each time slot. New bookings will be blocked for already-booked slots."}
+            </Text>
+          </View>
+        </View>
+
+        {/* Service Offers Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Service Offers</Text>
+
+          <View style={styles.settingCard}>
+            <View style={styles.settingHeader}>
+              <View style={styles.settingIconContainer}>
+                <Ionicons name="pricetag" size={24} color={theme.colors.primary} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Enable Service Offers</Text>
+                <Text style={styles.settingDescription}>
+                  Show discount badges on services marked as on offer
+                </Text>
+              </View>
+              <Switch
+                value={enableOffers}
+                onValueChange={(v) => { setEnableOffers(v); setHasChanges(true); }}
+                trackColor={{ false: theme.colors.border, true: theme.colors.primary + '80' }}
+                thumbColor={enableOffers ? theme.colors.primary : '#f4f3f4'}
+              />
+            </View>
+          </View>
+
+          <View style={styles.infoBox}>
+            <Ionicons name="information-circle" size={20} color={theme.colors.primary} />
+            <Text style={styles.infoBoxText}>
+              {enableOffers
+                ? 'Customers will see discount badges (e.g. "20% OFF") on services where you have enabled an offer.'
+                : 'Offer badges are currently hidden from customers even if a service is marked as on offer.'}
             </Text>
           </View>
         </View>
@@ -207,7 +290,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
             onPress={() => navigation.navigate('ManageSalon')}
           >
             <View style={styles.actionIconContainer}>
-              <Ionicons name="create" size={24} color={colors.primary} />
+              <Ionicons name="create" size={24} color={theme.colors.primary} />
             </View>
             <View style={styles.actionTextContainer}>
               <Text style={styles.actionTitle}>Edit Salon Details</Text>
@@ -215,15 +298,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
                 Update name, address, hours, and more
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.actionCard}
             onPress={() => navigation.navigate('OwnerTabs', { screen: 'Services' })}
           >
-            <View style={[styles.actionIconContainer, { backgroundColor: colors.secondaryLight }]}>
-              <Ionicons name="cut" size={24} color={colors.secondary} />
+            <View style={[styles.actionIconContainer, { backgroundColor: theme.colors.surfaceSecondary }]}>
+              <Ionicons name="cut" size={24} color={theme.colors.primary} />
             </View>
             <View style={styles.actionTextContainer}>
               <Text style={styles.actionTitle}>Manage Services</Text>
@@ -231,7 +314,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
                 Add, edit, or remove services
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -244,12 +327,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
             onPress={() => navigation.navigate('PrivacyPolicy')}
           >
             <View style={styles.actionIconContainer}>
-              <Ionicons name="shield-checkmark" size={24} color={colors.primary} />
+              <Ionicons name="shield-checkmark" size={24} color={theme.colors.primary} />
             </View>
             <View style={styles.actionTextContainer}>
               <Text style={styles.actionTitle}>Privacy Policy</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -257,12 +340,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
             onPress={() => navigation.navigate('Terms')}
           >
             <View style={styles.actionIconContainer}>
-              <Ionicons name="document-text" size={24} color={colors.primary} />
+              <Ionicons name="document-text" size={24} color={theme.colors.primary} />
             </View>
             <View style={styles.actionTextContainer}>
               <Text style={styles.actionTitle}>Terms of Service</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -270,12 +353,32 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
             onPress={() => navigation.navigate('Contact')}
           >
             <View style={styles.actionIconContainer}>
-              <Ionicons name="mail" size={24} color={colors.primary} />
+              <Ionicons name="mail" size={24} color={theme.colors.primary} />
             </View>
             <View style={styles.actionTextContainer}>
               <Text style={styles.actionTitle}>Contact Us</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+
+          {/* Debug Action */}
+          <TouchableOpacity
+            style={[styles.actionCard, { borderColor: theme.colors.primary + '40' }]}
+            onPress={() => {
+              Sentry.captureException(new Error("Owner Test Error: Sentry is working!"));
+              Alert.alert("Success", "Test error sent to Sentry!");
+            }}
+          >
+            <View style={styles.actionIconContainer}>
+              <Ionicons name="bug" size={24} color={theme.colors.primary} />
+            </View>
+            <View style={styles.actionTextContainer}>
+              <Text style={styles.actionTitle}>Test Sentry Error</Text>
+              <Text style={styles.actionDescription}>
+                Send a test report to your dashboard
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -301,7 +404,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               );
             }}
           >
-            <Ionicons name="log-out-outline" size={22} color={colors.error} />
+            <Ionicons name="log-out-outline" size={22} color={theme.colors.error} />
             <Text style={styles.logoutText}>Logout from Account</Text>
           </TouchableOpacity>
           <Text style={styles.versionText}>Version 1.0.0 (Production)</Text>
@@ -319,14 +422,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
           />
         </View>
       )}
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -336,7 +438,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   emptyContainer: {
     flex: 1,
@@ -348,11 +450,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.text,
+    color: theme.colors.text,
   },
   emptyText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   header: {
@@ -360,14 +462,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: theme.colors.border,
   },
   backButton: {
     width: 40,
     height: 40,
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: theme.colors.surfaceSecondary,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
@@ -375,7 +477,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
+    color: theme.colors.text,
   },
   headerRight: {
     width: 40,
@@ -387,12 +489,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     margin: 20,
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
   },
   infoTextContainer: {
     flex: 1,
@@ -400,12 +502,12 @@ const styles = StyleSheet.create({
   salonName: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: 4,
   },
   salonAddress: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   section: {
     paddingHorizontal: 20,
@@ -414,14 +516,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: 12,
   },
   settingCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     padding: 16,
   },
   settingHeader: {
@@ -432,7 +534,7 @@ const styles = StyleSheet.create({
   settingIconContainer: {
     width: 44,
     height: 44,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.surfaceSecondary,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -443,18 +545,49 @@ const styles = StyleSheet.create({
   settingTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: 4,
   },
   settingDescription: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
+  },
+  themeToggleContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  themeOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  themeOptionActive: {
+    backgroundColor: theme.colors.primary,
+  },
+  themeOptionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  themeOptionTextActive: {
+    color: '#FFFFFF',
   },
   settingStatus: {
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: theme.colors.border,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -466,26 +599,26 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   statusEnabled: {
-    backgroundColor: colors.secondaryLight,
+    backgroundColor: theme.colors.primary + '20',
   },
   statusDisabled: {
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: theme.colors.surfaceSecondary,
   },
   statusText: {
     fontSize: 13,
     fontWeight: '600',
   },
   statusTextEnabled: {
-    color: colors.success,
+    color: theme.colors.success,
   },
   statusTextDisabled: {
-    color: colors.error,
+    color: theme.colors.error,
   },
   infoBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.surfaceSecondary,
     borderRadius: 12,
     padding: 16,
     marginTop: 16,
@@ -493,24 +626,24 @@ const styles = StyleSheet.create({
   infoBoxText: {
     flex: 1,
     fontSize: 13,
-    color: colors.text,
+    color: theme.colors.text,
     lineHeight: 18,
   },
   actionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     padding: 16,
     marginBottom: 12,
   },
   actionIconContainer: {
     width: 44,
     height: 44,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.surfaceSecondary,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -521,18 +654,18 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: 4,
   },
   actionDescription: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   footer: {
     padding: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: theme.colors.border,
   },
   logoutButton: {
     flexDirection: 'row',
@@ -540,20 +673,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     padding: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.error + '40',
+    borderColor: theme.colors.error + '40',
   },
   logoutText: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.error,
+    color: theme.colors.error,
   },
   versionText: {
     textAlign: 'center',
     fontSize: 12,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: 16,
   },
 });

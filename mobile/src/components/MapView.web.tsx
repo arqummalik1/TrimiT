@@ -8,7 +8,28 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
  * bundling errors in the browser.
  */
 
-export const MapView = forwardRef(({ children, style, initialRegion, onPress }: any, ref) => {
+import { StyleProp, ViewStyle } from 'react-native';
+
+interface MapViewProps {
+  children?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  initialRegion?: {
+    latitude: number;
+    longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
+  };
+  onPress?: (event: {
+    nativeEvent: {
+      coordinate: {
+        latitude: number;
+        longitude: number;
+      };
+    };
+  }) => void;
+}
+
+export const MapView = forwardRef<any, MapViewProps>(({ children, style, initialRegion, onPress }, ref) => {
   useImperativeHandle(ref, () => ({
     animateToRegion: () => console.log('animateToRegion called on web placeholder'),
     fitToCoordinates: () => console.log('fitToCoordinates called on web placeholder'),
@@ -17,7 +38,7 @@ export const MapView = forwardRef(({ children, style, initialRegion, onPress }: 
 
   return (
     <Pressable 
-      style={[style, styles.mockMap]} 
+      style={[style as any, styles.mockMap]} 
       onPress={() => {
         if (onPress) {
           // Provide dummy coordinates for testing interaction
@@ -39,13 +60,22 @@ export const MapView = forwardRef(({ children, style, initialRegion, onPress }: 
   );
 });
 
-export const Marker = ({ children, style }: any) => (
-  <View style={[styles.mockMarker, style]}>
+interface MarkerProps {
+  children?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  coordinate?: {
+    latitude: number;
+    longitude: number;
+  };
+}
+
+export const Marker = ({ children, style }: MarkerProps) => (
+  <View style={[styles.mockMarker, style as any]}>
     {children || <Text style={{ fontSize: 24 }}>📍</Text>}
   </View>
 );
 
-export const Callout = ({ children }: any) => <View>{children}</View>;
+export const Callout = ({ children }: { children?: React.ReactNode }) => <View>{children}</View>;
 export const Polygon = () => null;
 export const Polyline = () => null;
 export const Circle = () => null;

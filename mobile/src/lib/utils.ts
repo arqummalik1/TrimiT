@@ -1,3 +1,18 @@
+/**
+ * src/lib/utils.ts
+ * Central utility barrel — formatters + theme token re-exports.
+ *
+ * For dynamic theming inside components use:
+ *   import { useTheme } from '../theme/ThemeContext';
+ *
+ * The static exports below (`colors`, `fonts`, etc.) are kept for backward
+ * compatibility and point to the dark palette.
+ */
+
+// =============================================================================
+// FORMATTERS
+// =============================================================================
+
 export const formatPrice = (price: number): string => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -23,25 +38,34 @@ export const formatTime = (timeString: string): string => {
   return `${hour12}:${minutes} ${ampm}`;
 };
 
-export const getStatusColor = (status: string): { bg: string; text: string } => {
-  const colors: Record<string, { bg: string; text: string }> = {
-    pending: { bg: '#FEF3C7', text: '#92400E' },
-    confirmed: { bg: '#DBEAFE', text: '#1E40AF' },
-    completed: { bg: '#D1FAE5', text: '#065F46' },
-    cancelled: { bg: '#FEE2E2', text: '#991B1B' },
-  };
-  return colors[status] || { bg: '#F3F4F6', text: '#374151' };
-};
+// =============================================================================
+// THEME RE-EXPORTS (backward compat + convenience)
+// =============================================================================
 
-export const getPaymentStatusColor = (status: string): { bg: string; text: string } => {
-  const statusMap: Record<string, { bg: string; text: string }> = {
-    pending: { bg: '#FEF3C7', text: '#92400E' },
-    paid: { bg: '#D1FAE5', text: '#065F46' },
-    failed: { bg: '#FEE2E2', text: '#991B1B' },
-    refunded: { bg: '#EDE9FE', text: '#5B21B6' },
-  };
-  return statusMap[status] || { bg: '#F3F4F6', text: '#374151' };
-};
+export {
+  colors,
+  fonts,
+  spacing,
+  typography,
+  borderRadius,
+  shadows,
+  layout,
+  DEFAULT_SALON_IMAGE,
+  getStatusColor,
+  getPaymentStatusColor,
+  // Theme objects
+  lightTheme,
+  darkTheme,
+  // Palettes
+  lightPalette,
+  darkPalette,
+  // Status color helpers (theme-aware)
+  getLightStatusColors,
+  getDarkStatusColors,
+  getLightPaymentColors,
+  getDarkPaymentColors,
+} from '../theme';
 
-// Re-export from global theme — single source of truth
-export { colors } from '../theme';
+// Hook re-export for convenience
+export { useTheme } from '../theme/ThemeContext';
+export type { Theme, ThemeColors } from '../theme/tokens';

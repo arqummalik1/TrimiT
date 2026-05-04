@@ -24,6 +24,7 @@ export interface Salon {
   allow_multiple_bookings_per_slot?: boolean;
   max_bookings_per_slot?: number;
   auto_accept?: boolean;
+  show_offers?: boolean;
   created_at: string;
   services?: Service[];
   reviews?: Review[];
@@ -39,6 +40,14 @@ export interface Service {
   description?: string;
   price: number;
   duration: number;
+  // ─── Extended fields (backward-compatible, all optional) ─────────────────
+  image_url?: string | null;
+  original_price?: number | null;     // price before discount
+  discount_percentage?: number | null; // 0–100
+  is_on_offer?: boolean | null;
+  offer_tagline?: string | null;
+  offer_start_date?: string | null;   // YYYY-MM-DD
+  offer_end_date?: string | null;     // YYYY-MM-DD
   created_at: string;
 }
 

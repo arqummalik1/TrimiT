@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Linking } from 'react-native';
-import { colors, typography } from '../theme';
+import { typography } from '../lib/utils';
+import { useTheme } from '../theme/ThemeContext';
+import { Theme } from '../theme/tokens';
 
 interface MarkdownViewProps {
   content: string;
@@ -34,22 +36,18 @@ const parseInline = (text: string): Segment[] => {
   return segments;
 };
 
-const renderSegments = (segments: Segment[], keyPrefix: string) =>
+const renderSegments = (
+  segments: Segment[],
+  keyPrefix: string,
+  styles: ReturnType<typeof createStyles>
+) =>
   segments.map((seg, idx) => {
     const key = `${keyPrefix}-${idx}`;
     if (seg.type === 'bold') {
-      return (
-        <Text key={key} style={styles.bold}>
-          {seg.text}
-        </Text>
-      );
+      return <Text key={key} style={styles.bold}>{seg.text}</Text>;
     }
     if (seg.type === 'italic') {
-      return (
-        <Text key={key} style={styles.italic}>
-          {seg.text}
-        </Text>
-      );
+      return <Text key={key} style={styles.italic}>{seg.text}</Text>;
     }
     if (seg.type === 'link' && seg.href) {
       const href = seg.href;
@@ -63,6 +61,9 @@ const renderSegments = (segments: Segment[], keyPrefix: string) =>
   });
 
 export const MarkdownView: React.FC<MarkdownViewProps> = ({ content }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const lines = content.split('\n');
   const blocks: React.ReactNode[] = [];
   let currentList: string[] | null = null;
@@ -73,7 +74,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({ content }) => {
       const text = currentPara.join(' ');
       blocks.push(
         <Text key={`p-${blocks.length}`} style={styles.paragraph}>
-          {renderSegments(parseInline(text), `p${blocks.length}`)}
+          {renderSegments(parseInline(text), `p${blocks.length}`, styles)}
         </Text>
       );
       currentPara = [];
@@ -89,7 +90,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({ content }) => {
             <View key={idx} style={styles.listItem}>
               <Text style={styles.bullet}>•</Text>
               <Text style={styles.listItemText}>
-                {renderSegments(parseInline(item), `li${blocks.length}-${idx}`)}
+                {renderSegments(parseInline(item), `li${blocks.length}-${idx}`, styles)}
               </Text>
             </View>
           ))}
@@ -105,27 +106,15 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({ content }) => {
     if (line.startsWith('# ')) {
       flushPara();
       flushList();
-      blocks.push(
-        <Text key={`h1-${blocks.length}`} style={styles.h1}>
-          {line.slice(2)}
-        </Text>
-      );
+      blocks.push(<Text key={`h1-${blocks.length}`} style={styles.h1}>{line.slice(2)}</Text>);
     } else if (line.startsWith('## ')) {
       flushPara();
       flushList();
-      blocks.push(
-        <Text key={`h2-${blocks.length}`} style={styles.h2}>
-          {line.slice(3)}
-        </Text>
-      );
+      blocks.push(<Text key={`h2-${blocks.length}`} style={styles.h2}>{line.slice(3)}</Text>);
     } else if (line.startsWith('### ')) {
       flushPara();
       flushList();
-      blocks.push(
-        <Text key={`h3-${blocks.length}`} style={styles.h3}>
-          {line.slice(4)}
-        </Text>
-      );
+      blocks.push(<Text key={`h3-${blocks.length}`} style={styles.h3}>{line.slice(4)}</Text>);
     } else if (line.startsWith('- ')) {
       flushPara();
       if (!currentList) currentList = [];
@@ -153,72 +142,73 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({ content }) => {
   return <View>{blocks}</View>;
 };
 
-const styles = StyleSheet.create({
-  h1: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-    fontFamily: typography.h1.fontFamily,
-  },
-  h2: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 24,
-    marginBottom: 10,
-    fontFamily: typography.h2.fontFamily,
-  },
-  h3: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  paragraph: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.textSecondary,
-    marginBottom: 12,
-  },
-  lastUpdated: {
-    fontSize: 14,
-    fontStyle: 'italic',
-    color: colors.textSecondary,
-    marginBottom: 16,
-  },
-  list: {
-    marginBottom: 12,
-    gap: 6,
-  },
-  listItem: {
-    flexDirection: 'row',
-    paddingRight: 8,
-  },
-  bullet: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    width: 18,
-    lineHeight: 22,
-  },
-  listItemText: {
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.textSecondary,
-  },
-  bold: {
-    fontWeight: '700',
-    color: colors.text,
-  },
-  italic: {
-    fontStyle: 'italic',
-  },
-  link: {
-    color: colors.primary,
-    textDecorationLine: 'underline',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    h1: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: 12,
+      fontFamily: typography.h1.fontFamily,
+    },
+    h2: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginTop: 24,
+      marginBottom: 10,
+      fontFamily: typography.h2.fontFamily,
+    },
+    h3: {
+      fontSize: 17,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginTop: 16,
+      marginBottom: 8,
+    },
+    paragraph: {
+      fontSize: 15,
+      lineHeight: 22,
+      color: theme.colors.textSecondary,
+      marginBottom: 12,
+    },
+    lastUpdated: {
+      fontSize: 14,
+      fontStyle: 'italic',
+      color: theme.colors.textSecondary,
+      marginBottom: 16,
+    },
+    list: {
+      marginBottom: 12,
+      gap: 6,
+    },
+    listItem: {
+      flexDirection: 'row',
+      paddingRight: 8,
+    },
+    bullet: {
+      fontSize: 15,
+      color: theme.colors.textSecondary,
+      width: 18,
+      lineHeight: 22,
+    },
+    listItemText: {
+      flex: 1,
+      fontSize: 15,
+      lineHeight: 22,
+      color: theme.colors.textSecondary,
+    },
+    bold: {
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
+    italic: {
+      fontStyle: 'italic',
+    },
+    link: {
+      color: theme.colors.primary,
+      textDecorationLine: 'underline',
+    },
+  });
 
 export default MarkdownView;
