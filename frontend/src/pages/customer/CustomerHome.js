@@ -49,8 +49,9 @@ const CustomerHome = () => {
         params.append('lng', userLocation.lng);
         params.append('radius', 50);
       }
-      const response = await api.get(`/api/salons?${params.toString()}`);
-      return response.data;
+      const response = await api.get(`/salons/?${params.toString()}`);
+      const body = response.data;
+      return Array.isArray(body) ? body : body?.data ?? [];
     },
   });
 

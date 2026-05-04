@@ -60,7 +60,7 @@ const NotificationBell = ({ isOwner = false }) => {
     setLoadingAction('accept');
     
     try {
-      const response = await api.post(`/api/owner/bookings/${bookingId}/accept`);
+      const response = await api.patch(`/bookings/${bookingId}/status`, { status: 'confirmed' });
       
       if (response.data) {
         success('Booking accepted successfully!', { title: 'Success' });
@@ -83,7 +83,7 @@ const NotificationBell = ({ isOwner = false }) => {
     setLoadingAction('reject');
     
     try {
-      const response = await api.post(`/api/owner/bookings/${bookingId}/reject`);
+      const response = await api.patch(`/bookings/${bookingId}/status`, { status: 'cancelled' });
       
       if (response.data) {
         success('Booking rejected successfully!', { title: 'Success' });

@@ -13,7 +13,7 @@ import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays, startOfToday, isSameDay, parseISO } from 'date-fns';
-import api, { axios, API_V1_PREFIX } from '../../lib/api';
+import api, { axios } from '../../lib/api';
 import { Salon, SlotsResponse } from '../../types';
 import { fonts, borderRadius, formatPrice, formatTime } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
@@ -43,7 +43,7 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
   const { data: salon } = useQuery<Salon>({
     queryKey: ['salon', salonId],
     queryFn: async () => {
-      const response = await api.get(`${API_V1_PREFIX}/salons/${salonId}`);
+      const response = await api.get(`/salons/${salonId}`);
       return response.data;
     },
   });
@@ -53,7 +53,7 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
     queryKey: ['slots', salonId, serviceId, selectedDate],
     queryFn: async () => {
       const currentTime = format(new Date(), 'HH:mm');
-      const response = await api.get(`${API_V1_PREFIX}/bookings/slots`, {
+      const response = await api.get('/bookings/slots', {
         params: {
           salon_id: salonId,
           date: selectedDate,
@@ -69,7 +69,7 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
   // Reschedule mutation
   const rescheduleMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.patch(`${API_V1_PREFIX}/bookings/${bookingId}/reschedule`, {
+      const response = await api.patch(`/bookings/${bookingId}/reschedule`, {
         new_date: selectedDate,
         new_time_slot: selectedSlot,
         reason: reason.trim() || undefined,

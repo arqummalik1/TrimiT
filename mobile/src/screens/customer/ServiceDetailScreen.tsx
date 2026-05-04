@@ -36,7 +36,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 
-import api, { API_V1_PREFIX } from '../../lib/api';
+import api from '../../lib/api';
 import { Salon, Service } from '../../types';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
@@ -89,7 +89,7 @@ export const ServiceDetailScreen: React.FC<CustomerDiscoverScreenProps<'ServiceD
   const { data: salon, isLoading, error, refetch } = useQuery<Salon>({
     queryKey: ['salon', salonId],
     queryFn: async () => {
-      const response = await api.get(`${API_V1_PREFIX}/salons/${salonId}`);
+      const response = await api.get(`/salons/${salonId}`);
       return response.data;
     },
     staleTime: 1000 * 60 * 2, // 2 min — fresh enough from SalonDetailScreen

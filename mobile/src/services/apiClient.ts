@@ -1,34 +1,46 @@
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { handleApiError } from '../lib/errorHandler';
 import { generateRequestSignature } from '../lib/security';
 
-const PRODUCTION_API_URL = 'https://trimit-az5h.onrender.com';
+/** Host only (no /api/v1). Production Render URL. */
+const PRODUCTION_HOST = 'https://trimit-az5h.onrender.com';
 const LOCAL_PORT = '8000';
 
+function stripApiVersionSuffix(url: string): string {
+  return url.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '');
+}
+
+/**
+ * Axios baseURL always ends with `/api/v1`.
+ * All request `url` values are paths under that version (e.g. `/salons`, `/auth/login`).
+ * There is no separate “/api” vs “/api/v1” on the client — only this base + relative paths.
+ */
 const getBaseURL = (): string => {
-  if (!__DEV__) return PRODUCTION_API_URL;
-
-  const ENV_URL = process.env.EXPO_PUBLIC_API_URL;
-  if (ENV_URL) {
-    // Ensure we don't have a trailing slash or /api/v1 here
-    return ENV_URL.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '');
+  let host: string;
+  if (!__DEV__) {
+    host = PRODUCTION_HOST;
+  } else {
+    const ENV_URL = process.env.EXPO_PUBLIC_API_URL;
+    if (ENV_URL) {
+      host = stripApiVersionSuffix(ENV_URL);
+    } else {
+      const hostUri = Constants.expoConfig?.hostUri;
+      const hostIP = hostUri?.split(':')[0];
+      if (hostIP && !hostIP.includes('127.0.0.1')) {
+        host = `http://${hostIP}:${LOCAL_PORT}`;
+      } else if (Platform.OS === 'android') {
+        host = `http://10.0.2.2:${LOCAL_PORT}`;
+      } else {
+        host = PRODUCTION_HOST;
+      }
+    }
   }
-
-  const hostUri = Constants.expoConfig?.hostUri;
-  const hostIP = hostUri?.split(':')[0];
-
-  if (hostIP && !hostIP.includes('127.0.0.1')) {
-    return `http://${hostIP}:${LOCAL_PORT}`;
-  }
-
-  if (Platform.OS === 'android') return `http://10.0.2.2:${LOCAL_PORT}`;
-  return PRODUCTION_API_URL;
+  return `${host}/api/v1`;
 };
 
 const API_BASE_URL = getBaseURL();
-export const API_V1_PREFIX = '/api/v1';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -38,69 +50,42 @@ const apiClient = axios.create({
   },
 });
 
-// Request Interceptor: Auth & Security
+/** Path as seen by the server (e.g. `/api/v1/salons/`) for HMAC signature middleware. */
+function resolvePathForSignature(config: InternalAxiosRequestConfig): string {
+  const raw = config.url || '';
+  if (raw.startsWith('http')) {
+    try {
+      return new URL(raw).pathname;
+    } catch {
+      return raw;
+    }
+  }
+  const base = (config.baseURL || '').replace(/\/$/, '');
+  const rel = raw.startsWith('/') ? raw : `/${raw}`;
+  const joined = `${base}${rel}`;
+  try {
+    return new URL(joined).pathname;
+  } catch {
+    return `/api/v1${rel.startsWith('/') ? rel : `/${rel}`}`;
+  }
+}
+
 apiClient.interceptors.request.use(
   async (config) => {
-    // Debug logging for URL issues
-    if (__DEV__) {
-      const fullUrl = `${config.baseURL || ''}${config.url || ''}`;
-      console.log(`[API Request] ${config.method?.toUpperCase()} ${fullUrl}`);
-      
-      // Log auth header
-      const authHeader = config.headers['Authorization'];
-      if (authHeader) {
-        console.log(`[API] Auth header present: Bearer ${String(authHeader).substring(7, 27)}...`);
-      } else {
-        console.log(`[API] ⚠️ No auth header!`);
-      }
-    }
-
-    // 1. Signature generation for mutating requests
     const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(config.method?.toUpperCase() || '');
     if (isMutating && config.url) {
       try {
         const timestamp = Math.floor(Date.now() / 1000).toString();
-        
-        // Extract the path that the backend middleware will see
-        // Backend routes are prefixed with /api/v1 in the router definition
-        // So the middleware sees the full path including /api/v1
-        let path = config.url;
-        
-        if (!path.startsWith('http')) {
-          // Ensure path starts with /
-          path = path.startsWith('/') ? path : `/${path}`;
-          
-          // Log for debugging
-          if (__DEV__) {
-            console.log(`[API] Generating signature for: ${config.method} ${path}`);
-          }
-        } else {
-          // Extract path from absolute URL
-          try {
-            path = new URL(path).pathname;
-          } catch (e) {
-            console.warn('[API] Failed to parse URL for signature:', path);
-          }
-        }
-        
+        const path = resolvePathForSignature(config);
         const signature = await generateRequestSignature(
           config.method || 'POST',
           path,
           config.data,
           timestamp
         );
-
         if (signature) {
           config.headers['X-Trimit-Timestamp'] = timestamp;
           config.headers['X-Trimit-Signature'] = signature;
-          
-          if (__DEV__) {
-            console.log(`[API] Signature generated: ${signature.substring(0, 16)}...`);
-          }
-        } else {
-          if (__DEV__) {
-            console.log('[API] Signature generation skipped (no secret configured)');
-          }
         }
       } catch (err) {
         console.warn('[API] Signature failed:', err);
@@ -111,17 +96,13 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Error Normalization
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const normalizedError = handleApiError(error);
-    
-    // Log network errors to console in dev
     if (__DEV__ && normalizedError.kind === 'network') {
       console.error('[API] Network Error:', error);
     }
-
     return Promise.reject(normalizedError);
   }
 );
@@ -129,10 +110,8 @@ apiClient.interceptors.response.use(
 export const setAuthToken = (token: string | null): void => {
   if (token) {
     apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    console.log('[API Client] Auth token set:', token.substring(0, 20) + '...');
   } else {
     delete apiClient.defaults.headers.common['Authorization'];
-    console.log('[API Client] Auth token cleared');
   }
 };
 

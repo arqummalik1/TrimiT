@@ -1,27 +1,23 @@
-import apiClient, { API_V1_PREFIX } from './apiClient';
-import { User } from '../types';
+import apiClient from './apiClient';
 
-/**
- * Service layer for Authentication API calls.
- */
 export const authService = {
   login: async (credentials: { email: string; password: string }) => {
-    return apiClient.post(`${API_V1_PREFIX}/auth/login`, credentials);
+    return apiClient.post('/auth/login', credentials);
   },
 
   signup: async (data: any) => {
-    return apiClient.post(`${API_V1_PREFIX}/auth/signup`, data);
+    return apiClient.post('/auth/signup', data);
   },
 
   forgotPassword: async (email: string) => {
-    return apiClient.post(`${API_V1_PREFIX}/auth/forgot-password`, { email });
+    return apiClient.post('/auth/forgot-password', { email });
   },
 
-  updateProfile: async (data: Partial<User>) => {
-    return apiClient.patch(`${API_V1_PREFIX}/auth/profile`, data);
+  updateProfile: async (data: Partial<{ name: string; phone: string }>) => {
+    return apiClient.patch('/auth/profile', data);
   },
 
   registerPushToken: async (pushToken: string) => {
-    return apiClient.post(`${API_V1_PREFIX}/auth/push-token`, { push_token: pushToken });
-  }
+    return apiClient.post('/auth/push-token', { push_token: pushToken });
+  },
 };

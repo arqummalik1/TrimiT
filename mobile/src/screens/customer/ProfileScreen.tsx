@@ -9,13 +9,12 @@ import {
 } from 'react-native';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
-import * as Sentry from '@sentry/react-native';
 import { useAuthStore } from '../../store/authStore';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { typography, spacing, borderRadius, shadows } from '../../lib/utils';
 
-import api, { API_V1_PREFIX } from '../../lib/api';
+import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
 import { useTheme, ThemeMode } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
@@ -36,7 +35,7 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      await api.patch(`${API_V1_PREFIX}/auth/profile`, { name, phone });
+      await api.patch('/auth/profile', { name, phone });
       if (user) {
         setUser({ ...user, name, phone }, token);
       }
@@ -210,23 +209,6 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
               icon="mail-outline"
               label="Contact Us"
               onPress={() => navigation.navigate('Contact')}
-              styles={styles}
-              theme={theme}
-            />
-          </View>
-        </View>
-
-        {/* Debug Section (Testing only) */}
-        <View style={[styles.card, shadows.sm, styles.linksCard, { borderColor: theme.colors.primary + '40', marginTop: spacing.lg }]}>
-          <Text style={[styles.cardTitle, { paddingHorizontal: spacing.xl, color: theme.colors.primary, paddingTop: spacing.md }]}>Developer Tools</Text>
-          <View style={styles.linkList}>
-            <LinkRow
-              icon="bug-outline"
-              label="Trigger Sentry Test Error"
-              onPress={() => {
-                Sentry.captureException(new Error("Customer Test Error: Sentry is working!"));
-                Alert.alert("Success", "Test error sent to Sentry!");
-              }}
               styles={styles}
               theme={theme}
             />

@@ -33,7 +33,7 @@ const MyBookings = () => {
   const { data: rawBookings, isLoading } = useQuery({
     queryKey: ['myBookings'],
     queryFn: async () => {
-      const response = await api.get('/api/bookings');
+      const response = await api.get('/bookings/');
       return response.data;
     },
   });
@@ -129,7 +129,7 @@ const MyBookings = () => {
 
   const cancelMutation = useMutation({
     mutationFn: async (bookingId) => {
-      await api.patch(`/api/bookings/${bookingId}/status`, { status: 'cancelled' });
+      await api.patch(`/bookings/${bookingId}/status`, { status: 'cancelled' });
     },
     onSuccess: () => {
       success('Booking cancelled successfully!', { title: 'Success' });

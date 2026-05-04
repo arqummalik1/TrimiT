@@ -24,7 +24,7 @@ const SalonDetail = () => {
   const { data: salon, isLoading, error } = useQuery({
     queryKey: ['salon', id],
     queryFn: async () => {
-      const response = await api.get(`/api/salons/${id}`);
+      const response = await api.get(`/salons/${id}`);
       return response.data;
     },
   });

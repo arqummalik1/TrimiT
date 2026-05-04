@@ -21,7 +21,7 @@ import { useMinLoadingTime } from '../../hooks/useMinLoadingTime';
 import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme, Theme } from '../../theme/ThemeContext';
 
-import api, { API_V1_PREFIX } from '../../lib/api';
+import api from '../../lib/api';
 import { handleApiError } from '../../lib/errorHandler';
 import { showToast } from '../../store/toastStore';
 import { Booking, Salon } from '../../types';
@@ -44,7 +44,7 @@ export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps
     queryKey: ['ownerSalon'],
     queryFn: async () => {
       try {
-        const response = await api.get(`${API_V1_PREFIX}/owner/salon`);
+        const response = await api.get('/owner/salon');
         return response.data;
       } catch (e: unknown) {
         const err = e as { response?: { status?: number } };
@@ -57,7 +57,7 @@ export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps
   const { data: bookings, isLoading: rawIsLoading, error: bookingsError, refetch: refetchBookings } = useQuery<Booking[]>({
     queryKey: ['ownerBookings'],
     queryFn: async () => {
-      const response = await api.get(`${API_V1_PREFIX}/bookings/`);
+      const response = await api.get('/bookings/');
       return response.data;
     },
     enabled: !!salon,
@@ -67,7 +67,7 @@ export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps
 
   const statusMutation = useMutation({
     mutationFn: async ({ bookingId, status }: { bookingId: string; status: string }) => {
-      await api.patch(`${API_V1_PREFIX}/bookings/${bookingId}/status`, { status });
+      await api.patch(`/bookings/${bookingId}/status`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ownerBookings'] });

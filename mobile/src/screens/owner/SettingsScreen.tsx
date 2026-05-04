@@ -9,11 +9,10 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import * as Sentry from '@sentry/react-native';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api, { API_V1_PREFIX } from '../../lib/api';
+import api from '../../lib/api';
 import { Salon } from '../../types';
 import { Button } from '../../components/Button';
 import { useAuthStore } from '../../store/authStore';
@@ -68,7 +67,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
     mutationFn: async () => {
       if (!salon?.id) throw new Error('No salon found');
       
-      const response = await api.patch(`${API_V1_PREFIX}/salons/${salon.id}`, {
+      const response = await api.patch(`/salons/${salon.id}`, {
         allow_multiple_bookings_per_slot: allowMultipleBookings,
         auto_accept: autoAccept,
         show_offers: enableOffers,
@@ -546,25 +545,6 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
             <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
 
-          {/* Debug Action */}
-          <TouchableOpacity
-            style={[styles.actionCard, { borderColor: theme.colors.primary + '40' }]}
-            onPress={() => {
-              Sentry.captureException(new Error("Owner Test Error: Sentry is working!"));
-              Alert.alert("Success", "Test error sent to Sentry!");
-            }}
-          >
-            <View style={styles.actionIconContainer}>
-              <Ionicons name="bug" size={24} color={theme.colors.primary} />
-            </View>
-            <View style={styles.actionTextContainer}>
-              <Text style={styles.actionTitle}>Test Sentry Error</Text>
-              <Text style={styles.actionDescription}>
-                Send a test report to your dashboard
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
         </View>
 
         {/* Logout Section */}

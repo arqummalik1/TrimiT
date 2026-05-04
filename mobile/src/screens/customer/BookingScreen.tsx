@@ -13,7 +13,7 @@ import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays, startOfToday } from 'date-fns';
-import api, { axios, API_V1_PREFIX } from '../../lib/api';
+import api, { axios } from '../../lib/api';
 import { Salon, TimeSlot, SlotsResponse } from '../../types';
 import { fonts, borderRadius, formatPrice, formatTime } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
@@ -99,7 +99,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   const { data: salon } = useQuery<Salon>({
     queryKey: ['salon', salonId],
     queryFn: async () => {
-      const response = await api.get(`${API_V1_PREFIX}/salons/${salonId}`);
+      const response = await api.get(`/salons/${salonId}`);
       return response.data;
     },
   });
@@ -111,7 +111,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     queryKey: ['slots', salonId, serviceId, selectedDate],
     queryFn: async () => {
       const currentTime = format(new Date(), 'HH:mm');
-      const response = await api.get(`${API_V1_PREFIX}/bookings/slots`, {
+      const response = await api.get('/bookings/slots', {
         params: {
           salon_id: salonId,
           date: selectedDate,
@@ -138,7 +138,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       if (!selectedSlot) throw new Error('No slot selected');
       
       const response = await api.get(
-        `/api/v1/staff/available/${salonId}/${serviceId}`,
+        `/staff/available/${salonId}/${serviceId}`,
         {
           params: {
             booking_date: selectedDate,
@@ -253,7 +253,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     const startTime = Date.now();
 
     try {
-      const response = await api.post('/api/v1/promotions/validate', {
+      const response = await api.post('/promotions/validate', {
         code: promoCode.trim().toUpperCase(),
         salon_id: salonId,
         booking_amount: service.price,
@@ -342,7 +342,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
 
   const handleViewStaffProfile = useCallback(async (staffId: string) => {
     try {
-      const response = await api.get(`/api/v1/staff/${staffId}`);
+      const response = await api.get(`/staff/${staffId}`);
       setSelectedStaffForProfile(response.data);
       setStaffProfileVisible(true);
     } catch (error) {
@@ -361,7 +361,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     mutationFn: async () => {
       const dbPaymentMethod = selectedPaymentMethod === 'cash' ? 'salon_cash' : 'online';
 
-      const response = await api.post(`${API_V1_PREFIX}/bookings/`, {
+      const response = await api.post('/bookings/', {
         salon_id: salonId,
         service_id: serviceId,
         booking_date: selectedDate,

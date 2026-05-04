@@ -20,7 +20,7 @@ from core.supabase import get_supabase_client
 from core.limiter import limiter
 from fastapi import Request
 
-router = APIRouter(prefix="/api/v1/staff", tags=["staff"])
+router = APIRouter(prefix="/staff", tags=["staff"])
 
 
 # =====================================================

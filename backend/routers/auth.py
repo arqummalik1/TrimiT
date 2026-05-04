@@ -126,6 +126,14 @@ async def forgot_password(request: Request, data: ForgotPasswordRequest):
         raise HTTPException(status_code=429, detail="Too many reset attempts.")
     return {"message": "If an account exists, a reset link has been sent"}
 
+@router.post("/validate-reset-token")
+async def validate_reset_token(data: ValidateTokenRequest):
+    """Check recovery session token before showing reset-password form (SPA flow)."""
+    r = await supabase.request("GET", "auth/v1/user", token=data.token)
+    if r.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return {"valid": True}
+
 @router.post("/reset-password")
 async def reset_password(data: ResetPasswordRequest):
     response = await supabase.request("PUT", "auth/v1/user", token=data.token, json={"password": data.password})

@@ -30,7 +30,7 @@ export const useAuthStore = create(
       login: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.post('/api/auth/login', { email, password });
+          const response = await api.post('/auth/login', { email, password });
           const { user, access_token, profile } = response.data;
           
           api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
@@ -39,7 +39,7 @@ export const useAuthStore = create(
           let hasSalon = false;
           if (profile?.role === 'owner') {
             try {
-              const salonRes = await api.get('/api/owner/salon');
+              const salonRes = await api.get('/owner/salon');
               hasSalon = !!salonRes.data;
             } catch (e) {
               hasSalon = false;
@@ -67,7 +67,7 @@ export const useAuthStore = create(
       signup: async (email, password, name, phone, role) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.post('/api/auth/signup', { 
+          const response = await api.post('/auth/signup', { 
             email, 
             password, 
             name, 
@@ -132,14 +132,14 @@ export const useAuthStore = create(
 
         try {
           // Validate token by fetching current user
-          const response = await api.get('/api/auth/me');
+          const response = await api.get('/auth/me');
           const userData = response.data;
 
           // Check if owner has a salon
           let hasSalon = false;
           if (userData.profile?.role === 'owner') {
             try {
-              const salonRes = await api.get('/api/owner/salon');
+              const salonRes = await api.get('/owner/salon');
               hasSalon = !!salonRes.data;
             } catch (e) {
               hasSalon = false;
@@ -171,7 +171,7 @@ export const useAuthStore = create(
       // Forgot Password - Request reset link
       forgotPassword: async (email) => {
         try {
-          const response = await api.post('/api/auth/forgot-password', { email });
+          const response = await api.post('/auth/forgot-password', { email });
           return { success: true, data: response.data };
         } catch (error) {
           const message = error.response?.data?.detail || 'Failed to send reset email';
@@ -182,7 +182,7 @@ export const useAuthStore = create(
       // Validate Reset Token
       validateResetToken: async (token) => {
         try {
-          const response = await api.post('/api/auth/validate-reset-token', { token });
+          const response = await api.post('/auth/validate-reset-token', { token });
           return { valid: true, data: response.data };
         } catch (error) {
           const message = error.response?.data?.detail || 'Invalid or expired token';
@@ -193,9 +193,9 @@ export const useAuthStore = create(
       // Reset Password with token
       resetPassword: async (token, newPassword) => {
         try {
-          const response = await api.post('/api/auth/reset-password', { 
-            token, 
-            new_password: newPassword 
+          const response = await api.post('/auth/reset-password', {
+            token,
+            password: newPassword,
           });
           return { success: true, data: response.data };
         } catch (error) {

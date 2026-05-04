@@ -2,28 +2,28 @@ import apiClient from './apiClient';
 import { Booking } from '../types';
 
 export const bookingService = {
-  getBookings: async (params?: any): Promise<Booking[]> => {
-    const response = await apiClient.get('/api/v1/bookings', { params });
+  getBookings: async (params?: Record<string, unknown>): Promise<Booking[]> => {
+    const response = await apiClient.get('/bookings/', { params });
     return response.data;
   },
 
   getBooking: async (bookingId: string): Promise<Booking> => {
-    const response = await apiClient.get(`/api/v1/bookings/${bookingId}`);
+    const response = await apiClient.get(`/bookings/${bookingId}`);
     return response.data;
   },
 
   updateBookingStatus: async (bookingId: string, status: string): Promise<Booking> => {
-    const response = await apiClient.patch(`/api/v1/bookings/${bookingId}/status`, { status });
+    const response = await apiClient.patch(`/bookings/${bookingId}/status`, { status });
     return response.data;
   },
 
-  createBooking: async (bookingData: any): Promise<Booking> => {
-    const response = await apiClient.post('/api/v1/bookings', bookingData);
+  createBooking: async (bookingData: unknown): Promise<Booking> => {
+    const response = await apiClient.post('/bookings/', bookingData);
     return response.data;
   },
 
-  getSalonBookings: async (salonId: string, params?: any): Promise<Booking[]> => {
-    const response = await apiClient.get(`/api/v1/bookings/salon/${salonId}`, { params });
+  getSalonBookings: async (salonId: string, params?: Record<string, unknown>): Promise<Booking[]> => {
+    const response = await apiClient.get(`/bookings/salon/${salonId}`, { params });
     return response.data;
   },
 };

@@ -24,7 +24,7 @@ const SettingsPage = () => {
   const { data: salon, isLoading } = useQuery({
     queryKey: ['ownerSalon'],
     queryFn: async () => {
-      const response = await api.get('/api/owner/salon');
+      const response = await api.get('/owner/salon');
       return response.data;
     },
   });
@@ -38,7 +38,7 @@ const SettingsPage = () => {
 
   const updateMutation = useMutation({
     mutationFn: async (data) => {
-      const response = await api.patch(`/api/salons/${salon.id}`, data);
+      const response = await api.patch(`/salons/${salon.id}`, data);
       return response.data;
     },
     onSuccess: () => {

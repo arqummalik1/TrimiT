@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { NavigationContainerRefWithCurrent } from '@react-navigation/native';
-import api, { API_V1_PREFIX } from './api';
+import api from './api';
 
 // Configure how notifications are handled when the app is foregrounded
 Notifications.setNotificationHandler({
@@ -48,7 +48,7 @@ export async function registerForPushNotificationsAsync() {
     console.log('Push Token:', token);
 
     // Sync token with backend
-    await api.post(`${API_V1_PREFIX}/auth/push-token`, { push_token: token });
+    await api.post('/auth/push-token', { push_token: token });
 
     if (Platform.OS === 'android') {
       Notifications.setNotificationChannelAsync('default', {

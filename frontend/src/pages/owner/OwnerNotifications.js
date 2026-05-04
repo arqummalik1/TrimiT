@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Bell, Trash2, CheckAll, Filter, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
 import { useNotificationStore } from '../../store/notificationStore';
 import { formatDistanceToNow } from 'date-fns';
+import api from '../../lib/api';
 
 const OwnerNotifications = () => {
   const {
@@ -64,13 +65,8 @@ const OwnerNotifications = () => {
 
   const handleAcceptBooking = async (bookingId) => {
     try {
-      const response = await fetch(`/api/owner/bookings/${bookingId}/accept`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      if (response.ok) {
+      const response = await api.patch(`/bookings/${bookingId}/status`, { status: 'confirmed' });
+      if (response.status >= 200 && response.status < 300) {
         const notification = notifications.find((n) => n.data?.bookingId === bookingId);
         if (notification) markAsRead(notification.id);
       }
@@ -81,13 +77,8 @@ const OwnerNotifications = () => {
 
   const handleRejectBooking = async (bookingId) => {
     try {
-      const response = await fetch(`/api/owner/bookings/${bookingId}/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      if (response.ok) {
+      const response = await api.patch(`/bookings/${bookingId}/status`, { status: 'cancelled' });
+      if (response.status >= 200 && response.status < 300) {
         const notification = notifications.find((n) => n.data?.bookingId === bookingId);
         if (notification) markAsRead(notification.id);
       }

@@ -77,13 +77,13 @@ const CUSTOM_FONTS = {
   CormorantGaramond_700Bold,
 };
 
-import * as Sentry from '@sentry/react-native';
-
-Sentry.init({
-  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || "https://placeholder-dsn@sentry.io/123", 
-  debug: __DEV__,
-  tracesSampleRate: 1.0,
-});
+// Sentry paused — uncomment to resume (see mobile/src/lib/logger.ts SENTRY_ENABLED).
+// import * as Sentry from '@sentry/react-native';
+// Sentry.init({
+//   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || 'https://placeholder-dsn@sentry.io/123',
+//   debug: __DEV__,
+//   tracesSampleRate: 1.0,
+// });
 
 import { analytics } from './src/lib/analytics';
 
@@ -187,7 +187,8 @@ function App() {
   );
 }
 
-export default Sentry.wrap(App);
+export default App;
+// export default Sentry.wrap(App);
 
 // Splash uses light palette — it shows before theme hydrates from AsyncStorage
 const styles = StyleSheet.create({

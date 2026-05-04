@@ -33,7 +33,7 @@ const OwnerDashboard = () => {
   const { data: salon, isLoading: salonLoading } = useQuery({
     queryKey: ['ownerSalon'],
     queryFn: async () => {
-      const response = await api.get('/api/owner/salon');
+      const response = await api.get('/owner/salon');
       return response.data;
     },
   });
@@ -51,7 +51,7 @@ const OwnerDashboard = () => {
     // Fetch full booking details (realtime only sends raw row data, not joined data)
     let fullBooking = booking;
     try {
-      const response = await api.get(`/api/bookings`);
+      const response = await api.get('/bookings/');
       if (response.data && Array.isArray(response.data)) {
         const matchingBooking = response.data.find(b => b.id === booking.id);
         if (matchingBooking) {
@@ -107,7 +107,7 @@ const OwnerDashboard = () => {
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ['ownerAnalytics'],
     queryFn: async () => {
-      const response = await api.get('/api/owner/analytics');
+      const response = await api.get('/owner/analytics');
       return response.data;
     },
   });

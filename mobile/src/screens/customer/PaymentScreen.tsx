@@ -13,7 +13,7 @@ import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import api, { API_V1_PREFIX } from '../../lib/api';
+import api from '../../lib/api';
 import { formatPrice, formatTime } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
@@ -62,7 +62,7 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
         // App came back to foreground during payment
         setVerifying(true);
         try {
-          const res = await api.get(`${API_V1_PREFIX}/payments/status?order_id=${order.order_id}`);
+          const res = await api.get(`/payments/status?order_id=${order.order_id}`);
           if (res.data.status === 'paid') {
             queryClient.invalidateQueries({ queryKey: ['bookings'] });
             Alert.alert('Payment Successful', 'Your booking has been confirmed.', [
@@ -85,7 +85,7 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const createOrderMutation = useMutation({
     mutationFn: async () => {
-      const res = await api.post<CreateOrderResponse>(`${API_V1_PREFIX}/payments/create-order`, {
+      const res = await api.post<CreateOrderResponse>('/payments/create-order', {
         booking_id: bookingId,
       });
       return res.data;
@@ -148,7 +148,7 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const verifyMutation = useMutation({
     mutationFn: async (resp: RazorpayResponse) => {
-      const res = await api.post(`${API_V1_PREFIX}/payments/verify`, {
+      const res = await api.post('/payments/verify', {
         booking_id: bookingId,
         razorpay_payment_id: resp.razorpay_payment_id,
         razorpay_order_id: resp.razorpay_order_id,

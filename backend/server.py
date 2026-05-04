@@ -139,12 +139,15 @@ async def root():
         "status": "running",
         "endpoints": {
             "health": "/health",
+            "api_v1_base": "/api/v1",
             "auth": "/api/v1/auth",
             "salons": "/api/v1/salons",
             "bookings": "/api/v1/bookings",
             "payments": "/api/v1/payments",
             "promotions": "/api/v1/promotions",
-            "staff": "/api/v1/staff"
+            "staff": "/api/v1/staff",
+            "owner": "/api/v1/owner",
+            "reviews": "/api/v1/reviews",
         }
     }
 

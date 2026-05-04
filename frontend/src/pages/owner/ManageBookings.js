@@ -26,7 +26,7 @@ const ManageBookings = () => {
   const { data: salon, isLoading: salonLoading } = useQuery({
     queryKey: ['ownerSalon'],
     queryFn: async () => {
-      const response = await api.get('/api/owner/salon');
+      const response = await api.get('/owner/salon');
       return response.data;
     },
   });
@@ -34,7 +34,7 @@ const ManageBookings = () => {
   const { data: rawBookings, isLoading: bookingsLoading } = useQuery({
     queryKey: ['ownerBookings'],
     queryFn: async () => {
-      const response = await api.get('/api/bookings');
+      const response = await api.get('/bookings/');
       return response.data;
     },
     enabled: !!salon,
@@ -59,7 +59,7 @@ const ManageBookings = () => {
   // Accept booking mutation
   const acceptMutation = useMutation({
     mutationFn: async (bookingId) => {
-      return await api.post(`/api/owner/bookings/${bookingId}/accept`);
+      return await api.patch(`/bookings/${bookingId}/status`, { status: 'confirmed' });
     },
     onSuccess: () => {
       success('Booking accepted successfully!', { title: 'Success' });
@@ -74,7 +74,7 @@ const ManageBookings = () => {
   // Reject booking mutation
   const rejectMutation = useMutation({
     mutationFn: async (bookingId) => {
-      return await api.post(`/api/owner/bookings/${bookingId}/reject`);
+      return await api.patch(`/bookings/${bookingId}/status`, { status: 'cancelled' });
     },
     onSuccess: () => {
       success('Booking rejected successfully!', { title: 'Success' });
@@ -89,7 +89,7 @@ const ManageBookings = () => {
   // Complete booking mutation
   const completeMutation = useMutation({
     mutationFn: async (bookingId) => {
-      await api.patch(`/api/bookings/${bookingId}/status`, { status: 'completed' });
+      await api.patch(`/bookings/${bookingId}/status`, { status: 'completed' });
     },
     onSuccess: () => {
       success('Booking marked as completed!', { title: 'Success' });

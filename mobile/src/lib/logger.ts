@@ -1,10 +1,15 @@
 import * as Sentry from '@sentry/react-native';
 
 /**
+ * Paused with App.tsx (no Sentry.init / no wrap). Set true and restore Sentry in App.tsx
+ * to send breadcrumbs and exceptions again.
+ */
+const SENTRY_ENABLED = false;
+
+/**
  * logger.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Centralized logging service that integrates with Sentry.
- * Use this instead of console.log/error for production-ready tracking.
+ * Centralized logging. Console always; Sentry only when SENTRY_ENABLED is true.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -16,11 +21,12 @@ export enum LogLevel {
 }
 
 class Logger {
-  /**
-   * Log an error to console and report to Sentry
-   */
-  error(message: string, error?: any, extra?: Record<string, any>) {
+  error(message: string, error?: unknown, extra?: Record<string, unknown>) {
     console.error(`[ERROR] ${message}`, error);
+
+    if (!SENTRY_ENABLED) {
+      return;
+    }
 
     Sentry.withScope((scope) => {
       if (extra) {
@@ -34,11 +40,12 @@ class Logger {
     });
   }
 
-  /**
-   * Log a warning to console and add as breadcrumb to Sentry
-   */
-  warn(message: string, extra?: Record<string, any>) {
+  warn(message: string, extra?: Record<string, unknown>) {
     console.warn(`[WARN] ${message}`, extra);
+
+    if (!SENTRY_ENABLED) {
+      return;
+    }
 
     Sentry.addBreadcrumb({
       category: 'log',
@@ -48,12 +55,13 @@ class Logger {
     });
   }
 
-  /**
-   * Log info to console and add as breadcrumb
-   */
-  info(message: string, extra?: Record<string, any>) {
+  info(message: string, extra?: Record<string, unknown>) {
     if (__DEV__) {
       console.log(`[INFO] ${message}`, extra);
+    }
+
+    if (!SENTRY_ENABLED) {
+      return;
     }
 
     Sentry.addBreadcrumb({
@@ -64,17 +72,17 @@ class Logger {
     });
   }
 
-  /**
-   * Set user context in Sentry for better debugging
-   */
   setUser(id: string, email?: string, username?: string) {
+    if (!SENTRY_ENABLED) {
+      return;
+    }
     Sentry.setUser({ id, email, username });
   }
 
-  /**
-   * Clear user context (e.g. on logout)
-   */
   clearUser() {
+    if (!SENTRY_ENABLED) {
+      return;
+    }
     Sentry.setUser(null);
   }
 }

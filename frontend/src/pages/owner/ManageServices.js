@@ -29,14 +29,14 @@ const ManageServices = () => {
   const { data: salon, isLoading } = useQuery({
     queryKey: ['ownerSalon'],
     queryFn: async () => {
-      const response = await api.get('/api/owner/salon');
+      const response = await api.get('/owner/salon');
       return response.data;
     },
   });
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const response = await api.post(`/api/salons/${salon.id}/services`, {
+      const response = await api.post(`/salons/${salon.id}/services`, {
         ...data,
         price: parseFloat(data.price),
         duration: parseInt(data.duration),
@@ -51,7 +51,7 @@ const ManageServices = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      const response = await api.patch(`/api/services/${id}`, {
+      const response = await api.patch(`/salons/${salon.id}/services/${id}`, {
         ...data,
         price: parseFloat(data.price),
         duration: parseInt(data.duration),
@@ -66,7 +66,7 @@ const ManageServices = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      await api.delete(`/api/services/${id}`);
+      await api.delete(`/salons/${salon.id}/services/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['ownerSalon']);

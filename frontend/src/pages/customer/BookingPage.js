@@ -32,7 +32,7 @@ const BookingPage = () => {
   const { data: salon } = useQuery({
     queryKey: ['salon', salonId],
     queryFn: async () => {
-      const response = await api.get(`/api/salons/${salonId}`);
+      const response = await api.get(`/salons/${salonId}`);
       return response.data;
     },
   });
@@ -42,11 +42,12 @@ const BookingPage = () => {
     queryKey: ['slots', salonId, serviceId, selectedDate],
     queryFn: async () => {
       const currentTime = format(new Date(), 'HH:mm');
-      const response = await api.get(`/api/salons/${salonId}/slots`, {
-        params: { 
-          date: selectedDate, 
+      const response = await api.get('/bookings/slots', {
+        params: {
+          salon_id: salonId,
           service_id: serviceId,
-          current_time: currentTime 
+          date: selectedDate,
+          current_time: currentTime,
         },
       });
       return response.data;
@@ -79,11 +80,12 @@ const BookingPage = () => {
   // Create booking mutation
   const bookingMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.post('/api/bookings', {
+      const response = await api.post('/bookings/', {
         salon_id: salonId,
         service_id: serviceId,
         booking_date: selectedDate,
         time_slot: selectedSlot,
+        payment_method: 'salon_cash',
       });
       return response.data;
     },
