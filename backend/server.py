@@ -5,12 +5,50 @@ from sentry_sdk.integrations.fastapi import FastApiIntegration
 import logging
 import os
 import time
+import sys
 
-from config import settings
-from core.limiter import limiter
-from core.exceptions import setup_exception_handlers
-from core.middleware import RequestIDMiddleware, SignatureMiddleware
-from routers import auth, salons, bookings, payments, promotions, staff
+# Add startup logging
+print("=" * 50)
+print("🚀 TrimiT Backend Starting...")
+print("=" * 50)
+print(f"Python version: {sys.version}")
+print(f"Working directory: {os.getcwd()}")
+print(f"PORT: {os.getenv('PORT', '8000')}")
+print("=" * 50)
+
+try:
+    print("📦 Importing config...")
+    from config import settings
+    print("✅ Config imported successfully")
+    print(f"Environment: {settings.ENVIRONMENT}")
+    print(f"Supabase URL: {settings.SUPABASE_URL[:30]}...")
+except Exception as e:
+    print(f"❌ FATAL: Failed to import config: {e}")
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+
+try:
+    print("📦 Importing core modules...")
+    from core.limiter import limiter
+    from core.exceptions import setup_exception_handlers
+    from core.middleware import RequestIDMiddleware, SignatureMiddleware
+    print("✅ Core modules imported")
+except Exception as e:
+    print(f"❌ FATAL: Failed to import core modules: {e}")
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+
+try:
+    print("📦 Importing routers...")
+    from routers import auth, salons, bookings, payments, promotions, staff
+    print("✅ Routers imported successfully")
+except Exception as e:
+    print(f"❌ FATAL: Failed to import routers: {e}")
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
 
 # Initialize Sentry
 if settings.SENTRY_DSN:
@@ -58,6 +96,28 @@ v1_router.include_router(promotions.router)
 v1_router.include_router(staff.router)
 
 app.include_router(v1_router)
+
+# Root endpoint - API info
+@app.get("/")
+async def root():
+    """
+    API Root - Returns welcome message and available endpoints.
+    """
+    return {
+        "name": "TrimiT API",
+        "version": "1.1.0",
+        "description": "Backend API for TrimiT Salon Booking App",
+        "status": "running",
+        "endpoints": {
+            "health": "/health",
+            "auth": "/api/v1/auth",
+            "salons": "/api/v1/salons",
+            "bookings": "/api/v1/bookings",
+            "payments": "/api/v1/payments",
+            "promotions": "/api/v1/promotions",
+            "staff": "/api/v1/staff"
+        }
+    }
 
 # Health Check (Global)
 @app.get("/health")
