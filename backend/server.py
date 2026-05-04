@@ -42,7 +42,13 @@ except Exception as e:
 
 try:
     print("📦 Importing routers...")
-    from routers import auth, salons, bookings, payments, promotions, staff, owner
+    from routers import auth
+    from routers import salons
+    from routers import bookings
+    from routers import payments
+    from routers import promotions
+    from routers import staff
+    from routers import owner
     print("✅ Routers imported successfully")
 except Exception as e:
     print(f"❌ FATAL: Failed to import routers: {e}")
