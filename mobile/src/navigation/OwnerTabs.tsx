@@ -9,7 +9,7 @@ import * as Notifications from 'expo-notifications';
 import { OwnerTabParamList, OwnerSettingsStackParamList } from './types';
 import { useTheme } from '../theme/ThemeContext';
 import { subscribeToSalonBookings, unsubscribeFromBookings } from '../lib/supabase';
-import api from '../lib/api';
+import { salonRepository } from '../repositories/salonRepository';
 
 // Configure notifications to show and play sound when app is in foreground
 Notifications.setNotificationHandler({
@@ -35,13 +35,15 @@ import ContactScreen from '../screens/legal/ContactScreen';
 
 const Tab = createBottomTabNavigator<OwnerTabParamList>();
 
-// Settings needs its own stack so it can navigate to ManageSalon
+// Settings needs its own stack so it can navigate to ManageSalon, Staff, and Promos
 const SettingsStack = createNativeStackNavigator<OwnerSettingsStackParamList>();
 function SettingsStackScreen() {
   return (
     <SettingsStack.Navigator screenOptions={{ headerShown: false }}>
       <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} />
       <SettingsStack.Screen name="ManageSalon" component={ManageSalonScreen} />
+      <SettingsStack.Screen name="StaffManagement" component={StaffManagementScreen} />
+      <SettingsStack.Screen name="PromoManagement" component={PromoManagementScreen} />
       <SettingsStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <SettingsStack.Screen name="Terms" component={TermsScreen} />
       <SettingsStack.Screen name="Contact" component={ContactScreen} />
@@ -57,19 +59,13 @@ export default function OwnerTabs() {
 
   const { data: salon } = useQuery({
     queryKey: ['ownerSalon'],
-    queryFn: async () => {
-      const response = await api.get('/api/owner/salon');
-      return response.data;
-    },
+    queryFn: () => salonRepository.getOwnerSalon(),
     retry: false,
   });
 
   const { data: analytics } = useQuery({
     queryKey: ['ownerAnalytics', 'today', salon?.id],
-    queryFn: async () => {
-      const response = await api.get('/api/owner/analytics?period=today');
-      return response.data;
-    },
+    queryFn: () => salonRepository.getAnalytics('today'),
     enabled: !!salon,
   });
 
@@ -154,24 +150,6 @@ export default function OwnerTabs() {
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="pricetag" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Staff"
-        component={StaffManagementScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Promos"
-        component={PromoManagementScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="ticket" size={size} color={color} />
           ),
         }}
       />

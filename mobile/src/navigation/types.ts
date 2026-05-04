@@ -67,6 +67,8 @@ export type OwnerDashboardStackParamList = {
 export type OwnerSettingsStackParamList = {
   SettingsMain: undefined;
   ManageSalon: undefined;
+  StaffManagement: undefined;
+  PromoManagement: undefined;
   PrivacyPolicy: undefined;
   Terms: undefined;
   Contact: undefined;
@@ -76,8 +78,6 @@ export type OwnerTabParamList = {
   Dashboard: NavigatorScreenParams<OwnerDashboardStackParamList>;
   Bookings: undefined;
   Services: undefined;
-  Staff: undefined;
-  Promos: undefined;
   Settings: NavigatorScreenParams<OwnerSettingsStackParamList>;
 };
 

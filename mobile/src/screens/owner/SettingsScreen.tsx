@@ -20,6 +20,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useTheme, ThemeMode } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { handleApiError } from '../../lib/errorHandler';
+import { salonRepository } from '../../repositories/salonRepository';
 
 import { OwnerSettingsScreenProps } from '../../navigation/types';
 
@@ -36,12 +37,9 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
   const [hasChanges, setHasChanges] = useState(false);
 
   // Get salon data
-  const { data: salon, isLoading: salonLoading } = useQuery<Salon>({
+  const { data: salon, isLoading: salonLoading } = useQuery<Salon | null>({
     queryKey: ['ownerSalon'],
-    queryFn: async () => {
-      const response = await api.get('/api/owner/salon');
-      return response.data;
-    },
+    queryFn: () => salonRepository.getOwnerSalon(),
   });
 
   // Initialize switch state from salon data
@@ -107,19 +105,160 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
   }
 
   if (!salon) {
+    // Allow access to settings even without salon - show limited options
     return (
       <ScreenWrapper variant="stack">
-        <View style={styles.emptyContainer}>
-          <Ionicons name="storefront-outline" size={64} color={theme.colors.textSecondary} />
-          <Text style={styles.emptyTitle}>No Salon Found</Text>
-          <Text style={styles.emptyText}>
-            You need to create a salon before accessing settings
-          </Text>
-          <Button
-            title="Create Salon"
-            onPress={() => navigation.navigate('ManageSalon')}
-          />
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerRight} />
+          <Text style={styles.headerTitle}>Settings</Text>
+          <View style={styles.headerRight} />
         </View>
+
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* No Salon Card */}
+          <View style={styles.infoCard}>
+            <Ionicons name="storefront-outline" size={32} color={theme.colors.textSecondary} />
+            <View style={styles.infoTextContainer}>
+              <Text style={styles.salonName}>No Salon Yet</Text>
+              <Text style={styles.salonAddress}>Create your salon to unlock all features</Text>
+            </View>
+          </View>
+
+          {/* Appearance Settings - Always accessible */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Appearance</Text>
+            <View style={styles.settingCard}>
+              <View style={styles.settingHeader}>
+                <View style={styles.settingIconContainer}>
+                  <Ionicons name="color-palette" size={24} color={theme.colors.primary} />
+                </View>
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingTitle}>Theme Preference</Text>
+                  <Text style={styles.settingDescription}>Choose how the app looks</Text>
+                </View>
+              </View>
+              <View style={styles.themeToggleContainer}>
+                {(['light', 'dark', 'system'] as ThemeMode[]).map((mode) => (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[
+                      styles.themeOption,
+                      themeMode === mode && styles.themeOptionActive,
+                    ]}
+                    onPress={() => setThemeMode(mode)}
+                  >
+                    <Ionicons 
+                      name={mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'phone-portrait'} 
+                      size={20} 
+                      color={themeMode === mode ? '#FFFFFF' : theme.colors.textSecondary} 
+                    />
+                    <Text style={[
+                      styles.themeOptionText,
+                      themeMode === mode && styles.themeOptionTextActive,
+                    ]}>
+                      {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          {/* Create Salon Action */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Get Started</Text>
+            <TouchableOpacity
+              style={[styles.actionCard, { borderColor: theme.colors.primary, borderWidth: 2 }]}
+              onPress={() => navigation.navigate('ManageSalon')}
+            >
+              <View style={[styles.actionIconContainer, { backgroundColor: theme.colors.primary }]}>
+                <Ionicons name="add-circle" size={24} color="#FFFFFF" />
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={[styles.actionTitle, { color: theme.colors.primary }]}>
+                  Create Your Salon
+                </Text>
+                <Text style={styles.actionDescription}>
+                  Set up your salon profile to start accepting bookings
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Legal & Support - Always accessible */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Legal & Support</Text>
+
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('PrivacyPolicy')}
+            >
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="shield-checkmark" size={24} color={theme.colors.primary} />
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionTitle}>Privacy Policy</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('Terms')}
+            >
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="document-text" size={24} color={theme.colors.primary} />
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionTitle}>Terms of Service</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('Contact')}
+            >
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="mail" size={24} color={theme.colors.primary} />
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionTitle}>Contact Us</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Logout Section */}
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={() => {
+                Alert.alert(
+                  'Logout',
+                  'Are you sure you want to logout?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'Logout', 
+                      style: 'destructive',
+                      onPress: async () => {
+                        queryClient.clear();
+                        await logout();
+                      }
+                    },
+                  ]
+                );
+              }}
+            >
+              <Ionicons name="log-out-outline" size={22} color={theme.colors.error} />
+              <Text style={styles.logoutText}>Logout from Account</Text>
+            </TouchableOpacity>
+            <Text style={styles.versionText}>Version 1.0.0 (Production)</Text>
+          </View>
+        </ScrollView>
       </ScreenWrapper>
     );
   }
@@ -283,7 +422,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
 
         {/* Other Settings Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={styles.sectionTitle}>Salon Management</Text>
           
           <TouchableOpacity
             style={styles.actionCard}
@@ -303,7 +442,53 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => navigation.navigate('OwnerTabs', { screen: 'Services' })}
+            onPress={() => navigation.navigate('StaffManagement')}
+            disabled={!salon}
+          >
+            <View style={[styles.actionIconContainer, !salon && { opacity: 0.5 }]}>
+              <Ionicons name="people" size={24} color={theme.colors.primary} />
+            </View>
+            <View style={styles.actionTextContainer}>
+              <Text style={[styles.actionTitle, !salon && { color: theme.colors.textSecondary }]}>
+                Manage Staff
+              </Text>
+              <Text style={styles.actionDescription}>
+                Add, edit, and assign staff members
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('PromoManagement')}
+            disabled={!salon}
+          >
+            <View style={[styles.actionIconContainer, !salon && { opacity: 0.5 }]}>
+              <Ionicons name="ticket" size={24} color={theme.colors.primary} />
+            </View>
+            <View style={styles.actionTextContainer}>
+              <Text style={[styles.actionTitle, !salon && { color: theme.colors.textSecondary }]}>
+                Manage Promotions
+              </Text>
+              <Text style={styles.actionDescription}>
+                Create and manage promo codes
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Quick Actions Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => {
+              // Navigate to parent tab navigator first, then to Services tab
+              navigation.getParent()?.navigate('Services');
+            }}
           >
             <View style={[styles.actionIconContainer, { backgroundColor: theme.colors.surfaceSecondary }]}>
               <Ionicons name="cut" size={24} color={theme.colors.primary} />
