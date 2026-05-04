@@ -42,7 +42,7 @@ except Exception as e:
 
 try:
     print("📦 Importing routers...")
-    from routers import auth, salons, bookings, payments, promotions, staff
+    from routers import auth, salons, bookings, payments, promotions, staff, owner
     print("✅ Routers imported successfully")
 except Exception as e:
     print(f"❌ FATAL: Failed to import routers: {e}")
@@ -73,17 +73,37 @@ app = FastAPI(
 # Exception Handlers
 setup_exception_handlers(app)
 
-# Middleware
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(SignatureMiddleware)
 
-ALLOWED_ORIGINS = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "https://trimit.com,http://localhost:3000,http://localhost:8081").split(",") if o.strip()]
+# CORSMiddleware must be added LAST to be the outermost layer (executes first on request)
+# Parse allowed origins from environment variable
+ALLOWED_ORIGINS_STR = os.environ.get("ALLOWED_ORIGINS", settings.ALLOWED_ORIGINS)
+ALLOWED_ORIGINS_LIST = [o.strip() for o in ALLOWED_ORIGINS_STR.split(",") if o.strip()]
+
+# Always add localhost origins for mobile development
+# These are safe because authentication is still required
+ALLOWED_ORIGINS_LIST.extend([
+    "http://localhost:8081",
+    "http://localhost:19006",
+    "http://127.0.0.1:8081",
+    "http://127.0.0.1:19006",
+])
+
+# Remove duplicates
+ALLOWED_ORIGINS_LIST = list(set(ALLOWED_ORIGINS_LIST))
+
+logger.info(f"CORS Configuration - Environment: {settings.ENVIRONMENT}")
+logger.info(f"CORS Allowed origins: {ALLOWED_ORIGINS_LIST}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=ALLOWED_ORIGINS_LIST,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Routers (Versioned)
@@ -94,6 +114,7 @@ v1_router.include_router(bookings.router)
 v1_router.include_router(payments.router)
 v1_router.include_router(promotions.router)
 v1_router.include_router(staff.router)
+v1_router.include_router(owner.router)
 
 app.include_router(v1_router)
 
