@@ -45,6 +45,14 @@ apiClient.interceptors.request.use(
     if (__DEV__) {
       const fullUrl = `${config.baseURL || ''}${config.url || ''}`;
       console.log(`[API Request] ${config.method?.toUpperCase()} ${fullUrl}`);
+      
+      // Log auth header
+      const authHeader = config.headers['Authorization'];
+      if (authHeader) {
+        console.log(`[API] Auth header present: Bearer ${String(authHeader).substring(7, 27)}...`);
+      } else {
+        console.log(`[API] ⚠️ No auth header!`);
+      }
     }
 
     // 1. Signature generation for mutating requests

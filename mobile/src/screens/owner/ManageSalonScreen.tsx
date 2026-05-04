@@ -21,9 +21,11 @@ import { useTheme, Theme } from '../../theme/ThemeContext';
 
 import api from '../../lib/api';
 import { supabase } from '../../lib/supabase';
+import { setAuthToken } from '../../services/apiClient';
 import { showToast } from '../../store/toastStore';
 import { Salon } from '../../types';
 import { handleApiError } from '../../lib/errorHandler';
+import { salonRepository } from '../../repositories/salonRepository';
 import { OwnerDashboardScreenProps, OwnerSettingsScreenProps } from '../../navigation/types';
 import { LocationPickerModal } from '../../components/LocationPickerModal';
 import { SalonMapMarker } from '../../components/SalonMapMarker';
@@ -51,10 +53,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
 
   const { data: salon, isLoading } = useQuery<Salon | null>({
     queryKey: ['ownerSalon'],
-    queryFn: async () => {
-      const response = await api.get('/api/owner/salon');
-      return response.data;
-    },
+    queryFn: () => salonRepository.getOwnerSalon(),
   });
 
   const [uploading, setUploading] = useState(false);
@@ -104,10 +103,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   }, [salon]);
 
   const createMutation = useMutation({
-    mutationFn: async (data: SalonPayload) => {
-      const response = await api.post('/api/salons', data);
-      return response.data;
-    },
+    mutationFn: (data: SalonPayload) => salonRepository.createSalon(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
       showToast('Salon created successfully!', 'success');
@@ -120,10 +116,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: SalonPayload) => {
-      const response = await api.patch(`/api/salons/${salon!.id}`, data);
-      return response.data;
-    },
+    mutationFn: (data: SalonPayload) => salonRepository.updateSalon(salon!.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
       showToast('Salon updated successfully!', 'success');
@@ -138,9 +131,30 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name || !formData.address || !formData.city || !formData.phone) {
       showToast('Please fill in all required fields', 'error');
+      return;
+    }
+
+    // Verify we have a valid session
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error || !session?.access_token) {
+        console.error('[ManageSalon] No valid session:', error);
+        showToast('Session expired. Please log in again.', 'error');
+        // Navigate to login
+        navigation.navigate('Auth', { screen: 'Login' } as any);
+        return;
+      }
+
+      // Refresh the token in API client
+      setAuthToken(session.access_token);
+      console.log('[ManageSalon] Session verified, token refreshed');
+    } catch (error) {
+      console.error('[ManageSalon] Session check failed:', error);
+      showToast('Authentication error. Please log in again.', 'error');
       return;
     }
 
