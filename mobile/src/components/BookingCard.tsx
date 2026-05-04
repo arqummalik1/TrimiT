@@ -100,14 +100,18 @@ export const BookingCard: React.FC<BookingCardProps> = ({
 
           <View style={styles.actions}>
             {/* Customer: reschedule (pending or confirmed) */}
-            {!isOwner && 
-              (booking.status === 'pending' || booking.status === 'confirmed') && 
+            {!isOwner &&
+              (booking.status === 'pending' || booking.status === 'confirmed') &&
               onReschedule && (
-              <TouchableOpacity style={styles.rescheduleButton} onPress={onReschedule}>
-                <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} />
-                <Text style={styles.rescheduleText}>Reschedule</Text>
-              </TouchableOpacity>
-            )}
+                <TouchableOpacity
+                  style={styles.iconActionButton}
+                  onPress={onReschedule}
+                  accessibilityRole="button"
+                  accessibilityLabel="Reschedule booking"
+                >
+                  <Ionicons name="calendar-outline" size={20} color={theme.colors.primary} />
+                </TouchableOpacity>
+              )}
 
             {/* Customer: cancel pending */}
             {!isOwner && booking.status === 'pending' && onCancel && (
@@ -123,16 +127,17 @@ export const BookingCard: React.FC<BookingCardProps> = ({
               booking.salons?.latitude &&
               booking.salons?.longitude && (
                 <TouchableOpacity
-                  style={styles.directionsButton}
+                  style={styles.directionsIconButton}
                   onPress={() =>
                     openNativeDirections(
                       { latitude: booking.salons!.latitude, longitude: booking.salons!.longitude },
                       booking.salons!.name
                     )
                   }
+                  accessibilityRole="button"
+                  accessibilityLabel="Get directions to salon"
                 >
-                  <Ionicons name="navigate" size={15} color="#FFFFFF" />
-                  <Text style={styles.directionsText}>Get Directions</Text>
+                  <Ionicons name="navigate" size={20} color="#FFFFFF" />
                 </TouchableOpacity>
               )}
 
@@ -234,8 +239,10 @@ const createStyles = (theme: Theme) =>
     },
     footer: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       justifyContent: 'space-between',
-      alignItems: 'center',
+      alignItems: 'flex-start',
+      gap: 10,
     },
     footerLeft: {
       flexDirection: 'row',
@@ -259,7 +266,12 @@ const createStyles = (theme: Theme) =>
     },
     actions: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
       gap: 8,
+      flexShrink: 1,
+      maxWidth: '100%',
     },
     cancelButton: {
       flexDirection: 'row',
@@ -273,33 +285,21 @@ const createStyles = (theme: Theme) =>
       fontWeight: '500',
       color: theme.colors.error,
     },
-    rescheduleButton: {
-      flexDirection: 'row',
+    iconActionButton: {
       alignItems: 'center',
+      justifyContent: 'center',
       backgroundColor: theme.colors.primary + '15',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 8,
-      gap: 4,
+      width: 40,
+      height: 40,
+      borderRadius: 10,
     },
-    rescheduleText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: theme.colors.primary,
-    },
-    directionsButton: {
-      flexDirection: 'row',
+    directionsIconButton: {
       alignItems: 'center',
+      justifyContent: 'center',
       backgroundColor: theme.colors.primary,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 8,
-      gap: 5,
-    },
-    directionsText: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: '#FFFFFF',
+      width: 40,
+      height: 40,
+      borderRadius: 10,
     },
     confirmButton: {
       flexDirection: 'row',

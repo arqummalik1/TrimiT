@@ -27,6 +27,7 @@ import { openNativeDirections } from '../../lib/maps';
 
 import { analytics } from '../../lib/analytics';
 import { handleApiError } from '../../lib/errorHandler';
+import { isAppError } from '../../types/error';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
 import { SalonDetailParamsSchema } from '../../navigation/params';
 
@@ -58,7 +59,20 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     queryFn: async () => {
       try {
         const response = await api.get(`/salons/${salonId}`);
-        
+        // #region agent log
+        fetch('http://127.0.0.1:7843/ingest/5e65bc55-a277-4f9b-a066-90ba7f5fa5db', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '2565d8' },
+          body: JSON.stringify({
+            sessionId: '2565d8',
+            location: 'SalonDetailScreen.tsx:queryFn',
+            message: 'salon_detail_ok',
+            data: { salonId, hasData: !!response.data, nameLen: response.data?.name?.length ?? 0 },
+            timestamp: Date.now(),
+            hypothesisId: 'H_post_fix',
+          }),
+        }).catch(() => {});
+        // #endregion
         // Track salon view
         analytics.track('salon_viewed', {
           salon_id: salonId,
@@ -67,7 +81,26 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         
         return response.data;
       } catch (err) {
-        handleApiError(err);
+        const appErr = isAppError(err) ? err : handleApiError(err);
+        // #region agent log
+        fetch('http://127.0.0.1:7843/ingest/5e65bc55-a277-4f9b-a066-90ba7f5fa5db', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '2565d8' },
+          body: JSON.stringify({
+            sessionId: '2565d8',
+            location: 'SalonDetailScreen.tsx:queryFn:catch',
+            message: 'salon_detail_fail',
+            data: {
+              salonId,
+              kind: isAppError(err) ? err.kind : 'normalized',
+              errMessage: appErr.message,
+              code: appErr.code,
+            },
+            timestamp: Date.now(),
+            hypothesisId: 'H_api',
+          }),
+        }).catch(() => {});
+        // #endregion
         throw err;
       }
     },

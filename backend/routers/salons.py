@@ -123,7 +123,9 @@ async def get_salons(
 
 @router.get("/{salon_id}")
 async def get_salon(salon_id: str):
-    response = await supabase.request("GET", f"rest/v1/salons?id=eq.{salon_id}&select=*,services(*,reviews(*,users(name)))")
+    # Do not embed users(name) on reviews: RLS on public.users only allows self-select,
+    # so PostgREST can fail or return no salon row for customers viewing others' reviews.
+    response = await supabase.request("GET", f"rest/v1/salons?id=eq.{salon_id}&select=*,services(*,reviews(*))")
     if response.status_code != 200 or not response.json():
         raise HTTPException(status_code=404, detail="Salon not found")
     
