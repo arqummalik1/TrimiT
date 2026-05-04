@@ -23,7 +23,8 @@ import {
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../../lib/api';
+import { salonRepository } from '../../repositories/salonRepository';
+import { bookingRepository } from '../../repositories/bookingRepository';
 import { Salon, Analytics, Booking } from '../../types';
 import { formatPrice, typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme, Theme } from '../../theme/ThemeContext';
@@ -157,10 +158,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
     refetch: refetchSalon,
   } = useQuery<Salon | null>({
     queryKey: ['ownerSalon'],
-    queryFn: async () => {
-      const response = await api.get('/api/owner/salon');
-      return response.data;
-    },
+    queryFn: () => salonRepository.getOwnerSalon(),
     retry: (count, err: unknown) => {
       const appErr = handleApiError(err);
       return appErr.kind !== 'unauthorized' && count < 2;
@@ -169,31 +167,20 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
 
   const { data: analytics, refetch: refetchAnalytics } = useQuery<Analytics>({
     queryKey: ['ownerAnalytics', selectedPeriod, salon?.id],
-    queryFn: async () => {
-      const response = await api.get(`/api/owner/analytics?period=${selectedPeriod}`);
-      return response.data;
-    },
+    queryFn: () => salonRepository.getAnalytics(selectedPeriod),
     enabled: !!salon,
   });
 
   const { data: recentBookings, refetch: refetchRecentBookings } = useQuery<Booking[]>({
     queryKey: ['recentBookings', salon?.id],
-    queryFn: async () => {
-      const response = await api.get('/api/bookings');
-      return response.data
-        .sort((a: Booking, b: Booking) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )
-        .slice(0, 3);
-    },
+    queryFn: () => bookingRepository.getRecentBookings(3),
     enabled: !!salon,
   });
 
   const queryClient = useQueryClient();
   const statusMutation = useMutation({
-    mutationFn: async ({ bookingId, status }: { bookingId: string; status: string }) => {
-      await api.patch(`/api/bookings/${bookingId}/status`, { status });
-    },
+    mutationFn: ({ bookingId, status }: { bookingId: string; status: string }) => 
+      bookingRepository.updateBookingStatus(bookingId, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recentBookings'] });
       queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });

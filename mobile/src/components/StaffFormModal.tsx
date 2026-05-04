@@ -20,7 +20,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import api from '../lib/api';
+import { staffRepository } from '../repositories/staffRepository';
+import { salonRepository } from '../repositories/salonRepository';
 import type { StaffWithServices, StaffCreateInput, StaffUpdateInput } from '../types/staff';
 import { DEFAULT_WORKING_HOURS } from '../types/staff';
 import WorkingHoursEditor from './WorkingHoursEditor';
@@ -82,26 +83,20 @@ const StaffFormModal: React.FC<StaffFormModalProps> = ({
   const { data: services } = useQuery({
     queryKey: ['salonServices', salonId],
     queryFn: async () => {
-      const response = await api.get(`/api/salons/${salonId}`);
-      return response.data.services || [];
+      const data = await salonRepository.getSalon(salonId);
+      return data.services || [];
     },
     enabled: visible && !!salonId,
   });
 
   // Create staff mutation
   const createMutation = useMutation({
-    mutationFn: async (data: StaffCreateInput) => {
-      const response = await api.post('/api/v1/staff', data);
-      return response.data;
-    },
+    mutationFn: (data: StaffCreateInput) => staffRepository.createStaff(data),
     onSuccess: async (newStaff) => {
       // Assign services
       if (selectedServices.length > 0) {
         try {
-          await api.post('/api/v1/staff/services/assign-bulk', {
-            staff_id: newStaff.id,
-            service_ids: selectedServices,
-          });
+          await staffRepository.bulkAssignServices(newStaff.id, selectedServices);
         } catch (error) {
           console.error('Failed to assign services:', error);
         }
@@ -116,10 +111,8 @@ const StaffFormModal: React.FC<StaffFormModalProps> = ({
 
   // Update staff mutation
   const updateMutation = useMutation({
-    mutationFn: async (data: { id: string; updates: StaffUpdateInput }) => {
-      const response = await api.patch(`/api/v1/staff/${data.id}`, data.updates);
-      return response.data;
-    },
+    mutationFn: (data: { id: string; updates: StaffUpdateInput }) => 
+      staffRepository.updateStaff(data.id, data.updates),
     onSuccess: () => {
       Alert.alert('Success', 'Staff member updated successfully');
       onSuccess();

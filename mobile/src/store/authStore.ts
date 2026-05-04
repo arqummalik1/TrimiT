@@ -1,12 +1,11 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import api, { setAuthToken } from '../lib/api';
+import { authRepository } from '../repositories/authRepository';
+import { setAuthToken } from '../services/apiClient';
 import { User } from '../types';
 import { secureStorage } from '../lib/secureStorage';
 import { supabase } from '../lib/supabase';
 import { QueryClient } from '@tanstack/react-query';
-
-import { handleApiError } from '../lib/errorHandler';
 
 interface AuthState {
   user: User | null;
@@ -52,31 +51,27 @@ export const useAuthStore = create<AuthState>()(
       login: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.post('/api/auth/login', { email, password });
-          const { user, access_token, profile } = response.data;
-          
-          setAuthToken(access_token);
+          const { user, token } = await authRepository.login(email, password);
           
           set({
-            user: profile || user,
-            token: access_token,
+            user,
+            token,
             isAuthenticated: true,
             isLoading: false,
             error: null,
           });
           
           return { success: true };
-        } catch (error) {
-          const appError = handleApiError(error);
-          set({ isLoading: false, error: appError.message });
-          return { success: false, error: appError.message };
+        } catch (error: any) {
+          set({ isLoading: false, error: error.message });
+          return { success: false, error: error.message };
         }
       },
 
       signup: async (email, password, name, phone, role) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.post('/api/auth/signup', {
+          const { user, token } = await authRepository.signup({
             email,
             password,
             name,
@@ -84,14 +79,10 @@ export const useAuthStore = create<AuthState>()(
             role,
           });
           
-          const { user, session } = response.data;
-          
-          if (session?.access_token) {
-            setAuthToken(session.access_token);
-            
+          if (token) {
             set({
-              user: { id: user.id, email, name, phone, role, created_at: new Date().toISOString() } as User,
-              token: session.access_token,
+              user,
+              token,
               isAuthenticated: true,
               isLoading: false,
               error: null,
@@ -101,17 +92,17 @@ export const useAuthStore = create<AuthState>()(
           }
           
           return { success: true };
-        } catch (error) {
-          const appError = handleApiError(error);
-          set({ isLoading: false, error: appError.message });
-          return { success: false, error: appError.message };
+        } catch (error: any) {
+          set({ isLoading: false, error: error.message });
+          return { success: false, error: error.message };
         }
       },
 
       forgotPassword: async (email) => {
         set({ isLoading: true, error: null });
         try {
-          await api.post('/api/auth/forgot-password', { email });
+          const { authService } = require('../services/authService');
+          await authService.forgotPassword(email);
           set({ isLoading: false });
           return { success: true };
         } catch (error) {
@@ -123,7 +114,7 @@ export const useAuthStore = create<AuthState>()(
       updateProfile: async (data) => {
         set({ isLoading: true, error: null });
         try {
-          await api.patch('/api/auth/profile', data);
+          await authRepository.updateProfile(data);
           const currentUser = get().user;
           if (currentUser) {
             set({
@@ -132,32 +123,32 @@ export const useAuthStore = create<AuthState>()(
             });
           }
           return { success: true };
-        } catch (error) {
-          const appError = handleApiError(error);
-          set({ isLoading: false, error: appError.message });
-          return { success: false, error: appError.message };
+        } catch (error: any) {
+          set({ isLoading: false, error: error.message });
+          return { success: false, error: error.message };
         }
       },
 
       logout: async () => {
         const { queryClient } = get();
         
+        console.log('[AuthStore] Logout initiated');
+        
         try {
-          // 1. Sign out from Supabase (removes session from server/cookies)
           await supabase.auth.signOut();
         } catch (err) {
           console.warn('[AuthStore] Supabase signOut failed:', err);
         }
         
-        // 2. Clear API token from axios interceptors
+        // Clear auth token from API client
         setAuthToken(null);
         
-        // 3. Clear QueryClient cache (critical: prevents data bleed between users)
+        // Clear React Query cache
         if (queryClient) {
           queryClient.clear();
         }
         
-        // 4. Reset local Zustand state to defaults
+        // Clear auth state - this will trigger navigation change
         set({
           user: null,
           token: null,
@@ -165,14 +156,22 @@ export const useAuthStore = create<AuthState>()(
           error: null,
           isLoading: false,
         });
+        
+        console.log('[AuthStore] Logout complete - state cleared');
       },
 
       clearError: () => set({ error: null }),
 
       initializeAuth: () => {
         const state = get();
+        console.log('[AuthStore] Initializing auth...');
+        
         if (state.token) {
+          console.log('[AuthStore] Token found in storage, setting in API client');
           setAuthToken(state.token);
+          console.log('[AuthStore] Auth initialized');
+        } else {
+          console.log('[AuthStore] No token found in storage');
         }
       },
     }),

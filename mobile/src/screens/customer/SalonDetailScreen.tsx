@@ -13,7 +13,7 @@ import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import MapView from 'react-native-maps';
-import api from '../../lib/api';
+import api, { API_V1_PREFIX } from '../../lib/api';
 import { Salon, Service } from '../../types';
 import { fonts, spacing, borderRadius, formatDate } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
@@ -57,7 +57,7 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     queryKey: ['salon', salonId],
     queryFn: async () => {
       try {
-        const response = await api.get(`/api/salons/${salonId}`);
+        const response = await api.get(`${API_V1_PREFIX}/salons/${salonId}`);
         
         // Track salon view
         analytics.track('salon_viewed', {

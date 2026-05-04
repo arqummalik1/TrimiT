@@ -21,7 +21,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../../lib/api';
+import api, { API_V1_PREFIX } from '../../lib/api';
 import { BookingCard } from '../../components/BookingCard';
 import { BookingListSkeleton } from '../../components/skeletons/BookingListSkeleton';
 import { ErrorState } from '../../components/ErrorState';
@@ -55,7 +55,7 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
   } = useQuery<Booking[]>({
     queryKey: ['myBookings'],
     queryFn: async () => {
-      const response = await api.get('/api/bookings');
+      const response = await api.get(`${API_V1_PREFIX}/bookings/`);
       return response.data;
     },
     retry: (failureCount, error) => {
@@ -69,7 +69,7 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
 
   const cancelMutation = useMutation({
     mutationFn: async (bookingId: string) => {
-      await api.patch(`/api/bookings/${bookingId}/status`, { status: 'cancelled' });
+      await api.patch(`${API_V1_PREFIX}/bookings/${bookingId}/status`, { status: 'cancelled' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myBookings'] });

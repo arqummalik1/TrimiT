@@ -29,7 +29,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import MapView, { Marker, Callout } from 'react-native-maps';
 import ClusteredMapView from 'react-native-map-clustering';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
-import api from '../../lib/api';
+import api, { API_V1_PREFIX } from '../../lib/api';
 import { SalonCard } from '../../components/SalonCard';
 import { SalonListSkeleton } from '../../components/skeletons/SalonListSkeleton';
 import { ErrorState } from '../../components/ErrorState';
@@ -129,7 +129,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
       params.append('limit', '20');
       params.append('offset', pageParam.toString());
       
-      const response = await api.get(`/api/salons?${params.toString()}`);
+      const response = await api.get(`${API_V1_PREFIX}/salons/?${params.toString()}`);
       return response.data; // Now returns { data: Salon[], pagination: { ... } }
     },
     getNextPageParam: (lastPage) => {

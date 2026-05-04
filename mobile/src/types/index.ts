@@ -139,3 +139,18 @@ export interface Analytics {
   status_distribution: StatusDistributionData[];
   customer_trends: WeeklyTrendData[];
 }
+
+export interface Promotion {
+  id: string;
+  code: string;
+  description: string | null;
+  discount_type: 'flat' | 'percent';
+  discount_value: number;
+  max_discount: number | null;
+  min_order_value: number;
+  max_uses: number | null;
+  used_count: number;
+  expires_at: string | null;
+  active: boolean;
+  created_at: string;
+}

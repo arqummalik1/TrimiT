@@ -21,7 +21,6 @@ import { useTheme, Theme } from '../../theme/ThemeContext';
 
 import api from '../../lib/api';
 import { supabase } from '../../lib/supabase';
-import { setAuthToken } from '../../services/apiClient';
 import { showToast } from '../../store/toastStore';
 import { Salon } from '../../types';
 import { handleApiError } from '../../lib/errorHandler';
@@ -128,33 +127,21 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   });
 
   const handleChange = (field: string, value: string) => {
+    console.log(`[ManageSalon] Field changed: ${field} = "${value}"`);
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async () => {
+    console.log('[ManageSalon] Form data before validation:', formData);
+    
     if (!formData.name || !formData.address || !formData.city || !formData.phone) {
+      console.log('[ManageSalon] Validation failed:', {
+        name: !!formData.name,
+        address: !!formData.address,
+        city: !!formData.city,
+        phone: !!formData.phone,
+      });
       showToast('Please fill in all required fields', 'error');
-      return;
-    }
-
-    // Verify we have a valid session
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error || !session?.access_token) {
-        console.error('[ManageSalon] No valid session:', error);
-        showToast('Session expired. Please log in again.', 'error');
-        // Navigate to login
-        navigation.navigate('Auth', { screen: 'Login' } as any);
-        return;
-      }
-
-      // Refresh the token in API client
-      setAuthToken(session.access_token);
-      console.log('[ManageSalon] Session verified, token refreshed');
-    } catch (error) {
-      console.error('[ManageSalon] Session check failed:', error);
-      showToast('Authentication error. Please log in again.', 'error');
       return;
     }
 
@@ -163,6 +150,8 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       latitude: parseFloat(formData.latitude),
       longitude: parseFloat(formData.longitude),
     };
+
+    console.log('[ManageSalon] Payload being sent:', payload);
 
     if (salon) {
       updateMutation.mutate(payload);

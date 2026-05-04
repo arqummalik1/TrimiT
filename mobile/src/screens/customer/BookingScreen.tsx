@@ -13,7 +13,7 @@ import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays, startOfToday } from 'date-fns';
-import api, { axios } from '../../lib/api';
+import api, { axios, API_V1_PREFIX } from '../../lib/api';
 import { Salon, TimeSlot, SlotsResponse } from '../../types';
 import { fonts, borderRadius, formatPrice, formatTime } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
@@ -99,7 +99,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   const { data: salon } = useQuery<Salon>({
     queryKey: ['salon', salonId],
     queryFn: async () => {
-      const response = await api.get(`/api/salons/${salonId}`);
+      const response = await api.get(`${API_V1_PREFIX}/salons/${salonId}`);
       return response.data;
     },
   });
@@ -111,11 +111,12 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     queryKey: ['slots', salonId, serviceId, selectedDate],
     queryFn: async () => {
       const currentTime = format(new Date(), 'HH:mm');
-      const response = await api.get(`/api/salons/${salonId}/slots`, {
-        params: { 
-          date: selectedDate, 
+      const response = await api.get(`${API_V1_PREFIX}/bookings/slots`, {
+        params: {
+          salon_id: salonId,
+          date: selectedDate,
           service_id: serviceId,
-          current_time: currentTime
+          current_time: currentTime,
         },
       });
       return response.data;
@@ -360,7 +361,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     mutationFn: async () => {
       const dbPaymentMethod = selectedPaymentMethod === 'cash' ? 'salon_cash' : 'online';
 
-      const response = await api.post('/api/bookings', {
+      const response = await api.post(`${API_V1_PREFIX}/bookings/`, {
         salon_id: salonId,
         service_id: serviceId,
         booking_date: selectedDate,

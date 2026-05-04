@@ -9,18 +9,124 @@ from core.idempotency import idempotency_required
 from dependencies.auth import get_current_user
 from models.bookings import BookingCreate, BookingStatusUpdate, BookingStatus, ReviewCreate, SlotReserve
 from models.promotions import PromoCodeValidate
-from services.notifications import (
-    notify_owner_new_booking,
-    notify_customer_booking_confirmed,
-    notify_customer_booking_cancelled
-)
-
 logger = logging.getLogger("trimit")
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
+BOOKING_LIST_SELECT = "*,salons(*),services(*)"
+
+
+@router.get("/salon/{salon_id}")
+async def list_bookings_for_salon(
+    salon_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Owner: bookings for a salon they own (RLS also enforces)."""
+    token = current_user.get("access_token")
+    own = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{salon_id}&select=owner_id",
+        token=token,
+    )
+    if own.status_code != 200 or not own.json() or own.json()[0].get("owner_id") != current_user.get("id"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    resp = await supabase.request(
+        "GET",
+        f"rest/v1/bookings?salon_id=eq.{salon_id}&select={BOOKING_LIST_SELECT}&order=created_at.desc",
+        token=token,
+    )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=500, detail="Failed to load bookings")
+    return resp.json()
+
+
+@router.get("/")
+async def list_my_bookings(current_user: dict = Depends(get_current_user)):
+    """Customer: own bookings. Owner: bookings for their salon (first salon)."""
+    token = current_user.get("access_token")
+    profile = current_user.get("profile") or {}
+    role = profile.get("role", "customer")
+
+    if role == "owner":
+        salon_resp = await supabase.request(
+            "GET",
+            f"rest/v1/salons?owner_id=eq.{current_user.get('id')}&select=id",
+            token=token,
+        )
+        if salon_resp.status_code != 200 or not salon_resp.json():
+            return []
+        salon_id = salon_resp.json()[0]["id"]
+        resp = await supabase.request(
+            "GET",
+            f"rest/v1/bookings?salon_id=eq.{salon_id}&select={BOOKING_LIST_SELECT}&order=created_at.desc",
+            token=token,
+        )
+    else:
+        resp = await supabase.request(
+            "GET",
+            f"rest/v1/bookings?user_id=eq.{current_user.get('id')}&select={BOOKING_LIST_SELECT}&order=created_at.desc",
+            token=token,
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=500, detail="Failed to load bookings")
+    return resp.json()
+
+
+@router.patch("/{booking_id}/status")
+async def update_booking_status(
+    booking_id: str,
+    body: BookingStatusUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    token = current_user.get("access_token")
+    b = await supabase.request(
+        "GET",
+        f"rest/v1/bookings?id=eq.{booking_id}&select=id,user_id,salon_id,status",
+        token=token,
+    )
+    if b.status_code != 200 or not b.json():
+        raise HTTPException(status_code=404, detail="Booking not found")
+    booking = b.json()[0]
+    profile = current_user.get("profile") or {}
+    role = profile.get("role", "customer")
+    uid = current_user.get("id")
+
+    if role == "owner":
+        salon = await supabase.request(
+            "GET",
+            f"rest/v1/salons?id=eq.{booking['salon_id']}&select=owner_id",
+            token=token,
+        )
+        if salon.status_code != 200 or not salon.json() or salon.json()[0].get("owner_id") != uid:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+    else:
+        if booking.get("user_id") != uid:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+        if body.status != BookingStatus.cancelled:
+            raise HTTPException(status_code=403, detail="Customers may only cancel bookings")
+
+    patch = await supabase.request(
+        "PATCH",
+        f"rest/v1/bookings?id=eq.{booking_id}",
+        json={"status": body.status.value},
+        token=token,
+    )
+    if patch.status_code not in (200, 201, 204):
+        raise HTTPException(status_code=400, detail="Failed to update status")
+    return {"message": "Status updated", "booking_id": booking_id}
+
+
 @router.get("/slots")
-async def get_available_slots(salon_id: str, date_str: str, service_id: str, current_time: Optional[str] = None):
+async def get_available_slots(
+    salon_id: str,
+    service_id: str,
+    date_str: Optional[str] = None,
+    date: Optional[str] = None,
+    current_time: Optional[str] = None,
+):
+    effective_date = date_str or date
+    if not effective_date:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="date or date_str is required")
     # 1. Fetch salon and service
     salon_resp = await supabase.request("GET", f"rest/v1/salons?id=eq.{salon_id}&select=opening_time,closing_time,allow_multiple_bookings_per_slot,max_bookings_per_slot")
     service_resp = await supabase.request("GET", f"rest/v1/services?id=eq.{service_id}&select=duration")
@@ -34,8 +140,8 @@ async def get_available_slots(salon_id: str, date_str: str, service_id: str, cur
     service = service_resp.json()[0]
     
     # 2. Fetch existing bookings and active holds for the day
-    bookings_resp = await supabase.request("GET", f"rest/v1/bookings?salon_id=eq.{salon_id}&booking_date=eq.{date_str}&status=neq.cancelled&select=time_slot")
-    holds_resp = await supabase.request("GET", f"rest/v1/slot_holds?salon_id=eq.{salon_id}&booking_date=eq.{date_str}&expires_at=gt.{datetime.now(timezone.utc).isoformat()}&select=time_slot")
+    bookings_resp = await supabase.request("GET", f"rest/v1/bookings?salon_id=eq.{salon_id}&booking_date=eq.{effective_date}&status=neq.cancelled&select=time_slot")
+    holds_resp = await supabase.request("GET", f"rest/v1/slot_holds?salon_id=eq.{salon_id}&booking_date=eq.{effective_date}&expires_at=gt.{datetime.now(timezone.utc).isoformat()}&select=time_slot")
     
     existing_bookings = bookings_resp.json() if bookings_resp.status_code == 200 else []
     active_holds = holds_resp.json() if holds_resp.status_code == 200 else []
@@ -66,7 +172,7 @@ async def get_available_slots(salon_id: str, date_str: str, service_id: str, cur
     
     # If checking for today, filter out past slots (5-min grace)
     now = datetime.now()
-    is_today = date_str == now.strftime("%Y-%m-%d")
+    is_today = effective_date == now.strftime("%Y-%m-%d")
     grace_time = now + timedelta(minutes=5) if is_today else None
 
     while curr + timedelta(minutes=duration) <= closing:
@@ -91,7 +197,11 @@ async def get_available_slots(salon_id: str, date_str: str, service_id: str, cur
             
         curr += timedelta(minutes=30) 
         
-    return {"slots": slots}
+    return {
+        "slots": [{"time": s, "available": True} for s in slots],
+        "allow_multiple_bookings_per_slot": allow_multiple,
+        "max_bookings_per_slot": max_bookings,
+    }
 
 @router.post("/reserve")
 @limiter.limit("5/minute")

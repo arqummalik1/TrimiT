@@ -32,7 +32,7 @@ export const SalonCard: React.FC<SalonCardProps> = ({ salon, onPress }) => {
           transition={300}
           cachePolicy="memory-disk"
         />
-        {salon.distance !== undefined && (
+        {typeof salon.distance === 'number' && !Number.isNaN(salon.distance) && (
           <View style={styles.distanceBadge}>
             <Ionicons name="navigate" size={12} color={theme.colors.primary} />
             <Text style={styles.distanceText}>{salon.distance} km</Text>

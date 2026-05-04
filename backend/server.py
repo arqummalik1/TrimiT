@@ -49,6 +49,7 @@ try:
     from routers import promotions
     from routers import staff
     from routers import owner
+    from routers import reviews
     print("✅ Routers imported successfully")
 except Exception as e:
     print(f"❌ FATAL: Failed to import routers: {e}")
@@ -121,6 +122,7 @@ v1_router.include_router(payments.router)
 v1_router.include_router(promotions.router)
 v1_router.include_router(staff.router)
 v1_router.include_router(owner.router)
+v1_router.include_router(reviews.router)
 
 app.include_router(v1_router)
 

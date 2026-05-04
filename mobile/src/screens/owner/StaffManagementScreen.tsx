@@ -22,7 +22,9 @@ import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { fonts, borderRadius, formatPrice } from '../../lib/utils';
-import api from '../../lib/api';
+import { staffRepository } from '../../repositories/staffRepository';
+import { salonRepository } from '../../repositories/salonRepository';
+import { useAuthStore } from '../../store/authStore';
 import type { StaffWithServices } from '../../types/staff';
 import StaffFormModal from '../../components/StaffFormModal';
 import StaffProfileCard from '../../components/StaffProfileCard';
@@ -49,27 +51,25 @@ const StaffManagementScreen: React.FC<StaffManagementScreenProps> = ({ navigatio
   const [selectedStaff, setSelectedStaff] = useState<StaffWithServices | null>(null);
   const [editMode, setEditMode] = useState(false);
 
-  // Get user's salon ID (assuming stored in auth)
-  // In production, get from auth store
-  const salonId = 'your-salon-id'; // TODO: Get from auth store
+  // Get user's salon
+  const { data: salon } = useQuery({
+    queryKey: ['ownerSalon'],
+    queryFn: () => salonRepository.getOwnerSalon(),
+    staleTime: Infinity, // Use cached value if available
+  });
+  
+  const salonId = salon?.id;
 
   // Fetch staff
   const { data: staffList, isLoading, refetch, isRefetching } = useQuery<StaffWithServices[]>({
     queryKey: ['salonStaff', salonId, filter !== 'active'],
-    queryFn: async () => {
-      const response = await api.get(`/api/v1/staff/salon/${salonId}`, {
-        params: { include_inactive: filter !== 'active' },
-      });
-      return response.data;
-    },
+    queryFn: () => staffRepository.getSalonStaff(salonId!, filter !== 'active') as Promise<StaffWithServices[]>,
     enabled: !!salonId,
   });
 
   // Delete (deactivate) staff mutation
   const deleteMutation = useMutation({
-    mutationFn: async (staffId: string) => {
-      await api.delete(`/api/v1/staff/${staffId}`);
-    },
+    mutationFn: (staffId: string) => staffRepository.deleteStaff(staffId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['salonStaff'] });
       Alert.alert('Success', 'Staff member deactivated successfully');

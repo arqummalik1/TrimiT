@@ -16,7 +16,7 @@ import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 
-import api from '../../lib/api';
+import api, { API_V1_PREFIX } from '../../lib/api';
 import { showToast } from '../../store/toastStore';
 
 import { handleApiError } from '../../lib/errorHandler';
@@ -39,7 +39,7 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordProps
 
     setIsLoading(true);
     try {
-      await api.post('/api/auth/forgot-password', { email });
+      await api.post(`${API_V1_PREFIX}/auth/forgot-password`, { email });
       setIsSent(true);
     } catch (error) {
       // For forgot password, we sometimes want to swallow the error to prevent email enumeration,

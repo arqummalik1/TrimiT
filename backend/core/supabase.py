@@ -18,6 +18,9 @@ class SupabaseClient:
             "Content-Type": "application/json"
         }
         
+        if method.upper() in ["POST", "PATCH", "PUT"]:
+            headers["Prefer"] = "return=representation"
+        
         # Clean path
         if path.startswith("/"):
             path = path[1:]

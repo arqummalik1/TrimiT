@@ -14,11 +14,7 @@ export const salonService = {
 
   createSalon: async (salonData: any): Promise<Salon> => {
     try {
-      console.log('[SalonService] Creating salon with data:', {
-        name: salonData.name,
-        city: salonData.city,
-        hasImages: salonData.images?.length > 0,
-      });
+      console.log('[SalonService] Creating salon with FULL data:', salonData);
       
       const response = await apiClient.post(`${API_V1_PREFIX}/salons/`, salonData);
       
@@ -31,6 +27,7 @@ export const salonService = {
         code: error.code,
         response: error.response?.data,
         status: error.response?.status,
+        fullError: error,
       });
       throw error;
     }

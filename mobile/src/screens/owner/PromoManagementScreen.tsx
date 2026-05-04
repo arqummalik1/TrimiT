@@ -23,24 +23,10 @@ import { typography, spacing, borderRadius, formatPrice } from '../../lib/utils'
 import { useTheme, Theme } from '../../theme/ThemeContext';
 import { format } from 'date-fns';
 
-import api from '../../lib/api';
+import { promotionRepository } from '../../repositories/promotionRepository';
+import { Promotion } from '../../types';
 import { showToast } from '../../store/toastStore';
 import { handleApiError } from '../../lib/errorHandler';
-
-interface Promotion {
-  id: string;
-  code: string;
-  description: string | null;
-  discount_type: 'flat' | 'percent';
-  discount_value: number;
-  max_discount: number | null;
-  min_order_value: number;
-  max_uses: number | null;
-  used_count: number;
-  expires_at: string | null;
-  active: boolean;
-  created_at: string;
-}
 
 const EMPTY_FORM = {
   code: '',
@@ -65,27 +51,21 @@ export default function PromoManagementScreen() {
 
   const { data: promotions = [], isLoading } = useQuery<Promotion[]>({
     queryKey: ['ownerPromotions'],
-    queryFn: async () => {
-      const response = await api.get('/api/v1/promotions/owner');
-      return response.data;
-    },
+    queryFn: () => promotionRepository.getOwnerPromotions(),
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: typeof EMPTY_FORM) => {
-      const response = await api.post('/api/v1/promotions', {
-        code: data.code.toUpperCase(),
-        description: data.description || null,
-        discount_type: data.discount_type,
-        discount_value: parseFloat(data.discount_value),
-        max_discount: data.max_discount ? parseFloat(data.max_discount) : null,
-        min_order_value: data.min_order_value ? parseFloat(data.min_order_value) : 0,
-        max_uses: data.max_uses ? parseInt(data.max_uses) : null,
-        expires_at: data.expires_at || null,
-        active: data.active,
-      });
-      return response.data;
-    },
+    mutationFn: (data: typeof EMPTY_FORM) => promotionRepository.createPromotion({
+      code: data.code.toUpperCase(),
+      description: data.description || null,
+      discount_type: data.discount_type,
+      discount_value: parseFloat(data.discount_value),
+      max_discount: data.max_discount ? parseFloat(data.max_discount) : null,
+      min_order_value: data.min_order_value ? parseFloat(data.min_order_value) : 0,
+      max_uses: data.max_uses ? parseInt(data.max_uses) : null,
+      expires_at: data.expires_at || null,
+      active: data.active,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ownerPromotions'] });
       closeModal();
@@ -98,17 +78,14 @@ export default function PromoManagementScreen() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: typeof EMPTY_FORM }) => {
-      const response = await api.patch(`/api/v1/promotions/${id}`, {
-        description: data.description || null,
-        max_discount: data.max_discount ? parseFloat(data.max_discount) : null,
-        min_order_value: data.min_order_value ? parseFloat(data.min_order_value) : 0,
-        max_uses: data.max_uses ? parseInt(data.max_uses) : null,
-        expires_at: data.expires_at || null,
-        active: data.active,
-      });
-      return response.data;
-    },
+    mutationFn: ({ id, data }: { id: string; data: typeof EMPTY_FORM }) => promotionRepository.updatePromotion(id, {
+      description: data.description || null,
+      max_discount: data.max_discount ? parseFloat(data.max_discount) : null,
+      min_order_value: data.min_order_value ? parseFloat(data.min_order_value) : 0,
+      max_uses: data.max_uses ? parseInt(data.max_uses) : null,
+      expires_at: data.expires_at || null,
+      active: data.active,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ownerPromotions'] });
       closeModal();
@@ -121,9 +98,7 @@ export default function PromoManagementScreen() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/api/v1/promotions/${id}`);
-    },
+    mutationFn: (id: string) => promotionRepository.deletePromotion(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ownerPromotions'] });
       showToast('Promo code deactivated', 'info');

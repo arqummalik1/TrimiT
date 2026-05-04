@@ -44,7 +44,17 @@ class SignatureMiddleware(BaseHTTPMiddleware):
 
             if not signature or not timestamp_str:
                 logger.warning(f"Missing signature/timestamp for {request.method} {path}")
-                return JSONResponse(status_code=403, content={"detail": "Missing security signature"})
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "detail": "Missing security signature",
+                        "hint": (
+                            "Mobile must send X-Trimit-Timestamp and X-Trimit-Signature (HMAC-SHA256 of "
+                            "METHOD|PATH|TIMESTAMP). Set EXPO_PUBLIC_API_SIGNING_SECRET to match "
+                            "API_SIGNING_SECRET on the server, or unset API_SIGNING_SECRET to disable enforcement."
+                        ),
+                    },
+                )
 
             try:
                 request_ts = int(timestamp_str)

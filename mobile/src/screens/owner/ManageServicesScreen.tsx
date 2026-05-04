@@ -26,7 +26,7 @@ import { ServiceListSkeleton } from '../../components/skeletons/ServiceListSkele
 import { typography, spacing, borderRadius, shadows, formatPrice } from '../../lib/utils';
 import { useTheme, Theme } from '../../theme/ThemeContext';
 
-import api from '../../lib/api';
+import api, { API_V1_PREFIX } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { showToast } from '../../store/toastStore';
 import { Service, Salon } from '../../types';
@@ -55,14 +55,20 @@ export default function ManageServicesScreen() {
   const { data: salon, isLoading } = useQuery<Salon | null>({
     queryKey: ['ownerSalon'],
     queryFn: async () => {
-      const response = await api.get('/api/owner/salon');
-      return response.data;
+      try {
+        const response = await api.get(`${API_V1_PREFIX}/owner/salon`);
+        return response.data;
+      } catch (e: unknown) {
+        const err = e as { response?: { status?: number } };
+        if (err.response?.status === 404) return null;
+        throw e;
+      }
     },
   });
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof EMPTY_FORM) => {
-      const response = await api.post(`/api/salons/${salon!.id}/services`, {
+      const response = await api.post(`${API_V1_PREFIX}/salons/${salon!.id}/services`, {
         name: data.name,
         description: data.description,
         price: parseFloat(data.price),
@@ -88,7 +94,7 @@ export default function ManageServicesScreen() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof EMPTY_FORM }) => {
-      const response = await api.patch(`/api/services/${id}`, {
+      const response = await api.patch(`${API_V1_PREFIX}/salons/${salon!.id}/services/${id}`, {
         name: data.name,
         description: data.description,
         price: parseFloat(data.price),
@@ -114,7 +120,7 @@ export default function ManageServicesScreen() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await api.delete(`/api/services/${id}`);
+      await api.delete(`${API_V1_PREFIX}/salons/${salon!.id}/services/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });

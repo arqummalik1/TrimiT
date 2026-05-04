@@ -12,7 +12,7 @@ import {
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation } from '@tanstack/react-query';
-import api from '../../lib/api';
+import api, { API_V1_PREFIX } from '../../lib/api';
 import { handleApiError } from '../../lib/errorHandler';
 import { Button } from '../../components/Button';
 import { typography, spacing, borderRadius, shadows } from '../../lib/utils';
@@ -30,7 +30,7 @@ export default function WriteReviewScreen({ navigation, route }: CustomerDiscove
 
   const mutation = useMutation({
     mutationFn: () =>
-      api.post('/api/reviews', {
+      api.post(`${API_V1_PREFIX}/reviews`, {
         salon_id: salonId,
         rating,
         comment: comment.trim() || undefined,

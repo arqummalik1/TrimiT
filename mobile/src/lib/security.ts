@@ -15,9 +15,10 @@ export const generateRequestSignature = async (
   timestamp: string
 ): Promise<string | null> => {
   if (!API_SIGNING_SECRET) {
-    if (__DEV__) {
-      console.warn('[Security] EXPO_PUBLIC_API_SIGNING_SECRET is missing. API signing is disabled.');
-    }
+    console.warn(
+      '[Security] EXPO_PUBLIC_API_SIGNING_SECRET is missing — request signing is disabled. ' +
+        'Production API will return 403 on mutating routes if API_SIGNING_SECRET is set on the server.'
+    );
     return null;
   }
 

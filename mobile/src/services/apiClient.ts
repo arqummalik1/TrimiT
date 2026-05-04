@@ -129,8 +129,10 @@ apiClient.interceptors.response.use(
 export const setAuthToken = (token: string | null): void => {
   if (token) {
     apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    console.log('[API Client] Auth token set:', token.substring(0, 20) + '...');
   } else {
     delete apiClient.defaults.headers.common['Authorization'];
+    console.log('[API Client] Auth token cleared');
   }
 };
 

@@ -21,6 +21,60 @@ def haversine(lat1, lon1, lat2, lon2):
     c = 2 * atan2(sqrt(a), sqrt(1-a))
     return R * c
 
+
+async def _fallback_nearby_salons(
+    p_lat: float,
+    p_lng: float,
+    radius: float,
+    search: Optional[str],
+    limit: int,
+    offset: int,
+) -> List[dict]:
+    """
+    Used when RPC get_nearby_salons_v1 is missing or errors (e.g. migration not applied).
+    Mirrors RPC shape enough for mobile list + SalonCard.
+    """
+    resp = await supabase.request("GET", "rest/v1/salons", params={"select": "*"})
+    if resp.status_code != 200:
+        logger.error(f"[get_salons fallback] salons fetch failed: {resp.text}")
+        return []
+    rows = resp.json() or []
+    q = (search or "").strip().lower()
+
+    enriched: List[dict] = []
+    for s in rows:
+        lat, lon = s.get("latitude"), s.get("longitude")
+        if lat is None or lon is None:
+            continue
+        if q:
+            blob = " ".join(
+                [
+                    str(s.get("name") or ""),
+                    str(s.get("address") or ""),
+                    str(s.get("description") or ""),
+                ]
+            ).lower()
+            if q not in blob:
+                continue
+        if p_lat == 0.0 and p_lng == 0.0:
+            dist = None
+        else:
+            dist = haversine(p_lat, p_lng, float(lat), float(lon))
+            if dist > radius:
+                continue
+        item = {**s, "avg_rating": 0, "review_count": 0, "services": []}
+        if dist is not None:
+            item["distance"] = round(dist, 2)
+        enriched.append(item)
+
+    if p_lat == 0.0 and p_lng == 0.0:
+        enriched.sort(key=lambda x: (x.get("name") or "").lower())
+    else:
+        enriched.sort(key=lambda x: x.get("distance") or 0)
+
+    return enriched[offset : offset + limit]
+
+
 @router.get("/")
 async def get_salons(
     lat: Optional[float] = None, 
@@ -52,13 +106,10 @@ async def get_salons(
     )
     
     if response.status_code != 200:
-        logger.error(f"RPC get_nearby_salons_v1 failed: {response.text}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Failed to fetch nearby salons"
-        )
-    
-    salons = response.json()
+        logger.error(f"RPC get_nearby_salons_v1 failed ({response.status_code}): {response.text}")
+        salons = await _fallback_nearby_salons(p_lat, p_lng, radius, search, limit, offset)
+    else:
+        salons = response.json()
     
     # Return paginated envelope
     return {
@@ -174,3 +225,56 @@ async def create_service(salon_id: str, service: ServiceCreate, current_user: di
     }
     await supabase.request("POST", "rest/v1/services", json=service_data, token=current_user.get("access_token"))
     return {"message": "Service created"}
+
+
+@router.patch("/{salon_id}/services/{service_id}")
+async def update_service(
+    salon_id: str,
+    service_id: str,
+    data: ServiceUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    check = await supabase.request("GET", f"rest/v1/salons?id=eq.{salon_id}&select=owner_id")
+    if check.status_code != 200 or not check.json() or check.json()[0].get("owner_id") != current_user.get("id"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    svc = await supabase.request(
+        "GET",
+        f"rest/v1/services?id=eq.{service_id}&select=id,salon_id",
+        token=current_user.get("access_token"),
+    )
+    if svc.status_code != 200 or not svc.json() or svc.json()[0].get("salon_id") != salon_id:
+        raise HTTPException(status_code=404, detail="Service not found")
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    if not update_data:
+        return {"message": "No changes"}
+    await supabase.request(
+        "PATCH",
+        f"rest/v1/services?id=eq.{service_id}",
+        json=update_data,
+        token=current_user.get("access_token"),
+    )
+    return {"message": "Service updated"}
+
+
+@router.delete("/{salon_id}/services/{service_id}")
+async def delete_service(
+    salon_id: str,
+    service_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    check = await supabase.request("GET", f"rest/v1/salons?id=eq.{salon_id}&select=owner_id")
+    if check.status_code != 200 or not check.json() or check.json()[0].get("owner_id") != current_user.get("id"):
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    svc = await supabase.request(
+        "GET",
+        f"rest/v1/services?id=eq.{service_id}&select=salon_id",
+        token=current_user.get("access_token"),
+    )
+    if svc.status_code != 200 or not svc.json() or svc.json()[0].get("salon_id") != salon_id:
+        raise HTTPException(status_code=404, detail="Service not found")
+    await supabase.request(
+        "DELETE",
+        f"rest/v1/services?id=eq.{service_id}",
+        token=current_user.get("access_token"),
+    )
+    return {"message": "Service deleted"}

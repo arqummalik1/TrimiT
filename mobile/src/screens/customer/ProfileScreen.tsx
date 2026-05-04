@@ -15,7 +15,7 @@ import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { typography, spacing, borderRadius, shadows } from '../../lib/utils';
 
-import api from '../../lib/api';
+import api, { API_V1_PREFIX } from '../../lib/api';
 import { showToast } from '../../store/toastStore';
 import { useTheme, ThemeMode } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
@@ -36,7 +36,7 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      await api.patch('/api/auth/profile', { name, phone });
+      await api.patch(`${API_V1_PREFIX}/auth/profile`, { name, phone });
       if (user) {
         setUser({ ...user, name, phone }, token);
       }
