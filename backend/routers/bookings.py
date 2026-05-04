@@ -95,7 +95,7 @@ async def get_available_slots(salon_id: str, date_str: str, service_id: str, cur
 
 @router.post("/reserve")
 @limiter.limit("5/minute")
-async def reserve_slot(data: SlotReserve, current_user: dict = Depends(get_current_user)):
+async def reserve_slot(request: Request, data: SlotReserve, current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id")
     token = current_user.get("access_token")
     
