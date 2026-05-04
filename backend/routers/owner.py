@@ -18,6 +18,8 @@ async def get_owner_salon(current_user: dict = Depends(get_current_user)):
     """
     user_id = current_user.get("id")
     
+    logger.info(f"[GET_OWNER_SALON] Fetching salon for user {user_id}")
+    
     # Query salons table for the owner_id
     response = await supabase.request(
         "GET", 
@@ -25,14 +27,21 @@ async def get_owner_salon(current_user: dict = Depends(get_current_user)):
         token=current_user.get("access_token")
     )
     
+    logger.info(f"[GET_OWNER_SALON] Supabase response status: {response.status_code}")
+    logger.info(f"[GET_OWNER_SALON] Supabase response: {response.text}")
+    
     if response.status_code != 200:
-        logger.error(f"Failed to fetch owner salon: {response.text}")
+        logger.error(f"[GET_OWNER_SALON] Failed to fetch owner salon: {response.text}")
         raise HTTPException(status_code=500, detail="Failed to fetch salon data")
     
     salons = response.json()
+    logger.info(f"[GET_OWNER_SALON] Found {len(salons)} salons")
+    
     if not salons:
+        logger.warning(f"[GET_OWNER_SALON] No salon found for user {user_id}")
         raise HTTPException(status_code=404, detail="No salon found for this owner")
         
+    logger.info(f"[GET_OWNER_SALON] Returning salon: {salons[0].get('id')}")
     return salons[0]
 
 @router.get("/analytics")
