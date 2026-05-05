@@ -20,4 +20,8 @@ export const authService = {
   registerPushToken: async (pushToken: string) => {
     return apiClient.post('/auth/push-token', { push_token: pushToken });
   },
+
+  getMe: async () => {
+    return apiClient.get('/auth/me');
+  },
 };

@@ -12,7 +12,7 @@ import {
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, addDays, startOfToday } from 'date-fns';
+import { format, addDays, startOfToday, isToday } from 'date-fns';
 import api, { axios } from '../../lib/api';
 import { Salon, TimeSlot, SlotsResponse } from '../../types';
 import { fonts, borderRadius, formatPrice, formatTime } from '../../lib/utils';
@@ -129,6 +129,22 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   const displaySlots = useMemo(() => {
     return realtimeSlots.length > 0 ? realtimeSlots : (slotsData?.slots || []);
   }, [realtimeSlots, slotsData]);
+
+  const visibleSlots = useMemo(() => {
+    // Client-side guard: for today's date, hide slots earlier than current local time.
+    // This ensures UX remains correct even if backend timezone differs from device timezone.
+    const selected = new Date(selectedDate);
+    if (!isToday(selected)) {
+      return displaySlots;
+    }
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    return displaySlots.filter((slot) => {
+      const [h, m] = slot.time.split(':').map((v) => parseInt(v, 10));
+      if (Number.isNaN(h) || Number.isNaN(m)) return false;
+      return h * 60 + m >= nowMinutes;
+    });
+  }, [displaySlots, selectedDate]);
 
   const effectiveAllowMultiple = slotsData?.allow_multiple_bookings_per_slot ?? allowMultipleBookings;
 
@@ -705,9 +721,9 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
 
           {slotsLoading ? (
             <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 20 }} />
-          ) : displaySlots && displaySlots.length > 0 ? (
+          ) : visibleSlots && visibleSlots.length > 0 ? (
             <View style={styles.slotsGrid}>
-              {displaySlots.map((slot) => {
+              {visibleSlots.map((slot) => {
                 const isJustBooked = justBookedSlots.has(slot.time);
                 const isMulti = slot.allow_multiple;
                 const count = slot.booking_count || 0;

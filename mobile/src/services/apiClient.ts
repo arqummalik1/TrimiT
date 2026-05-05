@@ -84,6 +84,7 @@ apiClient.interceptors.request.use(
         method: (config.method || 'GET').toUpperCase(),
         url: getRequestUrl(config),
         params: config.params,
+        hasAuth: !!config.headers?.Authorization || !!apiClient.defaults.headers.common['Authorization'],
       });
     }
 
@@ -126,6 +127,28 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error) => {
+    const status = (error as { response?: { status?: number } })?.response?.status;
+    const reqUrl = (error as { config?: InternalAxiosRequestConfig })?.config
+      ? getRequestUrl((error as { config: InternalAxiosRequestConfig }).config)
+      : '';
+    if (
+      status === 401 &&
+      reqUrl &&
+      !reqUrl.includes('/auth/login') &&
+      !reqUrl.includes('/auth/signup') &&
+      !reqUrl.includes('/auth/forgot-password') &&
+      !reqUrl.includes('/auth/reset-password')
+    ) {
+      // Clear stale session on protected 401 so user is forced to re-authenticate.
+      setAuthToken(null);
+      try {
+        const { useAuthStore } = await import('../store/authStore');
+        useAuthStore.setState({ user: null, token: null, isAuthenticated: false, error: 'Session expired. Please sign in again.' });
+      } catch {
+        // Ignore store import errors; request still returns normalized unauthorized.
+      }
+    }
+
     const normalizedError = handleApiError(error);
     if (__DEV__) {
       console.error('❌ [API][ERR]', {
