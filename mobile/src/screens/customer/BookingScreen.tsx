@@ -24,6 +24,7 @@ import { useBookingStore } from '../../store/bookingStore';
 import { scheduleBookingReminder } from '../../lib/notifications';
 import { openNativeDirections } from '../../lib/maps';
 import { handleApiError } from '../../lib/errorHandler';
+import { isAppError } from '../../types/error';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
 
 import { BookingParamsSchema } from '../../navigation/params';
@@ -212,14 +213,24 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       }, 1000);
     },
     onError: (error: unknown) => {
-      let errorMsg = 'This slot is currently being held by someone else.';
-      if (axios.isAxiosError(error)) {
-        // Handle nested error message if available
-        const detail = error.response?.data?.detail;
-        errorMsg = typeof detail === 'string' ? detail : detail?.message || errorMsg;
+      // Interceptor returns normalized AppError, so avoid assuming axios shape.
+      const appErr = isAppError(error) ? error : handleApiError(error);
+      const fallbackMsg = 'This slot is currently being held by someone else.';
+      const errorMsg = appErr.message || fallbackMsg;
+
+      if (appErr.kind === 'conflict') {
+        Alert.alert('Slot Unavailable', errorMsg);
+        setSelectedSlot(null);
+        setHoldId(null);
+        setTimeLeft(null);
+        return;
       }
-      Alert.alert('Slot Unavailable', errorMsg);
-      setSelectedSlot(null);
+
+      // Server/network issues should not look like slot conflict; keep selected slot.
+      Alert.alert(
+        'Temporary Server Issue',
+        'We could not place a temporary hold right now. You can still continue and we will re-check slot availability at booking confirmation.'
+      );
       setHoldId(null);
       setTimeLeft(null);
     }
