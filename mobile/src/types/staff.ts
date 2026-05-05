@@ -244,7 +244,9 @@ export function getWorkingHoursForDay(
  * Format staff rating for display
  */
 export function formatStaffRating(rating: number): string {
-  return rating.toFixed(1);
+  const n = typeof rating === 'number' ? rating : Number(rating);
+  if (!Number.isFinite(n)) return '0.0';
+  return n.toFixed(1);
 }
 
 /**

@@ -78,6 +78,12 @@ const StaffPicker: React.FC<StaffPickerProps> = ({
     return n.toFixed(1);
   }, []);
 
+  // #region agent log
+  if (__DEV__) {
+    console.log('🧪 [StaffPicker] loaded safe formatRating');
+  }
+  // #endregion
+
   // Render loading state
   if (loading) {
     return (

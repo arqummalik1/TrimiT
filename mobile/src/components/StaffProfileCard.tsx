@@ -40,8 +40,10 @@ const StaffProfileCard: React.FC<StaffProfileCardProps> = ({
     onClose();
   }, [onSelect, onClose]);
 
-  const formatRating = useCallback((rating: number) => {
-    return rating.toFixed(1);
+  const formatRating = useCallback((rating: unknown) => {
+    const n = typeof rating === 'number' ? rating : Number(rating);
+    if (!Number.isFinite(n)) return '0.0';
+    return n.toFixed(1);
   }, []);
 
   const getDayName = useCallback((day: string) => {
