@@ -111,3 +111,4 @@ TrimiT is proprietary software. All rights reserved. (Or MIT as per previous con
 
 ---
 *Created by [Arqum Malik](https://github.com/arqummalik)*
+
