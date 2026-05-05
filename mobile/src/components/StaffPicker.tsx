@@ -71,9 +71,11 @@ const StaffPicker: React.FC<StaffPickerProps> = ({
     [basePrice]
   );
 
-  // Format rating for display
-  const formatRating = useCallback((rating: number) => {
-    return rating.toFixed(1);
+  // Format rating for display (defensive: API can send null/string).
+  const formatRating = useCallback((rating: unknown) => {
+    const n = typeof rating === 'number' ? rating : Number(rating);
+    if (!Number.isFinite(n)) return '0.0';
+    return n.toFixed(1);
   }, []);
 
   // Render loading state
