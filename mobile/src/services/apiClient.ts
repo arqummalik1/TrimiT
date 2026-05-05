@@ -50,6 +50,12 @@ const apiClient = axios.create({
   },
 });
 
+function getRequestUrl(config: InternalAxiosRequestConfig): string {
+  const base = (config.baseURL || API_BASE_URL).replace(/\/$/, '');
+  const path = (config.url || '').startsWith('/') ? (config.url || '') : `/${config.url || ''}`;
+  return `${base}${path}`;
+}
+
 /** Path as seen by the server (e.g. `/api/v1/salons/`) for HMAC signature middleware. */
 function resolvePathForSignature(config: InternalAxiosRequestConfig): string {
   const raw = config.url || '';
@@ -72,6 +78,15 @@ function resolvePathForSignature(config: InternalAxiosRequestConfig): string {
 
 apiClient.interceptors.request.use(
   async (config) => {
+    // Emoji-first API request log for quick scanning in Metro.
+    if (__DEV__) {
+      console.log('🚀 [API][REQ]', {
+        method: (config.method || 'GET').toUpperCase(),
+        url: getRequestUrl(config),
+        params: config.params,
+      });
+    }
+
     const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(config.method?.toUpperCase() || '');
     if (isMutating && config.url) {
       try {
@@ -88,7 +103,10 @@ apiClient.interceptors.request.use(
           config.headers['X-Trimit-Signature'] = signature;
         }
       } catch (err) {
-        console.warn('[API] Signature failed:', err);
+        console.warn('⚠️ [API][SIGNATURE_FAIL]', {
+          method: (config.method || 'POST').toUpperCase(),
+          url: getRequestUrl(config),
+        });
       }
     }
     return config;
@@ -97,11 +115,30 @@ apiClient.interceptors.request.use(
 );
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (__DEV__) {
+      console.log('✅ [API][RES]', {
+        status: response.status,
+        method: (response.config.method || 'GET').toUpperCase(),
+        url: getRequestUrl(response.config as InternalAxiosRequestConfig),
+      });
+    }
+    return response;
+  },
   async (error) => {
     const normalizedError = handleApiError(error);
-    if (__DEV__ && normalizedError.kind === 'network') {
-      console.error('[API] Network Error:', error);
+    if (__DEV__) {
+      console.error('❌ [API][ERR]', {
+        kind: normalizedError.kind,
+        message: normalizedError.message,
+        code: normalizedError.code,
+        requestId: normalizedError.requestId,
+        status: (error as { response?: { status?: number } })?.response?.status,
+        method: (error as { config?: { method?: string } })?.config?.method?.toUpperCase(),
+        url: (error as { config?: InternalAxiosRequestConfig })?.config
+          ? getRequestUrl((error as { config: InternalAxiosRequestConfig }).config)
+          : undefined,
+      });
     }
     return Promise.reject(normalizedError);
   }

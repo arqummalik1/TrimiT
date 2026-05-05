@@ -185,6 +185,13 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
         hypothesisId: 'H_nav_id',
       }),
     }).catch(() => {});
+    if (__DEV__) {
+      console.log('[DBG][H_nav_id] navigate_salon_detail', {
+        salonId: salon.id,
+        idType: typeof salon.id,
+        nameSample: typeof salon.name === 'string' ? salon.name.slice(0, 1) : '',
+      });
+    }
     // #endregion
     navigation.navigate('SalonDetail', { salonId: salon.id });
   };

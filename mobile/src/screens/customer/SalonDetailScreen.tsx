@@ -72,6 +72,13 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             hypothesisId: 'H_post_fix',
           }),
         }).catch(() => {});
+        if (__DEV__) {
+          console.log('[DBG][H_post_fix] salon_detail_ok', {
+            salonId,
+            hasData: !!response.data,
+            nameLen: response.data?.name?.length ?? 0,
+          });
+        }
         // #endregion
         // Track salon view
         analytics.track('salon_viewed', {
@@ -100,6 +107,15 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             hypothesisId: 'H_api',
           }),
         }).catch(() => {});
+        if (__DEV__) {
+          console.log('[DBG][H_api] salon_detail_fail', {
+            salonId,
+            kind: isAppError(err) ? err.kind : 'normalized',
+            errMessage: appErr.message,
+            code: appErr.code,
+            original: isAppError(err) ? undefined : err,
+          });
+        }
         // #endregion
         throw err;
       }
