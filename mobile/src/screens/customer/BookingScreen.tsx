@@ -13,7 +13,8 @@ import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, addDays, startOfToday, isToday } from 'date-fns';
-import api, { axios } from '../../lib/api';
+import api from '../../lib/api';
+import axios from 'axios';
 import { Salon, TimeSlot, SlotsResponse } from '../../types';
 import { fonts, borderRadius, formatPrice, formatTime } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
@@ -319,7 +320,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
           validation_time: validationTime,
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       setPromoApplied(false);
       setPromoDiscount(0);
       
@@ -372,7 +373,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       const response = await api.get(`/staff/${staffId}`);
       setSelectedStaffForProfile(response.data);
       setStaffProfileVisible(true);
-    } catch (error) {
+    } catch (error: unknown) {
       Alert.alert('Error', 'Failed to load staff profile');
     }
   }, []);
@@ -401,7 +402,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       return response.data;
     },
 
-    onSuccess: (booking) => {
+    onSuccess: (booking: any) => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       unsubscribeFromSlots();
 

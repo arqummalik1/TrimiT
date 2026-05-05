@@ -58,12 +58,12 @@ const StaffManagementScreen: React.FC<StaffManagementScreenProps> = ({ navigatio
     staleTime: Infinity, // Use cached value if available
   });
   
-  const salonId = salon?.id;
+  const salonId: string | null = salon?.id ?? null;
 
   // Fetch staff
   const { data: staffList, isLoading, refetch, isRefetching } = useQuery<StaffWithServices[]>({
     queryKey: ['salonStaff', salonId, filter !== 'active'],
-    queryFn: () => staffRepository.getSalonStaff(salonId!, filter !== 'active') as Promise<StaffWithServices[]>,
+    queryFn: () => staffRepository.getSalonStaff(salonId as string, filter !== 'active') as Promise<StaffWithServices[]>,
     enabled: !!salonId,
   });
 
@@ -432,7 +432,7 @@ const StaffManagementScreen: React.FC<StaffManagementScreenProps> = ({ navigatio
         onClose={handleFormClose}
         onSuccess={handleFormSuccess}
         staff={editMode ? selectedStaff : null}
-        salonId={salonId}
+        salonId={salonId ?? ''}
       />
 
       <StaffProfileCard
