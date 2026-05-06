@@ -21,7 +21,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
+// SDK 54: readAsStringAsync lives on the legacy API.
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode as decodeBase64 } from 'base-64';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
@@ -309,7 +310,7 @@ export default function ManageServicesScreen() {
       // Android Expo Go can be flaky with fetch(file://...).blob() for uploads.
       // Read file as base64 and convert to bytes for a stable upload.
       const base64 = await FileSystem.readAsStringAsync(manipulated.uri, {
-        encoding: (FileSystem as any)?.EncodingType?.Base64 ?? ('base64' as any),
+        encoding: (FileSystem as any).EncodingType.Base64,
       });
       // base64 -> Uint8Array
       const binary = decodeBase64(base64);
