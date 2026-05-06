@@ -284,6 +284,9 @@ export default function ManageServicesScreen() {
   const uploadServiceImage = async (uri: string) => {
     setUploading(true);
     try {
+      if (__DEV__) {
+        console.log('🖼️ [SERVICE][IMG][UPLOAD][START]', { uriPrefix: uri.slice(0, 32) });
+      }
       const fileName = `service-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
       const response = await fetch(uri);
       const blob = await response.blob();
@@ -299,9 +302,24 @@ export default function ManageServicesScreen() {
         .getPublicUrl(data.path);
 
       setFormData((prev) => ({ ...prev, image_url: urlData.publicUrl }));
+      if (__DEV__) {
+        console.log('🖼️ [SERVICE][IMG][UPLOAD][DONE]', {
+          path: data.path,
+          publicUrlPrefix: urlData.publicUrl?.slice(0, 48),
+        });
+      }
       showToast('Image uploaded!', 'success');
     } catch (error: unknown) {
       const appErr = handleApiError(error);
+      if (__DEV__) {
+        console.log('🖼️ [SERVICE][IMG][UPLOAD][FAIL]', {
+          message: appErr.message,
+          kind: appErr.kind,
+          code: appErr.code,
+          status: appErr.status,
+          details: appErr.details,
+        });
+      }
       showToast(appErr.message, 'error');
     } finally {
       setUploading(false);
@@ -530,6 +548,7 @@ export default function ManageServicesScreen() {
                 title={editingService ? 'Update Service' : 'Create Service'}
                 onPress={handleSubmit}
                 loading={createMutation.isPending || updateMutation.isPending}
+                disabled={uploading}
                 style={{ marginTop: spacing.lg }}
               />
             </ScrollView>
