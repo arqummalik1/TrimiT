@@ -20,6 +20,7 @@ import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapp
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { ServiceCard } from '../../components/ServiceCard';
@@ -287,8 +288,24 @@ export default function ManageServicesScreen() {
       if (__DEV__) {
         console.log('🖼️ [SERVICE][IMG][UPLOAD][START]', { uriPrefix: uri.slice(0, 32) });
       }
+
+      // Normalize image size/format before upload (Expo Go compatible).
+      // Prevents huge uploads + ensures consistent JPEG thumbnails across devices.
+      const manipulated = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 1280 } }],
+        { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      if (__DEV__) {
+        console.log('🖼️ [SERVICE][IMG][MANIPULATED]', {
+          uriPrefix: manipulated.uri.slice(0, 32),
+          width: manipulated.width,
+          height: manipulated.height,
+        });
+      }
+
       const fileName = `service-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-      const response = await fetch(uri);
+      const response = await fetch(manipulated.uri);
       const blob = await response.blob();
 
       const { data, error } = await supabase.storage
