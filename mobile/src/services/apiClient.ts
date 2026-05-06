@@ -151,7 +151,8 @@ apiClient.interceptors.response.use(
 
     const normalizedError = handleApiError(error);
     if (__DEV__) {
-      console.error('❌ [API][ERR]', {
+      const log = normalizedError.kind === 'server' || normalizedError.kind === 'network' ? console.error : console.warn;
+      log('❌ [API][ERR]', {
         kind: normalizedError.kind,
         message: normalizedError.message,
         code: normalizedError.code,

@@ -218,7 +218,13 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     },
     onSuccess: (data) => {
       setHoldId(data.hold_id);
-      setTimeLeft(90); // backend default is 90s
+      // Prefer server-provided expiry if available.
+      const expiresAt = typeof data?.expires_at === 'string' ? new Date(data.expires_at) : null;
+      const seconds =
+        expiresAt && !Number.isNaN(expiresAt.getTime())
+          ? Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000))
+          : 90; // fallback
+      setTimeLeft(seconds);
       
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
@@ -441,14 +447,10 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       }
     },
     onError: (error: unknown) => {
-      let errorDetail = 'Failed to create booking';
-      let statusCode: number | undefined;
-
-      if (axios.isAxiosError(error)) {
-        const detail = error.response?.data?.detail;
-        errorDetail = typeof detail === 'string' ? detail : detail?.message || errorDetail;
-        statusCode = error.response?.status;
-      }
+      // Interceptor returns normalized AppError, so avoid assuming axios shape.
+      const appErr = isAppError(error) ? error : handleApiError(error);
+      const errorDetail = appErr.message || 'Failed to create booking';
+      const statusCode = appErr.status;
       
       // Always re-fetch slots on error so user sees updated availability
       queryClient.invalidateQueries({ queryKey: ['slots', salonId, serviceId, selectedDate] });
@@ -458,10 +460,11 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       setTimeLeft(null);
 
       // Handle slot conflict specifically
-      if (statusCode === 409 || statusCode === 400) {
+      if (appErr.kind === 'conflict' || statusCode === 409) {
+        Alert.alert('Slot Unavailable', errorDetail);
         setSlotConflictError(errorDetail);
       } else {
-        handleApiError(error);
+        Alert.alert('Booking Failed', errorDetail);
       }
     },
   });
@@ -505,6 +508,13 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     if (!holdId && !effectiveAllowMultiple) {
       Alert.alert('Error', 'Slot reservation not found. Please re-select your slot.');
       setSelectedSlot(null);
+      return;
+    }
+    if (!effectiveAllowMultiple && (timeLeft === null || timeLeft <= 0)) {
+      Alert.alert('Hold Expired', 'Your temporary slot reservation has expired. Please select a slot again to continue.');
+      setSelectedSlot(null);
+      setHoldId(null);
+      setTimeLeft(null);
       return;
     }
 
