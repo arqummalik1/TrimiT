@@ -19,16 +19,17 @@ async def get_owner_salon(current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id")
     
     logger.info(f"[GET_OWNER_SALON] Fetching salon for user {user_id}")
+    logger.info(f"[GET_OWNER_SALON] Token present: {bool(current_user.get('access_token'))}")
     
-    # Query salons table for the owner_id
+    # Step 1: Query salon WITHOUT services join to isolate any RLS issues
     response = await supabase.request(
         "GET", 
-        f"rest/v1/salons?owner_id=eq.{user_id}&select=*,services(*)", 
+        f"rest/v1/salons?owner_id=eq.{user_id}&select=*", 
         token=current_user.get("access_token")
     )
     
-    logger.info(f"[GET_OWNER_SALON] Supabase response status: {response.status_code}")
-    logger.info(f"[GET_OWNER_SALON] Supabase response: {response.text}")
+    logger.info(f"[GET_OWNER_SALON] Salon query response status: {response.status_code}")
+    logger.info(f"[GET_OWNER_SALON] Salon query response body: {response.text}")
     
     if response.status_code != 200:
         logger.error(f"[GET_OWNER_SALON] Failed to fetch owner salon: {response.text}")
@@ -40,9 +41,30 @@ async def get_owner_salon(current_user: dict = Depends(get_current_user)):
     if not salons:
         logger.warning(f"[GET_OWNER_SALON] No salon found for user {user_id}")
         raise HTTPException(status_code=404, detail="No salon found for this owner")
-        
-    logger.info(f"[GET_OWNER_SALON] Returning salon: {salons[0].get('id')}")
-    return salons[0]
+    
+    salon = salons[0]
+    salon_id = salon.get('id')
+    logger.info(f"[GET_OWNER_SALON] Salon found: {salon_id}")
+    
+    # Step 2: Fetch services separately
+    services_response = await supabase.request(
+        "GET",
+        f"rest/v1/services?salon_id=eq.{salon_id}&select=*",
+        token=current_user.get("access_token")
+    )
+    
+    logger.info(f"[GET_OWNER_SALON] Services query status: {services_response.status_code}")
+    
+    if services_response.status_code == 200:
+        services = services_response.json()
+        salon['services'] = services
+        logger.info(f"[GET_OWNER_SALON] Found {len(services)} services")
+    else:
+        logger.warning(f"[GET_OWNER_SALON] Failed to fetch services: {services_response.text}")
+        salon['services'] = []
+    
+    logger.info(f"[GET_OWNER_SALON] Returning salon with {len(salon.get('services', []))} services")
+    return salon
 
 @router.get("/analytics")
 async def get_owner_analytics(period: str = "today", current_user: dict = Depends(get_current_user)):
