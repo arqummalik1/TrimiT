@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { Booking } from '../types';
 import { formatPrice, formatDate, formatTime } from '../lib/utils';
 import { useTheme } from '../theme/ThemeContext';
@@ -33,6 +34,11 @@ export const BookingCard: React.FC<BookingCardProps> = ({
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
+  const thumbnailUrl =
+    booking.services?.image_url ||
+    booking.salons?.images?.[0] ||
+    null;
+
   const statusColors    = isDark ? getDarkStatusColors() : getLightStatusColors();
   const paymentColors   = isDark ? getDarkPaymentColors() : getLightPaymentColors();
   const bookingStatus   = statusColors[booking.status]    ?? { bg: theme.colors.surfaceSecondary, text: theme.colors.textSecondary };
@@ -51,10 +57,30 @@ export const BookingCard: React.FC<BookingCardProps> = ({
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.serviceName}>{booking.services?.name || 'Service'}</Text>
-          <Text style={styles.salonName}>
-            {isOwner ? booking.users?.name : booking.salons?.name}
-          </Text>
+          <View style={styles.headerRow}>
+            <View style={styles.thumbnailWrap}>
+              {thumbnailUrl ? (
+                <Image
+                  source={{ uri: thumbnailUrl }}
+                  style={styles.thumbnail}
+                  contentFit="cover"
+                  transition={200}
+                />
+              ) : (
+                <View style={[styles.thumbnail, styles.thumbnailFallback]}>
+                  <Ionicons name="cut-outline" size={18} color={theme.colors.textSecondary} />
+                </View>
+              )}
+            </View>
+            <View style={styles.headerText}>
+              <Text style={styles.serviceName} numberOfLines={1}>
+                {booking.services?.name || 'Service'}
+              </Text>
+              <Text style={styles.salonName} numberOfLines={1}>
+                {isOwner ? booking.users?.name : booking.salons?.name}
+              </Text>
+            </View>
+          </View>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: bookingStatus.bg }]}>
           {getStatusIcon()}
@@ -196,6 +222,32 @@ const createStyles = (theme: Theme) =>
       marginBottom: 12,
     },
     headerLeft: { flex: 1 },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    headerText: {
+      flex: 1,
+      minWidth: 0,
+    },
+    thumbnailWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surfaceSecondary,
+    },
+    thumbnail: {
+      width: 44,
+      height: 44,
+    },
+    thumbnailFallback: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     serviceName: {
       fontSize: 16,
       fontWeight: '700',
