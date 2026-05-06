@@ -360,9 +360,15 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
     
     response = await supabase.request("POST", "rest/v1/rpc/create_atomic_booking", json=rpc_payload, token=token)
     if response.status_code != 200:
+        logger.error(f"[CREATE_BOOKING] create_atomic_booking failed: {response.status_code} {response.text}")
         raise HTTPException(
             status_code=500, 
-            detail={"code": "INTERNAL_ERROR", "message": "Booking failed on server"}
+            detail={
+                "code": "BOOKING_RPC_FAILED",
+                "message": "Booking failed on server",
+                "supabase_status": response.status_code,
+                "supabase_body": response.text,
+            }
         )
         
     result = response.json()
