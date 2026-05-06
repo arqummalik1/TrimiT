@@ -20,6 +20,8 @@ export interface AppError {
   message: string;
   code?: string;      // Machine-readable code from backend (e.g. 'SLOT_FULL')
   requestId?: string; // X-Request-ID for tracing
+  status?: number;    // HTTP status (when available)
+  details?: unknown;  // Backend-provided structured details (safe to log in dev)
   originalError?: unknown;
 }
 

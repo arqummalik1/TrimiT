@@ -31,6 +31,7 @@ import api from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { showToast } from '../../store/toastStore';
 import { Service, Salon } from '../../types';
+import { isAppError } from '../../types/error';
 import { handleApiError } from '../../lib/errorHandler';
 import axios from 'axios';
 
@@ -119,6 +120,7 @@ export default function ManageServicesScreen() {
         // #region agent log
         if (__DEV__) {
           const ax = axios.isAxiosError(err) ? err : null;
+          const appErr = isAppError(err) ? err : null;
           console.log('❌ [SERVICE][CREATE][ERR_RAW]', {
             salonId: salon?.id,
             isAxiosError: axios.isAxiosError(err),
@@ -126,6 +128,16 @@ export default function ManageServicesScreen() {
             code: ax?.code,
             status: ax?.response?.status,
             responseDetail: ax?.response?.data?.detail,
+            normalized: appErr
+              ? {
+                  kind: appErr.kind,
+                  message: appErr.message,
+                  code: appErr.code,
+                  status: appErr.status,
+                  requestId: appErr.requestId,
+                  details: appErr.details,
+                }
+              : null,
           });
         }
         // #endregion
