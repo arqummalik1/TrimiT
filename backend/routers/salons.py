@@ -259,8 +259,13 @@ async def create_service(salon_id: str, service: ServiceCreate, current_user: di
         **service.model_dump(),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    await supabase.request("POST", "rest/v1/services", json=service_data, token=current_user.get("access_token"))
-    return {"message": "Service created"}
+    ins = await supabase.request("POST", "rest/v1/services", json=service_data, token=current_user.get("access_token"))
+    if ins.status_code not in (200, 201):
+        logger.error(f"[create_service] insert failed: {ins.status_code} {ins.text}")
+        raise HTTPException(status_code=400, detail={"code": "SERVICE_CREATE_FAILED", "message": "Could not create service"})
+    rows = ins.json() if hasattr(ins, "json") else None
+    # Return created row for immediate UI update/debug.
+    return rows[0] if rows else {"message": "Service created"}
 
 
 @router.patch("/{salon_id}/services/{service_id}")

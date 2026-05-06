@@ -62,7 +62,7 @@ const DEFAULT_SERVICE_IMAGE = 'https://images.unsplash.com/photo-1560066984-138d
 
 function resolveServiceImage(service: Service): string {
   if (service.image_url) return service.image_url;
-  const name = service.name.toLowerCase();
+  const name = (service.name ?? '').toString().toLowerCase();
   for (const cat of CATEGORY_IMAGES) {
     if (cat.keywords.some((k) => name.includes(k))) return cat.url;
   }

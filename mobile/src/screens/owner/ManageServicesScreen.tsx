@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
@@ -53,11 +54,15 @@ export default function ManageServicesScreen() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [uploading, setUploading] = useState(false);
 
-  const { data: salon, isLoading } = useQuery<Salon | null>({
+  const { data: salon, isLoading, refetch, isRefetching } = useQuery<Salon | null>({
     queryKey: ['ownerSalon'],
     queryFn: async () => {
       try {
         const response = await api.get('/owner/salon');
+        if (__DEV__) {
+          const svcCount = Array.isArray(response.data?.services) ? response.data.services.length : 0;
+          console.log('🧾 [OWNER_SALON][RES]', { salonId: response.data?.id, servicesCount: svcCount });
+        }
         return response.data;
       } catch (e: unknown) {
         const err = e as { response?: { status?: number } };
@@ -65,6 +70,9 @@ export default function ManageServicesScreen() {
         throw e;
       }
     },
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
   });
 
   const createMutation = useMutation({
@@ -124,8 +132,18 @@ export default function ManageServicesScreen() {
         throw err;
       }
     },
-    onSuccess: () => {
+    onSuccess: (created: Service) => {
+      // Update cache immediately so the list updates even before network refetch finishes.
+      queryClient.setQueryData(['ownerSalon'], (prev: Salon | null | undefined) => {
+        if (!prev) return prev ?? null;
+        const prevServices = Array.isArray(prev.services) ? prev.services : [];
+        const exists = prevServices.some((s) => s.id === created.id);
+        if (exists) return prev;
+        return { ...prev, services: [created, ...prevServices] };
+      });
+
       queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
+      refetch();
       closeModal();
       showToast('Service created!', 'success');
     },
@@ -152,6 +170,7 @@ export default function ManageServicesScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
+      refetch();
       closeModal();
       showToast('Service updated!', 'success');
     },
@@ -167,6 +186,7 @@ export default function ManageServicesScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
+      refetch();
       showToast('Service deleted', 'info');
     },
     onError: (error: unknown) => {
@@ -342,6 +362,14 @@ export default function ManageServicesScreen() {
         data={services}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.listContent, { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="pricetag-outline" size={48} color={theme.colors.textTertiary} />
