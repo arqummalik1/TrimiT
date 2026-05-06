@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { ServiceCard } from '../../components/ServiceCard';
@@ -304,13 +305,21 @@ export default function ManageServicesScreen() {
         });
       }
 
-      const fileName = `service-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-      const response = await fetch(manipulated.uri);
-      const blob = await response.blob();
+      // Android Expo Go can be flaky with fetch(file://...).blob() for uploads.
+      // Read file as base64 and convert to bytes for a stable upload.
+      const base64 = await FileSystem.readAsStringAsync(manipulated.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      // base64 -> Uint8Array
+      const binary = globalThis.atob ? globalThis.atob(base64) : atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+      const fileName = `services/service-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
 
       const { data, error } = await supabase.storage
         .from('salon-images')
-        .upload(fileName, blob, { contentType: 'image/jpeg' });
+        .upload(fileName, bytes, { contentType: 'image/jpeg' });
 
       if (error) throw error;
 
