@@ -262,7 +262,15 @@ async def create_service(salon_id: str, service: ServiceCreate, current_user: di
     ins = await supabase.request("POST", "rest/v1/services", json=service_data, token=current_user.get("access_token"))
     if ins.status_code not in (200, 201):
         logger.error(f"[create_service] insert failed: {ins.status_code} {ins.text}")
-        raise HTTPException(status_code=400, detail={"code": "SERVICE_CREATE_FAILED", "message": "Could not create service"})
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "SERVICE_CREATE_FAILED",
+                "message": "Could not create service",
+                "supabase_status": ins.status_code,
+                "supabase_body": ins.text,
+            },
+        )
     rows = ins.json() if hasattr(ins, "json") else None
     # Return created row for immediate UI update/debug.
     return rows[0] if rows else {"message": "Service created"}

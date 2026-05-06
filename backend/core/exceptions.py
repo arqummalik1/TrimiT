@@ -24,14 +24,27 @@ def setup_exception_handlers(app):
         }
         code = status_to_code.get(exc.status_code, f"HTTP_{exc.status_code}")
         
+        # If endpoints pass structured error detail as a dict, preserve it but also
+        # surface a good human message for clients.
+        detail_message = None
+        detail_details = {}
+        if isinstance(exc.detail, str):
+            detail_message = exc.detail
+        elif isinstance(exc.detail, dict):
+            detail_message = exc.detail.get("message") or exc.detail.get("detail") or "An error occurred"
+            detail_details = exc.detail
+        else:
+            detail_message = "An error occurred"
+            detail_details = {"detail": exc.detail}
+
         return JSONResponse(
             status_code=exc.status_code,
             content={
                 "success": False,
                 "error": {
                     "code": code,
-                    "message": exc.detail if isinstance(exc.detail, str) else "An error occurred",
-                    "details": exc.detail if not isinstance(exc.detail, str) else {}
+                    "message": detail_message,
+                    "details": detail_details
                 },
                 "request_id": request_id_var.get()
             }
