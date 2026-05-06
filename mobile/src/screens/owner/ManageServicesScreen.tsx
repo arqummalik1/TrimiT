@@ -256,6 +256,7 @@ export default function ManageServicesScreen() {
       quality: 0.8,
       allowsEditing: true,
       aspect: [16, 9],
+      exif: false,
     });
     if (!result.canceled && result.assets[0]) {
       await uploadServiceImage(result.assets[0].uri);
@@ -273,6 +274,7 @@ export default function ManageServicesScreen() {
       quality: 0.8,
       allowsEditing: true,
       aspect: [16, 9],
+      exif: false,
     });
     if (!result.canceled && result.assets[0]) {
       await uploadServiceImage(result.assets[0].uri);
@@ -298,8 +300,9 @@ export default function ManageServicesScreen() {
 
       setFormData((prev) => ({ ...prev, image_url: urlData.publicUrl }));
       showToast('Image uploaded!', 'success');
-    } catch {
-      showToast('Failed to upload image. Please try again.', 'error');
+    } catch (error: unknown) {
+      const appErr = handleApiError(error);
+      showToast(appErr.message, 'error');
     } finally {
       setUploading(false);
     }

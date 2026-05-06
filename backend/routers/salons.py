@@ -256,7 +256,9 @@ async def create_service(salon_id: str, service: ServiceCreate, current_user: di
     service_data = {
         "id": str(uuid.uuid4()),
         "salon_id": salon_id,
-        **service.model_dump(),
+        # Exclude nulls so PostgREST doesn't try to write unknown columns like `category`
+        # when DB schema is behind the backend model.
+        **service.model_dump(exclude_none=True),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     ins = await supabase.request("POST", "rest/v1/services", json=service_data, token=current_user.get("access_token"))
@@ -293,7 +295,7 @@ async def update_service(
     )
     if svc.status_code != 200 or not svc.json() or svc.json()[0].get("salon_id") != salon_id:
         raise HTTPException(status_code=404, detail="Service not found")
-    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    update_data = {k: v for k, v in data.model_dump(exclude_none=True).items() if v is not None}
     if not update_data:
         return {"message": "No changes"}
     await supabase.request(
