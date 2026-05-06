@@ -31,6 +31,7 @@ import { supabase } from '../../lib/supabase';
 import { showToast } from '../../store/toastStore';
 import { Service, Salon } from '../../types';
 import { handleApiError } from '../../lib/errorHandler';
+import axios from 'axios';
 
 const EMPTY_FORM = {
   name: '',
@@ -68,18 +69,60 @@ export default function ManageServicesScreen() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof EMPTY_FORM) => {
-      const response = await api.post(`/salons/${salon!.id}/services`, {
+      const payload = {
         name: data.name,
         description: data.description,
         price: parseFloat(data.price),
         duration: parseInt(data.duration),
         image_url: data.image_url || null,
         is_on_offer: data.is_on_offer,
-        discount_percentage: data.is_on_offer && data.discount_percentage
-          ? parseInt(data.discount_percentage)
-          : null,
-      });
-      return response.data;
+        discount_percentage:
+          data.is_on_offer && data.discount_percentage ? parseInt(data.discount_percentage) : null,
+      };
+
+      // #region agent log
+      if (__DEV__) {
+        console.log('🛠️ [SERVICE][CREATE][REQ]', {
+          baseURL: (api as any)?.defaults?.baseURL,
+          salonId: salon?.id,
+          hasImageUrl: !!payload.image_url,
+          imageUrlPrefix: typeof payload.image_url === 'string' ? payload.image_url.slice(0, 32) : null,
+          isOnOffer: payload.is_on_offer,
+          hasDiscount: payload.discount_percentage !== null,
+          duration: payload.duration,
+          price: payload.price,
+        });
+      }
+      // #endregion
+
+      try {
+        const response = await api.post(`/salons/${salon!.id}/services`, payload);
+        // #region agent log
+        if (__DEV__) {
+          console.log('✅ [SERVICE][CREATE][RES]', {
+            status: response.status,
+            salonId: salon?.id,
+            serviceId: response.data?.id,
+          });
+        }
+        // #endregion
+        return response.data;
+      } catch (err: unknown) {
+        // #region agent log
+        if (__DEV__) {
+          const ax = axios.isAxiosError(err) ? err : null;
+          console.log('❌ [SERVICE][CREATE][ERR_RAW]', {
+            salonId: salon?.id,
+            isAxiosError: axios.isAxiosError(err),
+            message: (err as any)?.message,
+            code: ax?.code,
+            status: ax?.response?.status,
+            responseDetail: ax?.response?.data?.detail,
+          });
+        }
+        // #endregion
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
