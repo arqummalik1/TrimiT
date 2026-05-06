@@ -23,7 +23,6 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 // SDK 54: readAsStringAsync lives on the legacy API.
 import * as FileSystem from 'expo-file-system/legacy';
-import { decode as decodeBase64 } from 'base-64';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { ServiceCard } from '../../components/ServiceCard';
@@ -32,7 +31,6 @@ import { typography, spacing, borderRadius, shadows, formatPrice } from '../../l
 import { useTheme, Theme } from '../../theme/ThemeContext';
 
 import api from '../../lib/api';
-import { supabase } from '../../lib/supabase';
 import { showToast } from '../../store/toastStore';
 import { Service, Salon } from '../../types';
 import { isAppError } from '../../types/error';
@@ -307,33 +305,24 @@ export default function ManageServicesScreen() {
         });
       }
 
-      // Android Expo Go can be flaky with fetch(file://...).blob() for uploads.
-      // Read file as base64 and convert to bytes for a stable upload.
-      const base64 = await FileSystem.readAsStringAsync(manipulated.uri, {
-        encoding: (FileSystem as any).EncodingType.Base64,
+      // Upload via backend (SERVICE ROLE) to bypass Supabase Storage RLS.
+      const form = new FormData();
+      form.append('file', {
+        // React Native FormData file descriptor
+        // @ts-expect-error - RN accepts this shape
+        uri: manipulated.uri,
+        name: `service.jpg`,
+        type: 'image/jpeg',
       });
-      // base64 -> Uint8Array
-      const binary = decodeBase64(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-      const fileName = `services/service-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+      const res = await api.post('/uploads/service-image', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
-      const { data, error } = await supabase.storage
-        .from('salon-images')
-        .upload(fileName, bytes, { contentType: 'image/jpeg' });
-
-      if (error) throw error;
-
-      const { data: urlData } = supabase.storage
-        .from('salon-images')
-        .getPublicUrl(data.path);
-
-      setFormData((prev) => ({ ...prev, image_url: urlData.publicUrl }));
+      setFormData((prev) => ({ ...prev, image_url: res.data?.public_url || '' }));
       if (__DEV__) {
         console.log('🖼️ [SERVICE][IMG][UPLOAD][DONE]', {
-          path: data.path,
-          publicUrlPrefix: urlData.publicUrl?.slice(0, 48),
+          publicUrlPrefix: (res.data?.public_url || '').slice(0, 48),
         });
       }
       showToast('Image uploaded!', 'success');
