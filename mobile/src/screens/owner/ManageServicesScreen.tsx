@@ -22,6 +22,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system';
+import { decode as decodeBase64 } from 'base-64';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { ServiceCard } from '../../components/ServiceCard';
@@ -308,10 +309,10 @@ export default function ManageServicesScreen() {
       // Android Expo Go can be flaky with fetch(file://...).blob() for uploads.
       // Read file as base64 and convert to bytes for a stable upload.
       const base64 = await FileSystem.readAsStringAsync(manipulated.uri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: (FileSystem as any)?.EncodingType?.Base64 ?? ('base64' as any),
       });
       // base64 -> Uint8Array
-      const binary = globalThis.atob ? globalThis.atob(base64) : atob(base64);
+      const binary = decodeBase64(base64);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
