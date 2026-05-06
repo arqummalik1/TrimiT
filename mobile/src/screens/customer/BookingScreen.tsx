@@ -12,7 +12,7 @@ import {
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, addDays, startOfToday, isToday } from 'date-fns';
+import { format, addDays, startOfToday, isToday, parseISO, isValid } from 'date-fns';
 import api from '../../lib/api';
 import axios from 'axios';
 import { Salon, TimeSlot, SlotsResponse } from '../../types';
@@ -134,8 +134,10 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   const visibleSlots = useMemo(() => {
     // Client-side guard: for today's date, hide slots earlier than current local time.
     // This ensures UX remains correct even if backend timezone differs from device timezone.
-    const selected = new Date(selectedDate);
-    if (!isToday(selected)) {
+    // IMPORTANT: `new Date('YYYY-MM-DD')` is parsed as UTC in JS and can shift dates
+    // on devices with non-UTC timezones. Use parseISO so "today" detection is correct.
+    const selected = parseISO(selectedDate);
+    if (!isValid(selected) || !isToday(selected)) {
       return displaySlots;
     }
     const now = new Date();
