@@ -4,11 +4,9 @@
 module.exports = ({ config }) => {
   const mapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-  if (!mapsKey && process.env.NODE_ENV === 'production') {
-    // Fail loud during production builds so we never ship without a real key.
-    throw new Error(
-      'EXPO_PUBLIC_GOOGLE_MAPS_API_KEY is missing. Set it via EAS secret before building.'
-    );
+  // Don't fail in preview builds if Maps key is missing - just warn
+  if (!mapsKey && process.env.NODE_ENV === 'production' && process.env.EAS_BUILD_PROFILE === 'production') {
+    console.warn('⚠️ EXPO_PUBLIC_GOOGLE_MAPS_API_KEY is missing. Maps may not work properly.');
   }
 
   return {

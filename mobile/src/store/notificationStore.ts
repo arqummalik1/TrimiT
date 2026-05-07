@@ -3,11 +3,12 @@
  * ────────────────────────────────────────────────────────────────────────────
  * Professional notification management for real-time booking updates.
  * Handles in-app notifications, sound playback, and notification state.
+ * 
+ * NOTE: Expo Notifications don't work in Expo Go. This uses in-app notifications only.
  */
 
 import { create } from 'zustand';
 import { Audio } from 'expo-av';
-import * as Notifications from 'expo-notifications';
 import type { Booking } from '../types';
 
 export interface BookingNotification {
@@ -52,6 +53,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   // Add a new notification
   addNotification: (booking, type) => {
+    console.log('[NotificationStore] Adding notification:', { bookingId: booking.id, type });
+    
     const notification: BookingNotification = {
       id: `${booking.id}-${Date.now()}`,
       booking,
@@ -69,17 +72,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
     // Play sound
     get().playNotificationSound();
-
-    // Schedule local notification
-    Notifications.scheduleNotificationAsync({
-      content: {
-        title: getNotificationTitle(type, booking),
-        body: getNotificationBody(type, booking),
-        sound: true,
-        data: { bookingId: booking.id, type },
-      },
-      trigger: null, // Immediate
-    });
+    
+    console.log('[NotificationStore] ✅ Notification added and modal should show');
   },
 
   // Mark notification as read
@@ -130,6 +124,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   // Set active notification (for modal display)
   setActiveNotification: (notification) => {
+    console.log('[NotificationStore] Setting active notification:', notification?.id);
     set({ activeNotification: notification });
     if (notification) {
       get().markAsRead(notification.id);
@@ -139,9 +134,13 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   // Play notification sound
   playNotificationSound: async () => {
     const { soundEnabled, sound } = get();
-    if (!soundEnabled || !sound) return;
+    if (!soundEnabled || !sound) {
+      console.log('[NotificationStore] Sound disabled or not loaded');
+      return;
+    }
 
     try {
+      console.log('[NotificationStore] Playing notification sound');
       await sound.replayAsync();
     } catch (error) {
       console.warn('[NotificationStore] Failed to play sound:', error);
@@ -156,11 +155,13 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   // Initialize sound
   initializeSound: async () => {
     try {
+      console.log('[NotificationStore] Initializing notification sound');
       const { sound } = await Audio.Sound.createAsync(
         require('../../assets/sounds/notification.mp3'),
         { shouldPlay: false }
       );
       set({ sound });
+      console.log('[NotificationStore] ✅ Sound initialized');
     } catch (error) {
       console.warn('[NotificationStore] Failed to load sound:', error);
     }

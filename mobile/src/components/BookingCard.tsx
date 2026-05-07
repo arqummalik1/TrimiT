@@ -195,7 +195,7 @@ export const BookingCard: React.FC<BookingCardProps> = ({
             {isOwner && booking.status === 'confirmed' && onComplete && (
               <TouchableOpacity style={styles.completeButton} onPress={onComplete}>
                 <Ionicons name="checkmark-done" size={16} color={theme.colors.info} />
-                <Text style={styles.completeText}>Complete</Text>
+                <Text style={styles.completeText}>Mark as complete</Text>
               </TouchableOpacity>
             )}
           </View>

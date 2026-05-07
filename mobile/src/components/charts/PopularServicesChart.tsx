@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { BarChart } from 'react-native-gifted-charts';
 import type { PopularServiceData } from '../../types';
 import { spacing } from '../../lib/utils';
@@ -9,11 +9,10 @@ interface PopularServicesChartProps {
   data: PopularServiceData[];
 }
 
-const { width } = Dimensions.get('window');
-
 export const PopularServicesChart: React.FC<PopularServicesChartProps> = ({ data }) => {
   const { theme } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const { width: screenWidth } = useWindowDimensions();
   
   if (!data || data.length === 0) {
     return (
@@ -23,8 +22,18 @@ export const PopularServicesChart: React.FC<PopularServicesChartProps> = ({ data
     );
   }
 
-  // Show top 5 services
-  const topServices = data.slice(0, 5);
+  // Show top 4 services for better fit on mobile
+  const topServices = data.slice(0, 4);
+  
+  // Calculate responsive chart width
+  // Account for: screen padding (spacing.xxl * 2) + card padding (16 * 2) + chart margins
+  const chartWidth = screenWidth - (spacing.xxl * 2) - 32 - 20;
+  
+  // Calculate dynamic bar width and spacing based on available width
+  const numBars = topServices.length;
+  const availableWidth = chartWidth - 40; // Reserve space for Y-axis
+  const barWidth = Math.min(Math.floor(availableWidth / (numBars * 2)), 40);
+  const barSpacing = Math.floor((availableWidth - (barWidth * numBars)) / (numBars + 1));
   
   const chartData = topServices.map((item, index) => ({
     value: item.bookings,
@@ -40,23 +49,27 @@ export const PopularServicesChart: React.FC<PopularServicesChartProps> = ({ data
       <Text style={styles.title}>Popular Services</Text>
       <Text style={styles.subtitle}>Top {chartData.length} by bookings</Text>
       
-      <BarChart
-        data={chartData}
-        width={width - 80}
-        height={180}
-        barWidth={30}
-        spacing={20}
-        initialSpacing={10}
-        noOfSections={4}
-        maxValue={Math.max(...chartData.map(d => d.value), 5)}
-        yAxisTextStyle={styles.axisText}
-        xAxisLabelTextStyle={styles.axisText}
-        xAxisColor={theme.colors.border}
-        yAxisColor={theme.colors.border}
-        showVerticalLines
-        verticalLinesColor={theme.colors.border}
-        showYAxisIndices
-      />
+      <View style={styles.chartWrapper}>
+        <BarChart
+          data={chartData}
+          width={chartWidth}
+          height={180}
+          barWidth={barWidth}
+          spacing={barSpacing}
+          initialSpacing={Math.max(barSpacing, 10)}
+          noOfSections={4}
+          maxValue={Math.max(...chartData.map(d => d.value), 5)}
+          yAxisTextStyle={styles.axisText}
+          xAxisLabelTextStyle={styles.axisText}
+          xAxisColor={theme.colors.border}
+          yAxisColor={theme.colors.border}
+          showVerticalLines
+          verticalLinesColor={theme.colors.border}
+          showYAxisIndices
+          yAxisThickness={1}
+          xAxisThickness={1}
+        />
+      </View>
     </View>
   );
 };
@@ -80,6 +93,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 12,
     color: theme.colors.textSecondary,
     marginBottom: 12,
+  },
+  chartWrapper: {
+    width: '100%',
+    overflow: 'hidden',
   },
   emptyContainer: {
     backgroundColor: theme.colors.surface,

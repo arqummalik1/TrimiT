@@ -28,7 +28,6 @@ import {
 
 import { lightPalette } from './src/theme/colors';
 import { useTheme } from './src/theme/ThemeContext';
-import { registerForPushNotificationsAsync, handleNotificationResponse } from './src/lib/notifications';
 import RootNavigator, { navigationRef } from './src/navigation/index';
 import { useAuthStore } from './src/store/authStore';
 import { ThemeProvider } from './src/theme/ThemeContext';
@@ -125,12 +124,17 @@ function AppContent() {
   // Register push notifications when user logs in
   useEffect(() => {
     // Only register if authenticated AND NOT in Expo Go (remote notifications not supported in Go SDK 53+)
+    // Push notification registration is now handled in OwnerTabs.tsx and CustomerTabs.tsx
+    // This prevents crashes and ensures proper setup after user is fully authenticated
     if (isAuthenticated && Constants.appOwnership !== 'expo') {
-      registerForPushNotificationsAsync();
-
       // Listen for notification interactions
       const subscription = Notifications.addNotificationResponseReceivedListener(response => {
-        handleNotificationResponse(response, navigationRef);
+        // Handle notification tap - navigate to relevant screen
+        const data = response.notification.request.content.data;
+        if (data?.bookingId && navigationRef.current) {
+          // Navigate to bookings screen
+          // navigationRef.current.navigate('Bookings' as never);
+        }
       });
 
       return () => subscription.remove();

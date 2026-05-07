@@ -33,6 +33,8 @@ export const subscribeToBookings = (
   bookingDate: string,
   onChange: (payload: BookingPayload) => void
 ): RealtimeChannel => {
+  console.log('[Supabase] Subscribing to bookings:', { salonId, bookingDate });
+  
   const channel = supabase
     .channel(`bookings:${salonId}:${bookingDate}`)
     .on(
@@ -44,6 +46,7 @@ export const subscribeToBookings = (
         filter: `salon_id=eq.${salonId}`,
       },
       (payload: BookingPayload) => {
+        console.log('[Supabase] Booking change received:', payload);
         // Filter by date in the callback since we can't filter by both in the subscription
         const newRecord = payload.new as Record<string, any> | undefined;
         const oldRecord = payload.old as Record<string, any> | undefined;
@@ -52,13 +55,16 @@ export const subscribeToBookings = (
         }
       }
     )
-    .subscribe();
+    .subscribe((status, err) => {
+      console.log('[Supabase] Subscription status:', status, err);
+    });
 
   return channel;
 };
 
 // Helper to unsubscribe from a channel
 export const unsubscribeFromBookings = (channel: RealtimeChannel): void => {
+  console.log('[Supabase] Unsubscribing from channel');
   supabase.removeChannel(channel);
 };
 
@@ -67,6 +73,8 @@ export const subscribeToSalonBookings = (
   salonId: string,
   onChange: (payload: BookingPayload) => void
 ): RealtimeChannel => {
+  console.log('[Supabase] Subscribing to salon bookings:', salonId);
+  
   const channel = supabase
     .channel(`salon-bookings:${salonId}`)
     .on(
@@ -78,10 +86,23 @@ export const subscribeToSalonBookings = (
         filter: `salon_id=eq.${salonId}`,
       },
       (payload: BookingPayload) => {
+        console.log('[Supabase] ✅ BOOKING EVENT RECEIVED:', {
+          eventType: payload.eventType,
+          new: payload.new,
+          old: payload.old,
+        });
         onChange(payload);
       }
     )
-    .subscribe();
+    .subscribe((status, err) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('[Supabase] ✅ Successfully subscribed to salon bookings:', salonId);
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('[Supabase] ❌ Subscription error:', err);
+      } else {
+        console.log('[Supabase] Subscription status:', status);
+      }
+    });
 
   return channel;
 };

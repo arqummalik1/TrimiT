@@ -11,6 +11,7 @@ from core.idempotency import idempotency_required
 from dependencies.auth import get_current_user
 from models.bookings import BookingCreate, BookingStatusUpdate, BookingStatus, ReviewCreate, SlotReserve
 from models.promotions import PromoCodeValidate
+from services.push_notifications import push_service
 logger = logging.getLogger("trimit")
 DEBUG_LOG_PATH = "/Users/arqummalik/Software Development/Trimit/TrimiT/.cursor/debug-2565d8.log"
 
@@ -133,6 +134,50 @@ async def update_booking_status(
     )
     if patch.status_code not in (200, 201, 204):
         raise HTTPException(status_code=400, detail="Failed to update status")
+    
+    # Send push notification to customer about status change
+    try:
+        # Get customer's push token
+        customer_resp = await supabase.request(
+            "GET",
+            f"rest/v1/users?id=eq.{booking.get('user_id')}&select=push_token,name",
+            token=token
+        )
+        
+        if customer_resp.status_code == 200 and customer_resp.json():
+            customer_data = customer_resp.json()[0]
+            customer_push_token = customer_data.get("push_token")
+            
+            if customer_push_token:
+                # Get booking details
+                booking_details = await supabase.request(
+                    "GET",
+                    f"rest/v1/bookings?id=eq.{booking_id}&select=booking_date,time_slot,services(name)",
+                    token=token
+                )
+                
+                if booking_details.status_code == 200 and booking_details.json():
+                    booking_info = booking_details.json()[0]
+                    service_name = booking_info.get("services", {}).get("name", "Service")
+                    
+                    # Send push notification
+                    await push_service.notify_booking_status_change(
+                        customer_push_token=customer_push_token,
+                        booking_data={
+                            "booking_id": booking_id,
+                            "service_name": service_name,
+                            "booking_date": booking_info.get("booking_date"),
+                            "time_slot": booking_info.get("time_slot"),
+                        },
+                        new_status=body.status.value
+                    )
+                    logger.info(f"✅ Push notification sent to customer for booking {booking_id}")
+            else:
+                logger.info(f"⚠️ Customer has no push token registered")
+    except Exception as e:
+        # Don't fail the status update if push notification fails
+        logger.error(f"❌ Failed to send push notification: {str(e)}")
+    
     return {"message": "Status updated", "booking_id": booking_id}
 
 
@@ -387,6 +432,48 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
         f"rest/v1/slot_holds?salon_id=eq.{data.salon_id}&booking_date=eq.{data.booking_date}&time_slot=eq.{data.time_slot}&user_id=eq.{user_id}",
         token=token
     )
+    
+    # 5. Send push notification to salon owner
+    try:
+        # Get salon owner's push token
+        owner_resp = await supabase.request(
+            "GET",
+            f"rest/v1/users?id=eq.{salon.get('owner_id')}&select=push_token,name",
+            token=token
+        )
+        
+        if owner_resp.status_code == 200 and owner_resp.json():
+            owner_data = owner_resp.json()[0]
+            owner_push_token = owner_data.get("push_token")
+            
+            if owner_push_token:
+                # Get customer name
+                customer_resp = await supabase.request(
+                    "GET",
+                    f"rest/v1/users?id=eq.{user_id}&select=name",
+                    token=token
+                )
+                customer_name = "Customer"
+                if customer_resp.status_code == 200 and customer_resp.json():
+                    customer_name = customer_resp.json()[0].get("name", "Customer")
+                
+                # Send push notification
+                await push_service.notify_new_booking(
+                    owner_push_token=owner_push_token,
+                    booking_data={
+                        "booking_id": result.get("booking_id"),
+                        "customer_name": customer_name,
+                        "service_name": service.get("name"),
+                        "booking_date": data.booking_date,
+                        "time_slot": data.time_slot,
+                    }
+                )
+                logger.info(f"✅ Push notification sent to owner for booking {result.get('booking_id')}")
+            else:
+                logger.info(f"⚠️ Owner has no push token registered")
+    except Exception as e:
+        # Don't fail the booking if push notification fails
+        logger.error(f"❌ Failed to send push notification: {str(e)}")
         
     return {"message": "Booking created", "booking_id": result.get("booking_id")}
 

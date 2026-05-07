@@ -362,11 +362,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Business Performance</Text>
             <BookingsTrendChart data={analytics.bookings_trend} />
-            <View style={styles.chartsGrid}>
-              <View style={{ flex: 1 }}>
-                <PopularServicesChart data={analytics.popular_services} />
-              </View>
-            </View>
+            <PopularServicesChart data={analytics.popular_services} />
             <StatusDistributionChart data={analytics.status_distribution} />
           </View>
         ) : analytics && (
@@ -462,7 +458,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.text },
   seeAllText: { fontSize: 14, color: theme.colors.primary, fontWeight: '600' },
-  chartsGrid: { marginBottom: spacing.lg },
   peakHoursCard: { backgroundColor: theme.colors.surface, borderRadius: 20, padding: spacing.xl, borderWidth: 1, borderColor: theme.colors.border, gap: spacing.lg },
   peakHourRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   peakHourTimeText: { fontSize: 13, fontWeight: '600', color: theme.colors.text, width: 45 },

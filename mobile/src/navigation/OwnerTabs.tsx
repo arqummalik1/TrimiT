@@ -13,6 +13,12 @@ import { bookingRepository } from '../repositories/bookingRepository';
 import { useRealtimeBookings } from '../hooks/useRealtimeBookings';
 import { useNotificationStore } from '../store/notificationStore';
 import { BookingNotificationModal } from '../components/BookingNotificationModal';
+import { 
+  setupPushNotifications, 
+  addNotificationReceivedListener, 
+  addNotificationResponseListener,
+  getLastNotificationResponse 
+} from '../lib/notifications';
 
 // Configure notifications to show and play sound when app is in foreground
 Notifications.setNotificationHandler({
@@ -92,12 +98,17 @@ export default function OwnerTabs() {
     },
   });
 
-  // Initialize notification sound
+  // Initialize notification sound and push notifications
   useEffect(() => {
     initializeSound();
     
     // Request notification permissions
     Notifications.requestPermissionsAsync();
+    
+    // Setup push notifications (safe - won't break if it fails)
+    setupPushNotifications().catch((error) => {
+      console.warn('[OwnerTabs] Push notification setup failed (non-critical):', error);
+    });
     
     setIsReady(true);
 

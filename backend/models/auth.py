@@ -20,9 +20,10 @@ class UserLogin(BaseModel):
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
+    push_token: Optional[str] = None
 
 class PushTokenUpdate(BaseModel):
-    push_token: str
+    push_token: str = Field(..., description="Expo push token (ExponentPushToken[...])")
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr

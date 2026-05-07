@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { PieChart } from 'react-native-gifted-charts';
 import type { StatusDistributionData } from '../../types';
 import { useTheme, Theme } from '../../theme';
@@ -11,6 +11,7 @@ interface StatusDistributionChartProps {
 export const StatusDistributionChart: React.FC<StatusDistributionChartProps> = ({ data }) => {
   const { theme } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const { width: screenWidth } = useWindowDimensions();
 
   if (!data || data.length === 0 || data.every(d => d.count === 0)) {
     return (
@@ -30,30 +31,37 @@ export const StatusDistributionChart: React.FC<StatusDistributionChartProps> = (
     }));
 
   const total = pieData.reduce((sum, item) => sum + item.value, 0);
+  
+  // Calculate responsive pie chart radius based on screen width
+  const availableWidth = screenWidth - 64; // Account for padding
+  const pieRadius = Math.min(Math.floor(availableWidth * 0.2), 70);
+  const pieInnerRadius = Math.floor(pieRadius * 0.57);
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Booking Status</Text>
       
       <View style={styles.chartRow}>
-        <PieChart
-          data={pieData}
-          radius={70}
-          innerRadius={40}
-          showText
-          textColor={theme.colors.text}
-          textSize={10}
-          fontWeight="bold"
-          strokeWidth={2}
-          strokeColor={theme.colors.surface}
-        />
+        <View style={styles.pieWrapper}>
+          <PieChart
+            data={pieData}
+            radius={pieRadius}
+            innerRadius={pieInnerRadius}
+            showText
+            textColor={theme.colors.text}
+            textSize={10}
+            fontWeight="bold"
+            strokeWidth={2}
+            strokeColor={theme.colors.surface}
+          />
+        </View>
         
         {/* Legend */}
         <View style={styles.legend}>
           {pieData.map((item, index) => (
             <View key={index} style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-              <Text style={styles.legendText}>
+              <Text style={styles.legendText} numberOfLines={1}>
                 {item.text}: {item.value} ({Math.round((item.value / total) * 100)}%)
               </Text>
             </View>
@@ -83,6 +91,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    width: '100%',
+  },
+  pieWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   legend: {
     flex: 1,
@@ -93,15 +106,18 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexShrink: 1,
   },
   legendDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
+    flexShrink: 0,
   },
   legendText: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.colors.textSecondary,
+    flexShrink: 1,
   },
   emptyContainer: {
     backgroundColor: theme.colors.surface,
