@@ -168,31 +168,6 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   }, [allSalons, searchQuery]);
 
   const handleSalonPress = (salon: Salon) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7843/ingest/5e65bc55-a277-4f9b-a066-90ba7f5fa5db', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '2565d8' },
-      body: JSON.stringify({
-        sessionId: '2565d8',
-        location: 'DiscoverScreen.tsx:handleSalonPress',
-        message: 'navigate_salon_detail',
-        data: {
-          salonId: salon.id,
-          idType: typeof salon.id,
-          nameSample: typeof salon.name === 'string' ? salon.name.slice(0, 1) : '',
-        },
-        timestamp: Date.now(),
-        hypothesisId: 'H_nav_id',
-      }),
-    }).catch(() => {});
-    if (__DEV__) {
-      console.log('[DBG][H_nav_id] navigate_salon_detail', {
-        salonId: salon.id,
-        idType: typeof salon.id,
-        nameSample: typeof salon.name === 'string' ? salon.name.slice(0, 1) : '',
-      });
-    }
-    // #endregion
     navigation.navigate('SalonDetail', { salonId: salon.id });
   };
 

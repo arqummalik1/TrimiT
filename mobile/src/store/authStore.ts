@@ -172,21 +172,6 @@ export const useAuthStore = create<AuthState>()(
           try {
             const { authService } = require('../services/authService');
             await authService.getMe();
-            // #region agent log
-            fetch('http://127.0.0.1:7843/ingest/5e65bc55-a277-4f9b-a066-90ba7f5fa5db', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '2565d8' },
-              body: JSON.stringify({
-                sessionId: '2565d8',
-                runId: 'run_auth',
-                hypothesisId: 'H_token_valid',
-                location: 'authStore.ts:initializeAuth',
-                message: 'stored_token_validated',
-                data: { hasToken: true },
-                timestamp: Date.now(),
-              }),
-            }).catch(() => {});
-            // #endregion
             console.log('[AuthStore] Auth initialized');
           } catch (err) {
             console.warn('[AuthStore] Stored token is invalid/expired, clearing session');

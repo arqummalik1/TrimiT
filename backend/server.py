@@ -64,8 +64,8 @@ if settings.SENTRY_DSN:
         dsn=settings.SENTRY_DSN,
         integrations=[FastApiIntegration()],
         environment=settings.ENVIRONMENT,
-        traces_sample_rate=1.0,
-        profiles_sample_rate=1.0,
+        traces_sample_rate=0.2,
+        profiles_sample_rate=0.2,
     )
 
 # Configure Logging

@@ -13,24 +13,6 @@ from models.bookings import BookingCreate, BookingStatusUpdate, BookingStatus, R
 from models.promotions import PromoCodeValidate
 from services.push_notifications import push_service
 logger = logging.getLogger("trimit")
-DEBUG_LOG_PATH = "/Users/arqummalik/Software Development/Trimit/TrimiT/.cursor/debug-2565d8.log"
-
-
-def _dbg(hypothesis_id: str, message: str, data: dict) -> None:
-    try:
-        payload = {
-            "sessionId": "2565d8",
-            "runId": "run_booking",
-            "hypothesisId": hypothesis_id,
-            "location": "backend/routers/bookings.py:reserve_slot",
-            "message": message,
-            "data": data,
-            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
-        }
-        with open(DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
-            f.write(json.dumps(payload) + "\n")
-    except Exception:
-        pass
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
@@ -284,13 +266,7 @@ async def reserve_slot(request: Request, data: SlotReserve, current_user: dict =
         "p_hold_duration_seconds": 90
     }
     
-    _dbg("H_reserve_rpc", "reserve_rpc_request", rpc_payload)
     response = await supabase.request("POST", "rest/v1/rpc/reserve_slot_v1", json=rpc_payload, token=token)
-    _dbg(
-        "H_reserve_rpc",
-        "reserve_rpc_response",
-        {"status": response.status_code, "body_preview": (response.text or "")[:240]},
-    )
     
     if response.status_code != 200:
         logger.error(f"Reservation RPC failed: {response.text}")

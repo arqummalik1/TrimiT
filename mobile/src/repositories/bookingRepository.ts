@@ -23,7 +23,7 @@ export const bookingRepository = {
     }
   },
 
-  async getSalonBookings(salonId: string, params?: any): Promise<Booking[]> {
+  async getSalonBookings(salonId: string, params?: { status?: string; date?: string; limit?: number; offset?: number }): Promise<Booking[]> {
     try {
       return await bookingService.getSalonBookings(salonId, params);
     } catch (error) {

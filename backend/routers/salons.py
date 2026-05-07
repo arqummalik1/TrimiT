@@ -3,7 +3,6 @@ from typing import List, Optional
 from datetime import datetime, date, timedelta, timezone
 import uuid
 import logging
-import json
 from math import radians, sin, cos, sqrt, atan2
 
 from core.supabase import supabase
@@ -11,24 +10,6 @@ from dependencies.auth import get_current_user
 from models.salons import SalonCreate, SalonUpdate, ServiceCreate, ServiceUpdate
 
 logger = logging.getLogger("trimit")
-DEBUG_LOG_PATH = "/Users/arqummalik/Software Development/Trimit/TrimiT/.cursor/debug-2565d8.log"
-
-
-def _dbg(hypothesis_id: str, message: str, data: dict) -> None:
-    try:
-        payload = {
-            "sessionId": "2565d8",
-            "runId": "run2",
-            "hypothesisId": hypothesis_id,
-            "location": "backend/routers/salons.py:get_salon",
-            "message": message,
-            "data": data,
-            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
-        }
-        with open(DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
-            f.write(json.dumps(payload) + "\n")
-    except Exception:
-        pass
 
 router = APIRouter(prefix="/salons", tags=["Salons"])
 
@@ -142,22 +123,7 @@ async def get_salons(
 
 @router.get("/{salon_id}")
 async def get_salon(salon_id: str):
-    # #region agent log
-    _dbg("H_detail_query", "get_salon_request", {"salonId": salon_id})
-    # #endregion
-    # Salon detail must embed relations from salons, not nested under services.
     response = await supabase.request("GET", f"rest/v1/salons?id=eq.{salon_id}&select=*,services(*),reviews(*)")
-    # #region agent log
-    _dbg(
-        "H_detail_query",
-        "get_salon_supabase_response",
-        {
-            "salonId": salon_id,
-            "status": response.status_code,
-            "body_preview": (response.text or "")[:200],
-        },
-    )
-    # #endregion
     if response.status_code != 200:
         raise HTTPException(status_code=500, detail={"code": "DETAIL_QUERY_FAILED", "message": "Failed to fetch salon detail"})
     if not response.json():

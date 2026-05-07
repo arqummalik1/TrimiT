@@ -9,7 +9,6 @@ from uuid import UUID
 from datetime import date, time
 from decimal import Decimal
 from datetime import datetime, timezone
-import json
 
 from dependencies.auth import get_current_user
 from models.staff import (
@@ -24,24 +23,6 @@ from core.limiter import limiter
 from fastapi import Request
 
 router = APIRouter(prefix="/staff", tags=["staff"])
-DEBUG_LOG_PATH = "/Users/arqummalik/Software Development/Trimit/TrimiT/.cursor/debug-2565d8.log"
-
-
-def _dbg(hypothesis_id: str, message: str, data: dict) -> None:
-    try:
-        payload = {
-            "sessionId": "2565d8",
-            "runId": "run_booking",
-            "hypothesisId": hypothesis_id,
-            "location": "backend/routers/staff.py:get_available_staff",
-            "message": message,
-            "data": data,
-            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
-        }
-        with open(DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
-            f.write(json.dumps(payload) + "\n")
-    except Exception:
-        pass
 
 
 # =====================================================
@@ -457,13 +438,7 @@ async def get_available_staff(
         "p_booking_date": booking_date.isoformat(),
         "p_time_slot": time_slot.strftime("%H:%M:%S"),
     }
-    _dbg("H_staff_rpc", "staff_available_request", payload)
     response = await supabase.request("POST", "rest/v1/rpc/get_available_staff", json=payload)
-    _dbg(
-        "H_staff_rpc",
-        "staff_available_response",
-        {"status": response.status_code, "body_preview": (response.text or "")[:240]},
-    )
 
     if response.status_code != 200:
         # Graceful fallback for production continuity if RPC is missing/broken.
