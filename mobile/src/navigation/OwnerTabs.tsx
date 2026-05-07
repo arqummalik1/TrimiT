@@ -1,15 +1,18 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
 import { OwnerTabParamList, OwnerSettingsStackParamList } from './types';
 import { useTheme } from '../theme/ThemeContext';
-import { subscribeToSalonBookings, unsubscribeFromBookings } from '../lib/supabase';
 import { salonRepository } from '../repositories/salonRepository';
+import { bookingRepository } from '../repositories/bookingRepository';
+import { useRealtimeBookings } from '../hooks/useRealtimeBookings';
+import { useNotificationStore } from '../store/notificationStore';
+import { BookingNotificationModal } from '../components/BookingNotificationModal';
 
 // Configure notifications to show and play sound when app is in foreground
 Notifications.setNotificationHandler({
@@ -56,112 +59,150 @@ export default function OwnerTabs() {
   const { colors } = theme;
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const [isReady, setIsReady] = useState(false);
 
+  // Notification store
+  const activeNotification = useNotificationStore((state) => state.activeNotification);
+  const setActiveNotification = useNotificationStore((state) => state.setActiveNotification);
+  const initializeSound = useNotificationStore((state) => state.initializeSound);
+  const cleanupSound = useNotificationStore((state) => state.cleanupSound);
+
+  // Fetch salon data
   const { data: salon } = useQuery({
     queryKey: ['ownerSalon'],
     queryFn: () => salonRepository.getOwnerSalon(),
     retry: false,
   });
 
+  // Fetch analytics for badge count
   const { data: analytics } = useQuery({
     queryKey: ['ownerAnalytics', 'today', salon?.id],
     queryFn: () => salonRepository.getAnalytics('today'),
     enabled: !!salon,
   });
 
-  useEffect(() => {
-    if (!salon?.id) return;
-
-    // Request permissions for notifications
-    Notifications.requestPermissionsAsync();
-
-    const channel = subscribeToSalonBookings(salon.id, (payload) => {
-      // Invalidate queries so UI updates instantly across the app
+  // Mutation for booking status updates
+  const statusMutation = useMutation({
+    mutationFn: ({ bookingId, status }: { bookingId: string; status: string }) =>
+      bookingRepository.updateBookingStatus(bookingId, status),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ownerBookings'] });
-      queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
       queryClient.invalidateQueries({ queryKey: ['recentBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
+    },
+  });
 
-      // Trigger local notification on new booking
-      if (payload.eventType === 'INSERT') {
-        const newBooking = payload.new as any;
-        Notifications.scheduleNotificationAsync({
-          content: {
-            title: '🔔 New Booking Received!',
-            body: `${newBooking.service_name} on ${newBooking.booking_date} at ${newBooking.booking_time}`,
-            sound: true, // Will play default notification sound
-          },
-          trigger: null, // Send immediately
-        });
-      }
-    });
+  // Initialize notification sound
+  useEffect(() => {
+    initializeSound();
+    
+    // Request notification permissions
+    Notifications.requestPermissionsAsync();
+    
+    setIsReady(true);
 
     return () => {
-      unsubscribeFromBookings(channel);
+      cleanupSound();
     };
-  }, [salon?.id, queryClient]);
+  }, []);
+
+  // Subscribe to real-time booking updates
+  useRealtimeBookings({
+    salonId: salon?.id,
+    enabled: isReady && !!salon?.id,
+    onNewBooking: (booking) => {
+      console.log('[OwnerTabs] New booking received:', booking.id);
+      // Notification is automatically added by the hook
+    },
+    onBookingUpdate: (booking) => {
+      console.log('[OwnerTabs] Booking updated:', booking.id);
+    },
+    onBookingDelete: (bookingId) => {
+      console.log('[OwnerTabs] Booking deleted:', bookingId);
+    },
+  });
 
   const pendingCount = analytics?.pending_bookings || 0;
 
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: {
-          backgroundColor: colors.tabBar,
-          borderTopColor: colors.tabBarBorder,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          // Dynamic height: base chrome (56) + system bottom inset.
-          // This prevents clipping on Android gesture nav and iPhone home indicator.
-          height: 56 + insets.bottom,
-          paddingBottom: insets.bottom,
-          paddingTop: 6,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-        },
-      }}
-    >
-      <Tab.Screen
-        name="Dashboard"
-        component={OwnerStack}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid" size={size} color={color} />
-          ),
+    <>
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textSecondary,
+          tabBarStyle: {
+            backgroundColor: colors.tabBar,
+            borderTopColor: colors.tabBarBorder,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            // Dynamic height: base chrome (56) + system bottom inset.
+            // This prevents clipping on Android gesture nav and iPhone home indicator.
+            height: 56 + insets.bottom,
+            paddingBottom: insets.bottom,
+            paddingTop: 6,
+          },
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: '600',
+          },
         }}
-      />
-      <Tab.Screen
-        name="Bookings"
-        component={ManageBookingsScreen}
-        options={{
-          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
-          tabBarBadgeStyle: { backgroundColor: colors.error, color: '#fff' },
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar" size={size} color={color} />
-          ),
+      >
+        <Tab.Screen
+          name="Dashboard"
+          component={OwnerStack}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="grid" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Bookings"
+          component={ManageBookingsScreen}
+          options={{
+            tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+            tabBarBadgeStyle: { backgroundColor: colors.error, color: '#fff' },
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="calendar" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Services"
+          component={ManageServicesScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="pricetag" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Settings"
+          component={SettingsStackScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="settings" size={size} color={color} />
+            ),
+          }}
+        />
+      </Tab.Navigator>
+
+      {/* Booking Notification Modal */}
+      <BookingNotificationModal
+        notification={activeNotification}
+        onClose={() => setActiveNotification(null)}
+        onAccept={(bookingId) => {
+          statusMutation.mutate({ bookingId, status: 'confirmed' });
         }}
-      />
-      <Tab.Screen
-        name="Services"
-        component={ManageServicesScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="pricetag" size={size} color={color} />
-          ),
+        onReject={(bookingId) => {
+          statusMutation.mutate({ bookingId, status: 'cancelled' });
         }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsStackScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings" size={size} color={color} />
-          ),
+        onViewDetails={(bookingId) => {
+          // Navigate to bookings tab
+          // The navigation will be handled by the tab navigator
         }}
+        isProcessing={statusMutation.isPending}
       />
-    </Tab.Navigator>
+    </>
   );
 }
