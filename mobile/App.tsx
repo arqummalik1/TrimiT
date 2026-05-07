@@ -55,12 +55,6 @@ const asyncStoragePersister = createAsyncStoragePersister({
   storage: AsyncStorage,
 });
 
-persistQueryClient({
-  queryClient: queryClient as any,
-  persister: asyncStoragePersister,
-  maxAge: 1000 * 60 * 60 * 24, // 24 hours
-});
-
 const CUSTOM_FONTS = {
   Manrope_400Regular,
   Manrope_500Medium,
@@ -106,6 +100,13 @@ function AppContent() {
     initializeAuth();
     setQueryClient(queryClient as any);
     analytics.init();
+
+    // Initialize React Query persistence safely after the JS engine is ready
+    persistQueryClient({
+      queryClient: queryClient as any,
+      persister: asyncStoragePersister,
+      maxAge: 1000 * 60 * 60 * 24, // 24 hours
+    });
   }, []);
 
   // Senior Architect: Track user identity in Sentry/Analytics when authenticated
