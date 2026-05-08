@@ -491,7 +491,8 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     }
 
     // Check if slot was just booked by someone else
-    if (justBookedSlots.has(selectedSlot) && !effectiveAllowMultiple) {
+    const scopedKey = `${selectedDate}::${selectedSlot}`;
+    if (justBookedSlots.has(scopedKey) && !effectiveAllowMultiple) {
       Alert.alert(
         'Slot Unavailable',
         'This time slot was just booked by someone else. Please select another slot.',
@@ -737,7 +738,8 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
           ) : visibleSlots && visibleSlots.length > 0 ? (
             <View style={styles.slotsGrid}>
               {visibleSlots.map((slot) => {
-                const isJustBooked = justBookedSlots.has(slot.time);
+                const scopedKey = `${selectedDate}::${slot.time}`;
+                const isJustBooked = justBookedSlots.has(scopedKey);
                 const isMulti = slot.allow_multiple;
                 const count = slot.booking_count || 0;
                 const max = slot.max_bookings || 1;

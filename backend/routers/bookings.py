@@ -187,20 +187,24 @@ async def get_available_slots(
     service = service_resp.json()[0]
     
     # 2. Fetch existing bookings and active holds for the day
+    now_utc = datetime.now(timezone.utc)
     bookings_resp = await supabase.request("GET", f"rest/v1/bookings?salon_id=eq.{salon_id}&booking_date=eq.{effective_date}&status=neq.cancelled&select=time_slot")
-    holds_resp = await supabase.request("GET", f"rest/v1/slot_holds?salon_id=eq.{salon_id}&booking_date=eq.{effective_date}&expires_at=gt.{datetime.now(timezone.utc).isoformat()}&select=time_slot")
-    
+    holds_resp = await supabase.request("GET", f"rest/v1/slot_holds?salon_id=eq.{salon_id}&booking_date=eq.{effective_date}&expires_at=gt.{now_utc.isoformat()}&select=time_slot")
+
     existing_bookings = bookings_resp.json() if bookings_resp.status_code == 200 else []
     active_holds = holds_resp.json() if holds_resp.status_code == 200 else []
-    
-    # Group occupancy by time slot (bookings + holds)
-    occupancy_counts = {}
+
+    # Normalize time_slot to HH:MM and group occupancy (bookings + holds)
+    # DB may store HH:MM:SS for older records — strip to first 5 chars for consistency
+    occupancy_counts: dict[str, int] = {}
     for b in existing_bookings:
-        slot = b["time_slot"]
-        occupancy_counts[slot] = occupancy_counts.get(slot, 0) + 1
+        slot = (b.get("time_slot") or "")[:5]  # normalize HH:MM:SS → HH:MM
+        if slot:
+            occupancy_counts[slot] = occupancy_counts.get(slot, 0) + 1
     for h in active_holds:
-        slot = h["time_slot"]
-        occupancy_counts[slot] = occupancy_counts.get(slot, 0) + 1
+        slot = (h.get("time_slot") or "")[:5]
+        if slot:
+            occupancy_counts[slot] = occupancy_counts.get(slot, 0) + 1
 
     # 3. Generate slots
     try:
@@ -218,30 +222,31 @@ async def get_available_slots(
     curr = opening
     
     # If checking for today, filter out past slots (5-min grace)
-    now = datetime.now()
-    is_today = effective_date == now.strftime("%Y-%m-%d")
-    grace_time = now + timedelta(minutes=5) if is_today else None
+    # Use UTC consistently — Render server runs in UTC; avoids timezone drift on local dev.
+    is_today = effective_date == now_utc.strftime("%Y-%m-%d")
+    grace_minutes = now_utc.hour * 60 + now_utc.minute + 5 if is_today else None
 
     while curr + timedelta(minutes=duration) <= closing:
-        slot_time_str = curr.strftime("%H:%M")
-        
-        # Filter past slots
-        if is_today and grace_time:
-            if curr.time() < grace_time.time():
-                curr += timedelta(minutes=30) 
+        slot_time_str = curr.strftime("%H:%M")  # always HH:MM
+
+        # Filter past slots using UTC minute-of-day comparison
+        if is_today and grace_minutes is not None:
+            slot_minutes = curr.hour * 60 + curr.minute
+            if slot_minutes < grace_minutes:
+                curr += timedelta(minutes=30)
                 continue
-        
-        # Check capacity
+
+        # Check capacity against normalized occupancy_counts
         count = occupancy_counts.get(slot_time_str, 0)
         available = False
         if not allow_multiple and count == 0:
             available = True
         elif allow_multiple and count < max_bookings:
             available = True
-            
+
         if available:
             slots.append(slot_time_str)
-            
+
         curr += timedelta(minutes=30) 
         
     return {

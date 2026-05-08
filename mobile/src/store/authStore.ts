@@ -14,13 +14,15 @@ interface AuthState {
   isLoading: boolean;
   isHydrated: boolean;
   error: string | null;
+  /** Set to true after a successful signup when email confirmation is required */
+  requiresEmailConfirmation: boolean;
   queryClient: QueryClient | null;
 
   setUser: (user: User | null, token: string | null) => void;
   setHydrated: (val: boolean) => void;
   setQueryClient: (qc: QueryClient) => void;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (email: string, password: string, name: string, phone: string, role: 'customer' | 'owner') => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; requiresEmailConfirmation?: boolean }>;
+  signup: (email: string, password: string, name: string, phone: string, role: 'customer' | 'owner') => Promise<{ success: boolean; error?: string; requiresEmailConfirmation?: boolean }>;
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (data: { name?: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
@@ -37,6 +39,7 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       isHydrated: false,
       error: null,
+      requiresEmailConfirmation: false,
       queryClient: null,
 
       setUser: (user, token) => {
@@ -49,53 +52,66 @@ export const useAuthStore = create<AuthState>()(
       setQueryClient: (qc) => set({ queryClient: qc }),
 
       login: async (email, password) => {
-        set({ isLoading: true, error: null });
-        try {
-          const { user, token } = await authRepository.login(email, password);
-          
+        set({ isLoading: true, error: null, requiresEmailConfirmation: false });
+        const result = await authRepository.login(email, password);
+
+        if (result.requiresEmailConfirmation) {
           set({
-            user,
-            token,
-            isAuthenticated: true,
             isLoading: false,
-            error: null,
+            error: result.error ?? 'Please confirm your email before logging in.',
+            requiresEmailConfirmation: true,
           });
-          
-          return { success: true };
-        } catch (error: any) {
-          set({ isLoading: false, error: error.message });
-          return { success: false, error: error.message };
+          return { success: false, error: result.error, requiresEmailConfirmation: true };
         }
+
+        if (!result.token || !result.user) {
+          const errorMsg = result.error ?? 'Login failed. Please try again.';
+          set({ isLoading: false, error: errorMsg });
+          return { success: false, error: errorMsg };
+        }
+
+        set({
+          user: result.user,
+          token: result.token,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+          requiresEmailConfirmation: false,
+        });
+        return { success: true };
       },
 
       signup: async (email, password, name, phone, role) => {
-        set({ isLoading: true, error: null });
-        try {
-          const { user, token } = await authRepository.signup({
-            email,
-            password,
-            name,
-            phone,
-            role,
+        set({ isLoading: true, error: null, requiresEmailConfirmation: false });
+        const result = await authRepository.signup({ email, password, name, phone, role });
+
+        // Email confirmation required — success state for UI, not logged in
+        if (result.requiresEmailConfirmation) {
+          set({
+            isLoading: false,
+            requiresEmailConfirmation: true,
+            error: null, // Not an error — a success that requires confirmation
           });
-          
-          if (token) {
-            set({
-              user,
-              token,
-              isAuthenticated: true,
-              isLoading: false,
-              error: null,
-            });
-          } else {
-            set({ isLoading: false });
-          }
-          
-          return { success: true };
-        } catch (error: any) {
-          set({ isLoading: false, error: error.message });
-          return { success: false, error: error.message };
+          return { success: true, requiresEmailConfirmation: true };
         }
+
+        // Genuine error
+        if (!result.token || !result.user) {
+          const errorMsg = result.error ?? 'Signup failed. Please try again.';
+          set({ isLoading: false, error: errorMsg });
+          return { success: false, error: errorMsg };
+        }
+
+        // Full success — user is logged in immediately
+        set({
+          user: result.user,
+          token: result.token,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+          requiresEmailConfirmation: false,
+        });
+        return { success: true };
       },
 
       forgotPassword: async (email) => {

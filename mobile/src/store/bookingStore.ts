@@ -19,8 +19,8 @@ interface BookingState {
   subscribeToSlots: (salonId: string, date: string, currentSlots: TimeSlot[], allowMultiple: boolean) => void;
   unsubscribeFromSlots: () => void;
   updateSlots: (slots: TimeSlot[], allowMultiple: boolean) => void;
-  markSlotJustBooked: (time: string) => void;
-  clearJustBookedSlot: (time: string) => void;
+  markSlotJustBooked: (date: string, time: string) => void;
+  clearJustBookedSlot: (date: string, time: string) => void;
   setRealtimeStatus: (connected: boolean) => void;
   refreshSlots: () => void;
   needsRefresh: boolean;
@@ -70,13 +70,14 @@ export const useBookingStore = create<BookingState>((set, get) => ({
                 : slot
             );
 
+            const scopedKey = `${date}::${bookedTime}`;
             set({
               slots: updatedSlots,
-              justBookedSlots: new Set([...get().justBookedSlots, bookedTime]),
+              justBookedSlots: new Set([...get().justBookedSlots, scopedKey]),
             });
 
             setTimeout(() => {
-              get().clearJustBookedSlot(bookedTime);
+              get().clearJustBookedSlot(date, bookedTime);
             }, 3000);
           } else {
             // Multi mode: increment count, mark full if at capacity
@@ -122,14 +123,16 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   },
 
   // Mark a slot as just booked by someone else
-  markSlotJustBooked: (time: string) => {
-    set({ justBookedSlots: new Set([...get().justBookedSlots, time]) });
+  markSlotJustBooked: (date: string, time: string) => {
+    const scopedKey = `${date}::${time}`;
+    set({ justBookedSlots: new Set([...get().justBookedSlots, scopedKey]) });
   },
 
   // Clear the "just booked" indicator
-  clearJustBookedSlot: (time: string) => {
+  clearJustBookedSlot: (date: string, time: string) => {
+    const scopedKey = `${date}::${time}`;
     const newSet = new Set(get().justBookedSlots);
-    newSet.delete(time);
+    newSet.delete(scopedKey);
     set({ justBookedSlots: newSet });
   },
 

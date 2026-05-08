@@ -58,6 +58,8 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
   const { signup, isLoading, error: authError, clearError } = useAuthStore();
 
   const [showPassword, setShowPassword] = useState(false);
+  const [emailConfirmationSent, setEmailConfirmationSent] = useState(false);
+  const [confirmedEmail, setConfirmedEmail] = useState('');
 
   const {
     control,
@@ -80,16 +82,46 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
     );
 
     if (result.success) {
-      // Logic for redirect is handled by auth observer in App.tsx
+      if (result.requiresEmailConfirmation) {
+        // Supabase email confirmation is enabled — show the "check your email" screen
+        setConfirmedEmail(data.email.trim());
+        setEmailConfirmationSent(true);
+      }
+      // Otherwise, navigation is driven by isAuthenticated changing in authStore
     }
   };
 
   return (
     <ScreenWrapper style={styles.container}>
+      {/* ── Email confirmation sent state ────────────────────────────────── */}
+      {emailConfirmationSent ? (
+        <KeyboardAvoidingView style={styles.keyboardView}>
+          <View style={[styles.scrollContent, { justifyContent: 'center', alignItems: 'center' }]}>
+            <Ionicons name="mail-open-outline" size={64} color={theme.colors.primary} />
+            <Text style={[styles.title, { marginTop: 24, textAlign: 'center' }]}>
+              Check your email
+            </Text>
+            <Text style={[styles.subtitle ?? {}, { textAlign: 'center', marginTop: 12, color: theme.colors.textSecondary, paddingHorizontal: 24 }]}>
+              We sent a confirmation link to{' '}
+              <Text style={{ fontWeight: '700', color: theme.colors.text }}>{confirmedEmail}</Text>.
+              {' '}Click the link to activate your account, then come back to log in.
+            </Text>
+            <TouchableOpacity
+              style={[styles.signInButton ?? {}, { marginTop: 40 }]}
+              onPress={() => navigation.replace('Login')}
+            >
+              <Text style={styles.signInText ?? { color: theme.colors.primary, fontWeight: '600' }}>
+                Go to Login
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      ) : (
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
+
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -237,6 +269,7 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      )}
     </ScreenWrapper>
   );
 };
