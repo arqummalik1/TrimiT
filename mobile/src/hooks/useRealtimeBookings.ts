@@ -8,10 +8,20 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import { subscribeToSalonBookings, unsubscribeFromBookings } from '../lib/supabase';
+import { subscribeToSalonBookings, syncSupabaseAuthSession, unsubscribeFromBookings } from '../lib/supabase';
+import { useAuthStore } from '../store/authStore';
 import { logger } from '../lib/logger';
 import { useNotificationStore } from '../store/notificationStore';
 import type { Booking } from '../types';
+import { bookingService } from '../services/bookingService';
+
+async function enrichBookingForNotification(raw: Booking): Promise<Booking> {
+  try {
+    return await bookingService.getBooking(raw.id);
+  } catch {
+    return raw;
+  }
+}
 
 interface UseRealtimeBookingsOptions {
   salonId: string | undefined;
@@ -72,16 +82,19 @@ export function useRealtimeBookings({
         case 'INSERT': {
           if (newRecord) {
             const booking = newRecord as Booking;
-            try {
-              addNotification(booking, 'new_booking');
-            } catch (e) {
-              logger.warn('[RealtimeBookings] addNotification INSERT failed', {
-                bookingId: booking.id,
-                err: String(e),
-              });
-            }
-            callbacksRef.current.onNewBooking?.(booking);
-            console.log('[RealtimeBookings] INSERT handled', booking.id);
+            void (async () => {
+              const enriched = await enrichBookingForNotification(booking);
+              try {
+                addNotification(enriched, 'new_booking');
+              } catch (e) {
+                logger.warn('[RealtimeBookings] addNotification INSERT failed', {
+                  bookingId: booking.id,
+                  err: String(e),
+                });
+              }
+              callbacksRef.current.onNewBooking?.(enriched);
+              console.log('[RealtimeBookings] INSERT handled', booking.id);
+            })();
           }
           break;
         }
@@ -91,11 +104,14 @@ export function useRealtimeBookings({
             const booking = newRecord as Booking;
             const oldBooking = oldRecord as Booking;
             if (booking.status !== oldBooking.status) {
-              try {
-                addNotification(booking, 'status_change');
-              } catch (e) {
-                logger.warn('[RealtimeBookings] addNotification UPDATE failed', { err: String(e) });
-              }
+              void (async () => {
+                const enriched = await enrichBookingForNotification(booking);
+                try {
+                  addNotification(enriched, 'status_change');
+                } catch (e) {
+                  logger.warn('[RealtimeBookings] addNotification UPDATE failed', { err: String(e) });
+                }
+              })();
             }
             callbacksRef.current.onBookingUpdate?.(booking);
             console.log('[RealtimeBookings] UPDATE handled', booking.id);
@@ -129,12 +145,29 @@ export function useRealtimeBookings({
       return;
     }
 
-    console.log('[RealtimeBookings] Subscribing', { salonId, enabled });
+    let cancelled = false;
 
-    const channel = subscribeToSalonBookings(salonId, handleBookingChange);
-    channelRef.current = channel;
+    void (async () => {
+      const { token, refreshToken } = useAuthStore.getState();
+      if (token) {
+        await syncSupabaseAuthSession(token, refreshToken);
+      }
+      if (cancelled) {
+        return;
+      }
+
+      console.log('[RealtimeBookings] Subscribing', { salonId, enabled });
+
+      const channel = subscribeToSalonBookings(salonId, handleBookingChange);
+      if (cancelled) {
+        unsubscribeFromBookings(channel);
+        return;
+      }
+      channelRef.current = channel;
+    })();
 
     return () => {
+      cancelled = true;
       console.log('[RealtimeBookings] Cleanup unsubscribe', { salonId });
       if (channelRef.current) {
         unsubscribeFromBookings(channelRef.current);

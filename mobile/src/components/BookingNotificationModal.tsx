@@ -17,12 +17,14 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, Theme } from '../theme/ThemeContext';
 import { typography, spacing, borderRadius } from '../lib/utils';
 import type { BookingNotification } from '../store/notificationStore';
 import { format, parseISO, isValid } from 'date-fns';
+import { getBookingServiceImageUri, getServiceDisplayName } from '../lib/bookingDisplay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -31,7 +33,6 @@ interface Props {
   onClose: () => void;
   onAccept?: (bookingId: string) => void;
   onReject?: (bookingId: string) => void;
-  onViewDetails?: (bookingId: string) => void;
   isProcessing?: boolean;
 }
 
@@ -40,11 +41,10 @@ export const BookingNotificationModal: React.FC<Props> = ({
   onClose,
   onAccept,
   onReject,
-  onViewDetails,
   isProcessing = false,
 }) => {
-  const { theme } = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const { theme, isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const insets = useSafeAreaInsets();
 
   const slideAnim = useRef(new Animated.Value(-100)).current;
@@ -98,7 +98,8 @@ export const BookingNotificationModal: React.FC<Props> = ({
   if (!notification) return null;
 
   const { booking, type, actionRequired } = notification;
-  const serviceName = booking.services?.name || 'Service';
+  const serviceName = getServiceDisplayName(booking);
+  const serviceImageUri = getBookingServiceImageUri(booking);
   const customerName = booking.users?.name || 'Customer';
   const dateRaw = booking.booking_date;
   const time = booking.time_slot ?? '';
@@ -174,7 +175,7 @@ export const BookingNotificationModal: React.FC<Props> = ({
               <ModalContent />
             </BlurView>
           ) : (
-            <View style={[styles.blurContainer, { backgroundColor: theme.colors.surface }]}>
+            <View style={styles.blurContainer}>
               <ModalContent />
             </View>
           )}
@@ -196,6 +197,19 @@ export const BookingNotificationModal: React.FC<Props> = ({
           </TouchableOpacity>
         </View>
 
+        {/* Service image — matches salon / service cards */}
+        <View style={styles.heroRow}>
+          <Image source={{ uri: serviceImageUri }} style={styles.heroImage} contentFit="cover" transition={200} />
+          <View style={styles.heroTextCol}>
+            <Text style={styles.heroService} numberOfLines={1}>
+              {serviceName}
+            </Text>
+            <Text style={styles.heroMeta} numberOfLines={2}>
+              {customerName} · {dateLabel} · {time}
+            </Text>
+          </View>
+        </View>
+
         {/* Title */}
         <Text style={styles.title}>
           {type === 'new_booking' && 'New Booking Received!'}
@@ -206,7 +220,6 @@ export const BookingNotificationModal: React.FC<Props> = ({
         {/* Booking Details */}
         <View style={styles.detailsContainer}>
           <DetailRow icon="person" label="Customer" value={customerName} />
-          <DetailRow icon="cut" label="Service" value={serviceName} />
           <DetailRow icon="calendar" label="Date" value={dateLabel} />
           <DetailRow icon="time" label="Time" value={time} />
           <DetailRow icon="cash" label="Amount" value={`₹${amountNum.toFixed(2)}`} />
@@ -240,18 +253,6 @@ export const BookingNotificationModal: React.FC<Props> = ({
             </TouchableOpacity>
           </View>
         )}
-
-        {/* View Details Button */}
-        <TouchableOpacity
-          style={styles.viewDetailsButton}
-          onPress={() => {
-            onViewDetails?.(booking.id);
-            onClose();
-          }}
-        >
-          <Text style={styles.viewDetailsText}>View Full Details</Text>
-          <Ionicons name="arrow-forward" size={16} color={theme.colors.primary} />
-        </TouchableOpacity>
       </>
     );
   }
@@ -269,11 +270,11 @@ export const BookingNotificationModal: React.FC<Props> = ({
   }
 };
 
-const createStyles = (theme: Theme) =>
+const createStyles = (theme: Theme, isDark: boolean) =>
   StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: isDark ? 'rgba(0, 0, 0, 0.78)' : 'rgba(0, 0, 0, 0.45)',
       justifyContent: 'flex-start',
       alignItems: 'center',
     },
@@ -284,7 +285,7 @@ const createStyles = (theme: Theme) =>
       overflow: 'hidden',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.3,
+      shadowOpacity: isDark ? 0.55 : 0.3,
       shadowRadius: 16,
       elevation: 8,
     },
@@ -293,6 +294,39 @@ const createStyles = (theme: Theme) =>
       borderRadius: borderRadius.xl,
       borderWidth: 1,
       borderColor: theme.colors.border,
+      backgroundColor: Platform.OS === 'ios' ? 'transparent' : theme.colors.surface,
+    },
+    heroRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      marginBottom: spacing.lg,
+      padding: spacing.sm,
+      borderRadius: borderRadius.lg,
+      backgroundColor: theme.colors.surfaceHighlight,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    heroImage: {
+      width: 72,
+      height: 72,
+      borderRadius: borderRadius.md,
+      backgroundColor: theme.colors.surfaceSecondary,
+    },
+    heroTextCol: {
+      flex: 1,
+      minWidth: 0,
+      gap: 4,
+    },
+    heroService: {
+      ...typography.bodyMedium,
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
+    heroMeta: {
+      ...typography.bodySmall,
+      color: theme.colors.textSecondary,
+      lineHeight: 18,
     },
     header: {
       flexDirection: 'row',
@@ -368,18 +402,6 @@ const createStyles = (theme: Theme) =>
     actionButtonText: {
       ...typography.bodyMedium,
       color: '#fff',
-      fontWeight: '600',
-    },
-    viewDetailsButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.xs,
-      paddingVertical: spacing.sm,
-    },
-    viewDetailsText: {
-      ...typography.bodyMedium,
-      color: theme.colors.primary,
       fontWeight: '600',
     },
   });

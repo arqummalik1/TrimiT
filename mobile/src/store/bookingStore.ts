@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { subscribeToBookings, unsubscribeFromBookings } from '../lib/supabase';
+import { subscribeToBookings, syncSupabaseAuthSession, unsubscribeFromBookings } from '../lib/supabase';
 import type { TimeSlot } from '../types';
 import { useAuthStore } from './authStore';
 import { normalizeSlotTimeToHHMM } from '../lib/utils';
@@ -54,8 +54,16 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       watchedBookingDate: date,
     });
 
-    // Subscribe to Supabase real-time
-    const channel = subscribeToBookings(
+    void (async () => {
+      const { token, refreshToken } = useAuthStore.getState();
+      if (token) {
+        await syncSupabaseAuthSession(token, refreshToken);
+      }
+      if (get().watchedBookingDate !== date) {
+        return;
+      }
+
+      const channel = subscribeToBookings(
       salonId,
       date,
       (payload) => {
@@ -109,7 +117,13 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       }
     );
 
-    set({ activeChannel: channel, isRealtimeConnected: true });
+      if (get().watchedBookingDate !== date) {
+        unsubscribeFromBookings(channel);
+        return;
+      }
+
+      set({ activeChannel: channel, isRealtimeConnected: true });
+    })();
   },
 
   // Unsubscribe from real-time updates

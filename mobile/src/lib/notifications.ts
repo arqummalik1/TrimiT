@@ -13,10 +13,9 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import api from './api';
 
-// Configure notification behavior
+// Configure notification behavior (avoid deprecated shouldShowAlert)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
     shouldPlaySound: true,
@@ -32,10 +31,22 @@ Notifications.setNotificationHandler({
  */
 export async function registerForPushNotifications(): Promise<string | null> {
   try {
+    const easProjectId =
+      (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId ??
+      'e4f2eade-fe15-4a16-8766-83b0771a4643';
+
+    // Expo Go cannot obtain a push token in current SDKs — avoid noisy "could not obtain" warnings.
+    if (Constants.appOwnership === 'expo') {
+      console.log(
+        '[Notifications] Skipping push registration in Expo Go. Use a development build for remote push.'
+      );
+      return null;
+    }
+
     // Check if running on a physical device (using Constants instead of Device)
     const isDevice = Constants.isDevice;
     if (!isDevice) {
-      console.warn('[Notifications] Push notifications only work on physical devices');
+      console.log('[Notifications] Skipping push registration: not a physical device (simulator).');
       return null;
     }
 
@@ -55,7 +66,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
     // Get Expo push token
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: 'e4f2eade-fe15-4a16-8766-83b0771a4643', // From app.config.js
+      projectId: easProjectId,
     });
 
     const token = tokenData.data;
@@ -79,7 +90,8 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
     return token;
   } catch (error) {
-    console.error('[Notifications] ❌ Failed to register for push notifications:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[Notifications] ❌ Failed to register for push notifications:', message, error);
     return null;
   }
 }
@@ -116,7 +128,7 @@ export async function setupPushNotifications(): Promise<void> {
 
     const token = await registerForPushNotifications();
     if (!token) {
-      console.warn('[Notifications] ⚠️ Could not obtain push token');
+      // registerForPushNotifications already logs the specific reason (Expo Go, simulator, permission, etc.)
       return;
     }
 

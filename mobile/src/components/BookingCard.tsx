@@ -7,6 +7,7 @@ import { formatPrice, formatDate, formatTime } from '../lib/utils';
 import { useTheme } from '../theme/ThemeContext';
 import { getLightStatusColors, getDarkStatusColors, getLightPaymentColors, getDarkPaymentColors, Theme } from '../theme/tokens';
 import { openNativeDirections } from '../lib/maps';
+import { getBookingServiceImageUri, getServiceDisplayName } from '../lib/bookingDisplay';
 
 interface BookingCardProps {
   booking: Booking;
@@ -34,10 +35,7 @@ export const BookingCard: React.FC<BookingCardProps> = ({
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const thumbnailUrl =
-    booking.services?.image_url ||
-    booking.salons?.images?.[0] ||
-    null;
+  const thumbnailUrl = getBookingServiceImageUri(booking);
 
   const statusColors    = isDark ? getDarkStatusColors() : getLightStatusColors();
   const paymentColors   = isDark ? getDarkPaymentColors() : getLightPaymentColors();
@@ -59,22 +57,16 @@ export const BookingCard: React.FC<BookingCardProps> = ({
         <View style={styles.headerLeft}>
           <View style={styles.headerRow}>
             <View style={styles.thumbnailWrap}>
-              {thumbnailUrl ? (
-                <Image
-                  source={{ uri: thumbnailUrl }}
-                  style={styles.thumbnail}
-                  contentFit="cover"
-                  transition={200}
-                />
-              ) : (
-                <View style={[styles.thumbnail, styles.thumbnailFallback]}>
-                  <Ionicons name="cut-outline" size={18} color={theme.colors.textSecondary} />
-                </View>
-              )}
+              <Image
+                source={{ uri: thumbnailUrl }}
+                style={styles.thumbnail}
+                contentFit="cover"
+                transition={200}
+              />
             </View>
             <View style={styles.headerText}>
               <Text style={styles.serviceName} numberOfLines={1}>
-                {booking.services?.name || 'Service'}
+                {getServiceDisplayName(booking)}
               </Text>
               <Text style={styles.salonName} numberOfLines={1}>
                 {isOwner ? booking.users?.name : booking.salons?.name}
@@ -130,12 +122,12 @@ export const BookingCard: React.FC<BookingCardProps> = ({
               (booking.status === 'pending' || booking.status === 'confirmed') &&
               onReschedule && (
                 <TouchableOpacity
-                  style={styles.iconActionButton}
+                  style={styles.rescheduleButton}
                   onPress={onReschedule}
                   accessibilityRole="button"
                   accessibilityLabel="Reschedule booking"
                 >
-                  <Ionicons name="calendar-outline" size={20} color={theme.colors.primary} />
+                  <Text style={styles.rescheduleText}>Reschedule</Text>
                 </TouchableOpacity>
               )}
 
@@ -244,10 +236,6 @@ const createStyles = (theme: Theme) =>
       width: 44,
       height: 44,
     },
-    thumbnailFallback: {
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     serviceName: {
       fontSize: 16,
       fontWeight: '700',
@@ -337,13 +325,18 @@ const createStyles = (theme: Theme) =>
       fontWeight: '500',
       color: theme.colors.error,
     },
-    iconActionButton: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.primary + '15',
-      width: 40,
-      height: 40,
+    rescheduleButton: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
       borderRadius: 10,
+      backgroundColor: theme.colors.primary + '18',
+      borderWidth: 1,
+      borderColor: theme.colors.primary + '44',
+    },
+    rescheduleText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.primary,
     },
     directionsIconButton: {
       alignItems: 'center',

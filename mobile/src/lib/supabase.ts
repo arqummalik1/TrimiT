@@ -48,28 +48,34 @@ export async function syncSupabaseAuthSession(
   try {
     if (!accessToken) {
       await supabase.auth.signOut();
+      await supabase.realtime.setAuth();
       return;
     }
-    if (!refreshToken) {
-      console.warn(
-        '[Supabase Auth] Missing refresh_token — Realtime may stay anonymous until next full login. ' +
-          'Persist refresh_token from /auth/login to enable owner dashboard live updates.'
-      );
-      return;
-    }
-    const { data, error } = await supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
-    if (error) {
-      console.warn('[Supabase Auth] setSession failed:', error.message);
-      return;
-    }
-    if (__DEV__) {
-      console.log('[Supabase Auth] Session synced for Realtime', {
-        userId: data.session?.user?.id,
-        expiresAt: data.session?.expires_at,
+    if (refreshToken) {
+      const { data, error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
       });
+      if (error) {
+        console.warn('[Supabase Auth] setSession failed:', error.message);
+        await supabase.realtime.setAuth(accessToken);
+        return;
+      }
+      if (__DEV__) {
+        console.log('[Supabase Auth] Session synced for Realtime', {
+          userId: data.session?.user?.id,
+          expiresAt: data.session?.expires_at,
+        });
+      }
+      return;
+    }
+    // Access token only: still attach user JWT to Realtime so `postgres_changes` passes RLS.
+    // (Missing refresh_token is common for older persisted sessions; push-only setSession used to bail here.)
+    await supabase.realtime.setAuth(accessToken);
+    if (__DEV__) {
+      console.warn(
+        '[Supabase Auth] No refresh_token — Realtime JWT set manually. Sign out and log in again for token refresh.'
+      );
     }
   } catch (e) {
     console.warn('[Supabase Auth] syncSupabaseAuthSession error', e);

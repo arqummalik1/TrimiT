@@ -23,7 +23,6 @@ import {
 // Configure notifications to show and play sound when app is in foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
     shouldShowBanner: true,
@@ -226,10 +225,6 @@ export default function OwnerTabs() {
         }}
         onReject={(bookingId) => {
           statusMutation.mutate({ bookingId, status: 'cancelled' });
-        }}
-        onViewDetails={(bookingId) => {
-          // Navigate to bookings tab
-          // The navigation will be handled by the tab navigator
         }}
         isProcessing={statusMutation.isPending}
       />

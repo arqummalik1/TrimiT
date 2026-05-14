@@ -18,7 +18,8 @@ logger = logging.getLogger("trimit")
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
-BOOKING_LIST_SELECT = "*,salons(*),services(*)"
+BOOKING_LIST_SELECT = "*,salons(*),services(*),users(*)"
+BOOKING_DETAIL_SELECT = "*,salons(*),services(*),users(*)"
 
 
 @router.get("/salon/{salon_id}")
@@ -453,6 +454,40 @@ async def get_available_slots(
         "allow_multiple_bookings_per_slot": allow_multiple,
         "max_bookings_per_slot": max_bookings,
     }
+
+
+@router.get("/{booking_id}")
+async def get_booking(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Single booking with salon, service, and customer embeds (same shape as list)."""
+    token = current_user.get("access_token")
+    resp = await supabase.request(
+        "GET",
+        f"rest/v1/bookings?id=eq.{booking_id}&select={BOOKING_DETAIL_SELECT}",
+        token=token,
+    )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=500, detail="Failed to load booking")
+    rows = resp.json()
+    if not rows:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    booking = rows[0]
+    profile = current_user.get("profile") or {}
+    role = profile.get("role", "customer")
+    uid = current_user.get("id")
+
+    if role == "owner":
+        salon = await supabase.request(
+            "GET",
+            f"rest/v1/salons?id=eq.{booking['salon_id']}&select=owner_id",
+            token=token,
+        )
+        if salon.status_code != 200 or not salon.json() or salon.json()[0].get("owner_id") != uid:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+    else:
+        if booking.get("user_id") != uid:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+    return booking
+
 
 @router.post("/reserve")
 @limiter.limit("5/minute")

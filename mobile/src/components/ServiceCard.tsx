@@ -32,34 +32,13 @@ import { Service } from '../types';
 import { useTheme } from '../theme/ThemeContext';
 import { Theme } from '../theme/tokens';
 import { fonts, spacing, borderRadius, shadows, formatPrice } from '../lib/utils';
+import { resolveServiceImage } from '../lib/serviceImage';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /** Spring config for press animation — snappy but not jarring. */
 const SPRING_CONFIG = { toValue: 0.97, friction: 8, tension: 40, useNativeDriver: true } as const;
 const SPRING_RELEASE = { toValue: 1, friction: 6, tension: 30, useNativeDriver: true } as const;
-
-/** Category keyword → curated Unsplash photo. Covers the most common salon services. */
-const CATEGORY_IMAGES: Array<{ keywords: string[]; url: string }> = [
-  { keywords: ['hair', 'cut', 'trim', 'style', 'blow'], url: 'https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=600' },
-  { keywords: ['beard', 'shave', 'facial hair'], url: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600' },
-  { keywords: ['facial', 'skin', 'glow', 'face', 'clean', 'peel'], url: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600' },
-  { keywords: ['manicure', 'pedicure', 'nail', 'nails'], url: 'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=600' },
-  { keywords: ['massage', 'spa', 'relax', 'therapy'], url: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=600' },
-  { keywords: ['colour', 'color', 'highlight', 'bleach', 'dye'], url: 'https://images.unsplash.com/photo-1612526737988-60d35f7a1e57?w=600' },
-  { keywords: ['wax', 'threading', 'eyebrow', 'brow'], url: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=600' },
-];
-
-const DEFAULT_SERVICE_IMAGE = 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=600';
-
-function resolveServiceImage(service: Service): string {
-  if (service.image_url) return service.image_url;
-  const name = (service.name ?? '').toString().toLowerCase();
-  for (const cat of CATEGORY_IMAGES) {
-    if (cat.keywords.some((k) => name.includes(k))) return cat.url;
-  }
-  return DEFAULT_SERVICE_IMAGE;
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

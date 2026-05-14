@@ -163,6 +163,11 @@ export const useAuthStore = create<AuthState>()(
         } catch (err) {
           console.warn('[AuthStore] Supabase signOut failed:', err);
         }
+        try {
+          await supabase.realtime.setAuth();
+        } catch (err) {
+          console.warn('[AuthStore] Realtime clear auth failed:', err);
+        }
         
         // Clear auth token from API client
         setAuthToken(null);
