@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, HTTPException, Depends, status
+from fastapi import APIRouter, Request, HTTPException, Depends, status, Header, Query
 from typing import List, Optional
 from datetime import datetime, date, timedelta, timezone
 import logging
@@ -8,7 +8,7 @@ import json
 from core.supabase import supabase
 from core.limiter import limiter
 from core.idempotency import idempotency_required
-from dependencies.auth import get_current_user
+from dependencies.auth import get_current_user, try_get_user_id_from_authorization
 from models.bookings import BookingCreate, BookingStatusUpdate, BookingStatus, ReviewCreate, SlotReserve
 from models.promotions import PromoCodeValidate
 from services.push_notifications import push_service
@@ -163,6 +163,26 @@ async def update_booking_status(
     return {"message": "Status updated", "booking_id": booking_id}
 
 
+def _slot_time_key(raw: Optional[str]) -> str:
+    if not raw:
+        return ""
+    s = str(raw).strip()
+    return s[:5] if len(s) >= 5 else s
+
+
+def _parse_hh_mm_minutes(value: Optional[str]) -> Optional[int]:
+    if not value or len(value.strip()) < 4:
+        return None
+    parts = value.strip()[:5].split(":")
+    if len(parts) != 2:
+        return None
+    try:
+        h, m = int(parts[0]), int(parts[1])
+        return h * 60 + m
+    except ValueError:
+        return None
+
+
 @router.get("/slots")
 async def get_available_slots(
     salon_id: str,
@@ -170,10 +190,14 @@ async def get_available_slots(
     date_str: Optional[str] = None,
     date: Optional[str] = None,
     current_time: Optional[str] = None,
+    is_local_today: bool = Query(False, description="True when selected calendar day is today in the user's local timezone"),
+    authorization: Optional[str] = Header(default=None),
 ):
     effective_date = date_str or date
     if not effective_date:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="date or date_str is required")
+
+    viewer_user_id = try_get_user_id_from_authorization(authorization)
     # 1. Fetch salon and service
     salon_resp = await supabase.request("GET", f"rest/v1/salons?id=eq.{salon_id}&select=opening_time,closing_time,allow_multiple_bookings_per_slot,max_bookings_per_slot")
     service_resp = await supabase.request("GET", f"rest/v1/services?id=eq.{service_id}&select=duration")
@@ -188,8 +212,12 @@ async def get_available_slots(
     
     # 2. Fetch existing bookings and active holds for the day
     now_utc = datetime.now(timezone.utc)
-    bookings_resp = await supabase.request("GET", f"rest/v1/bookings?salon_id=eq.{salon_id}&booking_date=eq.{effective_date}&status=neq.cancelled&select=time_slot")
-    holds_resp = await supabase.request("GET", f"rest/v1/slot_holds?salon_id=eq.{salon_id}&booking_date=eq.{effective_date}&expires_at=gt.{now_utc.isoformat()}&select=time_slot")
+    bookings_resp = await supabase.request("GET", f"rest/v1/bookings?salon_id=eq.{salon_id}&booking_date=eq.{effective_date}&status=neq.cancelled&select=time_slot", service_role=True)
+    holds_resp = await supabase.request(
+        "GET",
+        f"rest/v1/slot_holds?salon_id=eq.{salon_id}&booking_date=eq.{effective_date}&expires_at=gt.{now_utc.isoformat()}&select=time_slot,user_id",
+        service_role=True,
+    )
 
     existing_bookings = bookings_resp.json() if bookings_resp.status_code == 200 else []
     active_holds = holds_resp.json() if holds_resp.status_code == 200 else []
@@ -198,13 +226,18 @@ async def get_available_slots(
     # DB may store HH:MM:SS for older records — strip to first 5 chars for consistency
     occupancy_counts: dict[str, int] = {}
     for b in existing_bookings:
-        slot = (b.get("time_slot") or "")[:5]  # normalize HH:MM:SS → HH:MM
+        slot = _slot_time_key(b.get("time_slot"))
         if slot:
             occupancy_counts[slot] = occupancy_counts.get(slot, 0) + 1
     for h in active_holds:
-        slot = (h.get("time_slot") or "")[:5]
-        if slot:
-            occupancy_counts[slot] = occupancy_counts.get(slot, 0) + 1
+        slot = _slot_time_key(h.get("time_slot"))
+        if not slot:
+            continue
+        hold_uid = h.get("user_id")
+        if viewer_user_id and hold_uid and str(hold_uid) == str(viewer_user_id):
+            # User's own active hold should not hide the slot from them while they complete checkout.
+            continue
+        occupancy_counts[slot] = occupancy_counts.get(slot, 0) + 1
 
     # 3. Generate slots
     try:
@@ -221,18 +254,37 @@ async def get_available_slots(
     slots = []
     curr = opening
     
-    # If checking for today, filter out past slots (5-min grace)
-    # Use UTC consistently — Render server runs in UTC; avoids timezone drift on local dev.
-    is_today = effective_date == now_utc.strftime("%Y-%m-%d")
-    grace_minutes = now_utc.hour * 60 + now_utc.minute + 5 if is_today else None
+    # Past-slot filter for "today":
+    # - Prefer client hint (is_local_today + current_time) so device-local calendar matches UX.
+    # - Fallback: server UTC date == effective_date (legacy behaviour).
+    is_today_utc = effective_date == now_utc.strftime("%Y-%m-%d")
+    client_now_minutes = _parse_hh_mm_minutes(current_time)
+    use_client_today = bool(is_local_today and client_now_minutes is not None)
+    grace_minutes_utc = now_utc.hour * 60 + now_utc.minute + 5 if is_today_utc else None
+
+    logger.info(
+        "[SLOTS] salon=%s service=%s date=%s viewer=%s is_local_today=%s current_time=%s use_client_grace=%s utc_today=%s",
+        salon_id,
+        service_id,
+        effective_date,
+        viewer_user_id or "anon",
+        is_local_today,
+        current_time,
+        use_client_today,
+        is_today_utc,
+    )
 
     while curr + timedelta(minutes=duration) <= closing:
         slot_time_str = curr.strftime("%H:%M")  # always HH:MM
 
-        # Filter past slots using UTC minute-of-day comparison
-        if is_today and grace_minutes is not None:
-            slot_minutes = curr.hour * 60 + curr.minute
-            if slot_minutes < grace_minutes:
+        # Filter past slots (5-minute grace)
+        slot_minutes = curr.hour * 60 + curr.minute
+        if use_client_today and client_now_minutes is not None:
+            if slot_minutes < client_now_minutes + 5:
+                curr += timedelta(minutes=30)
+                continue
+        elif is_today_utc and grace_minutes_utc is not None:
+            if slot_minutes < grace_minutes_utc:
                 curr += timedelta(minutes=30)
                 continue
 
@@ -247,8 +299,10 @@ async def get_available_slots(
         if available:
             slots.append(slot_time_str)
 
-        curr += timedelta(minutes=30) 
-        
+        curr += timedelta(minutes=30)
+
+    logger.info("[SLOTS] result salon=%s date=%s count=%s occupancy_keys=%s", salon_id, effective_date, len(slots), sorted(occupancy_counts.keys()))
+
     return {
         "slots": [{"time": s, "available": True} for s in slots],
         "allow_multiple_bookings_per_slot": allow_multiple,
@@ -287,7 +341,7 @@ async def reserve_slot(request: Request, data: SlotReserve, current_user: dict =
     if not result.get("success"):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail={"code": result.get("error_code"), "message": "Slot is no longer available"}
+            detail={"code": result.get("error_code"), "message": result.get("message", "Slot is no longer available")}
         )
         
     return {
@@ -406,6 +460,16 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
             status_code=409, 
             detail={"code": code, "message": error_msg}
         )
+
+    booking_id = result.get("booking_id")
+    logger.info(
+        "[CREATE_BOOKING] success user=%s salon=%s date=%s slot=%s booking_id=%s",
+        user_id,
+        data.salon_id,
+        data.booking_date,
+        data.time_slot,
+        booking_id,
+    )
     
     # 4. Clean up the hold after successful booking
     await supabase.request(

@@ -17,6 +17,8 @@ export type AuthErrorCode =
 export interface AuthResult {
   user: User | null;
   token: string | null;
+  /** Supabase refresh token — required for `supabase.auth.setSession` / Realtime RLS. */
+  refreshToken?: string | null;
   /** Set when signup succeeds but email confirmation is needed before login. */
   requiresEmailConfirmation?: boolean;
   /** Friendly error message for display */
@@ -67,7 +69,7 @@ export const authRepository = {
       };
     }
 
-    const { access_token, profile, user } = response.data as {
+    const { access_token, refresh_token, profile, user } = response.data as {
       access_token: string;
       token_type: string;
       expires_in?: number;
@@ -99,13 +101,13 @@ export const authRepository = {
       const meData = meResponse.data as { profile?: User; id?: string; email?: string };
       const meProfile = meData?.profile || meData;
       if (meProfile && (meProfile as User).id) {
-        return { user: meProfile as User, token: access_token };
+        return { user: meProfile as User, token: access_token, refreshToken: refresh_token ?? null };
       }
     } catch {
       // /auth/me failure is non-fatal — use what we have from the login response
     }
 
-    return { user: resolvedUser, token: access_token };
+    return { user: resolvedUser, token: access_token, refreshToken: refresh_token ?? null };
   },
 
   /**
@@ -159,7 +161,7 @@ export const authRepository = {
       };
     }
 
-    const session = responseData.session;
+    const session = responseData.session as { access_token?: string; refresh_token?: string } | null;
     if (!session?.access_token) {
       // Unexpected: 200 but no session — surface it clearly
       return {
@@ -178,7 +180,11 @@ export const authRepository = {
       const meData = meResponse.data as { profile?: User; id?: string };
       const meProfile = meData?.profile || meData;
       if (meProfile && (meProfile as User).id) {
-        return { user: meProfile as User, token: session.access_token };
+        return {
+          user: meProfile as User,
+          token: session.access_token,
+          refreshToken: session.refresh_token ?? null,
+        };
       }
     } catch {
       // Fall back to raw signup user if /auth/me fails
@@ -187,6 +193,7 @@ export const authRepository = {
     return {
       user: { ...responseData.user, ...data } as unknown as User,
       token: session.access_token,
+      refreshToken: session.refresh_token ?? null,
     };
   },
 

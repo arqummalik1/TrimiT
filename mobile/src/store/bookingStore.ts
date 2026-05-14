@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { subscribeToBookings, unsubscribeFromBookings } from '../lib/supabase';
 import type { TimeSlot } from '../types';
+import { useAuthStore } from './authStore';
+import { normalizeSlotTimeToHHMM } from '../lib/utils';
 
 interface BookingState {
   // Real-time subscription
@@ -60,12 +62,17 @@ export const useBookingStore = create<BookingState>((set, get) => ({
           const newBooking = payload.new;
           if (!newBooking) return;
 
-          const bookedTime = newBooking.time_slot;
+          const myUserId = useAuthStore.getState().user?.id;
+          if (myUserId && newBooking.user_id === myUserId) {
+            return;
+          }
+
+          const bookedTime = normalizeSlotTimeToHHMM(newBooking.time_slot);
 
           if (!allowMultipleBookings) {
             // Single mode: mark slot as unavailable immediately
-            const updatedSlots = slots.map(slot =>
-              slot.time === bookedTime
+            const updatedSlots = slots.map((slot) =>
+              normalizeSlotTimeToHHMM(slot.time) === bookedTime
                 ? { ...slot, available: false, booking_count: (slot.booking_count || 0) + 1 }
                 : slot
             );
@@ -81,8 +88,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
             }, 3000);
           } else {
             // Multi mode: increment count, mark full if at capacity
-            const updatedSlots = slots.map(slot => {
-              if (slot.time !== bookedTime) return slot;
+            const updatedSlots = slots.map((slot) => {
+              if (normalizeSlotTimeToHHMM(slot.time) !== bookedTime) return slot;
               const newCount = (slot.booking_count || 0) + 1;
               const max = slot.max_bookings || 1;
               return { ...slot, booking_count: newCount, available: newCount < max };

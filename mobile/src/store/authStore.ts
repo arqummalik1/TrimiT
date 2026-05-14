@@ -4,12 +4,14 @@ import { authRepository } from '../repositories/authRepository';
 import { setAuthToken } from '../services/apiClient';
 import { User } from '../types';
 import { secureStorage } from '../lib/secureStorage';
-import { supabase } from '../lib/supabase';
+import { supabase, syncSupabaseAuthSession } from '../lib/supabase';
 import { QueryClient } from '@tanstack/react-query';
 
 interface AuthState {
   user: User | null;
   token: string | null;
+  /** Supabase refresh token — paired with `token` for Realtime + session refresh */
+  refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   isHydrated: boolean;
@@ -35,6 +37,7 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       token: null,
+      refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
       isHydrated: false,
@@ -45,6 +48,7 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user, token) => {
         set({ user, token, isAuthenticated: !!user, error: null });
         setAuthToken(token);
+        void syncSupabaseAuthSession(token, get().refreshToken);
       },
 
       setHydrated: (val) => set({ isHydrated: val }),
@@ -73,11 +77,13 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: result.user,
           token: result.token,
+          refreshToken: result.refreshToken ?? null,
           isAuthenticated: true,
           isLoading: false,
           error: null,
           requiresEmailConfirmation: false,
         });
+        void syncSupabaseAuthSession(result.token, result.refreshToken ?? null);
         return { success: true };
       },
 
@@ -106,11 +112,13 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: result.user,
           token: result.token,
+          refreshToken: result.refreshToken ?? null,
           isAuthenticated: true,
           isLoading: false,
           error: null,
           requiresEmailConfirmation: false,
         });
+        void syncSupabaseAuthSession(result.token, result.refreshToken ?? null);
         return { success: true };
       },
 
@@ -168,6 +176,7 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: null,
           token: null,
+          refreshToken: null,
           isAuthenticated: false,
           error: null,
           isLoading: false,
@@ -189,12 +198,14 @@ export const useAuthStore = create<AuthState>()(
             const { authService } = require('../services/authService');
             await authService.getMe();
             console.log('[AuthStore] Auth initialized');
+            await syncSupabaseAuthSession(state.token, state.refreshToken);
           } catch (err) {
             console.warn('[AuthStore] Stored token is invalid/expired, clearing session');
             setAuthToken(null);
             set({
               user: null,
               token: null,
+              refreshToken: null,
               isAuthenticated: false,
               error: null,
             });
@@ -216,6 +227,7 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.user,
         token: state.token,
+        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
     }

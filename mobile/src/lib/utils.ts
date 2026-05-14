@@ -38,6 +38,13 @@ export const formatTime = (timeString: string): string => {
   return `${hour12}:${minutes} ${ampm}`;
 };
 
+/** Normalize slot / booking time to HH:MM (handles HH:MM:SS from DB). */
+export function normalizeSlotTimeToHHMM(t: string | undefined | null): string {
+  if (t == null) return '';
+  const s = String(t).trim();
+  return s.length >= 5 ? s.slice(0, 5) : s;
+}
+
 // =============================================================================
 // THEME RE-EXPORTS (backward compat + convenience)
 // =============================================================================

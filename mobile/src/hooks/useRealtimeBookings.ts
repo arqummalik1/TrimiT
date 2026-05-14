@@ -1,8 +1,8 @@
 /**
  * useRealtimeBookings Hook
  * ────────────────────────────────────────────────────────────────────────────
- * Optimized real-time subscription hook for booking updates.
- * Handles subscription lifecycle, prevents memory leaks, and manages state efficiently.
+ * Real-time subscription for booking rows (owner dashboard + notifications).
+ * Uses Supabase JS client — requires syncSupabaseAuthSession() so RLS allows events.
  */
 
 import { useEffect, useRef, useCallback } from 'react';
@@ -34,37 +34,37 @@ export function useRealtimeBookings({
   const queryClient = useQueryClient();
   const addNotification = useNotificationStore((state) => state.addNotification);
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const isSubscribedRef = useRef(false);
 
-  // Memoized callback to handle booking changes
+  const callbacksRef = useRef({
+    onNewBooking,
+    onBookingUpdate,
+    onBookingDelete,
+  });
+  callbacksRef.current = { onNewBooking, onBookingUpdate, onBookingDelete };
+
   const handleBookingChange = useCallback(
     (payload: RealtimePostgresChangesPayload<Booking>) => {
       const { eventType, new: newRecord, old: oldRecord } = payload;
 
-      console.log('[RealtimeBookings] Event:', eventType, {
-        new: newRecord,
-        old: oldRecord,
+      console.log('[RealtimeBookings] postgres_changes', {
+        eventType,
+        salonId,
+        bookingId: (newRecord as Booking | null)?.id ?? (oldRecord as Booking | null)?.id,
       });
 
-      // Invalidate relevant queries to trigger refetch
       queryClient.invalidateQueries({ queryKey: ['ownerBookings'] });
       queryClient.invalidateQueries({ queryKey: ['recentBookings'] });
       queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
       queryClient.invalidateQueries({ queryKey: ['salonBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['slots'] });
 
-      // Handle different event types
       switch (eventType) {
         case 'INSERT': {
           if (newRecord) {
             const booking = newRecord as Booking;
-            
-            // Add notification
             addNotification(booking, 'new_booking');
-            
-            // Call custom callback
-            onNewBooking?.(booking);
-            
-            console.log('[RealtimeBookings] New booking received:', booking.id);
+            callbacksRef.current.onNewBooking?.(booking);
+            console.log('[RealtimeBookings] INSERT handled', booking.id);
           }
           break;
         }
@@ -73,16 +73,11 @@ export function useRealtimeBookings({
           if (newRecord && oldRecord) {
             const booking = newRecord as Booking;
             const oldBooking = oldRecord as Booking;
-            
-            // Only notify if status changed
             if (booking.status !== oldBooking.status) {
               addNotification(booking, 'status_change');
             }
-            
-            // Call custom callback
-            onBookingUpdate?.(booking);
-            
-            console.log('[RealtimeBookings] Booking updated:', booking.id);
+            callbacksRef.current.onBookingUpdate?.(booking);
+            console.log('[RealtimeBookings] UPDATE handled', booking.id);
           }
           break;
         }
@@ -90,49 +85,40 @@ export function useRealtimeBookings({
         case 'DELETE': {
           if (oldRecord) {
             const booking = oldRecord as Booking;
-            
-            // Add cancellation notification
             addNotification(booking, 'cancellation');
-            
-            // Call custom callback
-            onBookingDelete?.(booking.id);
-            
-            console.log('[RealtimeBookings] Booking deleted:', booking.id);
+            callbacksRef.current.onBookingDelete?.(booking.id);
+            console.log('[RealtimeBookings] DELETE handled', booking.id);
           }
           break;
         }
+
+        default:
+          break;
       }
     },
-    [queryClient, addNotification, onNewBooking, onBookingUpdate, onBookingDelete]
+    [queryClient, addNotification, salonId]
   );
 
   useEffect(() => {
-    // Don't subscribe if disabled or no salon ID
-    if (!enabled || !salonId || isSubscribedRef.current) {
+    if (!enabled || !salonId) {
       return;
     }
 
-    console.log('[RealtimeBookings] Subscribing to salon:', salonId);
+    console.log('[RealtimeBookings] Subscribing', { salonId, enabled });
 
-    // Subscribe to real-time updates
     const channel = subscribeToSalonBookings(salonId, handleBookingChange);
     channelRef.current = channel;
-    isSubscribedRef.current = true;
 
-    // Cleanup function
     return () => {
-      console.log('[RealtimeBookings] Unsubscribing from salon:', salonId);
-      
+      console.log('[RealtimeBookings] Cleanup unsubscribe', { salonId });
       if (channelRef.current) {
         unsubscribeFromBookings(channelRef.current);
         channelRef.current = null;
       }
-      
-      isSubscribedRef.current = false;
     };
   }, [salonId, enabled, handleBookingChange]);
 
   return {
-    isSubscribed: isSubscribedRef.current,
+    isSubscribed: !!channelRef.current,
   };
 }

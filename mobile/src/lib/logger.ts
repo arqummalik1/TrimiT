@@ -21,6 +21,12 @@ export enum LogLevel {
 }
 
 class Logger {
+  debug(message: string, extra?: Record<string, unknown>) {
+    if (__DEV__) {
+      console.log(`[DEBUG] ${message}`, extra ?? '');
+    }
+  }
+
   error(message: string, error?: unknown, extra?: Record<string, unknown>) {
     console.error(`[ERROR] ${message}`, error);
 

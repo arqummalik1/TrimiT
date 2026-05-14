@@ -16,9 +16,10 @@ import { format, addDays, startOfToday, isToday, parseISO, isValid } from 'date-
 import api from '../../lib/api';
 import axios from 'axios';
 import { Salon, TimeSlot, SlotsResponse } from '../../types';
-import { fonts, borderRadius, formatPrice, formatTime } from '../../lib/utils';
+import { fonts, borderRadius, formatPrice, formatTime, normalizeSlotTimeToHHMM } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
+import { logger } from '../../lib/logger';
 
 import { Button } from '../../components/Button';
 import { useBookingStore } from '../../store/bookingStore';
@@ -112,23 +113,46 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   const { data: slotsData, isLoading: slotsLoading, refetch: refetchSlots } = useQuery<SlotsResponse>({
     queryKey: ['slots', salonId, serviceId, selectedDate],
     queryFn: async () => {
+      const selected = parseISO(selectedDate);
+      const isLocalToday = isValid(selected) && isToday(selected);
       const currentTime = format(new Date(), 'HH:mm');
+      logger.debug('[BookingFlow] slots.fetch.start', {
+        salonId,
+        serviceId,
+        selectedDate,
+        isLocalToday,
+        currentTime,
+      });
       const response = await api.get('/bookings/slots', {
         params: {
           salon_id: salonId,
           date: selectedDate,
           service_id: serviceId,
           current_time: currentTime,
+          is_local_today: isLocalToday,
         },
+      });
+      const raw = response.data?.slots ?? [];
+      logger.debug('[BookingFlow] slots.fetch.done', {
+        salonId,
+        selectedDate,
+        slotCount: raw.length,
+        timesSample: raw.slice(0, 6).map((s: TimeSlot) => s.time),
+        allowMultiple: response.data?.allow_multiple_bookings_per_slot,
       });
       return response.data;
     },
     enabled: !!selectedDate,
   });
 
-  // Use real-time slots if available, otherwise use fetched slots
+  // Server slots are source of truth; overlay realtime deltas by normalized time key.
   const displaySlots = useMemo(() => {
-    return realtimeSlots.length > 0 ? realtimeSlots : (slotsData?.slots || []);
+    const server = slotsData?.slots ?? [];
+    const rt = realtimeSlots;
+    if (rt.length === 0) return server;
+    const overlay = new Map(rt.map((s) => [normalizeSlotTimeToHHMM(s.time), s]));
+    if (server.length === 0) return rt;
+    return server.map((s) => overlay.get(normalizeSlotTimeToHHMM(s.time)) ?? s);
   }, [realtimeSlots, slotsData]);
 
   const visibleSlots = useMemo(() => {
@@ -208,23 +232,25 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   // Reserve slot mutation
   const reserveMutation = useMutation({
     mutationFn: async (slot: string) => {
+      logger.debug('[BookingFlow] reserve.request', { salonId, serviceId, selectedDate, slot });
       const response = await api.post('/bookings/reserve', {
         salon_id: salonId,
         service_id: serviceId,
         booking_date: selectedDate,
         time_slot: slot,
       });
+      logger.debug('[BookingFlow] reserve.response', {
+        holdId: response.data?.hold_id,
+        fallback: response.data?.fallback,
+        expiresAt: response.data?.expires_at,
+      });
       return response.data;
     },
     onSuccess: (data) => {
       setHoldId(data.hold_id);
-      // Prefer server-provided expiry if available.
-      const expiresAt = typeof data?.expires_at === 'string' ? new Date(data.expires_at) : null;
-      const seconds =
-        expiresAt && !Number.isNaN(expiresAt.getTime())
-          ? Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000))
-          : 90; // fallback
-      setTimeLeft(seconds);
+      // Safely use a 90-second countdown regardless of backend timezone formatting
+      // to avoid instant-expiration bugs due to clock drift or naive UTC strings.
+      setTimeLeft(90);
       
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
@@ -238,6 +264,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       }, 1000);
     },
     onError: (error: unknown) => {
+      logger.debug('[BookingFlow] reserve.error', { error: String(error) });
       // Interceptor returns normalized AppError, so avoid assuming axios shape.
       const appErr = isAppError(error) ? error : handleApiError(error);
       const fallbackMsg = 'This slot is currently being held by someone else.';
@@ -397,7 +424,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     mutationFn: async () => {
       const dbPaymentMethod = selectedPaymentMethod === 'cash' ? 'salon_cash' : 'online';
 
-      const response = await api.post('/bookings/', {
+      const payload = {
         salon_id: salonId,
         service_id: serviceId,
         booking_date: selectedDate,
@@ -406,12 +433,20 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
         promo_code: promoApplied ? promoCode.trim().toUpperCase() : undefined,
         staff_id: selectedStaffId,
         any_staff: anyStaffSelected,
-      });
+      };
+      logger.debug('[BookingFlow] booking.create.request', payload);
+
+      const response = await api.post('/bookings/', payload);
+      logger.debug('[BookingFlow] booking.create.response', response.data);
       return response.data;
     },
 
-    onSuccess: (booking: any) => {
+    onSuccess: (booking: { booking_id?: string; id?: string; message?: string }) => {
+      const bookingId = booking?.booking_id ?? booking?.id;
+      logger.debug('[BookingFlow] booking.create.success', { bookingId });
+
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['slots'] });
       unsubscribeFromSlots();
 
       // Schedule a reminder notification 1 hour before
@@ -424,18 +459,21 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
           price: service.price
         });
 
-        scheduleBookingReminder(
-          selectedDate,
-          selectedSlot,
-          salon.name,
-          service.name
-        ).catch(() => {}); // Silently ignore if notifications not permitted
+        if (bookingId) {
+          scheduleBookingReminder({
+            bookingId: String(bookingId),
+            salonName: salon.name,
+            serviceName: service.name,
+            date: selectedDate,
+            time: selectedSlot,
+          }).catch(() => {}); // Silently ignore if notifications not permitted
+        }
       }
 
       // If online payment selected, route to payment screen
-      if (selectedPaymentMethod === 'card' && booking?.id && service && salon && selectedSlot) {
+      if (selectedPaymentMethod === 'card' && bookingId && service && salon && selectedSlot) {
         navigation.navigate('Payment', {
-          bookingId: booking.id,
+          bookingId,
           amount: service.price,
           salonName: salon.name,
           serviceName: service.name,
@@ -447,6 +485,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       }
     },
     onError: (error: unknown) => {
+      logger.debug('[BookingFlow] booking.create.error', { error: String(error) });
       // Interceptor returns normalized AppError, so avoid assuming axios shape.
       const appErr = isAppError(error) ? error : handleApiError(error);
       const errorDetail = appErr.message || 'Failed to create booking';
@@ -485,7 +524,17 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   }, []);
 
   const handleConfirmBooking = () => {
+    logger.debug('[BookingFlow] confirm.tap', {
+      selectedSlot,
+      holdId,
+      timeLeft,
+      effectiveAllowMultiple,
+      salonId,
+      serviceId,
+      selectedDate,
+    });
     if (!selectedSlot) {
+      logger.debug('[BookingFlow] confirm.blocked', { reason: 'no_slot' });
       Alert.alert('Error', 'Please select a time slot');
       return;
     }
@@ -493,6 +542,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     // Check if slot was just booked by someone else
     const scopedKey = `${selectedDate}::${selectedSlot}`;
     if (justBookedSlots.has(scopedKey) && !effectiveAllowMultiple) {
+      logger.debug('[BookingFlow] confirm.blocked', { reason: 'justBookedSlots', scopedKey });
       Alert.alert(
         'Slot Unavailable',
         'This time slot was just booked by someone else. Please select another slot.',
@@ -507,11 +557,13 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     }
 
     if (!holdId && !effectiveAllowMultiple) {
+      logger.debug('[BookingFlow] confirm.blocked', { reason: 'no_hold' });
       Alert.alert('Error', 'Slot reservation not found. Please re-select your slot.');
       setSelectedSlot(null);
       return;
     }
     if (!effectiveAllowMultiple && (timeLeft === null || timeLeft <= 0)) {
+      logger.debug('[BookingFlow] confirm.blocked', { reason: 'hold_expired', timeLeft });
       Alert.alert('Hold Expired', 'Your temporary slot reservation has expired. Please select a slot again to continue.');
       setSelectedSlot(null);
       setHoldId(null);

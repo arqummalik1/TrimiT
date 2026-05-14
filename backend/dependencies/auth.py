@@ -1,6 +1,7 @@
 from fastapi import Header, HTTPException, Depends
 import jwt
 import logging
+from typing import Optional
 from datetime import datetime, timezone
 from cachetools import TTLCache
 from config import settings
@@ -11,6 +12,31 @@ logger = logging.getLogger("trimit")
 # Cache user profiles to reduce database round-trips (Audit A8)
 # maxsize=1000 users, TTL=5 minutes
 user_profile_cache = TTLCache(maxsize=1000, ttl=300)
+
+
+def try_get_user_id_from_authorization(authorization: Optional[str]) -> Optional[str]:
+    """
+    Lightweight JWT sub extraction for optional-auth endpoints (e.g. public slot list).
+    Does not hit the network; returns None if header missing or token not locally decodable.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token = authorization.replace("Bearer ", "", 1).strip()
+    if not token:
+        return None
+    if not settings.JWT_SECRET or settings.JWT_SECRET == "your-secret-key-change-this-in-production":
+        return None
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET,
+            algorithms=["HS256"],
+            audience="authenticated",
+        )
+        sub = payload.get("sub")
+        return str(sub) if sub else None
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, Exception):
+        return None
 
 
 async def get_current_user(authorization: str = Header(None)):

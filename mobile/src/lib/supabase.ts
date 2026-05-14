@@ -27,6 +27,54 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 // Type for booking payload
 type BookingPayload = RealtimePostgresChangesPayload<Booking>;
 
+/** Normalize Postgres `date` / timestamptz string to YYYY-MM-DD for comparisons */
+export function bookingDateMatchesFilter(pgValue: unknown, filterYyyyMmDd: string): boolean {
+  if (pgValue == null) return false;
+  const raw = String(pgValue);
+  const norm = raw.length >= 10 ? raw.slice(0, 10) : raw;
+  return norm === filterYyyyMmDd;
+}
+
+/**
+ * Mirror the Supabase session used for REST/JWT into the JS client so Realtime
+ * `postgres_changes` respects RLS (authenticated policies on `bookings`).
+ * Call after login / token restore; call signOut on logout.
+ */
+export async function syncSupabaseAuthSession(
+  accessToken: string | null,
+  refreshToken: string | null
+): Promise<void> {
+  try {
+    if (!accessToken) {
+      await supabase.auth.signOut();
+      return;
+    }
+    if (!refreshToken) {
+      console.warn(
+        '[Supabase Auth] Missing refresh_token — Realtime may stay anonymous until next full login. ' +
+          'Persist refresh_token from /auth/login to enable owner dashboard live updates.'
+      );
+      return;
+    }
+    const { data, error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (error) {
+      console.warn('[Supabase Auth] setSession failed:', error.message);
+      return;
+    }
+    if (__DEV__) {
+      console.log('[Supabase Auth] Session synced for Realtime', {
+        userId: data.session?.user?.id,
+        expiresAt: data.session?.expires_at,
+      });
+    }
+  } catch (e) {
+    console.warn('[Supabase Auth] syncSupabaseAuthSession error', e);
+  }
+}
+
 // Helper to subscribe to booking changes for a specific salon and date
 export const subscribeToBookings = (
   salonId: string,
@@ -46,17 +94,18 @@ export const subscribeToBookings = (
         filter: `salon_id=eq.${salonId}`,
       },
       (payload: BookingPayload) => {
-        console.log('[Supabase] Booking change received:', payload);
-        // Filter by date in the callback since we can't filter by both in the subscription
-        const newRecord = payload.new as Record<string, any> | undefined;
-        const oldRecord = payload.old as Record<string, any> | undefined;
-        if (newRecord?.booking_date === bookingDate || oldRecord?.booking_date === bookingDate) {
+        console.log('[Supabase] Booking change received:', payload.eventType, payload);
+        const newRecord = payload.new as Record<string, unknown> | undefined;
+        const oldRecord = payload.old as Record<string, unknown> | undefined;
+        const newDate = newRecord?.booking_date;
+        const oldDate = oldRecord?.booking_date;
+        if (bookingDateMatchesFilter(newDate, bookingDate) || bookingDateMatchesFilter(oldDate, bookingDate)) {
           onChange(payload);
         }
       }
     )
     .subscribe((status, err) => {
-      console.log('[Supabase] Subscription status:', status, err);
+      console.log('[Supabase] bookings channel status:', { salonId, bookingDate, status, err: err?.message });
     });
 
   return channel;
@@ -96,11 +145,11 @@ export const subscribeToSalonBookings = (
     )
     .subscribe((status, err) => {
       if (status === 'SUBSCRIBED') {
-        console.log('[Supabase] ✅ Successfully subscribed to salon bookings:', salonId);
+        console.log('[Supabase] ✅ salon-bookings SUBSCRIBED', { salonId });
       } else if (status === 'CHANNEL_ERROR') {
-        console.error('[Supabase] ❌ Subscription error:', err);
+        console.error('[Supabase] ❌ salon-bookings CHANNEL_ERROR', { salonId, err });
       } else {
-        console.log('[Supabase] Subscription status:', status);
+        console.log('[Supabase] salon-bookings status', { salonId, status, err: err?.message });
       }
     });
 

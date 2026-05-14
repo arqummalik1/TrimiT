@@ -21,8 +21,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-// SDK 54: readAsStringAsync lives on the legacy API.
-import * as FileSystem from 'expo-file-system/legacy';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { ServiceCard } from '../../components/ServiceCard';
@@ -307,13 +305,12 @@ export default function ManageServicesScreen() {
 
       // Upload via backend (SERVICE ROLE) to bypass Supabase Storage RLS.
       const form = new FormData();
-      form.append('file', {
-        // React Native FormData file descriptor
-        // @ts-expect-error - RN accepts this shape
+      const filePayload = {
         uri: manipulated.uri,
-        name: `service.jpg`,
+        name: 'service.jpg',
         type: 'image/jpeg',
-      });
+      };
+      form.append('file', filePayload as unknown as Blob);
 
       const res = await api.post('/uploads/service-image', form, {
         headers: { 'Content-Type': 'multipart/form-data' },

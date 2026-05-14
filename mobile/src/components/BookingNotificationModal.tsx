@@ -155,7 +155,7 @@ export const BookingNotificationModal: React.FC<Props> = ({
           ]}
         >
           {Platform.OS === 'ios' ? (
-            <BlurView intensity={95} tint={theme.dark ? 'dark' : 'light'} style={styles.blurContainer}>
+            <BlurView intensity={95} tint={theme.isDark ? 'dark' : 'light'} style={styles.blurContainer}>
               <ModalContent />
             </BlurView>
           ) : (

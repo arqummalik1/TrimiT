@@ -101,16 +101,16 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
             <Text style={[styles.title, { marginTop: 24, textAlign: 'center' }]}>
               Check your email
             </Text>
-            <Text style={[styles.subtitle ?? {}, { textAlign: 'center', marginTop: 12, color: theme.colors.textSecondary, paddingHorizontal: 24 }]}>
+            <Text style={[styles.subtitle, { textAlign: 'center', marginTop: 12, paddingHorizontal: 24 }]}>
               We sent a confirmation link to{' '}
               <Text style={{ fontWeight: '700', color: theme.colors.text }}>{confirmedEmail}</Text>.
               {' '}Click the link to activate your account, then come back to log in.
             </Text>
             <TouchableOpacity
-              style={[styles.signInButton ?? {}, { marginTop: 40 }]}
+              style={[styles.signInButton, { marginTop: 40 }]}
               onPress={() => navigation.replace('Login')}
             >
-              <Text style={styles.signInText ?? { color: theme.colors.primary, fontWeight: '600' }}>
+              <Text style={styles.signInText}>
                 Go to Login
               </Text>
             </TouchableOpacity>
@@ -302,6 +302,21 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     ...typography.h3,
     color: theme.colors.text,
     marginBottom: spacing.md,
+  },
+  subtitle: {
+    ...typography.body,
+    color: theme.colors.textSecondary,
+  },
+  signInButton: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xxl,
+    borderRadius: borderRadius.md,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  signInText: {
+    ...typography.bodySmall,
+    fontWeight: '600',
+    color: theme.colors.primary,
   },
   roleBadge: {
     flexDirection: 'row',

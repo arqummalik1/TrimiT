@@ -11,12 +11,14 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { api } from './api';
+import api from './api';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -177,4 +179,45 @@ export async function clearAllNotifications(): Promise<void> {
  */
 export async function setBadgeCount(count: number): Promise<void> {
   await Notifications.setBadgeCountAsync(count);
+}
+
+/**
+ * Schedule a local reminder notification 1 hour before the booking.
+ */
+export async function scheduleBookingReminder(params: {
+  bookingId: string;
+  salonName: string;
+  serviceName: string;
+  date: string;
+  time: string;
+}) {
+  try {
+    const [year, month, day] = params.date.split('-').map(Number);
+    const [hour, minute] = params.time.split(':').map(Number);
+    
+    // Create Date object for the booking
+    const bookingDate = new Date(year, month - 1, day, hour, minute);
+    
+    // Subtract 1 hour for the reminder
+    const reminderDate = new Date(bookingDate.getTime() - 60 * 60 * 1000);
+    
+    // Only schedule if the reminder time is in the future
+    if (reminderDate.getTime() > Date.now()) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Upcoming Appointment at ${params.salonName}`,
+          body: `Your ${params.serviceName} appointment is in 1 hour (${params.time}).`,
+          sound: true,
+          data: { bookingId: params.bookingId },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: reminderDate,
+        },
+      });
+      console.log('[Notifications] ✅ Scheduled reminder for:', reminderDate.toISOString());
+    }
+  } catch (error) {
+    console.warn('[Notifications] ⚠️ Failed to schedule reminder:', error);
+  }
 }
