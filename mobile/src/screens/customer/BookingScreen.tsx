@@ -23,7 +23,7 @@ import { logger } from '../../lib/logger';
 
 import { Button } from '../../components/Button';
 import { useBookingStore } from '../../store/bookingStore';
-import { scheduleBookingReminder } from '../../lib/notifications';
+import { scheduleBookingReminder, presentBookingConfirmedLocal } from '../../lib/notifications';
 import { openNativeDirections } from '../../lib/maps';
 import { handleApiError } from '../../lib/errorHandler';
 import { isAppError } from '../../types/error';
@@ -109,9 +109,14 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
 
   const service = salon?.services?.find((s) => s.id === serviceId);
 
+  const slotsStaffId = useMemo(
+    () => (!anyStaffSelected && selectedStaffId ? selectedStaffId : undefined),
+    [anyStaffSelected, selectedStaffId],
+  );
+
   // Get available slots with real-time sync
-  const { data: slotsData, isLoading: slotsLoading, refetch: refetchSlots } = useQuery<SlotsResponse>({
-    queryKey: ['slots', salonId, serviceId, selectedDate],
+  const { data: slotsData, isLoading: slotsLoading, isSuccess: slotsQuerySuccess, refetch: refetchSlots } = useQuery<SlotsResponse>({
+    queryKey: ['slots', salonId, serviceId, selectedDate, slotsStaffId ?? ''],
     queryFn: async () => {
       const selected = parseISO(selectedDate);
       const isLocalToday = isValid(selected) && isToday(selected);
@@ -122,20 +127,24 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
         selectedDate,
         isLocalToday,
         currentTime,
+        staffId: slotsStaffId,
       });
-      const response = await api.get('/bookings/slots', {
-        params: {
-          salon_id: salonId,
-          date: selectedDate,
-          service_id: serviceId,
-          current_time: currentTime,
-          is_local_today: isLocalToday,
-        },
-      });
+      const params: Record<string, string | boolean> = {
+        salon_id: salonId,
+        date: selectedDate,
+        service_id: serviceId,
+        current_time: currentTime,
+        is_local_today: isLocalToday,
+      };
+      if (slotsStaffId) {
+        params.staff_id = slotsStaffId;
+      }
+      const response = await api.get('/bookings/slots', { params });
       const raw = response.data?.slots ?? [];
       logger.debug('[BookingFlow] slots.fetch.done', {
         salonId,
         selectedDate,
+        staffId: slotsStaffId,
         slotCount: raw.length,
         timesSample: raw.slice(0, 6).map((s: TimeSlot) => s.time),
         allowMultiple: response.data?.allow_multiple_bookings_per_slot,
@@ -156,18 +165,25 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   }, [realtimeSlots, slotsData]);
 
   const visibleSlots = useMemo(() => {
+    const safeSlots = displaySlots.filter(
+      (s) => s?.time != null && String(s.time).trim().length > 0
+    );
     // Client-side guard: for today's date, hide slots earlier than current local time.
     // This ensures UX remains correct even if backend timezone differs from device timezone.
     // IMPORTANT: `new Date('YYYY-MM-DD')` is parsed as UTC in JS and can shift dates
     // on devices with non-UTC timezones. Use parseISO so "today" detection is correct.
     const selected = parseISO(selectedDate);
     if (!isValid(selected) || !isToday(selected)) {
-      return displaySlots;
+      return safeSlots;
     }
     const now = new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    return displaySlots.filter((slot) => {
-      const [h, m] = slot.time.split(':').map((v) => parseInt(v, 10));
+    return safeSlots.filter((slot) => {
+      const t = slot.time;
+      if (t == null || typeof t !== 'string') return false;
+      const parts = t.split(':');
+      const h = parseInt(parts[0] ?? '', 10);
+      const m = parseInt(parts[1] ?? '', 10);
       if (Number.isNaN(h) || Number.isNaN(m)) return false;
       return h * 60 + m >= nowMinutes;
     });
@@ -217,17 +233,35 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     }
   }, [selectedStaffId, availableStaffData, service]);
 
-  // Subscribe to real-time updates when slots are loaded
+  // Clear reserve timer on unmount
   useEffect(() => {
-    if (slotsData?.slots && salonId && selectedDate) {
-      subscribeToSlots(salonId, selectedDate, slotsData.slots, slotsData.allow_multiple_bookings_per_slot);
-    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  // Subscribe only when salon/date/service/staff context changes — not on every slots refetch
+  // (including slotsData) to avoid rapid removeChannel/subscribe and Supabase CHANNEL_ERROR.
+  useEffect(() => {
+    if (!salonId || !selectedDate || !slotsQuerySuccess || !slotsData?.slots) return;
+
+    subscribeToSlots(
+      salonId,
+      selectedDate,
+      slotsData.slots,
+      !!slotsData.allow_multiple_bookings_per_slot
+    );
 
     return () => {
       unsubscribeFromSlots();
-      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [salonId, serviceId, selectedDate, slotsData]);
+  }, [salonId, serviceId, selectedDate, slotsStaffId, slotsQuerySuccess]);
+
+  // Merge server slot list into the realtime store whenever the slots query updates.
+  useEffect(() => {
+    if (!slotsData?.slots) return;
+    updateSlots(slotsData.slots, !!slotsData.allow_multiple_bookings_per_slot);
+  }, [slotsData, updateSlots]);
 
   // Reserve slot mutation
   const reserveMutation = useMutation({
@@ -449,6 +483,19 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       queryClient.invalidateQueries({ queryKey: ['slots'] });
       unsubscribeFromSlots();
 
+      void Promise.all([
+        queryClient.refetchQueries({ queryKey: ['ownerBookings'] }),
+        queryClient.refetchQueries({ queryKey: ['recentBookings'] }),
+        queryClient.refetchQueries({ queryKey: ['ownerAnalytics'] }),
+      ]).catch(() => {});
+
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setHoldId(null);
+      setTimeLeft(null);
+
       // Schedule a reminder notification 1 hour before
       if (selectedDate && selectedSlot && salon && service) {
         analytics.track('booking_confirmed', {
@@ -467,12 +514,18 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
             date: selectedDate,
             time: selectedSlot,
           }).catch(() => {}); // Silently ignore if notifications not permitted
+          presentBookingConfirmedLocal({
+            salonName: salon.name,
+            serviceName: service.name,
+            date: selectedDate,
+            time: selectedSlot,
+          }).catch(() => {});
         }
       }
 
-      // If online payment selected, route to payment screen
+      // If online payment selected, route to payment screen (replace so back cannot re-submit booking)
       if (selectedPaymentMethod === 'card' && bookingId && service && salon && selectedSlot) {
-        navigation.navigate('Payment', {
+        navigation.replace('Payment', {
           bookingId,
           amount: service.price,
           salonName: salon.name,
@@ -481,6 +534,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
           timeSlot: selectedSlot,
         });
       } else {
+        // Keep selectedSlot/selectedDate until user leaves success — success UI calls formatTime(selectedSlot).
         setBookingComplete(true);
       }
     },
@@ -533,9 +587,18 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       serviceId,
       selectedDate,
     });
+    if (bookingMutation.isPending) {
+      logger.debug('[BookingFlow] confirm.blocked', { reason: 'mutation_pending' });
+      return;
+    }
     if (!selectedSlot) {
       logger.debug('[BookingFlow] confirm.blocked', { reason: 'no_slot' });
       Alert.alert('Error', 'Please select a time slot');
+      return;
+    }
+
+    if (!effectiveAllowMultiple && reserveMutation.isPending) {
+      logger.debug('[BookingFlow] confirm.blocked', { reason: 'reserve_in_flight' });
       return;
     }
 
@@ -619,7 +682,8 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Appointment</Text>
                 <Text style={styles.summaryValue}>
-                  {format(new Date(selectedDate), 'EEEE, d MMM')} • {formatTime(selectedSlot!)}
+                  {format(new Date(selectedDate), 'EEEE, d MMM')}
+                  {selectedSlot ? ` • ${formatTime(selectedSlot)}` : ''}
                 </Text>
               </View>
 
@@ -650,14 +714,26 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
             <View style={styles.successActionRow}>
               <TouchableOpacity
                 style={styles.secondaryButton}
-                onPress={() => navigation.navigate('CustomerTabs', { screen: 'Bookings' })}
+                onPress={() => {
+                  setBookingComplete(false);
+                  setSelectedSlot(null);
+                  setHoldId(null);
+                  setTimeLeft(null);
+                  navigation.navigate('CustomerTabs', { screen: 'Bookings' });
+                }}
               >
                 <Text style={styles.secondaryButtonText}>View Bookings</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
                 style={styles.secondaryButton}
-                onPress={() => navigation.navigate('DiscoverMain')}
+                onPress={() => {
+                  setBookingComplete(false);
+                  setSelectedSlot(null);
+                  setHoldId(null);
+                  setTimeLeft(null);
+                  navigation.navigate('DiscoverMain');
+                }}
               >
                 <Text style={styles.secondaryButtonText}>Back to Home</Text>
               </TouchableOpacity>
@@ -1046,7 +1122,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
           <Button
             title="Confirm Booking"
             onPress={handleConfirmBooking}
-            loading={bookingMutation.isPending}
+            loading={bookingMutation.isPending || reserveMutation.isPending}
             icon={<Ionicons name="card-outline" size={20} color={theme.colors.textInverse} />}
           />
         </View>

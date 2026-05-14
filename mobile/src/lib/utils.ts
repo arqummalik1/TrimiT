@@ -30,12 +30,17 @@ export const formatDate = (dateString: string): string => {
   });
 };
 
-export const formatTime = (timeString: string): string => {
-  const [hours, minutes] = timeString.split(':');
-  const hour = parseInt(hours);
+export const formatTime = (timeString: string | null | undefined): string => {
+  if (timeString == null || typeof timeString !== 'string') return '—';
+  const trimmed = timeString.trim();
+  if (!trimmed.includes(':')) return trimmed || '—';
+  const [hours, minutes] = trimmed.split(':');
+  const hour = parseInt(hours ?? '', 10);
+  const minutePart = (minutes ?? '0').slice(0, 2);
+  if (Number.isNaN(hour)) return trimmed;
   const ampm = hour >= 12 ? 'PM' : 'AM';
   const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
+  return `${hour12}:${minutePart} ${ampm}`;
 };
 
 /** Normalize slot / booking time to HH:MM (handles HH:MM:SS from DB). */

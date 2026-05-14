@@ -169,12 +169,14 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
     queryKey: ['ownerAnalytics', selectedPeriod, salon?.id],
     queryFn: () => salonRepository.getAnalytics(selectedPeriod),
     enabled: !!salon,
+    staleTime: 0,
   });
 
   const { data: recentBookings, refetch: refetchRecentBookings } = useQuery<Booking[]>({
     queryKey: ['recentBookings', salon?.id],
     queryFn: () => bookingRepository.getRecentBookings(3),
     enabled: !!salon,
+    staleTime: 0,
   });
 
   const queryClient = useQueryClient();
@@ -185,6 +187,11 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
       queryClient.invalidateQueries({ queryKey: ['recentBookings'] });
       queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
       queryClient.invalidateQueries({ queryKey: ['salonBookings'] });
+      void Promise.all([
+        queryClient.refetchQueries({ queryKey: ['recentBookings'] }),
+        queryClient.refetchQueries({ queryKey: ['ownerAnalytics'] }),
+        queryClient.refetchQueries({ queryKey: ['ownerBookings'] }),
+      ]).catch(() => {});
     },
     onError: (err: unknown) => {
       const appErr = handleApiError(err);

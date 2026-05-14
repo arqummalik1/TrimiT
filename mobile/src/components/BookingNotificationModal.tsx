@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, Theme } from '../theme/ThemeContext';
 import { typography, spacing, borderRadius } from '../lib/utils';
 import type { BookingNotification } from '../store/notificationStore';
-import { format } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -100,9 +100,24 @@ export const BookingNotificationModal: React.FC<Props> = ({
   const { booking, type, actionRequired } = notification;
   const serviceName = booking.services?.name || 'Service';
   const customerName = booking.users?.name || 'Customer';
-  const date = booking.booking_date;
-  const time = booking.time_slot;
-  const amount = booking.amount;
+  const dateRaw = booking.booking_date;
+  const time = booking.time_slot ?? '';
+  const amountNum =
+    typeof booking.amount === 'number' && !Number.isNaN(booking.amount)
+      ? booking.amount
+      : Number(booking.amount) || 0;
+
+  const dateLabel = (() => {
+    try {
+      const d =
+        typeof dateRaw === 'string'
+          ? parseISO(dateRaw.length >= 10 ? dateRaw.slice(0, 10) : dateRaw)
+          : new Date(dateRaw as string | number | Date);
+      return isValid(d) ? format(d, 'MMM dd, yyyy') : String(dateRaw ?? '');
+    } catch {
+      return String(dateRaw ?? '');
+    }
+  })();
 
   const getIcon = () => {
     switch (type) {
@@ -192,9 +207,9 @@ export const BookingNotificationModal: React.FC<Props> = ({
         <View style={styles.detailsContainer}>
           <DetailRow icon="person" label="Customer" value={customerName} />
           <DetailRow icon="cut" label="Service" value={serviceName} />
-          <DetailRow icon="calendar" label="Date" value={format(new Date(date), 'MMM dd, yyyy')} />
+          <DetailRow icon="calendar" label="Date" value={dateLabel} />
           <DetailRow icon="time" label="Time" value={time} />
-          <DetailRow icon="cash" label="Amount" value={`₹${amount.toFixed(2)}`} />
+          <DetailRow icon="cash" label="Amount" value={`₹${amountNum.toFixed(2)}`} />
         </View>
 
         {/* Action Buttons */}

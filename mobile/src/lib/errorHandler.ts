@@ -1,8 +1,12 @@
-import { AppError, ErrorKind } from '../types/error';
+import { AppError, ErrorKind, isAppError } from '../types/error';
 import axios from 'axios';
 import { logger } from './logger';
 
 export const handleApiError = (error: unknown): AppError => {
+  if (isAppError(error)) {
+    return error;
+  }
+
   let kind: ErrorKind = 'unknown';
   let message = 'An unexpected error occurred';
   let code: string | undefined;

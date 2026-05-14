@@ -8,7 +8,9 @@ import { normalizeSlotTimeToHHMM } from '../lib/utils';
 interface BookingState {
   // Real-time subscription
   activeChannel: RealtimeChannel | null;
-  
+  /** Booking date (YYYY-MM-DD) the live channel is applying deltas for */
+  watchedBookingDate: string | null;
+
   // Slot state
   slots: TimeSlot[];
   allowMultipleBookings: boolean;
@@ -31,6 +33,7 @@ interface BookingState {
 export const useBookingStore = create<BookingState>((set, get) => ({
   // Initial state
   activeChannel: null,
+  watchedBookingDate: null,
   slots: [],
   allowMultipleBookings: false,
   isRealtimeConnected: false,
@@ -48,6 +51,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       allowMultipleBookings: allowMultiple,
       justBookedSlots: new Set(),
       needsRefresh: false,
+      watchedBookingDate: date,
     });
 
     // Subscribe to Supabase real-time
@@ -55,8 +59,9 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       salonId,
       date,
       (payload) => {
-        const { slots, allowMultipleBookings } = get();
-        
+        const { slots, allowMultipleBookings, watchedBookingDate } = get();
+        const scopeDate = watchedBookingDate ?? date;
+
         // Handle different event types
         if (payload.eventType === 'INSERT') {
           const newBooking = payload.new;
@@ -77,14 +82,14 @@ export const useBookingStore = create<BookingState>((set, get) => ({
                 : slot
             );
 
-            const scopedKey = `${date}::${bookedTime}`;
+            const scopedKey = `${scopeDate}::${bookedTime}`;
             set({
               slots: updatedSlots,
               justBookedSlots: new Set([...get().justBookedSlots, scopedKey]),
             });
 
             setTimeout(() => {
-              get().clearJustBookedSlot(date, bookedTime);
+              get().clearJustBookedSlot(scopeDate, bookedTime);
             }, 3000);
           } else {
             // Multi mode: increment count, mark full if at capacity
@@ -117,6 +122,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       activeChannel: null,
       isRealtimeConnected: false,
       justBookedSlots: new Set(),
+      watchedBookingDate: null,
     });
   },
 

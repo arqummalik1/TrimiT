@@ -192,6 +192,10 @@ export async function scheduleBookingReminder(params: {
   time: string;
 }) {
   try {
+    if (!params.date || !params.time) {
+      console.warn('[Notifications] ⚠️ scheduleBookingReminder: missing date or time');
+      return;
+    }
     const [year, month, day] = params.date.split('-').map(Number);
     const [hour, minute] = params.time.split(':').map(Number);
     
@@ -219,5 +223,36 @@ export async function scheduleBookingReminder(params: {
     }
   } catch (error) {
     console.warn('[Notifications] ⚠️ Failed to schedule reminder:', error);
+  }
+}
+
+/**
+ * Immediate local notification when the customer’s booking is created (confirmed path).
+ * Best-effort: no-op if permissions denied or Expo Go limitations apply.
+ */
+export async function presentBookingConfirmedLocal(params: {
+  salonName: string;
+  serviceName: string;
+  date: string;
+  time: string;
+}): Promise<void> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') {
+      const req = await Notifications.requestPermissionsAsync();
+      if (req.status !== 'granted') {
+        return;
+      }
+    }
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Booking confirmed',
+        body: `${params.serviceName} at ${params.salonName} — ${params.date} at ${params.time}`,
+        sound: true,
+      },
+      trigger: null,
+    });
+  } catch (error) {
+    console.warn('[Notifications] ⚠️ presentBookingConfirmedLocal failed:', error);
   }
 }

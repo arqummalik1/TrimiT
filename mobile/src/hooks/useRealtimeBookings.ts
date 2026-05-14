@@ -9,6 +9,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { subscribeToSalonBookings, unsubscribeFromBookings } from '../lib/supabase';
+import { logger } from '../lib/logger';
 import { useNotificationStore } from '../store/notificationStore';
 import type { Booking } from '../types';
 
@@ -58,11 +59,27 @@ export function useRealtimeBookings({
       queryClient.invalidateQueries({ queryKey: ['salonBookings'] });
       queryClient.invalidateQueries({ queryKey: ['slots'] });
 
+      // Global staleTime is very high (persisted cache). Invalidation alone can leave UI stale;
+      // force active owner queries to hit the network immediately.
+      void Promise.all([
+        queryClient.refetchQueries({ queryKey: ['ownerBookings'] }),
+        queryClient.refetchQueries({ queryKey: ['recentBookings'] }),
+        queryClient.refetchQueries({ queryKey: ['salonBookings'] }),
+        queryClient.refetchQueries({ queryKey: ['ownerAnalytics'] }),
+      ]).catch(() => {});
+
       switch (eventType) {
         case 'INSERT': {
           if (newRecord) {
             const booking = newRecord as Booking;
-            addNotification(booking, 'new_booking');
+            try {
+              addNotification(booking, 'new_booking');
+            } catch (e) {
+              logger.warn('[RealtimeBookings] addNotification INSERT failed', {
+                bookingId: booking.id,
+                err: String(e),
+              });
+            }
             callbacksRef.current.onNewBooking?.(booking);
             console.log('[RealtimeBookings] INSERT handled', booking.id);
           }
@@ -74,7 +91,11 @@ export function useRealtimeBookings({
             const booking = newRecord as Booking;
             const oldBooking = oldRecord as Booking;
             if (booking.status !== oldBooking.status) {
-              addNotification(booking, 'status_change');
+              try {
+                addNotification(booking, 'status_change');
+              } catch (e) {
+                logger.warn('[RealtimeBookings] addNotification UPDATE failed', { err: String(e) });
+              }
             }
             callbacksRef.current.onBookingUpdate?.(booking);
             console.log('[RealtimeBookings] UPDATE handled', booking.id);
@@ -85,7 +106,11 @@ export function useRealtimeBookings({
         case 'DELETE': {
           if (oldRecord) {
             const booking = oldRecord as Booking;
-            addNotification(booking, 'cancellation');
+            try {
+              addNotification(booking, 'cancellation');
+            } catch (e) {
+              logger.warn('[RealtimeBookings] addNotification DELETE failed', { err: String(e) });
+            }
             callbacksRef.current.onBookingDelete?.(booking.id);
             console.log('[RealtimeBookings] DELETE handled', booking.id);
           }

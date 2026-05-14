@@ -20,7 +20,8 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   },
   auth: {
     persistSession: false, // We handle auth via our own backend
-    autoRefreshToken: false,
+    // Keep access tokens fresh so Realtime postgres_changes websockets stay authorized.
+    autoRefreshToken: true,
   },
 });
 

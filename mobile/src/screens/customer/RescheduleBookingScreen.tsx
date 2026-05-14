@@ -12,10 +12,11 @@ import {
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, addDays, startOfToday, isSameDay, parseISO } from 'date-fns';
-import api, { axios } from '../../lib/api';
+import { format, addDays, startOfToday, parseISO, isToday, isValid } from 'date-fns';
+import api from '../../lib/api';
 import { Salon, SlotsResponse } from '../../types';
-import { fonts, borderRadius, formatPrice, formatTime } from '../../lib/utils';
+import { fonts, borderRadius, formatPrice, formatTime, normalizeSlotTimeToHHMM } from '../../lib/utils';
+import { logger } from '../../lib/logger';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { Button } from '../../components/Button';
@@ -48,18 +49,36 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
     },
   });
 
-  // Get available slots
+  // Get available slots (same params as BookingScreen so server applies correct “today” rules)
   const { data: slotsData, isLoading: slotsLoading } = useQuery<SlotsResponse>({
-    queryKey: ['slots', salonId, serviceId, selectedDate],
+    queryKey: ['slots', salonId, serviceId, selectedDate, ''],
     queryFn: async () => {
+      const selected = parseISO(selectedDate);
+      const isLocalToday = isValid(selected) && isToday(selected);
       const currentTime = format(new Date(), 'HH:mm');
+      logger.debug('[RescheduleFlow] slots.fetch.start', {
+        bookingId,
+        salonId,
+        serviceId,
+        selectedDate,
+        isLocalToday,
+        currentTime,
+      });
       const response = await api.get('/bookings/slots', {
         params: {
           salon_id: salonId,
           date: selectedDate,
           service_id: serviceId,
           current_time: currentTime,
+          is_local_today: isLocalToday,
         },
+      });
+      const raw = response.data?.slots ?? [];
+      logger.debug('[RescheduleFlow] slots.fetch.done', {
+        bookingId,
+        selectedDate,
+        slotCount: raw.length,
+        timesSample: raw.slice(0, 6).map((s: { time: string }) => s.time),
       });
       return response.data;
     },
@@ -69,16 +88,31 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
   // Reschedule mutation
   const rescheduleMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.patch(`/bookings/${bookingId}/reschedule`, {
+      const normalizedSlot = normalizeSlotTimeToHHMM(selectedSlot);
+      const payload = {
         new_date: selectedDate,
-        new_time_slot: selectedSlot,
+        new_time_slot: normalizedSlot || selectedSlot,
         reason: reason.trim() || undefined,
+      };
+      logger.debug('[RescheduleFlow] reschedule.request', {
+        bookingId,
+        currentDate,
+        currentSlot,
+        payload,
+      });
+      const response = await api.patch(`/bookings/${bookingId}/reschedule`, payload);
+      logger.debug('[RescheduleFlow] reschedule.response', {
+        bookingId,
+        success: response.data?.success,
+        reschedule_count: response.data?.reschedule_count,
       });
       return response.data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['myBookings'] });
       queryClient.invalidateQueries({ queryKey: ['slots'] });
+      void queryClient.refetchQueries({ queryKey: ['myBookings'] }).catch(() => {});
       
       analytics.track('booking_rescheduled', {
         booking_id: bookingId,
@@ -111,7 +145,13 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
     },
     onError: (error) => {
       const appErr = handleApiError(error);
-      
+      logger.warn('[RescheduleFlow] reschedule.error', {
+        bookingId,
+        kind: appErr.kind,
+        message: appErr.message,
+        status: appErr.status,
+        code: appErr.code,
+      });
       analytics.track('reschedule_failed', {
         booking_id: bookingId,
         error: appErr.message,
@@ -127,8 +167,9 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
       return;
     }
 
-    // Check if same slot
-    if (selectedDate === currentDate && selectedSlot === currentSlot) {
+    const normNew = normalizeSlotTimeToHHMM(selectedSlot);
+    const normCur = normalizeSlotTimeToHHMM(currentSlot);
+    if (selectedDate === currentDate && normNew === normCur) {
       Alert.alert('Error', 'Please select a different time slot');
       return;
     }
@@ -161,9 +202,14 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
     });
   }, []);
 
-  const isCurrentSlot = useCallback((date: string, slot: string) => {
-    return date === currentDate && slot === currentSlot;
-  }, [currentDate, currentSlot]);
+  const isCurrentSlot = useCallback(
+    (date: string, slot: string) => {
+      return (
+        date === currentDate && normalizeSlotTimeToHHMM(slot) === normalizeSlotTimeToHHMM(currentSlot)
+      );
+    },
+    [currentDate, currentSlot],
+  );
 
   return (
     <ScreenWrapper variant="stack">

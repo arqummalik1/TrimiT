@@ -16,26 +16,39 @@ user_profile_cache = TTLCache(maxsize=1000, ttl=300)
 
 def try_get_user_id_from_authorization(authorization: Optional[str]) -> Optional[str]:
     """
-    Lightweight JWT sub extraction for optional-auth endpoints (e.g. public slot list).
-    Does not hit the network; returns None if header missing or token not locally decodable.
+    Lightweight JWT `sub` extraction for optional-auth endpoints (e.g. public slot list).
+    - When JWT_SECRET is configured: verify signature + audience (authenticated).
+    - When not configured: decode `sub` without verification (Supabase-issued HS256 JWTs).
+      Used only for low-risk UX (e.g. excluding the caller's own slot hold from occupancy).
     """
     if not authorization or not authorization.startswith("Bearer "):
         return None
     token = authorization.replace("Bearer ", "", 1).strip()
     if not token:
         return None
-    if not settings.JWT_SECRET or settings.JWT_SECRET == "your-secret-key-change-this-in-production":
-        return None
+
+    if settings.JWT_SECRET and settings.JWT_SECRET != "your-secret-key-change-this-in-production":
+        try:
+            payload = jwt.decode(
+                token,
+                settings.JWT_SECRET,
+                algorithms=["HS256"],
+                audience="authenticated",
+            )
+            sub = payload.get("sub")
+            return str(sub) if sub else None
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, Exception):
+            return None
+
     try:
         payload = jwt.decode(
             token,
-            settings.JWT_SECRET,
-            algorithms=["HS256"],
-            audience="authenticated",
+            options={"verify_signature": False, "verify_aud": False, "verify_exp": False},
         )
         sub = payload.get("sub")
         return str(sub) if sub else None
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, Exception):
+    except Exception:
+        logger.warning("try_get_user_id_from_authorization: unverified decode failed")
         return None
 
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Platform } from 'react-native';
+import { AppState, StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -85,6 +85,7 @@ export default function OwnerTabs() {
     queryKey: ['ownerAnalytics', 'today', salon?.id],
     queryFn: () => salonRepository.getAnalytics('today'),
     enabled: !!salon,
+    staleTime: 0,
   });
 
   // Mutation for booking status updates
@@ -95,6 +96,11 @@ export default function OwnerTabs() {
       queryClient.invalidateQueries({ queryKey: ['ownerBookings'] });
       queryClient.invalidateQueries({ queryKey: ['recentBookings'] });
       queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
+      void Promise.all([
+        queryClient.refetchQueries({ queryKey: ['ownerBookings'] }),
+        queryClient.refetchQueries({ queryKey: ['recentBookings'] }),
+        queryClient.refetchQueries({ queryKey: ['ownerAnalytics'] }),
+      ]).catch(() => {});
     },
   });
 
@@ -132,6 +138,19 @@ export default function OwnerTabs() {
       console.log('[OwnerTabs] Booking deleted:', bookingId);
     },
   });
+
+  // When returning from background, refresh owner stats (Realtime can miss events while suspended).
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' || !salon?.id) return;
+      void Promise.all([
+        queryClient.refetchQueries({ queryKey: ['ownerBookings'] }),
+        queryClient.refetchQueries({ queryKey: ['recentBookings'] }),
+        queryClient.refetchQueries({ queryKey: ['ownerAnalytics'] }),
+      ]).catch(() => {});
+    });
+    return () => sub.remove();
+  }, [queryClient, salon?.id]);
 
   const pendingCount = analytics?.pending_bookings || 0;
 

@@ -199,8 +199,7 @@ BEGIN
     booking_date = p_new_date,
     time_slot = p_new_time_slot,
     reschedule_count = v_reschedule_count,
-    last_rescheduled_at = NOW(),
-    updated_at = NOW()
+    last_rescheduled_at = NOW()
   WHERE id = p_booking_id;
 
   -- 9. Create reschedule audit record

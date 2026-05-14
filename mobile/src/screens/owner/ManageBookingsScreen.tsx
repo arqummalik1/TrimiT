@@ -61,6 +61,7 @@ export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps
       return response.data;
     },
     enabled: !!salon,
+    staleTime: 0,
   });
 
   const isLoading = useMinLoadingTime(rawIsLoading);
@@ -72,6 +73,11 @@ export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ownerBookings'] });
       queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
+      void Promise.all([
+        queryClient.refetchQueries({ queryKey: ['ownerBookings'] }),
+        queryClient.refetchQueries({ queryKey: ['ownerAnalytics'] }),
+        queryClient.refetchQueries({ queryKey: ['recentBookings'] }),
+      ]).catch(() => {});
       showToast('Booking status updated', 'success');
     },
     onError: (error) => {
