@@ -1,8 +1,6 @@
 /**
  * BookingNotificationModal.tsx
- * ────────────────────────────────────────────────────────────────────────────
- * Interactive modal for new booking notifications.
- * Shows booking details and provides quick actions for owners.
+ * Owner alert for new bookings — solid surface, theme tokens, minimal scan-friendly layout.
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -14,16 +12,14 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
-  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, Theme } from '../theme/ThemeContext';
-import { typography, spacing, borderRadius } from '../lib/utils';
+import { fonts, typography, spacing, borderRadius, shadows, formatPrice, formatDate, formatTime } from '../lib/utils';
 import type { BookingNotification } from '../store/notificationStore';
-import { format, parseISO, isValid } from 'date-fns';
 import { getBookingServiceImageUri, getServiceDisplayName } from '../lib/bookingDisplay';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -47,48 +43,46 @@ export const BookingNotificationModal: React.FC<Props> = ({
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const insets = useSafeAreaInsets();
 
-  const slideAnim = useRef(new Animated.Value(-100)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const slideAnim = useRef(new Animated.Value(-24)).current;
+  const scaleAnim = useRef(new Animated.Value(0.96)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (notification) {
-      // Animate in
       Animated.parallel([
         Animated.spring(slideAnim, {
           toValue: 0,
           useNativeDriver: true,
-          tension: 50,
-          friction: 7,
+          tension: 68,
+          friction: 11,
         }),
         Animated.spring(scaleAnim, {
           toValue: 1,
           useNativeDriver: true,
-          tension: 50,
-          friction: 7,
+          tension: 68,
+          friction: 11,
         }),
         Animated.timing(opacityAnim, {
           toValue: 1,
-          duration: 200,
+          duration: 180,
           useNativeDriver: true,
         }),
       ]).start();
     } else {
-      // Animate out
       Animated.parallel([
         Animated.timing(slideAnim, {
-          toValue: -100,
-          duration: 200,
+          toValue: -24,
+          duration: 160,
           useNativeDriver: true,
         }),
         Animated.timing(scaleAnim, {
-          toValue: 0.9,
-          duration: 200,
+          toValue: 0.96,
+          duration: 160,
           useNativeDriver: true,
         }),
         Animated.timing(opacityAnim, {
           toValue: 0,
-          duration: 200,
+          duration: 160,
           useNativeDriver: true,
         }),
       ]).start();
@@ -101,50 +95,19 @@ export const BookingNotificationModal: React.FC<Props> = ({
   const serviceName = getServiceDisplayName(booking);
   const serviceImageUri = getBookingServiceImageUri(booking);
   const customerName = booking.users?.name || 'Customer';
-  const dateRaw = booking.booking_date;
-  const time = booking.time_slot ?? '';
+  const dateStr = typeof booking.booking_date === 'string' ? booking.booking_date : String(booking.booking_date ?? '');
+  const timeRaw = booking.time_slot ?? '';
   const amountNum =
     typeof booking.amount === 'number' && !Number.isNaN(booking.amount)
       ? booking.amount
       : Number(booking.amount) || 0;
 
-  const dateLabel = (() => {
-    try {
-      const d =
-        typeof dateRaw === 'string'
-          ? parseISO(dateRaw.length >= 10 ? dateRaw.slice(0, 10) : dateRaw)
-          : new Date(dateRaw as string | number | Date);
-      return isValid(d) ? format(d, 'MMM dd, yyyy') : String(dateRaw ?? '');
-    } catch {
-      return String(dateRaw ?? '');
-    }
-  })();
-
-  const getIcon = () => {
-    switch (type) {
-      case 'new_booking':
-        return 'calendar';
-      case 'status_change':
-        return 'checkmark-circle';
-      case 'cancellation':
-        return 'close-circle';
-      default:
-        return 'notifications';
-    }
-  };
-
-  const getIconColor = () => {
-    switch (type) {
-      case 'new_booking':
-        return theme.colors.primary;
-      case 'status_change':
-        return theme.colors.success;
-      case 'cancellation':
-        return theme.colors.error;
-      default:
-        return theme.colors.textSecondary;
-    }
-  };
+  const headline =
+    type === 'new_booking'
+      ? 'New booking'
+      : type === 'status_change'
+        ? 'Booking updated'
+        : 'Booking cancelled';
 
   return (
     <Modal
@@ -155,253 +118,253 @@ export const BookingNotificationModal: React.FC<Props> = ({
       statusBarTranslucent
     >
       <Animated.View style={[styles.overlay, { opacity: opacityAnim }]}>
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={onClose}
-        />
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
 
         <Animated.View
           style={[
-            styles.modalContainer,
+            styles.modalWrap,
             {
-              top: insets.top + 16,
+              top: insets.top + 12,
               transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
             },
           ]}
         >
-          {Platform.OS === 'ios' ? (
-            <BlurView intensity={95} tint={theme.isDark ? 'dark' : 'light'} style={styles.blurContainer}>
-              <ModalContent />
-            </BlurView>
-          ) : (
-            <View style={styles.blurContainer}>
-              <ModalContent />
+          <View style={styles.card}>
+            <View style={styles.accentTop} />
+
+            <View style={styles.topBar}>
+              <View style={styles.badge}>
+                <View style={styles.badgeDot} />
+                <Text style={styles.badgeText}>{headline}</Text>
+              </View>
+              <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={12}>
+                <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
             </View>
-          )}
+
+            <View style={styles.hero}>
+              <Image
+                source={{ uri: serviceImageUri }}
+                style={styles.heroImage}
+                contentFit="cover"
+                transition={200}
+              />
+              <View style={styles.heroBody}>
+                <Text style={styles.serviceTitle} numberOfLines={2}>
+                  {serviceName}
+                </Text>
+                <Text style={styles.customer} numberOfLines={1}>
+                  {customerName}
+                </Text>
+                <View style={styles.chipRow}>
+                  <View style={styles.chip}>
+                    <Ionicons name="calendar-outline" size={14} color={theme.colors.primary} />
+                    <Text style={styles.chipText}>{dateStr ? formatDate(dateStr) : '—'}</Text>
+                  </View>
+                  <View style={styles.chip}>
+                    <Ionicons name="time-outline" size={14} color={theme.colors.primary} />
+                    <Text style={styles.chipText}>{formatTime(timeRaw)}</Text>
+                  </View>
+                </View>
+                <Text style={styles.amount}>{formatPrice(amountNum)}</Text>
+              </View>
+            </View>
+
+            {actionRequired && type === 'new_booking' && (
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={[styles.btn, styles.btnReject]}
+                  onPress={() => {
+                    onReject?.(booking.id);
+                    onClose();
+                  }}
+                  disabled={isProcessing}
+                >
+                  <Text style={[styles.btnRejectText, isProcessing && { opacity: 0.5 }]}>Reject</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.btn, styles.btnAccept]}
+                  onPress={() => {
+                    onAccept?.(booking.id);
+                    onClose();
+                  }}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <ActivityIndicator color={theme.colors.textInverse} />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark-circle" size={20} color={theme.colors.textInverse} />
+                      <Text style={styles.btnAcceptText}>Accept</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </Animated.View>
       </Animated.View>
     </Modal>
   );
-
-  function ModalContent() {
-    return (
-      <>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={[styles.iconContainer, { backgroundColor: getIconColor() + '20' }]}>
-            <Ionicons name={getIcon()} size={28} color={getIconColor()} />
-          </View>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Service image — matches salon / service cards */}
-        <View style={styles.heroRow}>
-          <Image source={{ uri: serviceImageUri }} style={styles.heroImage} contentFit="cover" transition={200} />
-          <View style={styles.heroTextCol}>
-            <Text style={styles.heroService} numberOfLines={1}>
-              {serviceName}
-            </Text>
-            <Text style={styles.heroMeta} numberOfLines={2}>
-              {customerName} · {dateLabel} · {time}
-            </Text>
-          </View>
-        </View>
-
-        {/* Title */}
-        <Text style={styles.title}>
-          {type === 'new_booking' && 'New Booking Received!'}
-          {type === 'status_change' && 'Booking Updated'}
-          {type === 'cancellation' && 'Booking Cancelled'}
-        </Text>
-
-        {/* Booking Details */}
-        <View style={styles.detailsContainer}>
-          <DetailRow icon="person" label="Customer" value={customerName} />
-          <DetailRow icon="calendar" label="Date" value={dateLabel} />
-          <DetailRow icon="time" label="Time" value={time} />
-          <DetailRow icon="cash" label="Amount" value={`₹${amountNum.toFixed(2)}`} />
-        </View>
-
-        {/* Action Buttons */}
-        {actionRequired && type === 'new_booking' && (
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.rejectButton]}
-              onPress={() => {
-                onReject?.(booking.id);
-                onClose();
-              }}
-              disabled={isProcessing}
-            >
-              <Ionicons name="close-circle" size={20} color="#fff" />
-              <Text style={styles.actionButtonText}>Reject</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, styles.acceptButton]}
-              onPress={() => {
-                onAccept?.(booking.id);
-                onClose();
-              }}
-              disabled={isProcessing}
-            >
-              <Ionicons name="checkmark-circle" size={20} color="#fff" />
-              <Text style={styles.actionButtonText}>Accept</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </>
-    );
-  }
-
-  function DetailRow({ icon, label, value }: { icon: string; label: string; value: string }) {
-    return (
-      <View style={styles.detailRow}>
-        <View style={styles.detailLeft}>
-          <Ionicons name={icon as any} size={16} color={theme.colors.textSecondary} />
-          <Text style={styles.detailLabel}>{label}</Text>
-        </View>
-        <Text style={styles.detailValue}>{value}</Text>
-      </View>
-    );
-  }
 };
 
 const createStyles = (theme: Theme, isDark: boolean) =>
   StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: isDark ? 'rgba(0, 0, 0, 0.78)' : 'rgba(0, 0, 0, 0.45)',
+      backgroundColor: theme.colors.overlay,
       justifyContent: 'flex-start',
       alignItems: 'center',
+      paddingHorizontal: spacing.lg,
     },
-    modalContainer: {
+    modalWrap: {
+      width: '100%',
+      maxWidth: 400,
+    },
+    card: {
       width: SCREEN_WIDTH - 32,
       maxWidth: 400,
-      borderRadius: borderRadius.xl,
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: isDark ? 0.55 : 0.3,
-      shadowRadius: 16,
-      elevation: 8,
-    },
-    blurContainer: {
-      padding: spacing.xl,
+      alignSelf: 'center',
+      backgroundColor: theme.colors.surface,
       borderRadius: borderRadius.xl,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      backgroundColor: Platform.OS === 'ios' ? 'transparent' : theme.colors.surface,
+      overflow: 'hidden',
+      ...shadows.lg,
     },
-    heroRow: {
+    accentTop: {
+      height: 3,
+      width: '100%',
+      backgroundColor: theme.colors.primary,
+    },
+    topBar: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.md,
-      marginBottom: spacing.lg,
-      padding: spacing.sm,
-      borderRadius: borderRadius.lg,
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
+    },
+    badge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    badgeDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: theme.colors.primary,
+    },
+    badgeText: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 12,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+      color: theme.colors.textSecondary,
+    },
+    closeBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
       backgroundColor: theme.colors.surfaceHighlight,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+    },
+    hero: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+      gap: spacing.md,
     },
     heroImage: {
-      width: 72,
-      height: 72,
-      borderRadius: borderRadius.md,
+      width: 88,
+      height: 88,
+      borderRadius: borderRadius.lg,
       backgroundColor: theme.colors.surfaceSecondary,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
-    heroTextCol: {
+    heroBody: {
       flex: 1,
       minWidth: 0,
-      gap: 4,
+      justifyContent: 'center',
+      gap: 6,
     },
-    heroService: {
-      ...typography.bodyMedium,
+    serviceTitle: {
+      fontFamily: fonts.bodyBold,
+      fontSize: 20,
       fontWeight: '700',
       color: theme.colors.text,
+      letterSpacing: -0.3,
+      lineHeight: 26,
     },
-    heroMeta: {
-      ...typography.bodySmall,
-      color: theme.colors.textSecondary,
-      lineHeight: 18,
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: spacing.lg,
-    },
-    iconContainer: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    closeButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.surfaceHighlight,
-    },
-    title: {
-      ...typography.h3,
-      color: theme.colors.text,
-      marginBottom: spacing.lg,
-    },
-    detailsContainer: {
-      backgroundColor: theme.colors.surfaceHighlight,
-      borderRadius: borderRadius.lg,
-      padding: spacing.lg,
-      marginBottom: spacing.lg,
-      gap: spacing.md,
-    },
-    detailRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    detailLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-    },
-    detailLabel: {
-      ...typography.bodySmall,
+    customer: {
+      fontFamily: fonts.bodyMedium,
+      fontSize: 15,
       color: theme.colors.textSecondary,
     },
-    detailValue: {
-      ...typography.bodyMedium,
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginTop: 4,
+    },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: borderRadius.full,
+      backgroundColor: isDark ? theme.colors.surfaceHighlight : theme.colors.surfaceSecondary,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    chipText: {
+      fontFamily: fonts.bodyMedium,
+      fontSize: 13,
       color: theme.colors.text,
     },
-    actionsContainer: {
+    amount: {
+      fontFamily: fonts.bodyBold,
+      fontSize: 18,
+      color: theme.colors.primary,
+      marginTop: 4,
+    },
+    actions: {
       flexDirection: 'row',
       gap: spacing.md,
-      marginBottom: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+      paddingTop: spacing.xs,
     },
-    actionButton: {
+    btn: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: spacing.sm,
-      paddingVertical: spacing.md,
+      gap: 8,
+      minHeight: 48,
       borderRadius: borderRadius.lg,
     },
-    acceptButton: {
+    btnReject: {
+      borderWidth: 1.5,
+      borderColor: theme.colors.error,
+      backgroundColor: theme.colors.surface,
+    },
+    btnRejectText: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 15,
+      color: theme.colors.error,
+    },
+    btnAccept: {
       backgroundColor: theme.colors.success,
+      borderWidth: 0,
     },
-    rejectButton: {
-      backgroundColor: theme.colors.error,
-    },
-    actionButtonText: {
-      ...typography.bodyMedium,
-      color: '#fff',
-      fontWeight: '600',
+    btnAcceptText: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 15,
+      color: theme.colors.textInverse,
     },
   });

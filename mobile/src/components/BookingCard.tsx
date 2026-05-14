@@ -13,7 +13,10 @@ interface BookingCardProps {
   booking: Booking;
   isOwner?: boolean;
   compact?: boolean;
+  /** Pending: confirm / reject in flight */
   isLoading?: boolean;
+  /** Confirmed: mark complete in flight */
+  isCompleting?: boolean;
   onCancel?: () => void;
   onConfirm?: () => void;
   onReject?: () => void;
@@ -26,6 +29,7 @@ export const BookingCard: React.FC<BookingCardProps> = ({
   isOwner = false,
   compact = false,
   isLoading = false,
+  isCompleting = false,
   onCancel,
   onConfirm,
   onReject,
@@ -185,9 +189,19 @@ export const BookingCard: React.FC<BookingCardProps> = ({
 
             {/* Owner: mark confirmed booking as complete */}
             {isOwner && booking.status === 'confirmed' && onComplete && (
-              <TouchableOpacity style={styles.completeButton} onPress={onComplete}>
-                <Ionicons name="checkmark-done" size={16} color={theme.colors.info} />
-                <Text style={styles.completeText}>Mark as complete</Text>
+              <TouchableOpacity
+                style={styles.completeButton}
+                onPress={onComplete}
+                disabled={isCompleting}
+              >
+                {isCompleting ? (
+                  <ActivityIndicator size="small" color={theme.colors.info} />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-done" size={16} color={theme.colors.info} />
+                    <Text style={styles.completeText}>Mark as complete</Text>
+                  </>
+                )}
               </TouchableOpacity>
             )}
           </View>
@@ -377,11 +391,14 @@ const createStyles = (theme: Theme) =>
     completeButton: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       backgroundColor: theme.colors.infoLight,
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 8,
       gap: 4,
+      minWidth: 168,
+      minHeight: 36,
     },
     completeText: {
       fontSize: 13,

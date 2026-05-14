@@ -219,7 +219,16 @@ export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps
           <BookingCard
             booking={item}
             isOwner
-            isLoading={statusMutation.isPending && statusMutation.variables?.bookingId === item.id}
+            isLoading={
+              statusMutation.isPending &&
+              statusMutation.variables?.bookingId === item.id &&
+              statusMutation.variables?.status !== 'completed'
+            }
+            isCompleting={
+              statusMutation.isPending &&
+              statusMutation.variables?.bookingId === item.id &&
+              statusMutation.variables?.status === 'completed'
+            }
             onConfirm={() =>
               statusMutation.mutate({ bookingId: item.id, status: 'confirmed' })
             }

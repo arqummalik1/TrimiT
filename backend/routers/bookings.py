@@ -111,10 +111,15 @@ async def update_booking_status(
         if body.status != BookingStatus.cancelled:
             raise HTTPException(status_code=403, detail="Customers may only cancel bookings")
 
+    patch_json: dict = {"status": body.status.value}
+    # Owner marking a visit completed implies payment was settled at the salon (cash / settled).
+    if role == "owner" and body.status == BookingStatus.completed:
+        patch_json["payment_status"] = "paid"
+
     patch = await supabase.request(
         "PATCH",
         f"rest/v1/bookings?id=eq.{booking_id}",
-        json={"status": body.status.value},
+        json=patch_json,
         token=token,
     )
     if patch.status_code not in (200, 201, 204):

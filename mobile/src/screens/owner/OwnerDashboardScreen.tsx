@@ -348,7 +348,16 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
                 booking={booking}
                 isOwner
                 compact
-                isLoading={statusMutation.isPending && statusMutation.variables?.bookingId === booking.id}
+                isLoading={
+                  statusMutation.isPending &&
+                  statusMutation.variables?.bookingId === booking.id &&
+                  statusMutation.variables?.status !== 'completed'
+                }
+                isCompleting={
+                  statusMutation.isPending &&
+                  statusMutation.variables?.bookingId === booking.id &&
+                  statusMutation.variables?.status === 'completed'
+                }
                 onConfirm={() => statusMutation.mutate({ bookingId: booking.id, status: 'confirmed' })}
                 onReject={() => statusMutation.mutate({ bookingId: booking.id, status: 'cancelled' })}
                 onComplete={() => statusMutation.mutate({ bookingId: booking.id, status: 'completed' })}

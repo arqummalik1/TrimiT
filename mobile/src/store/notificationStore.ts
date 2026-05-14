@@ -66,14 +66,16 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
     set((state) => ({
       notifications: [notification, ...state.notifications].slice(0, 50), // Keep last 50
-      unreadCount: state.unreadCount + 1,
-      activeNotification: notification, // Show immediately
+      unreadCount: type === 'new_booking' ? state.unreadCount + 1 : state.unreadCount,
+      // Modal + sound only for new bookings; status/cancel updates use toast elsewhere.
+      activeNotification: type === 'new_booking' ? notification : state.activeNotification,
     }));
 
-    // Play sound
-    get().playNotificationSound();
-    
-    console.log('[NotificationStore] ✅ Notification added and modal should show');
+    if (type === 'new_booking') {
+      void get().playNotificationSound();
+    }
+
+    console.log('[NotificationStore] ✅ Notification recorded', { type, modal: type === 'new_booking' });
   },
 
   // Mark notification as read
