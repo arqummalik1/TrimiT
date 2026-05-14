@@ -131,7 +131,7 @@ async def update_booking_status(
         customer_resp = await supabase.request(
             "GET",
             f"rest/v1/users?id=eq.{booking.get('user_id')}&select=push_token,name",
-            token=token
+            service_role=True,
         )
         
         if customer_resp.status_code == 200 and customer_resp.json():
@@ -148,7 +148,13 @@ async def update_booking_status(
                 
                 if booking_details.status_code == 200 and booking_details.json():
                     booking_info = booking_details.json()[0]
-                    service_name = booking_info.get("services", {}).get("name", "Service")
+                    svc = booking_info.get("services")
+                    if isinstance(svc, list) and svc:
+                        service_name = (svc[0] or {}).get("name", "Service")
+                    elif isinstance(svc, dict):
+                        service_name = svc.get("name", "Service")
+                    else:
+                        service_name = "Service"
                     
                     # Send push notification
                     await push_service.notify_booking_status_change(
@@ -685,7 +691,7 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
         owner_resp = await supabase.request(
             "GET",
             f"rest/v1/users?id=eq.{salon.get('owner_id')}&select=push_token,name",
-            token=token
+            service_role=True,
         )
         
         if owner_resp.status_code == 200 and owner_resp.json():
@@ -811,6 +817,83 @@ async def reschedule_booking(
             )
 
         logger.info("[RESCHEDULE] ok booking_id=%s by %s %s", booking_id, user_role, user_id)
+
+        # Push: customer reschedules → notify owner; owner reschedules → notify customer
+        try:
+            bk = await supabase.request(
+                "GET",
+                f"rest/v1/bookings?id=eq.{booking_id}&select=user_id,services(name),salons(owner_id,name)",
+                service_role=True,
+            )
+            if bk.status_code == 200 and bk.json():
+                row = bk.json()[0]
+                svc = row.get("services")
+                if isinstance(svc, list) and svc:
+                    service_name = (svc[0] or {}).get("name", "Service")
+                elif isinstance(svc, dict):
+                    service_name = svc.get("name", "Service")
+                else:
+                    service_name = "Service"
+                salons = row.get("salons") or {}
+                owner_id = salons.get("owner_id") if isinstance(salons, dict) else None
+                salon_name = salons.get("name", "Salon") if isinstance(salons, dict) else "Salon"
+                customer_uid = row.get("user_id")
+                nd = result.get("new_date") or new_date
+                nt = result.get("new_time_slot") or new_time_slot
+                od = result.get("old_date", "")
+                ot = result.get("old_time_slot", "")
+
+                if user_role == "customer" and owner_id:
+                    own_tok = await supabase.request(
+                        "GET",
+                        f"rest/v1/users?id=eq.{owner_id}&select=push_token",
+                        service_role=True,
+                    )
+                    if own_tok.status_code == 200 and own_tok.json():
+                        pt = own_tok.json()[0].get("push_token")
+                        if pt:
+                            cn = await supabase.request(
+                                "GET",
+                                f"rest/v1/users?id=eq.{user_id}&select=name",
+                                service_role=True,
+                            )
+                            cname = "Customer"
+                            if cn.status_code == 200 and cn.json():
+                                cname = cn.json()[0].get("name", "Customer")
+                            await push_service.send_notification(
+                                push_token=pt,
+                                title="Booking rescheduled",
+                                body=f"{cname} moved {service_name} to {nd} at {nt} (was {od} {ot}).",
+                                data={
+                                    "type": "booking_rescheduled",
+                                    "booking_id": booking_id,
+                                    "initiated_by": "customer",
+                                },
+                            )
+                            logger.info("[RESCHEDULE] push sent to owner for booking_id=%s", booking_id)
+                elif user_role == "owner" and customer_uid:
+                    cust_tok = await supabase.request(
+                        "GET",
+                        f"rest/v1/users?id=eq.{customer_uid}&select=push_token",
+                        service_role=True,
+                    )
+                    if cust_tok.status_code == 200 and cust_tok.json():
+                        pt = cust_tok.json()[0].get("push_token")
+                        if pt:
+                            await push_service.send_notification(
+                                push_token=pt,
+                                title="Booking rescheduled",
+                                body=f"{salon_name} updated your {service_name} to {nd} at {nt}.",
+                                data={
+                                    "type": "booking_rescheduled",
+                                    "booking_id": booking_id,
+                                    "initiated_by": "owner",
+                                },
+                            )
+                            logger.info("[RESCHEDULE] push sent to customer for booking_id=%s", booking_id)
+        except Exception as push_exc:
+            logger.error("[RESCHEDULE] push failed booking_id=%s err=%s", booking_id, str(push_exc))
+
         return result
 
     except HTTPException:

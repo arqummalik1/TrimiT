@@ -21,7 +21,12 @@ async def send_push_notification(
         return
 
     # Filter out empty tokens
-    push_tokens = [t for t in push_tokens if t and t.startswith("ExponentPushToken")]
+    push_tokens = [
+        t
+        for t in push_tokens
+        if t
+        and (t.startswith("ExponentPushToken[") or t.startswith("ExpoPushToken["))
+    ]
     if not push_tokens:
         return
 

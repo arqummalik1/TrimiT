@@ -1,11 +1,11 @@
 /**
  * Push Notification Service
  * ────────────────────────────────────────────────────────────────────────────
- * Handles push notification registration and management.
- * Works with Expo Push Notifications (requires development build or standalone app).
- * 
- * IMPORTANT: Push notifications DO NOT work in Expo Go (SDK 53+).
- * You must use a development build or standalone APK/IPA.
+ * Handles push notification registration and management via Expo Push.
+ *
+ * Reliable background / killed-state delivery needs a dev build or store build.
+ * In Expo Go we still attempt registration so owners can test on a physical device;
+ * if the SDK cannot issue a token, the catch path logs and returns null.
  */
 
 import * as Notifications from 'expo-notifications';
@@ -35,12 +35,10 @@ export async function registerForPushNotifications(): Promise<string | null> {
       (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId ??
       'e4f2eade-fe15-4a16-8766-83b0771a4643';
 
-    // Expo Go cannot obtain a push token in current SDKs — avoid noisy "could not obtain" warnings.
     if (Constants.appOwnership === 'expo') {
       console.log(
-        '[Notifications] Skipping push registration in Expo Go. Use a development build for remote push.'
+        '[Notifications] Expo Go: attempting push token (use a dev build for production-grade remote push).'
       );
-      return null;
     }
 
     // Check if running on a physical device (using Constants instead of Device)

@@ -17,6 +17,15 @@ logger = logging.getLogger("trimit")
 
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 
+
+def _is_valid_expo_push_token(push_token: Optional[str]) -> bool:
+    """Expo classic + newer token prefixes (EAS / dev builds)."""
+    if not push_token or not isinstance(push_token, str):
+        return False
+    t = push_token.strip()
+    return t.startswith("ExponentPushToken[") or t.startswith("ExpoPushToken[")
+
+
 class PushNotificationService:
     """Service for sending push notifications via Expo Push API"""
     
@@ -43,8 +52,8 @@ class PushNotificationService:
         Returns:
             bool: True if sent successfully
         """
-        if not push_token or not push_token.startswith("ExponentPushToken"):
-            logger.warning(f"Invalid push token: {push_token}")
+        if not _is_valid_expo_push_token(push_token):
+            logger.warning("Invalid or missing Expo push token (expected ExponentPushToken[…] or ExpoPushToken[…])")
             return False
             
         message = {
@@ -106,7 +115,7 @@ class PushNotificationService:
         messages = []
         for notif in notifications:
             push_token = notif.get("push_token")
-            if not push_token or not push_token.startswith("ExponentPushToken"):
+            if not _is_valid_expo_push_token(push_token):
                 continue
                 
             messages.append({
