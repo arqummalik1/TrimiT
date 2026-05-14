@@ -1,15 +1,13 @@
 /**
  * DiscoverScreen.tsx
  * ─────────────────────────────────────────────────────────────────────────────
- * Customer salon discovery screen with:
- *   • Shimmer skeleton loading (SalonListSkeleton) with 500ms minimum display
- *   • Typed ErrorState with retry for API failures
- *   • EmptyState for zero results
- *   • Offline guard: disables search API trigger when offline
+ * Customer salon discovery: list + map modes, location-gated nearby query,
+ * MapView vs ClusteredMapView by pin count, debounced search filter,
+ * optional fitToBounds on map open, map controls (zoom / recenter).
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,16 +16,16 @@ import {
   TextInput,
   TouchableOpacity,
   RefreshControl,
-  Dimensions,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import MapView, { Marker, Callout } from 'react-native-maps';
+import MapView from 'react-native-maps';
 import ClusteredMapView from 'react-native-map-clustering';
+import type { Coordinates } from '../../lib/maps';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
 import api from '../../lib/api';
 import { SalonCard } from '../../components/SalonCard';
@@ -37,14 +35,41 @@ import { EmptyState } from '../../components/EmptyState';
 import { handleApiError } from '../../lib/errorHandler';
 import { useMinLoadingTime } from '../../hooks/useMinLoadingTime';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useDiscoverLocation } from '../../hooks/useDiscoverLocation';
 import { showToast } from '../../store/toastStore';
 import { Salon } from '../../types';
 import { spacing, borderRadius, typography, fonts } from '../../lib/utils';
 import { PermissionPrimer } from '../../components/PermissionPrimer';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
+import { SalonMapMarker } from '../../components/SalonMapMarker';
+import { DISCOVER_FALLBACK_COORDS, DISCOVER_INITIAL_DELTA } from '../../lib/maps';
+import { logger } from '../../lib/logger';
+import {
+  DISCOVER_SEARCH_DEBOUNCE_MS,
+  DISCOVER_CLUSTERING_MIN_MARKERS,
+  DISCOVER_FIT_MAX_MARKERS,
+  DISCOVER_FIT_MAX_SPAN_KM,
+  DISCOVER_CLUSTER_RADIUS,
+  computeApproxMaxSpanKm,
+} from './discoverMapConstants';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const LOG = '[Discover]';
+
+const MAP_DELTA_REF_DEFAULT = DISCOVER_INITIAL_DELTA;
+
+function parseSalonCoordinate(salon: Salon): { latitude: number; longitude: number } | null {
+  const lat = Number(salon.latitude);
+  const lng = Number(salon.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return null;
+  }
+  return { latitude: lat, longitude: lng };
+}
 
 type DiscoverScreenProps = CustomerDiscoverScreenProps<'DiscoverMain'>;
 
@@ -53,59 +78,33 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
-  const [showLocationPrimer, setShowLocationPrimer] = useState(false);
+
+  const debouncedSearchQuery = useDebouncedValue(searchQuery.trim(), DISCOVER_SEARCH_DEBOUNCE_MS);
+
+  const {
+    phase,
+    coords,
+    errorMessage,
+    locationReady,
+    source,
+    bootstrap,
+    confirmPrimer,
+    skipPrimer,
+    recenter,
+  } = useDiscoverLocation();
 
   const { isOnline } = useNetworkStatus();
-  const mapRef = React.useRef<MapView>(null);
-
-  // Check if we already have permission before showing primer
-  const checkLocationPermission = async () => {
-    const { status } = await Location.getForegroundPermissionsAsync();
-    if (status === 'undetermined') {
-      setShowLocationPrimer(true);
-    } else if (status === 'granted') {
-      acquireLocation();
-    } else {
-      setLocationError('Location permission denied');
-    }
-  };
-
-  const acquireLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocationError('Location permission denied');
-        return;
-      }
-      
-      const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      
-      const coords = { lat: loc.coords.latitude, lng: loc.coords.longitude };
-      setLocation(coords);
-      
-      if (mapRef.current) {
-        mapRef.current.animateToRegion({
-          latitude: coords.lat,
-          longitude: coords.lng,
-          latitudeDelta: 0.15,
-          longitudeDelta: 0.15,
-        }, 1000);
-      }
-    } catch (err) {
-      setLocationError('Unable to get location');
-    }
-  };
+  const mapRef = useRef<MapView>(null);
+  const mapDeltaRef = useRef(MAP_DELTA_REF_DEFAULT);
 
   useEffect(() => {
-    checkLocationPermission();
-  }, []);
+    void bootstrap();
+  }, [bootstrap]);
 
-  // Salon fetch with pagination
+  const latKey = coords?.lat ?? 'none';
+  const lngKey = coords?.lng ?? 'none';
+
   const {
     data: salonPages,
     isLoading,
@@ -116,24 +115,39 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     isFetchingNextPage,
     refetch,
     isRefetching,
+    isFetching,
   } = useInfiniteQuery({
-    queryKey: ['salons', location],
+    queryKey: ['salons', 'discover', 'nearby', latKey, lngKey],
+    enabled: locationReady,
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
       const params = new URLSearchParams();
-      if (location) {
-        params.append('lat', location.lat.toString());
-        params.append('lng', location.lng.toString());
+      if (coords) {
+        params.append('lat', coords.lat.toString());
+        params.append('lng', coords.lng.toString());
         params.append('radius', '50');
       }
       params.append('limit', '20');
       params.append('offset', pageParam.toString());
-      
+
+      logger.info(`${LOG} salons query`, {
+        pageParam,
+        hasCoords: !!coords,
+        lat: coords?.lat,
+        lng: coords?.lng,
+        locationSource: source,
+      });
+
       const response = await api.get(`/salons/?${params.toString()}`);
-      return response.data; // Now returns { data: Salon[], pagination: { ... } }
+      const rows = response.data?.data as Salon[] | undefined;
+      logger.info(`${LOG} salons response`, {
+        count: Array.isArray(rows) ? rows.length : 0,
+        pageParam,
+      });
+      return response.data;
     },
     getNextPageParam: (lastPage) => {
-      const { data, pagination } = lastPage;
+      const { pagination } = lastPage;
       if (pagination.has_more) {
         return pagination.offset + pagination.limit;
       }
@@ -146,30 +160,164 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     },
   });
 
-  // Flatten all pages into a single array for filtering/display
   const allSalons = useMemo(() => {
-    return salonPages?.pages.flatMap((page) => page.data) ?? [];
+    const pages = salonPages?.pages;
+    if (!pages) return [];
+    const flat = pages.flatMap((page) => page.data ?? []);
+    logger.debug(`${LOG} flattened salons`, { total: flat.length, pages: pages.length });
+    return flat;
   }, [salonPages]);
 
-  // Enforce minimum 500ms skeleton display
-  const showSkeleton = useMinLoadingTime(isLoading);
+  const showQuerySkeleton = useMinLoadingTime(isLoading && locationReady, 500);
+  const showBodySkeleton = !locationReady || showQuerySkeleton;
 
-  // Local search filter (across all loaded salons)
-  const filteredSalons = React.useMemo(() => {
-    if (!allSalons) return [];
-    if (!searchQuery) return allSalons;
-    const query = searchQuery.toLowerCase().trim();
-    return allSalons.filter(
+  const filteredSalons = useMemo(() => {
+    if (!debouncedSearchQuery) return allSalons;
+    const query = debouncedSearchQuery.toLowerCase();
+    const filtered = allSalons.filter(
       (s) =>
         s.name.toLowerCase().includes(query) ||
         s.address.toLowerCase().includes(query) ||
         s.description?.toLowerCase().includes(query)
     );
-  }, [allSalons, searchQuery]);
+    logger.debug(`${LOG} search filter`, {
+      query,
+      before: allSalons.length,
+      after: filtered.length,
+    });
+    return filtered;
+  }, [allSalons, debouncedSearchQuery]);
 
-  const handleSalonPress = (salon: Salon) => {
-    navigation.navigate('SalonDetail', { salonId: salon.id });
-  };
+  const mapMarkersData = useMemo(() => {
+    const markers: { salon: Salon; coordinate: { latitude: number; longitude: number } }[] = [];
+    for (const salon of filteredSalons) {
+      const c = parseSalonCoordinate(salon);
+      if (c) markers.push({ salon, coordinate: c });
+    }
+    return markers;
+  }, [filteredSalons]);
+
+  const useClustering = mapMarkersData.length >= DISCOVER_CLUSTERING_MIN_MARKERS;
+
+  useEffect(() => {
+    logger.debug(`${LOG} map markers`, {
+      markerCount: mapMarkersData.length,
+      salonsLoaded: filteredSalons.length,
+      viewMode,
+      useClustering,
+    });
+  }, [mapMarkersData.length, filteredSalons.length, viewMode, useClustering]);
+
+  const mapCenter = useMemo(() => {
+    if (coords) {
+      return { latitude: coords.lat, longitude: coords.lng };
+    }
+    return DISCOVER_FALLBACK_COORDS;
+  }, [coords]);
+
+  const mapInitialRegion = useMemo(
+    () => ({
+      latitude: mapCenter.latitude,
+      longitude: mapCenter.longitude,
+      latitudeDelta: mapDeltaRef.current,
+      longitudeDelta: mapDeltaRef.current,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally refresh when coords / mode change
+    [mapCenter.latitude, mapCenter.longitude, viewMode]
+  );
+
+  const applyInitialMapCamera = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const userRegion = {
+      latitude: mapCenter.latitude,
+      longitude: mapCenter.longitude,
+      latitudeDelta: MAP_DELTA_REF_DEFAULT,
+      longitudeDelta: MAP_DELTA_REF_DEFAULT,
+    };
+
+    const salonCoords: Coordinates[] = mapMarkersData.map((m) => m.coordinate);
+    const edgePadding = {
+      top: insets.top + 160,
+      right: 72,
+      bottom: TAB_BAR_BASE_HEIGHT + insets.bottom + spacing.md,
+      left: spacing.lg,
+    };
+
+    if (salonCoords.length === 0) {
+      map.animateToRegion(userRegion, 500);
+      logger.debug(`${LOG} map camera user-only (no markers)`);
+      return;
+    }
+
+    if (salonCoords.length > DISCOVER_FIT_MAX_MARKERS) {
+      map.animateToRegion(userRegion, 500);
+      logger.debug(`${LOG} map camera user-only (too many markers for auto-fit)`, {
+        count: salonCoords.length,
+      });
+      return;
+    }
+
+    const withUser: Coordinates[] =
+      coords != null
+        ? [...salonCoords, { latitude: coords.lat, longitude: coords.lng }]
+        : [...salonCoords];
+
+    const spanKm =
+      withUser.length >= 2 ? computeApproxMaxSpanKm(withUser) : 0;
+    if (salonCoords.length >= 2 && spanKm > DISCOVER_FIT_MAX_SPAN_KM) {
+      map.animateToRegion(userRegion, 500);
+      logger.debug(`${LOG} map camera user-only (span too large)`, { spanKm });
+      return;
+    }
+
+    if (withUser.length >= 2) {
+      map.fitToCoordinates(withUser, { edgePadding, animated: true });
+      logger.debug(`${LOG} map fitToCoordinates`, { count: withUser.length, spanKm });
+      return;
+    }
+
+    const only = withUser[0];
+    map.animateToRegion(
+      {
+        latitude: only.latitude,
+        longitude: only.longitude,
+        latitudeDelta: 0.06,
+        longitudeDelta: 0.06,
+      },
+      500
+    );
+    logger.debug(`${LOG} map camera single salon`);
+  }, [coords, insets.top, insets.bottom, mapCenter.latitude, mapCenter.longitude, mapMarkersData]);
+
+  useEffect(() => {
+    if (viewMode !== 'map') return;
+    mapDeltaRef.current = MAP_DELTA_REF_DEFAULT;
+    let cancelled = false;
+    let innerRaf: number | null = null;
+    const outerRaf = requestAnimationFrame(() => {
+      innerRaf = requestAnimationFrame(() => {
+        if (!cancelled) {
+          applyInitialMapCamera();
+        }
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(outerRaf);
+      if (innerRaf != null) {
+        cancelAnimationFrame(innerRaf);
+      }
+    };
+  }, [viewMode, applyInitialMapCamera]);
+
+  const handleSalonPress = useCallback(
+    (salon: Salon) => {
+      navigation.navigate('SalonDetail', { salonId: salon.id });
+    },
+    [navigation]
+  );
 
   const handleOfflineTap = () => {
     if (!isOnline) {
@@ -177,12 +325,85 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     }
   };
 
-  const mapRegion = location
-    ? { latitude: location.lat, longitude: location.lng, latitudeDelta: 0.15, longitudeDelta: 0.15 }
-    : { latitude: 28.6139, longitude: 77.209, latitudeDelta: 0.5, longitudeDelta: 0.5 };
+  const subtitle = useMemo(() => {
+    if (!locationReady) {
+      return phase === 'primer' ? 'Choose location access to see nearby salons' : 'Getting your location…';
+    }
+    if (coords) {
+      return source === 'gps_last_known'
+        ? 'Showing salons near you (refining location…)'
+        : 'Showing salons near you';
+    }
+    return errorMessage ?? 'Enable location for nearby salons';
+  }, [locationReady, phase, coords, errorMessage, source]);
 
-  // ── Error state ────────────────────────────────────────────────────────────
-  if (isError && !showSkeleton) {
+  const zoomByFactor = useCallback((factor: number) => {
+    const next = Math.min(1.8, Math.max(0.006, mapDeltaRef.current * factor));
+    mapDeltaRef.current = next;
+    const c = coords
+      ? { latitude: coords.lat, longitude: coords.lng }
+      : { latitude: DISCOVER_FALLBACK_COORDS.latitude, longitude: DISCOVER_FALLBACK_COORDS.longitude };
+    mapRef.current?.animateToRegion(
+      {
+        ...c,
+        latitudeDelta: next,
+        longitudeDelta: next,
+      },
+      220
+    );
+    logger.debug(`${LOG} zoom`, { factor, nextDelta: next });
+  }, [coords]);
+
+  const handleRecenter = useCallback(async () => {
+    logger.info(`${LOG} recenter FAB`);
+    const next = await recenter();
+    const lat = next?.lat ?? coords?.lat ?? DISCOVER_FALLBACK_COORDS.latitude;
+    const lng = next?.lng ?? coords?.lng ?? DISCOVER_FALLBACK_COORDS.longitude;
+    mapDeltaRef.current = MAP_DELTA_REF_DEFAULT;
+    mapRef.current?.animateToRegion(
+      {
+        latitude: lat,
+        longitude: lng,
+        latitudeDelta: MAP_DELTA_REF_DEFAULT,
+        longitudeDelta: MAP_DELTA_REF_DEFAULT,
+      },
+      500
+    );
+  }, [coords?.lat, coords?.lng, recenter]);
+
+  useEffect(() => {
+    logger.debug(`${LOG} view mode`, {
+      viewMode,
+      locationReady,
+      salonCount: allSalons.length,
+      filteredCount: filteredSalons.length,
+      isFetching,
+    });
+  }, [viewMode, locationReady, allSalons.length, filteredSalons.length, isFetching]);
+
+  const handleMapReady = useCallback(() => {
+    logger.debug(`${LOG} map ready`, {
+      initialRegion: mapInitialRegion,
+      markerCount: mapMarkersData.length,
+      useClustering,
+    });
+  }, [mapInitialRegion, mapMarkersData.length, useClustering]);
+
+  const markerElements = useMemo(
+    () =>
+      mapMarkersData.map(({ salon, coordinate }) => (
+        <SalonMapMarker
+          key={salon.id}
+          coordinate={coordinate}
+          label={salon.name}
+          trackViewChanges={false}
+          onPress={() => handleSalonPress(salon)}
+        />
+      )),
+    [mapMarkersData, handleSalonPress]
+  );
+
+  if (isError && locationReady && !showBodySkeleton) {
     const appErr = handleApiError(rawError);
     return (
       <ScreenWrapper variant="tab">
@@ -199,37 +420,45 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     );
   }
 
+  const mapCommonProps = {
+    ref: mapRef,
+    style: styles.map,
+    initialRegion: mapInitialRegion,
+    showsUserLocation: locationReady && !!coords,
+    showsMyLocationButton: false,
+    showsCompass: false,
+    userInterfaceStyle: isDark ? ('dark' as const) : ('light' as const),
+    onMapReady: handleMapReady,
+    accessibilityLabel: 'Salon map',
+  };
+
   return (
     <ScreenWrapper variant="tab">
-      {/* Permission Primer */}
       <PermissionPrimer
-        isVisible={showLocationPrimer}
+        isVisible={phase === 'primer'}
         title="Find Salons Near You"
         message="TrimiT uses your location to show the closest salons, estimated travel times, and accurate distance."
         icon="location"
         onAllow={() => {
-          setShowLocationPrimer(false);
-          acquireLocation();
+          void confirmPrimer();
         }}
         onDeny={() => {
-          setShowLocationPrimer(false);
-          setLocationError('Location permission denied');
+          skipPrimer();
         }}
       />
 
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>Find Your Perfect Salon</Text>
-            <Text style={styles.subtitle}>
-              {location
-                ? 'Showing salons near you'
-                : locationError || 'Enable location for nearby salons'}
-            </Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
+            {__DEV__ && coords ? (
+              <Text style={styles.debugLine} numberOfLines={1}>
+                GPS: {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)} ({source}) · {Platform.OS}
+              </Text>
+            ) : null}
           </View>
-          {/* View Mode Toggle */}
-          <View 
+          <View
             style={styles.viewToggle}
             accessibilityRole="tablist"
             accessibilityLabel="View mode toggle"
@@ -263,12 +492,11 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           </View>
         </View>
 
-        {/* Search Bar — disabled touch overlay when offline */}
         <TouchableOpacity
           activeOpacity={isOnline ? 1 : 0.6}
           onPress={handleOfflineTap}
           disabled={isOnline}
-          accessibilityLabel={isOnline ? "Search salons" : "Search unavailable - offline"}
+          accessibilityLabel={isOnline ? 'Search salons' : 'Search unavailable - offline'}
           accessibilityHint="Type to filter salons by name or address"
         >
           <View style={[styles.searchContainer, !isOnline && styles.searchContainerDisabled]}>
@@ -287,7 +515,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
               accessibilityRole="search"
             />
             {searchQuery.length > 0 && isOnline && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setSearchQuery('')}
                 accessibilityLabel="Clear search"
                 accessibilityRole="button"
@@ -299,46 +527,53 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
         </TouchableOpacity>
       </View>
 
-      {/* Content */}
-      {showSkeleton ? (
+      {showBodySkeleton ? (
         <SalonListSkeleton />
       ) : viewMode === 'map' ? (
-        <ClusteredMapView
-          ref={mapRef}
-          style={styles.map} 
-          region={mapRegion} 
-          showsUserLocation
-          showsMyLocationButton
-          userInterfaceStyle={isDark ? 'dark' : 'light'}
-          accessibilityLabel="Salon map"
-          radius={40}
-          clusterColor={theme.colors.primary}
-          clusterTextColor="#FFFFFF"
-        >
-          {filteredSalons.map((salon) =>
-            salon.latitude && salon.longitude ? (
-              <Marker
-                key={salon.id}
-                coordinate={{ latitude: salon.latitude, longitude: salon.longitude }}
-                pinColor={theme.colors.primary}
-                title={salon.name}
-                description={salon.address}
-              >
-                <Callout onPress={() => handleSalonPress(salon)}>
-                  <View style={styles.callout}>
-                    <Text style={styles.calloutTitle}>{salon.name}</Text>
-                    <Text style={styles.calloutText}>{salon.address}</Text>
-                    {salon.avg_rating ? (
-                      <Text style={styles.calloutRating}>
-                        {salon.avg_rating.toFixed(1)} ({salon.review_count} reviews)
-                      </Text>
-                    ) : null}
-                  </View>
-                </Callout>
-              </Marker>
-            ) : null
+        <View style={styles.mapWrap}>
+          {useClustering ? (
+            <ClusteredMapView
+              {...mapCommonProps}
+              radius={DISCOVER_CLUSTER_RADIUS}
+              clusterColor={theme.colors.primary}
+              clusterTextColor="#FFFFFF"
+            >
+              {markerElements}
+            </ClusteredMapView>
+          ) : (
+            <MapView {...mapCommonProps}>{markerElements}</MapView>
           )}
-        </ClusteredMapView>
+
+          <View
+            style={[
+              styles.mapControls,
+              { bottom: TAB_BAR_BASE_HEIGHT + insets.bottom + spacing.md },
+            ]}
+            pointerEvents="box-none"
+          >
+            <TouchableOpacity
+              style={styles.mapFab}
+              onPress={() => zoomByFactor(0.65)}
+              accessibilityLabel="Zoom in"
+            >
+              <Ionicons name="add" size={22} color={theme.colors.textInverse} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.mapFab}
+              onPress={() => zoomByFactor(1 / 0.65)}
+              accessibilityLabel="Zoom out"
+            >
+              <Ionicons name="remove" size={22} color={theme.colors.textInverse} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.mapFab, styles.mapFabAccent]}
+              onPress={() => void handleRecenter()}
+              accessibilityLabel="Center map on my location"
+            >
+              <Ionicons name="locate" size={22} color={theme.colors.textInverse} />
+            </TouchableOpacity>
+          </View>
+        </View>
       ) : (
         <FlatList
           data={filteredSalons}
@@ -346,7 +581,10 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           renderItem={({ item }) => (
             <SalonCard salon={item} onPress={() => handleSalonPress(item)} />
           )}
-          contentContainerStyle={[styles.listContent, { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }]}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 },
+          ]}
           showsVerticalScrollIndicator={false}
           onEndReached={() => {
             if (hasNextPage && !isFetchingNextPage) {
@@ -373,15 +611,15 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           ListEmptyComponent={
             <EmptyState
               icon="location-outline"
-              title={searchQuery ? 'No matching salons' : 'No Salons Found'}
+              title={debouncedSearchQuery ? 'No matching salons' : 'No Salons Found'}
               message={
-                searchQuery
-                  ? `No salons match "${searchQuery}". Try a different search.`
-                  : 'Try adjusting your location or check back later.'
+                debouncedSearchQuery
+                  ? `No salons match "${debouncedSearchQuery}". Try a different search.`
+                  : 'Try widening search, enabling location, or check back later. On emulators, set a mock GPS location in device settings.'
               }
               compact
               action={
-                searchQuery
+                debouncedSearchQuery
                   ? { label: 'Clear Search', onPress: () => setSearchQuery('') }
                   : undefined
               }
@@ -393,82 +631,111 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   );
 };
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    padding: spacing.xl,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
-  title: {
-    fontFamily: fonts.heading,
-    fontSize: 34,
-    color: theme.colors.text,
-    marginBottom: 4,
-    fontWeight: '700',
-  },
-  subtitle: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    letterSpacing: 0.5,
-  },
-  viewToggle: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.surfaceSecondary,
-    borderRadius: borderRadius.pill,
-    padding: 4,
-  },
-  toggleBtn: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.pill,
-  },
-  toggleBtnActive: {
-    backgroundColor: theme.colors.primary,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surfaceSecondary,
-    borderRadius: borderRadius.pill,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  searchContainerDisabled: {
-    borderColor: theme.colors.warning + '60',
-    opacity: 0.8,
-  },
-  searchInput: {
-    flex: 1,
-    ...typography.body,
-    color: theme.colors.text,
-  },
-  listContent: {
-    padding: spacing.xl,
-    flexGrow: 1,
-  },
-  map: { flex: 1 },
-  loaderContainer: {
-    paddingVertical: spacing.xl,
-    alignItems: 'center',
-  },
-  callout: { padding: spacing.sm, minWidth: 160, maxWidth: 220 },
-  calloutTitle: { ...typography.bodySmallMedium, color: theme.colors.text, marginBottom: 2 },
-  calloutText: { ...typography.caption, color: theme.colors.textSecondary },
-  calloutRating: { ...typography.captionMedium, color: theme.colors.secondary, marginTop: 4 },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    header: {
+      padding: spacing.xl,
+      backgroundColor: theme.colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginBottom: spacing.lg,
+    },
+    title: {
+      fontFamily: fonts.heading,
+      fontSize: 34,
+      color: theme.colors.text,
+      marginBottom: 4,
+      fontWeight: '700',
+    },
+    subtitle: {
+      fontFamily: fonts.body,
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      letterSpacing: 0.5,
+    },
+    debugLine: {
+      marginTop: 4,
+      fontSize: 11,
+      fontFamily: fonts.body,
+      color: theme.colors.textTertiary,
+    },
+    viewToggle: {
+      flexDirection: 'row',
+      backgroundColor: theme.colors.surfaceSecondary,
+      borderRadius: borderRadius.pill,
+      padding: 4,
+    },
+    toggleBtn: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.pill,
+    },
+    toggleBtnActive: {
+      backgroundColor: theme.colors.primary,
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surfaceSecondary,
+      borderRadius: borderRadius.pill,
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.md,
+      gap: spacing.md,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    searchContainerDisabled: {
+      borderColor: theme.colors.warning + '60',
+      opacity: 0.8,
+    },
+    searchInput: {
+      flex: 1,
+      ...typography.body,
+      color: theme.colors.text,
+    },
+    listContent: {
+      padding: spacing.xl,
+      flexGrow: 1,
+    },
+    mapWrap: {
+      flex: 1,
+      position: 'relative',
+    },
+    map: {
+      flex: 1,
+    },
+    mapControls: {
+      position: 'absolute',
+      right: spacing.lg,
+      gap: spacing.sm,
+      alignItems: 'center',
+    },
+    mapFab: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: theme.colors.text + 'E6',
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+    mapFabAccent: {
+      backgroundColor: theme.colors.primary,
+      marginTop: spacing.sm,
+    },
+    loaderContainer: {
+      paddingVertical: spacing.xl,
+      alignItems: 'center',
+    },
+  });
 
 export default DiscoverScreen;

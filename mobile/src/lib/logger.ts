@@ -9,7 +9,8 @@ const SENTRY_ENABLED = false;
 /**
  * logger.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Centralized logging. Console always; Sentry only when SENTRY_ENABLED is true.
+ * Centralized logging. `debug` / `info` are dev-only (no console noise in production).
+ * `warn` / `error` always log to console; Sentry only when SENTRY_ENABLED is true.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -62,9 +63,10 @@ class Logger {
   }
 
   info(message: string, extra?: Record<string, unknown>) {
-    if (__DEV__) {
-      console.log(`[INFO] ${message}`, extra);
+    if (!__DEV__) {
+      return;
     }
+    console.log(`[INFO] ${message}`, extra ?? '');
 
     if (!SENTRY_ENABLED) {
       return;

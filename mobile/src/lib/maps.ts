@@ -160,3 +160,12 @@ export function buildRegion(
 export function buildLocationPickerRegion(coords: Coordinates) {
   return buildRegion(coords, 0.02, 0.02);
 }
+
+/** Discover map / API fallback when GPS is unavailable (India — matches legacy app default). */
+export const DISCOVER_FALLBACK_COORDS: Coordinates = {
+  latitude: 28.6139,
+  longitude: 77.209,
+};
+
+/** Default map deltas when opening Discover map without a user fix yet. */
+export const DISCOVER_INITIAL_DELTA = 0.14;
