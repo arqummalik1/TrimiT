@@ -139,13 +139,14 @@ apiClient.interceptors.response.use(
       !reqUrl.includes('/auth/forgot-password') &&
       !reqUrl.includes('/auth/reset-password')
     ) {
-      // Clear stale session on protected 401 so user is forced to re-authenticate.
-      setAuthToken(null);
       try {
         const { useAuthStore } = await import('../store/authStore');
-        useAuthStore.setState({ user: null, token: null, isAuthenticated: false, error: 'Session expired. Please sign in again.' });
+        await useAuthStore.getState().clearSession({
+          sessionExpired: true,
+          errorMessage: 'Session expired. Please sign in again.',
+        });
       } catch {
-        // Ignore store import errors; request still returns normalized unauthorized.
+        setAuthToken(null);
       }
     }
 

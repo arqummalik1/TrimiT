@@ -21,6 +21,16 @@ export const authService = {
     return apiClient.post('/auth/push-token', { push_token: pushToken });
   },
 
+  updateNotificationPreferences: async (prefs: {
+    push_enabled?: boolean;
+    notify_bookings?: boolean;
+    notify_booking_updates?: boolean;
+    notify_promotional?: boolean;
+    notify_reminders?: boolean;
+  }) => {
+    return apiClient.patch('/auth/notification-preferences', prefs);
+  },
+
   getMe: async () => {
     return apiClient.get('/auth/me');
   },

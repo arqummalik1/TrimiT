@@ -10,9 +10,10 @@ from core.supabase import supabase
 from core.limiter import limiter
 from models.auth import (
     UserCreate, UserLogin, UserUpdate, PushTokenUpdate,
+    NotificationPreferencesUpdate,
     ForgotPasswordRequest, ValidateTokenRequest, ResetPasswordRequest
 )
-from dependencies.auth import get_current_user
+from dependencies.auth import get_current_user, user_profile_cache
 
 logger = logging.getLogger("trimit")
 
@@ -252,7 +253,30 @@ async def update_profile(data: UserUpdate, current_user: dict = Depends(get_curr
     if response.status_code not in [200, 201, 204]:
         raise HTTPException(status_code=400, detail="Failed to update profile")
     
+    user_profile_cache.pop(user_id, None)
     return {"message": "Profile updated"}
+
+@router.patch("/notification-preferences")
+async def update_notification_preferences(
+    data: NotificationPreferencesUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    user_id = current_user.get("id")
+    token = current_user.get("access_token")
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No preferences to update")
+    response = await supabase.request(
+        "PATCH",
+        f"rest/v1/users?id=eq.{user_id}",
+        json=update_data,
+        token=token,
+    )
+    if response.status_code not in (200, 201, 204):
+        raise HTTPException(status_code=400, detail="Failed to update notification preferences")
+    user_profile_cache.pop(user_id, None)
+    logger.info("[PushPrefs] updated user_id=%s keys=%s", user_id, list(update_data.keys()))
+    return {"message": "Notification preferences updated"}
 
 @router.post("/push-token")
 async def register_push_token(data: PushTokenUpdate, current_user: dict = Depends(get_current_user)):
@@ -269,10 +293,17 @@ async def register_push_token(data: PushTokenUpdate, current_user: dict = Depend
 @router.post("/forgot-password")
 @limiter.limit("3/hour")
 async def forgot_password(request: Request, data: ForgotPasswordRequest):
-    response = await supabase.request("POST", "auth/v1/recover", json={"email": data.email})
+    site_base = settings.PUBLIC_SITE_URL.rstrip("/")
+    redirect_to = f"{site_base}/reset-password"
+    response = await supabase.request(
+        "POST",
+        "auth/v1/recover",
+        json={"email": data.email, "redirect_to": redirect_to},
+    )
     if response.status_code == 429:
         raise HTTPException(status_code=429, detail="Too many reset attempts.")
-    return {"message": "If an account exists, a reset link has been sent"}
+    # Always return success to avoid email enumeration (Supabase may return 200 even if email unknown)
+    return {"message": "If an account exists, a reset link has been sent", "redirect_to": redirect_to}
 
 @router.post("/validate-reset-token")
 async def validate_reset_token(data: ValidateTokenRequest):

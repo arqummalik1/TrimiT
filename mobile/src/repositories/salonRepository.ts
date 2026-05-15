@@ -1,21 +1,24 @@
 import { salonService } from '../services/salonService';
 import { Salon, Analytics } from '../types';
+import { isAppError } from '../types/error';
+import { logger } from '../lib/logger';
 
 export const salonRepository = {
   async getOwnerSalon(): Promise<Salon | null> {
     try {
       return await salonService.getOwnerSalon();
     } catch (error: unknown) {
-      // 404 is expected when no salon exists yet
-      if (
-        (error instanceof Error && 'code' in error && (error as Record<string, unknown>).code === 'NOT_FOUND') ||
-        (error instanceof Error && 'response' in error && (error as Record<string, unknown> & { response?: { status?: number } }).response?.status === 404)
-      ) {
-        console.log('[SalonRepository] No salon found for owner (expected for new owners)');
-        return null;
+      if (isAppError(error)) {
+        if (error.status === 404 || error.code === 'NOT_FOUND') {
+          logger.info('[SalonRepository] No salon for owner (404)');
+          return null;
+        }
+        if (error.kind === 'unauthorized') {
+          throw error;
+        }
       }
-      console.error('[SalonRepository] Failed to fetch owner salon:', error);
-      return null;
+      logger.error('[SalonRepository] getOwnerSalon failed', error);
+      throw error;
     }
   },
 
@@ -23,11 +26,16 @@ export const salonRepository = {
     return await salonService.getSalon(salonId);
   },
 
-  async createSalon(data: Omit<Salon, 'id' | 'owner_id' | 'created_at' | 'services' | 'reviews' | 'avg_rating' | 'review_count' | 'distance'>): Promise<Salon> {
+  async createSalon(
+    data: Omit<Salon, 'id' | 'owner_id' | 'created_at' | 'services' | 'reviews' | 'avg_rating' | 'review_count' | 'distance'>
+  ): Promise<Salon> {
     return await salonService.createSalon(data);
   },
 
-  async updateSalon(salonId: string, updates: Partial<Omit<Salon, 'id' | 'owner_id' | 'created_at'>>): Promise<Salon> {
+  async updateSalon(
+    salonId: string,
+    updates: Partial<Omit<Salon, 'id' | 'owner_id' | 'created_at'>>
+  ): Promise<Salon> {
     return await salonService.updateSalon(salonId, updates);
   },
 

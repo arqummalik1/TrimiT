@@ -59,7 +59,11 @@ export const useAuthStore = create(
           
           return { success: true, profile, hasSalon };
         } catch (error) {
-          const message = error.response?.data?.detail || 'Login failed';
+          const detail = error.response?.data?.detail;
+          const message =
+            (typeof detail === 'object' && detail?.message) ||
+            (typeof detail === 'string' && detail) ||
+            'Login failed';
           set({ isLoading: false, error: message });
           return { success: false, error: message };
         }
@@ -68,35 +72,54 @@ export const useAuthStore = create(
       signup: async (email, password, name, phone, role) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.post('/auth/signup', { 
-            email, 
-            password, 
-            name, 
-            phone, 
-            role 
+          const response = await api.post('/auth/signup', {
+            email,
+            password,
+            name,
+            phone,
+            role,
           });
-          
+
+          if (
+            response.status === 202 ||
+            response.data?.code === 'EMAIL_CONFIRMATION_REQUIRED'
+          ) {
+            set({ isLoading: false, error: null });
+            return {
+              success: true,
+              requiresEmailConfirmation: true,
+              message: response.data?.message,
+            };
+          }
+
           const { user, session } = response.data;
-          
+
           if (session?.access_token) {
             api.defaults.headers.common['Authorization'] = `Bearer ${session.access_token}`;
-            
-            set({ 
-              user, 
+
+            set({
+              user,
               profile: { name, phone, role, email },
-              token: session.access_token, 
+              token: session.access_token,
               isAuthenticated: true,
               isLoading: false,
-              hasSalon: false, // New owners don't have a salon yet
-              error: null
+              hasSalon: false,
+              error: null,
             });
-          } else {
-            set({ isLoading: false });
+            return { success: true, user, hasSalon: false };
           }
-          
-          return { success: true, user, hasSalon: false };
+
+          set({ isLoading: false });
+          return {
+            success: false,
+            error: 'Account created but could not log you in. Please sign in.',
+          };
         } catch (error) {
-          const message = error.response?.data?.detail || 'Signup failed';
+          const detail = error.response?.data?.detail;
+          const message =
+            (typeof detail === 'object' && detail?.message) ||
+            (typeof detail === 'string' && detail) ||
+            'Signup failed';
           set({ isLoading: false, error: message });
           return { success: false, error: message };
         }

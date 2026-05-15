@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
+import { AppState } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { subscribeToSalonBookings, syncSupabaseAuthSession, unsubscribeFromBookings } from '../lib/supabase';
@@ -53,9 +54,14 @@ export function useRealtimeBookings({
   });
   callbacksRef.current = { onNewBooking, onBookingUpdate, onBookingDelete };
 
+  const shouldShowInAppNotification = useCallback(() => {
+    return AppState.currentState !== 'active';
+  }, []);
+
   const handleBookingChange = useCallback(
     (payload: RealtimePostgresChangesPayload<Booking>) => {
       const { eventType, new: newRecord, old: oldRecord } = payload;
+      const showInApp = shouldShowInAppNotification();
 
       console.log('[RealtimeBookings] postgres_changes', {
         eventType,
@@ -84,13 +90,15 @@ export function useRealtimeBookings({
             const booking = newRecord as Booking;
             void (async () => {
               const enriched = await enrichBookingForNotification(booking);
-              try {
-                addNotification(enriched, 'new_booking');
-              } catch (e) {
-                logger.warn('[RealtimeBookings] addNotification INSERT failed', {
-                  bookingId: booking.id,
-                  err: String(e),
-                });
+              if (showInApp) {
+                try {
+                  addNotification(enriched, 'new_booking');
+                } catch (e) {
+                  logger.warn('[RealtimeBookings] addNotification INSERT failed', {
+                    bookingId: booking.id,
+                    err: String(e),
+                  });
+                }
               }
               callbacksRef.current.onNewBooking?.(enriched);
               console.log('[RealtimeBookings] INSERT handled', booking.id);
@@ -103,7 +111,7 @@ export function useRealtimeBookings({
           if (newRecord && oldRecord) {
             const booking = newRecord as Booking;
             const oldBooking = oldRecord as Booking;
-            if (booking.status !== oldBooking.status) {
+            if (booking.status !== oldBooking.status && showInApp) {
               void (async () => {
                 const enriched = await enrichBookingForNotification(booking);
                 try {
@@ -122,10 +130,12 @@ export function useRealtimeBookings({
         case 'DELETE': {
           if (oldRecord) {
             const booking = oldRecord as Booking;
-            try {
-              addNotification(booking, 'cancellation');
-            } catch (e) {
-              logger.warn('[RealtimeBookings] addNotification DELETE failed', { err: String(e) });
+            if (showInApp) {
+              try {
+                addNotification(booking, 'cancellation');
+              } catch (e) {
+                logger.warn('[RealtimeBookings] addNotification DELETE failed', { err: String(e) });
+              }
             }
             callbacksRef.current.onBookingDelete?.(booking.id);
             console.log('[RealtimeBookings] DELETE handled', booking.id);
@@ -137,7 +147,7 @@ export function useRealtimeBookings({
           break;
       }
     },
-    [queryClient, addNotification, salonId]
+    [queryClient, addNotification, salonId, shouldShowInAppNotification]
   );
 
   useEffect(() => {

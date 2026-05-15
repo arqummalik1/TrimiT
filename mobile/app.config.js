@@ -14,6 +14,7 @@ module.exports = ({ config }) => {
     expo: {
       name: 'TrimiT',
       slug: 'trimit',
+      scheme: 'trimit',
       version: '1.0.0',
       orientation: 'portrait',
       icon: './assets/SquareLogo.png',
@@ -39,6 +40,10 @@ module.exports = ({ config }) => {
       },
       android: {
         package: 'com.trimit.app',
+        notification: {
+          icon: './assets/adaptive-icon.png',
+          color: '#000000',
+        },
         adaptiveIcon: {
           foregroundImage: './assets/adaptive-icon.png',
           backgroundColor: '#000000',

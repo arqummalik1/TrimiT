@@ -28,6 +28,8 @@ const SignupPage = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [emailConfirmationSent, setEmailConfirmationSent] = useState(false);
+  const [confirmedEmail, setConfirmedEmail] = useState('');
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -58,6 +60,11 @@ const SignupPage = () => {
     );
     
     if (result.success) {
+      if (result.requiresEmailConfirmation) {
+        setConfirmedEmail(formData.email);
+        setEmailConfirmationSent(true);
+        return;
+      }
       if (formData.role === 'owner') {
         navigate('/owner/salon');
       } else {
@@ -65,6 +72,27 @@ const SignupPage = () => {
       }
     }
   };
+
+  if (emailConfirmationSent) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="min-h-screen flex items-center justify-center px-4 py-12 bg-stone-50"
+      >
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 border border-stone-200 text-center">
+          <h1 className="font-heading text-2xl font-bold text-stone-900 mb-3">Check your email</h1>
+          <p className="text-stone-600 mb-6">
+            We sent a confirmation link to <strong>{confirmedEmail}</strong>. Click it to
+            activate your account, then sign in.
+          </p>
+          <Link to="/login" className="btn-primary inline-block">
+            Go to Sign In
+          </Link>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-stone-50">

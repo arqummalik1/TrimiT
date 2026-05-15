@@ -22,6 +22,7 @@ import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme, Theme } from '../../theme/ThemeContext';
 
 import api from '../../lib/api';
+import { salonRepository } from '../../repositories/salonRepository';
 import { handleApiError } from '../../lib/errorHandler';
 import { showToast } from '../../store/toastStore';
 import { Booking, Salon } from '../../types';
@@ -42,16 +43,7 @@ export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps
 
   const { data: salon } = useQuery<Salon | null>({
     queryKey: ['ownerSalon'],
-    queryFn: async () => {
-      try {
-        const response = await api.get('/owner/salon');
-        return response.data;
-      } catch (e: unknown) {
-        const err = e as { response?: { status?: number } };
-        if (err.response?.status === 404) return null;
-        throw e;
-      }
-    },
+    queryFn: () => salonRepository.getOwnerSalon(),
   });
 
   const { data: bookings, isLoading: rawIsLoading, error: bookingsError, refetch: refetchBookings } = useQuery<Booking[]>({

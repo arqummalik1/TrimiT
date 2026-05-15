@@ -13,7 +13,7 @@ from dependencies.auth import get_current_user, try_get_user_id_from_authorizati
 from models.bookings import BookingCreate, BookingStatusUpdate, BookingStatus, ReviewCreate, SlotReserve
 from models.promotions import PromoCodeValidate
 from models.reschedule import RescheduleRequest
-from services.push_notifications import push_service
+from services import booking_push
 logger = logging.getLogger("trimit")
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
@@ -93,6 +93,7 @@ async def update_booking_status(
     if b.status_code != 200 or not b.json():
         raise HTTPException(status_code=404, detail="Booking not found")
     booking = b.json()[0]
+    old_status = booking.get("status")
     profile = current_user.get("profile") or {}
     role = profile.get("role", "customer")
     uid = current_user.get("id")
@@ -125,54 +126,18 @@ async def update_booking_status(
     if patch.status_code not in (200, 201, 204):
         raise HTTPException(status_code=400, detail="Failed to update status")
     
-    # Send push notification to customer about status change
     try:
-        # Get customer's push token
-        customer_resp = await supabase.request(
-            "GET",
-            f"rest/v1/users?id=eq.{booking.get('user_id')}&select=push_token,name",
-            service_role=True,
-        )
-        
-        if customer_resp.status_code == 200 and customer_resp.json():
-            customer_data = customer_resp.json()[0]
-            customer_push_token = customer_data.get("push_token")
-            
-            if customer_push_token:
-                # Get booking details
-                booking_details = await supabase.request(
-                    "GET",
-                    f"rest/v1/bookings?id=eq.{booking_id}&select=booking_date,time_slot,services(name)",
-                    token=token
-                )
-                
-                if booking_details.status_code == 200 and booking_details.json():
-                    booking_info = booking_details.json()[0]
-                    svc = booking_info.get("services")
-                    if isinstance(svc, list) and svc:
-                        service_name = (svc[0] or {}).get("name", "Service")
-                    elif isinstance(svc, dict):
-                        service_name = svc.get("name", "Service")
-                    else:
-                        service_name = "Service"
-                    
-                    # Send push notification
-                    await push_service.notify_booking_status_change(
-                        customer_push_token=customer_push_token,
-                        booking_data={
-                            "booking_id": booking_id,
-                            "service_name": service_name,
-                            "booking_date": booking_info.get("booking_date"),
-                            "time_slot": booking_info.get("time_slot"),
-                        },
-                        new_status=body.status.value
-                    )
-                    logger.info(f"✅ Push notification sent to customer for booking {booking_id}")
-            else:
-                logger.info(f"⚠️ Customer has no push token registered")
+        ctx = await booking_push.fetch_booking_push_context(booking_id, token)
+        if ctx:
+            await booking_push.after_status_change(
+                booking_id=booking_id,
+                old_status=old_status or "",
+                new_status=body.status.value,
+                role=role,
+                ctx=ctx,
+            )
     except Exception as e:
-        # Don't fail the status update if push notification fails
-        logger.error(f"❌ Failed to send push notification: {str(e)}")
+        logger.error("[STATUS] push failed booking_id=%s err=%s", booking_id, str(e))
     
     return {"message": "Status updated", "booking_id": booking_id}
 
@@ -685,47 +650,21 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
         token=token
     )
     
-    # 5. Send push notification to salon owner
     try:
-        # Get salon owner's push token
-        owner_resp = await supabase.request(
-            "GET",
-            f"rest/v1/users?id=eq.{salon.get('owner_id')}&select=push_token,name",
-            service_role=True,
+        initial_status = result.get("status") or ("confirmed" if salon.get("auto_accept") else "pending")
+        customer_name = await booking_push.fetch_user_name(user_id)
+        await booking_push.after_booking_created(
+            booking_id=booking_id,
+            salon_owner_id=salon.get("owner_id"),
+            customer_id=user_id,
+            customer_name=customer_name,
+            service_name=service.get("name", "Service"),
+            booking_date=data.booking_date,
+            time_slot=data.time_slot,
+            initial_status=initial_status,
         )
-        
-        if owner_resp.status_code == 200 and owner_resp.json():
-            owner_data = owner_resp.json()[0]
-            owner_push_token = owner_data.get("push_token")
-            
-            if owner_push_token:
-                # Get customer name
-                customer_resp = await supabase.request(
-                    "GET",
-                    f"rest/v1/users?id=eq.{user_id}&select=name",
-                    token=token
-                )
-                customer_name = "Customer"
-                if customer_resp.status_code == 200 and customer_resp.json():
-                    customer_name = customer_resp.json()[0].get("name", "Customer")
-                
-                # Send push notification
-                await push_service.notify_new_booking(
-                    owner_push_token=owner_push_token,
-                    booking_data={
-                        "booking_id": result.get("booking_id"),
-                        "customer_name": customer_name,
-                        "service_name": service.get("name"),
-                        "booking_date": data.booking_date,
-                        "time_slot": data.time_slot,
-                    }
-                )
-                logger.info(f"✅ Push notification sent to owner for booking {result.get('booking_id')}")
-            else:
-                logger.info(f"⚠️ Owner has no push token registered")
     except Exception as e:
-        # Don't fail the booking if push notification fails
-        logger.error(f"❌ Failed to send push notification: {str(e)}")
+        logger.error("[CREATE_BOOKING] push failed booking_id=%s err=%s", booking_id, str(e))
         
     return {"message": "Booking created", "booking_id": result.get("booking_id")}
 
@@ -818,7 +757,6 @@ async def reschedule_booking(
 
         logger.info("[RESCHEDULE] ok booking_id=%s by %s %s", booking_id, user_role, user_id)
 
-        # Push: customer reschedules → notify owner; owner reschedules → notify customer
         try:
             bk = await supabase.request(
                 "GET",
@@ -837,60 +775,19 @@ async def reschedule_booking(
                 salons = row.get("salons") or {}
                 owner_id = salons.get("owner_id") if isinstance(salons, dict) else None
                 salon_name = salons.get("name", "Salon") if isinstance(salons, dict) else "Salon"
-                customer_uid = row.get("user_id")
-                nd = result.get("new_date") or new_date
-                nt = result.get("new_time_slot") or new_time_slot
-                od = result.get("old_date", "")
-                ot = result.get("old_time_slot", "")
-
-                if user_role == "customer" and owner_id:
-                    own_tok = await supabase.request(
-                        "GET",
-                        f"rest/v1/users?id=eq.{owner_id}&select=push_token",
-                        service_role=True,
-                    )
-                    if own_tok.status_code == 200 and own_tok.json():
-                        pt = own_tok.json()[0].get("push_token")
-                        if pt:
-                            cn = await supabase.request(
-                                "GET",
-                                f"rest/v1/users?id=eq.{user_id}&select=name",
-                                service_role=True,
-                            )
-                            cname = "Customer"
-                            if cn.status_code == 200 and cn.json():
-                                cname = cn.json()[0].get("name", "Customer")
-                            await push_service.send_notification(
-                                push_token=pt,
-                                title="Booking rescheduled",
-                                body=f"{cname} moved {service_name} to {nd} at {nt} (was {od} {ot}).",
-                                data={
-                                    "type": "booking_rescheduled",
-                                    "booking_id": booking_id,
-                                    "initiated_by": "customer",
-                                },
-                            )
-                            logger.info("[RESCHEDULE] push sent to owner for booking_id=%s", booking_id)
-                elif user_role == "owner" and customer_uid:
-                    cust_tok = await supabase.request(
-                        "GET",
-                        f"rest/v1/users?id=eq.{customer_uid}&select=push_token",
-                        service_role=True,
-                    )
-                    if cust_tok.status_code == 200 and cust_tok.json():
-                        pt = cust_tok.json()[0].get("push_token")
-                        if pt:
-                            await push_service.send_notification(
-                                push_token=pt,
-                                title="Booking rescheduled",
-                                body=f"{salon_name} updated your {service_name} to {nd} at {nt}.",
-                                data={
-                                    "type": "booking_rescheduled",
-                                    "booking_id": booking_id,
-                                    "initiated_by": "owner",
-                                },
-                            )
-                            logger.info("[RESCHEDULE] push sent to customer for booking_id=%s", booking_id)
+                await booking_push.after_reschedule(
+                    booking_id=booking_id,
+                    user_role=user_role,
+                    user_id=user_id,
+                    owner_id=owner_id,
+                    customer_uid=row.get("user_id"),
+                    service_name=service_name,
+                    salon_name=salon_name,
+                    nd=result.get("new_date") or new_date,
+                    nt=result.get("new_time_slot") or new_time_slot,
+                    od=result.get("old_date", ""),
+                    ot=result.get("old_time_slot", ""),
+                )
         except Exception as push_exc:
             logger.error("[RESCHEDULE] push failed booking_id=%s err=%s", booking_id, str(push_exc))
 

@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     PORT: int = 8000
     DEBUG: bool = True
     ALLOWED_ORIGINS: str = "https://trimi-t.vercel.app,https://trimit.app,https://www.trimit.app,http://localhost:3000,http://localhost:8081"
+    # Password-reset emails redirect here (must be allowlisted in Supabase Auth → URL config)
+    PUBLIC_SITE_URL: str = "https://trimi-t.vercel.app"
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,

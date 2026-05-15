@@ -22,6 +22,13 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     push_token: Optional[str] = None
 
+class NotificationPreferencesUpdate(BaseModel):
+    push_enabled: Optional[bool] = None
+    notify_bookings: Optional[bool] = None
+    notify_booking_updates: Optional[bool] = None
+    notify_promotional: Optional[bool] = None
+    notify_reminders: Optional[bool] = None
+
 class PushTokenUpdate(BaseModel):
     push_token: str = Field(..., description="Expo push token (ExponentPushToken[...])")
 

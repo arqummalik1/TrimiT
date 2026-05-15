@@ -26,6 +26,7 @@ import {
   ACCOUNT_DELETION_SUPPORT_EMAIL,
   ACCOUNT_DELETION_WEB_URL,
 } from '../../lib/accountDeletion';
+import { NotificationSettingsSection } from '../../components/NotificationSettingsSection';
 
 type ProfileStyles = ReturnType<typeof createStyles>;
 
@@ -194,6 +195,8 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
             </View>
           )}
         </View>
+
+        <NotificationSettingsSection />
 
         {/* Appearance Settings */}
         <View style={[styles.card, shadows.sm, styles.linksCard, { marginBottom: spacing.lg }]}>

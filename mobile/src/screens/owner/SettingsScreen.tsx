@@ -26,6 +26,7 @@ import {
   ACCOUNT_DELETION_SUPPORT_EMAIL,
   ACCOUNT_DELETION_WEB_URL,
 } from '../../lib/accountDeletion';
+import { NotificationSettingsSection } from '../../components/NotificationSettingsSection';
 
 import { OwnerSettingsScreenProps } from '../../navigation/types';
 
@@ -53,7 +54,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
     if (salon) {
       setAllowMultipleBookings(salon.allow_multiple_bookings_per_slot || false);
       setAutoAccept(salon.auto_accept !== false);
-      setEnableOffers(salon.show_offers !== false); // default true
+      setEnableOffers(salon.show_offers === true);
       setHasChanges(false);
     }
   }, [salon]);
@@ -189,6 +190,8 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
               <Text style={styles.salonAddress}>Create your salon to unlock all features</Text>
             </View>
           </View>
+
+          <NotificationSettingsSection />
 
           {/* Appearance Settings - Always accessible */}
           <View style={styles.section}>
@@ -353,6 +356,8 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
             <Text style={styles.salonAddress}>{salon.address}</Text>
           </View>
         </View>
+
+        <NotificationSettingsSection />
 
         {/* Appearance Settings Section */}
         <View style={styles.section}>

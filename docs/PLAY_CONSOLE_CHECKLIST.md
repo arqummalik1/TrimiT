@@ -65,6 +65,15 @@ For mobile in-app web link, set EAS secret `EXPO_PUBLIC_PUBLIC_SITE_URL` to the 
 | Camera / read media images | Owner salon photos |
 | Post notifications | Booking alerts |
 
+## Supabase Auth (password reset)
+
+In **Supabase → Authentication → URL Configuration**, add:
+
+- **Site URL:** `https://trimi-t.vercel.app`
+- **Redirect URLs:** `https://trimi-t.vercel.app/reset-password`, `http://localhost:3000/reset-password`
+
+Set Render env **`PUBLIC_SITE_URL`** = `https://trimi-t.vercel.app` (in `render.yaml`).
+
 ## Pre-upload testing
 
 - [ ] Internal track AAB installed on physical device

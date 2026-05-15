@@ -65,7 +65,8 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordProps
           </View>
           <Text style={styles.sentTitle}>Check Your Email</Text>
           <Text style={styles.sentText}>
-            If an account exists with {email}, we've sent a password reset link.
+            If an account exists for {email}, we sent a reset link. Open it in your browser
+            (Safari/Chrome) to set a new password, then return here to sign in.
           </Text>
           <Button
             title="Back to Login"

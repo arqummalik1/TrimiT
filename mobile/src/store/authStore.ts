@@ -6,23 +6,28 @@ import { User } from '../types';
 import { secureStorage } from '../lib/secureStorage';
 import { supabase, syncSupabaseAuthSession } from '../lib/supabase';
 import { QueryClient } from '@tanstack/react-query';
+import { isAppError } from '../types/error';
+import { logger } from '../lib/logger';
 
 interface AuthState {
   user: User | null;
   token: string | null;
-  /** Supabase refresh token — paired with `token` for Realtime + session refresh */
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   isHydrated: boolean;
+  /** True after initializeAuth finishes (success or clear). */
+  authBootstrapComplete: boolean;
+  sessionExpired: boolean;
   error: string | null;
-  /** Set to true after a successful signup when email confirmation is required */
   requiresEmailConfirmation: boolean;
   queryClient: QueryClient | null;
 
   setUser: (user: User | null, token: string | null) => void;
   setHydrated: (val: boolean) => void;
   setQueryClient: (qc: QueryClient) => void;
+  clearSession: (options?: { sessionExpired?: boolean; errorMessage?: string }) => Promise<void>;
+  dismissSessionExpired: () => void;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; requiresEmailConfirmation?: boolean }>;
   signup: (email: string, password: string, name: string, phone: string, role: 'customer' | 'owner') => Promise<{ success: boolean; error?: string; requiresEmailConfirmation?: boolean }>;
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
@@ -30,7 +35,7 @@ interface AuthState {
   logout: () => Promise<void>;
   deleteAccount: () => Promise<{ success: boolean; error?: string }>;
   clearError: () => void;
-  initializeAuth: () => void;
+  initializeAuth: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -42,12 +47,14 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       isHydrated: false,
+      authBootstrapComplete: false,
+      sessionExpired: false,
       error: null,
       requiresEmailConfirmation: false,
       queryClient: null,
 
       setUser: (user, token) => {
-        set({ user, token, isAuthenticated: !!user, error: null });
+        set({ user, token, isAuthenticated: !!user, error: null, sessionExpired: false });
         setAuthToken(token);
         void syncSupabaseAuthSession(token, get().refreshToken);
       },
@@ -56,8 +63,43 @@ export const useAuthStore = create<AuthState>()(
 
       setQueryClient: (qc) => set({ queryClient: qc }),
 
+      clearSession: async (options) => {
+        const { queryClient } = get();
+        logger.info('[Auth] clearSession', { sessionExpired: options?.sessionExpired ?? false });
+
+        try {
+          await supabase.auth.signOut();
+        } catch (err) {
+          logger.warn('[Auth] Supabase signOut failed', { err });
+        }
+        try {
+          await supabase.realtime.setAuth();
+        } catch (err) {
+          logger.warn('[Auth] Realtime clear auth failed', { err });
+        }
+
+        setAuthToken(null);
+        if (queryClient) {
+          queryClient.clear();
+        }
+
+        set({
+          user: null,
+          token: null,
+          refreshToken: null,
+          isAuthenticated: false,
+          isLoading: false,
+          sessionExpired: options?.sessionExpired ?? false,
+          error: options?.errorMessage ?? null,
+        });
+      },
+
+      dismissSessionExpired: () => {
+        set({ sessionExpired: false, error: null });
+      },
+
       login: async (email, password) => {
-        set({ isLoading: true, error: null, requiresEmailConfirmation: false });
+        set({ isLoading: true, error: null, requiresEmailConfirmation: false, sessionExpired: false });
         const result = await authRepository.login(email, password);
 
         if (result.requiresEmailConfirmation) {
@@ -83,33 +125,32 @@ export const useAuthStore = create<AuthState>()(
           isLoading: false,
           error: null,
           requiresEmailConfirmation: false,
+          authBootstrapComplete: true,
         });
+        setAuthToken(result.token);
         void syncSupabaseAuthSession(result.token, result.refreshToken ?? null);
         return { success: true };
       },
 
       signup: async (email, password, name, phone, role) => {
-        set({ isLoading: true, error: null, requiresEmailConfirmation: false });
+        set({ isLoading: true, error: null, requiresEmailConfirmation: false, sessionExpired: false });
         const result = await authRepository.signup({ email, password, name, phone, role });
 
-        // Email confirmation required — success state for UI, not logged in
         if (result.requiresEmailConfirmation) {
           set({
             isLoading: false,
             requiresEmailConfirmation: true,
-            error: null, // Not an error — a success that requires confirmation
+            error: null,
           });
           return { success: true, requiresEmailConfirmation: true };
         }
 
-        // Genuine error
         if (!result.token || !result.user) {
           const errorMsg = result.error ?? 'Signup failed. Please try again.';
           set({ isLoading: false, error: errorMsg });
           return { success: false, error: errorMsg };
         }
 
-        // Full success — user is logged in immediately
         set({
           user: result.user,
           token: result.token,
@@ -118,7 +159,9 @@ export const useAuthStore = create<AuthState>()(
           isLoading: false,
           error: null,
           requiresEmailConfirmation: false,
+          authBootstrapComplete: true,
         });
+        setAuthToken(result.token);
         void syncSupabaseAuthSession(result.token, result.refreshToken ?? null);
         return { success: true };
       },
@@ -130,9 +173,9 @@ export const useAuthStore = create<AuthState>()(
           await authService.forgotPassword(email);
           set({ isLoading: false });
           return { success: true };
-        } catch (error) {
+        } catch {
           set({ isLoading: false });
-          return { success: true }; // Always succeed to prevent email enumeration
+          return { success: true };
         }
       },
 
@@ -148,9 +191,10 @@ export const useAuthStore = create<AuthState>()(
             });
           }
           return { success: true };
-        } catch (error: any) {
-          set({ isLoading: false, error: error.message });
-          return { success: false, error: error.message };
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : 'Update failed';
+          set({ isLoading: false, error: message });
+          return { success: false, error: message };
         }
       },
 
@@ -167,95 +211,77 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        const { queryClient } = get();
-        
-        if (__DEV__) {
-          console.log('[AuthStore] Logout initiated');
-        }
-        
-        try {
-          await supabase.auth.signOut();
-        } catch (err) {
-          if (__DEV__) {
-            console.warn('[AuthStore] Supabase signOut failed:', err);
-          }
-        }
-        try {
-          await supabase.realtime.setAuth();
-        } catch (err) {
-          if (__DEV__) {
-            console.warn('[AuthStore] Realtime clear auth failed:', err);
-          }
-        }
-        
-        // Clear auth token from API client
-        setAuthToken(null);
-        
-        // Clear React Query cache
-        if (queryClient) {
-          queryClient.clear();
-        }
-        
-        // Clear auth state - this will trigger navigation change
-        set({
-          user: null,
-          token: null,
-          refreshToken: null,
-          isAuthenticated: false,
-          error: null,
-          isLoading: false,
-        });
-        
-        if (__DEV__) {
-          console.log('[AuthStore] Logout complete - state cleared');
-        }
+        await get().clearSession({ sessionExpired: false });
       },
 
       clearError: () => set({ error: null }),
 
       initializeAuth: async () => {
         const state = get();
-        if (__DEV__) {
-          console.log('[AuthStore] Initializing auth...');
+        logger.info('[Auth] initializeAuth start', { hasToken: !!state.token });
+
+        if (!state.token) {
+          set({ authBootstrapComplete: true, isAuthenticated: false });
+          return;
         }
-        
-        if (state.token) {
-          if (__DEV__) {
-            console.log('[AuthStore] Token found in storage, setting in API client');
-          }
-          setAuthToken(state.token);
-          try {
-            const { authService } = require('../services/authService');
-            await authService.getMe();
-            if (__DEV__) {
-              console.log('[AuthStore] Auth initialized');
-            }
-            await syncSupabaseAuthSession(state.token, state.refreshToken);
-          } catch (err) {
-            if (__DEV__) {
-              console.warn('[AuthStore] Stored token is invalid/expired, clearing session');
-            }
-            setAuthToken(null);
-            set({
-              user: null,
-              token: null,
-              refreshToken: null,
-              isAuthenticated: false,
-              error: null,
-            });
-          }
-        } else if (__DEV__) {
-          console.log('[AuthStore] No token found in storage');
+
+        setAuthToken(state.token);
+        try {
+          const { authService } = require('../services/authService');
+          const meResponse = await authService.getMe();
+          const me = meResponse.data as { profile?: User } & Partial<User>;
+          const profile = me?.profile ?? me;
+          const user: User | null = profile
+            ? {
+                id: profile.id ?? state.user?.id ?? '',
+                email: profile.email ?? state.user?.email ?? '',
+                name: profile.name ?? state.user?.name ?? '',
+                phone: profile.phone ?? state.user?.phone,
+                role: profile.role ?? state.user?.role ?? 'customer',
+                push_token: profile.push_token,
+                push_enabled: profile.push_enabled,
+                notify_bookings: profile.notify_bookings,
+                notify_booking_updates: profile.notify_booking_updates,
+                notify_promotional: profile.notify_promotional,
+                notify_reminders: profile.notify_reminders,
+                created_at: profile.created_at ?? state.user?.created_at ?? '',
+              }
+            : state.user;
+
+          set({
+            user,
+            isAuthenticated: true,
+            token: state.token,
+            refreshToken: state.refreshToken,
+            error: null,
+            sessionExpired: false,
+            authBootstrapComplete: true,
+          });
+          await syncSupabaseAuthSession(state.token, state.refreshToken);
+          logger.info('[Auth] initializeAuth ok', { role: user?.role });
+        } catch (err) {
+          logger.warn('[Auth] initializeAuth failed — clearing session', { err });
+          await get().clearSession({
+            sessionExpired: isAppError(err) && err.kind === 'unauthorized',
+            errorMessage:
+              isAppError(err) && err.kind === 'unauthorized'
+                ? 'Session expired. Please sign in again.'
+                : undefined,
+          });
+          set({ authBootstrapComplete: true });
         }
       },
     }),
     {
       name: 'trimit-auth-storage',
       storage: createJSONStorage(() => secureStorage),
-      onRehydrateStorage: (state) => {
-        return () => {
+      onRehydrateStorage: () => {
+        return (state, err) => {
+          if (err) {
+            logger.error('[Auth] rehydrate failed', err);
+          }
           state?.setHydrated(true);
-          state?.initializeAuth();
+          void state?.initializeAuth();
         };
       },
       partialize: (state) => ({

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AppState, StyleSheet, Platform } from 'react-native';
+import { AppState, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,26 +13,11 @@ import { bookingRepository } from '../repositories/bookingRepository';
 import { useRealtimeBookings } from '../hooks/useRealtimeBookings';
 import { useNotificationStore } from '../store/notificationStore';
 import { BookingNotificationModal } from '../components/BookingNotificationModal';
-import { 
-  setupPushNotifications, 
-  addNotificationReceivedListener, 
-  addNotificationResponseListener,
-  getLastNotificationResponse 
-} from '../lib/notifications';
+import { setupPushNotifications } from '../lib/notifications';
 
 const devLog = (...args: unknown[]) => {
   if (__DEV__) console.log(...args);
 };
-
-// Configure notifications to show and play sound when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
 
 import OwnerStack from './OwnerStack';
 import ManageBookingsScreen from '../screens/owner/ManageBookingsScreen';
@@ -142,10 +127,15 @@ export default function OwnerTabs() {
     },
   });
 
-  // When returning from background, refresh owner stats (Realtime can miss events while suspended).
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state !== 'active' || !salon?.id) return;
+      if (state !== 'active') return;
+
+      setupPushNotifications().catch((err) => {
+        console.warn('[OwnerTabs] Push token refresh failed:', err);
+      });
+
+      if (!salon?.id) return;
       void Promise.all([
         queryClient.refetchQueries({ queryKey: ['ownerBookings'] }),
         queryClient.refetchQueries({ queryKey: ['recentBookings'] }),

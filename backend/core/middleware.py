@@ -36,7 +36,14 @@ class SignatureMiddleware(BaseHTTPMiddleware):
         if request.method in ["POST", "PATCH", "PUT", "DELETE"]:
             # Standardize path for comparison
             path = request.url.path
-            if path in ["/health", "/api/v1/auth/signup", "/api/v1/auth/login"] or path.startswith("/api/v1/health"):
+            public_auth_paths = {
+                "/api/v1/auth/signup",
+                "/api/v1/auth/login",
+                "/api/v1/auth/forgot-password",
+                "/api/v1/auth/validate-reset-token",
+                "/api/v1/auth/reset-password",
+            }
+            if path in public_auth_paths or path.startswith("/api/v1/health") or path == "/health":
                 return await call_next(request)
 
             signature = request.headers.get("X-Trimit-Signature")

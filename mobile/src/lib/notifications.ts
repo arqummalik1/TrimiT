@@ -14,7 +14,9 @@ import Constants from 'expo-constants';
 import api from './api';
 
 const devLog = (...args: unknown[]) => {
-  if (__DEV__) devLog(...args);
+  if (__DEV__) {
+    console.log(...args);
+  }
 };
 
 // Configure notification behavior (avoid deprecated shouldShowAlert)
@@ -127,6 +129,13 @@ export async function sendPushTokenToBackend(token: string): Promise<boolean> {
 export async function setupPushNotifications(): Promise<void> {
   try {
     devLog('[Notifications] Setting up push notifications...');
+
+    const { useAuthStore } = await import('../store/authStore');
+    const user = useAuthStore.getState().user;
+    if (user?.push_enabled === false) {
+      devLog('[Notifications] Skipped — push_enabled is false');
+      return;
+    }
 
     const token = await registerForPushNotifications();
     if (!token) {

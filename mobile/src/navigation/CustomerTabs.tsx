@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StyleSheet } from 'react-native';
+import { AppState, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,6 +41,15 @@ export default function CustomerTabs() {
     setupPushNotifications().catch((err) => {
       console.warn('[CustomerTabs] Push setup failed (non-critical):', err);
     });
+
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        setupPushNotifications().catch((err) => {
+          console.warn('[CustomerTabs] Push token refresh failed:', err);
+        });
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   return (

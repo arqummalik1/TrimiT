@@ -30,6 +30,9 @@ import { lightPalette } from './src/theme/colors';
 import { useTheme } from './src/theme/ThemeContext';
 import RootNavigator, { navigationRef } from './src/navigation/index';
 import { useAuthStore } from './src/store/authStore';
+import { SessionExpiredModal } from './src/components/SessionExpiredModal';
+import { handleNotificationNavigation } from './src/lib/notificationNavigation';
+import { getLastNotificationResponse } from './src/lib/notifications';
 import { ThemeProvider } from './src/theme/ThemeContext';
 import { logger } from './src/lib/logger';
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -73,6 +76,15 @@ const CUSTOM_FONTS = {
 import * as Sentry from '@sentry/react-native';
 import { analytics } from './src/lib/analytics';
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
 const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
 if (sentryDsn) {
   Sentry.init({
@@ -85,7 +97,8 @@ if (sentryDsn) {
 
 function AppContent() {
   const { isDark } = useTheme();
-  const { isAuthenticated, initializeAuth, isHydrated, setQueryClient } = useAuthStore();
+  const { isAuthenticated, initializeAuth, isHydrated, authBootstrapComplete, setQueryClient, user } =
+    useAuthStore();
   const [fontsLoaded, setFontsLoaded] = useState(false);
 
   const loadResources = useCallback(async () => {
@@ -125,27 +138,28 @@ function AppContent() {
     }
   }, [isAuthenticated, isHydrated]);
 
-  // Register push notifications when user logs in
   useEffect(() => {
-    // Only register if authenticated AND NOT in Expo Go (remote notifications not supported in Go SDK 53+)
-    // Push notification registration is now handled in OwnerTabs.tsx and CustomerTabs.tsx
-    // This prevents crashes and ensures proper setup after user is fully authenticated
-    if (isAuthenticated && Constants.appOwnership !== 'expo') {
-      // Listen for notification interactions
-      const subscription = Notifications.addNotificationResponseReceivedListener(response => {
-        // Handle notification tap - navigate to relevant screen
-        const data = response.notification.request.content.data;
-        if (data?.bookingId && navigationRef.current) {
-          // Navigate to bookings screen
-          // navigationRef.current.navigate('Bookings' as never);
-        }
-      });
-
-      return () => subscription.remove();
+    if (!isAuthenticated || !authBootstrapComplete) {
+      return;
     }
-  }, [isAuthenticated]);
 
-  if (!isHydrated || !fontsLoaded) {
+    const onResponse = (response: Notifications.NotificationResponse) => {
+      const data = response.notification.request.content.data as Record<string, string | undefined>;
+      handleNotificationNavigation(navigationRef.current, data, user?.role);
+    };
+
+    const sub = Notifications.addNotificationResponseReceivedListener(onResponse);
+
+    void getLastNotificationResponse().then((last) => {
+      if (last) {
+        onResponse(last);
+      }
+    });
+
+    return () => sub.remove();
+  }, [isAuthenticated, authBootstrapComplete, user?.role]);
+
+  if (!isHydrated || !authBootstrapComplete || !fontsLoaded) {
     return (
       <View style={styles.splash}>
         <View style={styles.splashLogo}>
@@ -175,6 +189,7 @@ function AppContent() {
     <NavigationContainer ref={navigationRef}>
       <ErrorBoundary>
         <RootNavigator />
+        <SessionExpiredModal />
         <OfflineBanner />
         <Toast />
       </ErrorBoundary>

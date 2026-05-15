@@ -29,6 +29,7 @@ import { typography, spacing, borderRadius, shadows, formatPrice } from '../../l
 import { useTheme, Theme } from '../../theme/ThemeContext';
 
 import api from '../../lib/api';
+import { salonRepository } from '../../repositories/salonRepository';
 import { showToast } from '../../store/toastStore';
 import { Service, Salon } from '../../types';
 import { isAppError } from '../../types/error';
@@ -57,20 +58,7 @@ export default function ManageServicesScreen() {
 
   const { data: salon, isLoading, refetch, isRefetching } = useQuery<Salon | null>({
     queryKey: ['ownerSalon'],
-    queryFn: async () => {
-      try {
-        const response = await api.get('/owner/salon');
-        if (__DEV__) {
-          const svcCount = Array.isArray(response.data?.services) ? response.data.services.length : 0;
-          console.log('🧾 [OWNER_SALON][RES]', { salonId: response.data?.id, servicesCount: svcCount });
-        }
-        return response.data;
-      } catch (e: unknown) {
-        const err = e as { response?: { status?: number } };
-        if (err.response?.status === 404) return null;
-        throw e;
-      }
-    },
+    queryFn: () => salonRepository.getOwnerSalon(),
     staleTime: 0,
     refetchOnMount: true,
     refetchOnReconnect: true,

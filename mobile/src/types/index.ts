@@ -5,7 +5,20 @@ export interface User {
   phone?: string;
   role: 'customer' | 'owner';
   push_token?: string;
+  push_enabled?: boolean;
+  notify_bookings?: boolean;
+  notify_booking_updates?: boolean;
+  notify_promotional?: boolean;
+  notify_reminders?: boolean;
   created_at: string;
+}
+
+export interface NotificationPreferences {
+  push_enabled: boolean;
+  notify_bookings: boolean;
+  notify_booking_updates: boolean;
+  notify_promotional: boolean;
+  notify_reminders: boolean;
 }
 
 export interface Salon {

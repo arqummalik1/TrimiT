@@ -34,6 +34,7 @@ class SalonUpdate(BaseModel):
     auto_accept: Optional[bool] = None
     allow_multiple_bookings_per_slot: Optional[bool] = None
     max_bookings_per_slot: Optional[int] = None
+    show_offers: Optional[bool] = None
 
 class ServiceCreate(BaseModel):
     name: str
