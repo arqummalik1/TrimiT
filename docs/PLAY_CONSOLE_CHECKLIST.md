@@ -2,12 +2,30 @@
 
 Use this when completing **App content** before production release.
 
-## URLs (after `trimit.app` is deployed)
+## URLs (Vercel or custom domain)
+
+After deploying the **frontend** folder on Vercel, use your live base URL (e.g. `https://trimit-xxxx.vercel.app`):
 
 | Field | URL |
 |-------|-----|
-| Privacy policy | https://trimit.app/privacy |
-| Account deletion | https://trimit.app/contact |
+| Privacy policy | `https://YOUR-VERCEL-URL.vercel.app/privacy` |
+| Account deletion | `https://YOUR-VERCEL-URL.vercel.app/contact` |
+
+Set `REACT_APP_PUBLIC_SITE_URL` on Vercel to that base URL (no trailing slash), then redeploy.
+
+For mobile in-app web link, set EAS secret `EXPO_PUBLIC_PUBLIC_SITE_URL` to the same URL before production build.
+
+### Vercel deploy (quick)
+
+1. [vercel.com](https://vercel.com) → **Add New** → **Project** → import GitHub repo **TrimiT**
+2. **Root Directory:** `frontend`
+3. **Framework Preset:** Create React App (auto-detected)
+4. **Environment Variables** (Production):
+   - `REACT_APP_BACKEND_URL` = `https://trimit-az5h.onrender.com`
+   - `REACT_APP_SUPABASE_URL` = (your Supabase URL)
+   - `REACT_APP_SUPABASE_ANON_KEY` = (your anon key)
+5. Deploy → open `/privacy` and `/contact` on the assigned `*.vercel.app` URL
+6. Render backend → add `https://YOUR-VERCEL-URL.vercel.app` to `ALLOWED_ORIGINS` (comma-separated)
 
 ## Data safety (summary)
 
@@ -52,9 +70,9 @@ Use this when completing **App content** before production release.
 - [ ] Delete account (customer Profile, owner Settings)
 - [ ] Legal URLs load on device browser
 
-## DNS (trimit.app)
+## Optional: custom domain (`trimit.app`)
 
-Point `trimit.app` to your Render static site (`trimit-frontend`) or Vercel project. Enable HTTPS. Verify `/privacy` shows TrimiT salon policy (not trimit.com).
+Later: Vercel → Project → **Domains** → add `trimit.app` → DNS at your registrar. Do **not** use `trimit.com` (different company).
 
 ## Deferred (your note)
 

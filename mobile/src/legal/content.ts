@@ -48,7 +48,7 @@ You may:
 
 - Access and update your profile from **Profile** (customers) or **Settings** (salon owners).
 - **Delete your account** in-app from Profile → Account → Delete account, or Settings → Account → Delete account.
-- Request export or deletion of your data on the web at https://trimit.app/contact or by emailing privacy@trimit.app.
+- Request export or deletion of your data on the web via our Contact page or by emailing privacy@trimit.app.
 - Opt out of non-essential notifications.
 
 ## 6. Data Retention
