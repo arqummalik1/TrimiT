@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: April 27, 2026_
+_Last updated: May 15, 2026_
 
 TrimiT ("we", "our", or "us") respects your privacy. This Privacy Policy explains how we collect, use, and protect your information when you use the TrimiT platform — our website, mobile applications, and related services (the "Service").
 
@@ -45,7 +45,7 @@ You may:
 
 - Access and update your profile from **Profile** (customers) or **Settings** (salon owners).
 - **Delete your account** in-app from Profile → Account → Delete account, or Settings → Account → Delete account.
-- Request export or deletion of your data on the web via our Contact page or by emailing privacy@trimit.app.
+- Request export or deletion of your data on the web at https://trimi-t.vercel.app/contact or by emailing admin@audentix.com.
 - Opt out of non-essential notifications.
 
 ## 6. Data Retention
@@ -62,4 +62,4 @@ We may update this Privacy Policy from time to time. Material changes will be co
 
 ## 9. Contact
 
-For privacy questions or requests, contact us at **support@trimit.app**.
+For privacy questions or requests, contact us at **admin@audentix.com** or **+91 70060 82958**.

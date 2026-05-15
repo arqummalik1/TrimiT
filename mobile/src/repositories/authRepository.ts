@@ -1,5 +1,6 @@
 import { authService } from '../services/authService';
 import { setAuthToken } from '../services/apiClient';
+import { SUPPORT_EMAIL } from '../lib/contactInfo';
 import { User } from '../types';
 import axios from 'axios';
 
@@ -215,12 +216,12 @@ export const authRepository = {
         const message =
           (typeof detail === 'object' && detail?.message) ||
           (typeof detail === 'string' && detail) ||
-          'Could not delete your account. Please try again or contact support@trimit.app.';
+          `Could not delete your account. Please try again or contact ${SUPPORT_EMAIL}.`;
         return { success: false, error: message };
       }
       return {
         success: false,
-        error: 'Network error. Please try again or contact support@trimit.app.',
+        error: `Network error. Please try again or contact ${SUPPORT_EMAIL}.`,
       };
     }
   },

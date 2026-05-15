@@ -3,7 +3,7 @@
 
 export const PRIVACY_MD = `# Privacy Policy
 
-_Last updated: April 27, 2026_
+_Last updated: May 15, 2026_
 
 TrimiT ("we", "our", or "us") respects your privacy. This Privacy Policy explains how we collect, use, and protect your information when you use the TrimiT platform — our website, mobile applications, and related services (the "Service").
 
@@ -48,7 +48,7 @@ You may:
 
 - Access and update your profile from **Profile** (customers) or **Settings** (salon owners).
 - **Delete your account** in-app from Profile → Account → Delete account, or Settings → Account → Delete account.
-- Request export or deletion of your data on the web via our Contact page or by emailing privacy@trimit.app.
+- Request export or deletion of your data on the web at https://trimi-t.vercel.app/contact or by emailing admin@audentix.com.
 - Opt out of non-essential notifications.
 
 ## 6. Data Retention
@@ -65,12 +65,12 @@ We may update this Privacy Policy from time to time. Material changes will be co
 
 ## 9. Contact
 
-For privacy questions or requests, contact us at **support@trimit.app**.
+For privacy questions or requests, contact us at **admin@audentix.com** or **+91 70060 82958**.
 `;
 
 export const TERMS_MD = `# Terms of Service
 
-_Last updated: April 27, 2026_
+_Last updated: May 15, 2026_
 
 These Terms of Service ("Terms") govern your access to and use of TrimiT (the "Service"). By creating an account or using the Service you agree to these Terms.
 
@@ -118,7 +118,7 @@ You agree not to:
 
 You retain ownership of content you submit (profile photos, salon images, reviews). You grant TrimiT a worldwide, non-exclusive, royalty-free license to host, display, and distribute that content solely for operating and promoting the Service.
 
-Reviews and other user-generated content must be honest and based on your genuine experience. You must not post content that is false, defamatory, harassing, hateful, or infringes others' rights. We may remove or restrict content that violates these Terms or applicable law. To report inappropriate reviews or other content, contact us at **privacy@trimit.app** or via our Contact page.
+Reviews and other user-generated content must be honest and based on your genuine experience. You must not post content that is false, defamatory, harassing, hateful, or infringes others' rights. We may remove or restrict content that violates these Terms or applicable law. To report inappropriate reviews or other content, contact us at **admin@audentix.com**, **+91 70060 82958**, or via https://trimi-t.vercel.app/contact.
 
 ## 8. Intellectual Property
 
@@ -150,31 +150,40 @@ These Terms are governed by the laws of India. Disputes will be resolved in the 
 
 ## 15. Contact
 
-For questions about these Terms, contact us at **support@trimit.app**.
+For questions about these Terms, contact us at **admin@audentix.com** or **+91 70060 82958**.
 `;
 
 export const CONTACT_MD = `# Contact Us
 
 We'd love to hear from you. Whether you have a question about a booking, need help with your salon listing, or want to share feedback — we're here.
 
+**Website:** [trimi-t.vercel.app](https://trimi-t.vercel.app)
+
+- [Privacy Policy](https://trimi-t.vercel.app/privacy)
+- [Terms of Service](https://trimi-t.vercel.app/terms)
+- [Contact & account deletion](https://trimi-t.vercel.app/contact)
+
 ## Support
 
 For account, booking, or payment issues:
 
-- **Email**: support@trimit.app
+- **Phone**: +91 70060 82958
+- **Email**: admin@audentix.com
 - **Response time**: within 1 business day
 
-## Salon Partnerships
+## Salon partnerships
 
 If you run a salon and want to learn more about listing on TrimiT:
 
-- **Email**: partners@trimit.app
+- **Phone**: +91 70060 82958
+- **Email**: admin@audentix.com
 
-## Privacy & Legal
+## Privacy & legal
 
-For privacy requests, data export or deletion, or legal matters:
+For privacy requests, data export or deletion, or other legal matters:
 
-- **Email**: privacy@trimit.app
+- **Phone**: +91 70060 82958
+- **Email**: admin@audentix.com
 
 ## Account deletion {#account-deletion}
 
@@ -182,16 +191,16 @@ You can delete your TrimiT account and associated personal data in the following
 
 - **Mobile app (customers)**: Profile → Account → Delete account
 - **Mobile app (salon owners)**: Settings → Account → Delete account
-- **Website (customers)**: Account page → Delete account (when signed in)
+- **Website (customers)**: [Account](https://trimi-t.vercel.app/account) → Delete account (when signed in)
 - **Website (salon owners)**: Settings → Account → Delete account (when signed in)
-- **Web request**: email **privacy@trimit.app** from the address on your account with the subject "Account deletion"
+- **Web request**: email **admin@audentix.com** from the address on your account with the subject "Account deletion", or call **+91 70060 82958**
 
 Deletion is permanent and cannot be undone. Active bookings may be cancelled. We remove deleted account data within **30 days**, except where retention is required for legal, accounting, or fraud-prevention reasons.
 
 ## Office
 
-TrimiT
+TrimiT  
 India
 
-We don't accept walk-ins — please reach out by email and we'll route your message to the right team.
+We don't accept walk-ins — please reach out by phone or email and we'll route your message to the right team.
 `;

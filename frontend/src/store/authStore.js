@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '../lib/api';
+import { SUPPORT_EMAIL } from '../config/contact';
 
 export const useAuthStore = create(
   persist(
@@ -216,7 +217,7 @@ export const useAuthStore = create(
           const message =
             (typeof detail === 'object' && detail?.message) ||
             (typeof detail === 'string' && detail) ||
-            'Could not delete your account. Please try again or contact support@trimit.app.';
+            `Could not delete your account. Please try again or contact ${SUPPORT_EMAIL}.`;
           set({ isLoading: false, error: message });
           return { success: false, error: message };
         }

@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # App Settings
     PORT: int = 8000
     DEBUG: bool = True
-    ALLOWED_ORIGINS: str = "https://trimit.app,https://www.trimit.app,http://localhost:3000,http://localhost:8081"
+    ALLOWED_ORIGINS: str = "https://trimi-t.vercel.app,https://trimit.app,https://www.trimit.app,http://localhost:3000,http://localhost:8081"
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,

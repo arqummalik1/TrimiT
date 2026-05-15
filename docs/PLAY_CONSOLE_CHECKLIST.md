@@ -4,12 +4,15 @@ Use this when completing **App content** before production release.
 
 ## URLs (Vercel or custom domain)
 
-After deploying the **frontend** folder on Vercel, use your live base URL (e.g. `https://trimit-xxxx.vercel.app`):
+Live site: **https://trimi-t.vercel.app**
 
 | Field | URL |
 |-------|-----|
-| Privacy policy | `https://YOUR-VERCEL-URL.vercel.app/privacy` |
-| Account deletion | `https://YOUR-VERCEL-URL.vercel.app/contact` |
+| Privacy policy | https://trimi-t.vercel.app/privacy |
+| Terms | https://trimi-t.vercel.app/terms |
+| Account deletion | https://trimi-t.vercel.app/contact |
+
+Support: **admin@audentix.com** · **+91 70060 82958**
 
 Set `REACT_APP_PUBLIC_SITE_URL` on Vercel to that base URL (no trailing slash), then redeploy.
 
@@ -25,7 +28,7 @@ For mobile in-app web link, set EAS secret `EXPO_PUBLIC_PUBLIC_SITE_URL` to the 
    - `REACT_APP_SUPABASE_URL` = (your Supabase URL)
    - `REACT_APP_SUPABASE_ANON_KEY` = (your anon key)
 5. Deploy → open `/privacy` and `/contact` on the assigned `*.vercel.app` URL
-6. Render backend → add `https://YOUR-VERCEL-URL.vercel.app` to `ALLOWED_ORIGINS` (comma-separated)
+6. Render backend → `ALLOWED_ORIGINS` includes `https://trimi-t.vercel.app` (in `render.yaml`; redeploy backend if needed)
 
 ## Data safety (summary)
 
@@ -51,7 +54,7 @@ For mobile in-app web link, set EAS secret `EXPO_PUBLIC_PUBLIC_SITE_URL` to the 
 - **Target audience:** 18+; not designed for children
 - **Ads:** No (unless you add ads later)
 - **Financial features:** Yes — payments for physical salon services via Razorpay (not Play Billing)
-- **UGC:** Yes — reviews; moderated via support email (privacy@trimit.app)
+- **UGC:** Yes — reviews; moderated via admin@audentix.com
 - **Sensitive permissions:** Location (while in use), Camera/Photos (owners), Notifications
 
 ## Permissions (Android)

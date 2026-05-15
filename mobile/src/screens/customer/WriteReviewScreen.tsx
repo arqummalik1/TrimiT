@@ -21,6 +21,7 @@ import { showToast } from '../../store/toastStore';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
+import { SUPPORT_EMAIL } from '../../lib/contactInfo';
 
 export default function WriteReviewScreen({ navigation, route }: CustomerDiscoverScreenProps<'WriteReview'>) {
   const { theme } = useTheme();
@@ -138,9 +139,9 @@ export default function WriteReviewScreen({ navigation, route }: CustomerDiscove
             contact{' '}
             <Text
               style={styles.ugcLink}
-              onPress={() => void Linking.openURL('mailto:privacy@trimit.app')}
+              onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
             >
-              privacy@trimit.app
+              {SUPPORT_EMAIL}
             </Text>
             .
           </Text>

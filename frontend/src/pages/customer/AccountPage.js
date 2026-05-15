@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Trash, Warning } from '@phosphor-icons/react';
 import { useAuthStore } from '../../store/authStore';
+import { SUPPORT_EMAIL } from '../../config/contact';
 
 const AccountPage = () => {
   const navigate = useNavigate();
@@ -60,8 +61,8 @@ const AccountPage = () => {
             <p className="text-sm text-stone-600">
               Permanently delete your TrimiT account and associated personal data. You can also
               request deletion by emailing{' '}
-              <a href="mailto:privacy@trimit.app" className="text-orange-800 underline">
-                privacy@trimit.app
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="text-orange-800 underline">
+                {SUPPORT_EMAIL}
               </a>
               .
             </p>

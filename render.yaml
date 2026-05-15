@@ -32,7 +32,7 @@ services:
       - key: SENTRY_DSN
         sync: false
       - key: ALLOWED_ORIGINS
-        value: https://trimit.app,https://www.trimit.app,http://localhost:3000,http://localhost:8081
+        value: https://trimi-t.vercel.app,https://trimit.app,https://www.trimit.app,http://localhost:3000,http://localhost:8081
 
   - type: web
     name: trimit-frontend

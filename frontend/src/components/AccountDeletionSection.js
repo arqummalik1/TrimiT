@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash, Warning } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
+import { SUPPORT_EMAIL } from '../config/contact';
 
 const AccountDeletionSection = () => {
   const navigate = useNavigate();
@@ -60,8 +61,8 @@ const AccountDeletionSection = () => {
           Request deletion on the web
         </Link>
         {' · '}
-        <a href="mailto:privacy@trimit.app" className="text-orange-800 hover:underline">
-          privacy@trimit.app
+        <a href={`mailto:${SUPPORT_EMAIL}`} className="text-orange-800 hover:underline">
+          {SUPPORT_EMAIL}
         </a>
       </p>
     </div>

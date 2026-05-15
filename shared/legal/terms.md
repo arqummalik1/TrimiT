@@ -1,6 +1,6 @@
 # Terms of Service
 
-_Last updated: April 27, 2026_
+_Last updated: May 15, 2026_
 
 These Terms of Service ("Terms") govern your access to and use of TrimiT (the "Service"). By creating an account or using the Service you agree to these Terms.
 
@@ -48,7 +48,7 @@ You agree not to:
 
 You retain ownership of content you submit (profile photos, salon images, reviews). You grant TrimiT a worldwide, non-exclusive, royalty-free license to host, display, and distribute that content solely for operating and promoting the Service.
 
-Reviews and other user-generated content must be honest and based on your genuine experience. You must not post content that is false, defamatory, harassing, hateful, or infringes others' rights. We may remove or restrict content that violates these Terms or applicable law. To report inappropriate reviews or other content, contact us at **privacy@trimit.app** or via our Contact page.
+Reviews and other user-generated content must be honest and based on your genuine experience. You must not post content that is false, defamatory, harassing, hateful, or infringes others' rights. We may remove or restrict content that violates these Terms or applicable law. To report inappropriate reviews or other content, contact us at **admin@audentix.com**, **+91 70060 82958**, or via https://trimi-t.vercel.app/contact.
 
 ## 8. Intellectual Property
 
@@ -80,4 +80,4 @@ These Terms are governed by the laws of India. Disputes will be resolved in the 
 
 ## 15. Contact
 
-For questions about these Terms, contact us at **support@trimit.app**.
+For questions about these Terms, contact us at **admin@audentix.com** or **+91 70060 82958**.

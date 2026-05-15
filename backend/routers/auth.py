@@ -319,7 +319,7 @@ async def delete_account(request: Request, current_user: dict = Depends(get_curr
             status_code=500,
             detail={
                 "code": "ACCOUNT_DELETION_FAILED",
-                "message": "Could not delete your account. Please try again or contact support@trimit.app.",
+                "message": "Could not delete your account. Please try again or contact admin@audentix.com.",
             },
         )
 
