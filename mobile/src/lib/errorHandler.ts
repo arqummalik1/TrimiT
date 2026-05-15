@@ -27,9 +27,17 @@ export const handleApiError = (error: unknown): AppError => {
       // Prefer our backend unified error shape:
       // { success:false, error:{ code, message, details }, request_id }
       if (data?.error && typeof data.error === 'object') {
-        message = data.error.message || message;
-        code = data.error.code;
-        details = data.error.details;
+        const errObj = data.error;
+        const nested = errObj.details;
+        if (nested && typeof nested === 'object') {
+          const nestedMsg = (nested as { message?: string }).message;
+          const nestedCode = (nested as { code?: string }).code;
+          if (nestedMsg) message = nestedMsg;
+          if (nestedCode) code = nestedCode;
+        }
+        message = errObj.message || message;
+        code = code || errObj.code;
+        details = errObj.details;
         requestId = requestId || data.request_id;
       } else if (typeof data?.detail === 'object') {
         // FastAPI default: { detail: { message, code, ... } }

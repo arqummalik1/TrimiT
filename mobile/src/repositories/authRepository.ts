@@ -1,6 +1,7 @@
 import { authService } from '../services/authService';
 import { setAuthToken } from '../services/apiClient';
 import { SUPPORT_EMAIL } from '../lib/contactInfo';
+import { isAppError } from '../types/error';
 import { User } from '../types';
 import axios from 'axios';
 
@@ -9,11 +10,41 @@ export type AuthErrorCode =
   | 'EMAIL_CONFIRMATION_REQUIRED'
   | 'EMAIL_NOT_CONFIRMED'
   | 'ALREADY_REGISTERED'
+  | 'EMAIL_RATE_LIMIT'
+  | 'RATE_LIMITED'
+  | 'WEAK_PASSWORD'
+  | 'INVALID_EMAIL'
   | 'PROFILE_CREATION_FAILED'
   | 'LOGIN_FAILED'
   | 'SIGNUP_FAILED'
   | 'NETWORK_ERROR'
   | 'UNKNOWN';
+
+function parseAuthFailure(err: unknown): { message: string; code: AuthErrorCode } {
+  if (isAppError(err)) {
+    const nested = err.details as { code?: string; message?: string } | undefined;
+    const code = (nested?.code || err.code || 'UNKNOWN') as AuthErrorCode;
+    return {
+      message: err.message || nested?.message || 'Something went wrong. Please try again.',
+      code,
+    };
+  }
+  if (axios.isAxiosError(err)) {
+    const detail = err.response?.data?.detail;
+    const nested = err.response?.data?.error?.details;
+    const code =
+      (typeof nested === 'object' && nested?.code) ||
+      (typeof detail === 'object' && detail?.code) ||
+      'UNKNOWN';
+    const message =
+      (typeof nested === 'object' && nested?.message) ||
+      (typeof detail === 'object' && detail?.message) ||
+      (typeof detail === 'string' && detail) ||
+      'Something went wrong. Please try again.';
+    return { message, code: code as AuthErrorCode };
+  }
+  return { message: 'Network error. Please check your connection and try again.', code: 'NETWORK_ERROR' };
+}
 
 export interface AuthResult {
   user: User | null;
@@ -42,31 +73,21 @@ export const authRepository = {
     try {
       response = await authService.login({ email, password });
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        const detail = err.response?.data?.detail;
-        const code: AuthErrorCode =
-          (typeof detail === 'object' && detail?.code) || 'LOGIN_FAILED';
-        const message =
-          (typeof detail === 'object' && detail?.message) ||
-          (typeof detail === 'string' && detail) ||
-          'Login failed. Please check your credentials.';
-
-        if (code === 'EMAIL_NOT_CONFIRMED') {
-          return {
-            user: null,
-            token: null,
-            requiresEmailConfirmation: true,
-            error: message,
-            errorCode: code,
-          };
-        }
-        return { user: null, token: null, error: message, errorCode: code };
+      const { message, code } = parseAuthFailure(err);
+      if (code === 'EMAIL_NOT_CONFIRMED') {
+        return {
+          user: null,
+          token: null,
+          requiresEmailConfirmation: true,
+          error: message,
+          errorCode: code,
+        };
       }
       return {
         user: null,
         token: null,
-        error: 'Network error. Please try again.',
-        errorCode: 'NETWORK_ERROR',
+        error: message || 'Login failed. Please check your credentials.',
+        errorCode: code === 'NETWORK_ERROR' ? 'LOGIN_FAILED' : code,
       };
     }
 
@@ -126,22 +147,8 @@ export const authRepository = {
     try {
       response = await authService.signup(data);
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        const detail = err.response?.data?.detail;
-        const code: AuthErrorCode =
-          (typeof detail === 'object' && detail?.code) || 'SIGNUP_FAILED';
-        const message =
-          (typeof detail === 'object' && detail?.message) ||
-          (typeof detail === 'string' && detail) ||
-          'Signup failed. Please try again.';
-        return { user: null, token: null, error: message, errorCode: code };
-      }
-      return {
-        user: null,
-        token: null,
-        error: 'Network error. Please try again.',
-        errorCode: 'NETWORK_ERROR',
-      };
+      const { message, code } = parseAuthFailure(err);
+      return { user: null, token: null, error: message, errorCode: code };
     }
 
     const responseData = response.data as {

@@ -14,6 +14,7 @@ from models.auth import (
     ForgotPasswordRequest, ValidateTokenRequest, ResetPasswordRequest
 )
 from dependencies.auth import get_current_user, user_profile_cache
+from services.auth_errors import map_supabase_signup_error, safe_auth_response_json
 
 logger = logging.getLogger("trimit")
 
@@ -64,7 +65,7 @@ async def _upsert_user_profile(user_id: str, profile_data: dict) -> None:
 
 
 @router.post("/signup")
-@limiter.limit("3/minute")
+@limiter.limit("15/minute")
 async def signup(request: Request, user: UserCreate):
     """
     Sign up a new user.
@@ -82,8 +83,7 @@ async def signup(request: Request, user: UserCreate):
         "password": user.password,
     })
 
-    # Supabase may return 200 even for some error conditions — check body
-    auth_data = response.json() if response.status_code in (200, 201) else {}
+    auth_data = safe_auth_response_json(response)
 
     # Detect "user already registered" embedded in a 200 body
     if response.status_code in (200, 201) and isinstance(auth_data, dict):
@@ -91,25 +91,26 @@ async def signup(request: Request, user: UserCreate):
         if "already registered" in str(body_error).lower() or "already" in str(body_error).lower():
             raise HTTPException(
                 status_code=400,
-                detail={"code": "ALREADY_REGISTERED", "message": "An account with this email already exists."},
+                detail={
+                    "code": "ALREADY_REGISTERED",
+                    "message": "An account with this email already exists. Try signing in or use Forgot password.",
+                },
             )
 
     if response.status_code not in (200, 201):
-        error_data = auth_data if auth_data else {}
-        error_msg = (
-            error_data.get("msg")
-            or error_data.get("error_description")
-            or error_data.get("message")
-            or "Signup failed"
+        err_code, err_msg = map_supabase_signup_error(response)
+        logger.warning(
+            "Supabase signup failed status=%s email=%s code=%s body=%s",
+            response.status_code,
+            user.email,
+            err_code,
+            auth_data,
         )
-        if "rate limit" in str(error_msg).lower():
-            raise HTTPException(status_code=429, detail="Too many signup attempts. Please wait.")
-        if "already registered" in str(error_msg).lower() or "already" in str(error_msg).lower():
-            raise HTTPException(
-                status_code=400,
-                detail={"code": "ALREADY_REGISTERED", "message": "An account with this email already exists."},
-            )
-        raise HTTPException(status_code=400, detail={"code": "SIGNUP_FAILED", "message": error_msg})
+        http_status = 429 if err_code in ("RATE_LIMITED", "EMAIL_RATE_LIMIT") else 400
+        raise HTTPException(
+            status_code=http_status,
+            detail={"code": err_code, "message": err_msg},
+        )
 
     user_id = auth_data.get("user", {}).get("id") if isinstance(auth_data.get("user"), dict) else None
 
