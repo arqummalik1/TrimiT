@@ -28,6 +28,7 @@ interface AuthState {
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (data: { name?: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<{ success: boolean; error?: string }>;
   clearError: () => void;
   initializeAuth: () => void;
 }
@@ -153,20 +154,38 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      deleteAccount: async () => {
+        set({ isLoading: true, error: null });
+        const result = await authRepository.deleteAccount();
+        if (!result.success) {
+          set({ isLoading: false, error: result.error ?? 'Account deletion failed' });
+          return result;
+        }
+        await get().logout();
+        set({ isLoading: false });
+        return { success: true };
+      },
+
       logout: async () => {
         const { queryClient } = get();
         
-        console.log('[AuthStore] Logout initiated');
+        if (__DEV__) {
+          console.log('[AuthStore] Logout initiated');
+        }
         
         try {
           await supabase.auth.signOut();
         } catch (err) {
-          console.warn('[AuthStore] Supabase signOut failed:', err);
+          if (__DEV__) {
+            console.warn('[AuthStore] Supabase signOut failed:', err);
+          }
         }
         try {
           await supabase.realtime.setAuth();
         } catch (err) {
-          console.warn('[AuthStore] Realtime clear auth failed:', err);
+          if (__DEV__) {
+            console.warn('[AuthStore] Realtime clear auth failed:', err);
+          }
         }
         
         // Clear auth token from API client
@@ -187,25 +206,35 @@ export const useAuthStore = create<AuthState>()(
           isLoading: false,
         });
         
-        console.log('[AuthStore] Logout complete - state cleared');
+        if (__DEV__) {
+          console.log('[AuthStore] Logout complete - state cleared');
+        }
       },
 
       clearError: () => set({ error: null }),
 
       initializeAuth: async () => {
         const state = get();
-        console.log('[AuthStore] Initializing auth...');
+        if (__DEV__) {
+          console.log('[AuthStore] Initializing auth...');
+        }
         
         if (state.token) {
-          console.log('[AuthStore] Token found in storage, setting in API client');
+          if (__DEV__) {
+            console.log('[AuthStore] Token found in storage, setting in API client');
+          }
           setAuthToken(state.token);
           try {
             const { authService } = require('../services/authService');
             await authService.getMe();
-            console.log('[AuthStore] Auth initialized');
+            if (__DEV__) {
+              console.log('[AuthStore] Auth initialized');
+            }
             await syncSupabaseAuthSession(state.token, state.refreshToken);
           } catch (err) {
-            console.warn('[AuthStore] Stored token is invalid/expired, clearing session');
+            if (__DEV__) {
+              console.warn('[AuthStore] Stored token is invalid/expired, clearing session');
+            }
             setAuthToken(null);
             set({
               user: null,
@@ -215,7 +244,7 @@ export const useAuthStore = create<AuthState>()(
               error: null,
             });
           }
-        } else {
+        } else if (__DEV__) {
           console.log('[AuthStore] No token found in storage');
         }
       },

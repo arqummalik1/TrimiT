@@ -52,6 +52,7 @@ import {
   DISCOVER_FIT_MAX_MARKERS,
   DISCOVER_FIT_MAX_SPAN_KM,
   DISCOVER_CLUSTER_RADIUS,
+  DISCOVER_NEARBY_RADIUS_KM,
   computeApproxMaxSpanKm,
 } from './discoverMapConstants';
 
@@ -125,7 +126,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
       if (coords) {
         params.append('lat', coords.lat.toString());
         params.append('lng', coords.lng.toString());
-        params.append('radius', '50');
+        params.append('radius', String(DISCOVER_NEARBY_RADIUS_KM));
       }
       params.append('limit', '20');
       params.append('offset', pageParam.toString());
@@ -331,8 +332,8 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     }
     if (coords) {
       return source === 'gps_last_known'
-        ? 'Showing salons near you (refining location…)'
-        : 'Showing salons near you';
+        ? `Salons within ${DISCOVER_NEARBY_RADIUS_KM} km (refining location…)`
+        : `Salons within ${DISCOVER_NEARBY_RADIUS_KM} km of you`;
     }
     return errorMessage ?? 'Enable location for nearby salons';
   }, [locationReady, phase, coords, errorMessage, source]);
@@ -396,7 +397,9 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           key={salon.id}
           coordinate={coordinate}
           label={salon.name}
-          trackViewChanges={false}
+          variant="brand"
+          showLabel={false}
+          showCallout
           onPress={() => handleSalonPress(salon)}
         />
       )),

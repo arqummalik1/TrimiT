@@ -27,6 +27,7 @@ const SignupPage = () => {
     role: searchParams.get('role') || '',
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -41,6 +42,10 @@ const SignupPage = () => {
     clearError();
     
     if (!formData.role) {
+      return;
+    }
+
+    if (!acceptedTerms) {
       return;
     }
     
@@ -258,9 +263,29 @@ const SignupPage = () => {
                 </div>
               </div>
 
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-1 rounded border-stone-300 text-orange-800 focus:ring-orange-800"
+                  data-testid="signup-terms"
+                />
+                <span className="text-sm text-stone-600">
+                  I agree to the{' '}
+                  <Link to="/terms" className="text-orange-800 font-medium hover:underline">
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link to="/privacy" className="text-orange-800 font-medium hover:underline">
+                    Privacy Policy
+                  </Link>
+                </span>
+              </label>
+
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || !acceptedTerms}
                 data-testid="signup-submit"
                 className="w-full btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >

@@ -309,7 +309,9 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
               >
                 <SalonMapMarker
                   coordinate={selectedCoords}
-                  trackViewChanges={false}
+                  variant="brand"
+                  selected
+                  showCallout={false}
                 />
               </MapView>
             </View>

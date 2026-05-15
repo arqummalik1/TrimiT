@@ -58,6 +58,7 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
   const { signup, isLoading, error: authError, clearError } = useAuthStore();
 
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [emailConfirmationSent, setEmailConfirmationSent] = useState(false);
   const [confirmedEmail, setConfirmedEmail] = useState('');
 
@@ -72,6 +73,10 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
 
   const onSignupSubmit = async (data: SignupFormData) => {
     if (authError) clearError();
+
+    if (!acceptedTerms) {
+      return;
+    }
     
     const result = await signup(
       data.email.trim(),
@@ -252,10 +257,43 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
               </TouchableOpacity>
             </View>
 
+            <View style={styles.termsRow}>
+              <TouchableOpacity
+                style={styles.checkbox}
+                onPress={() => setAcceptedTerms((v) => !v)}
+                disabled={isLoading}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: acceptedTerms }}
+              >
+                <Ionicons
+                  name={acceptedTerms ? 'checkbox' : 'square-outline'}
+                  size={22}
+                  color={acceptedTerms ? theme.colors.primary : theme.colors.textSecondary}
+                />
+              </TouchableOpacity>
+              <Text style={styles.termsText}>
+                I agree to the{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => navigation.navigate('Terms')}
+                >
+                  Terms of Service
+                </Text>{' '}
+                and{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => navigation.navigate('PrivacyPolicy')}
+                >
+                  Privacy Policy
+                </Text>
+              </Text>
+            </View>
+
             <Button
               title="Create Account"
               onPress={handleSubmit(onSignupSubmit)}
               loading={isLoading}
+              disabled={!acceptedTerms}
               style={styles.submitButton}
             />
           </View>
@@ -341,6 +379,25 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     right: spacing.lg,
     top: 42,
     padding: spacing.xs,
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  checkbox: {
+    paddingTop: 2,
+  },
+  termsText: {
+    flex: 1,
+    ...typography.caption,
+    color: theme.colors.textSecondary,
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: theme.colors.primary,
+    fontWeight: '600',
   },
   submitButton: { marginTop: spacing.sm },
   footer: {

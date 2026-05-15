@@ -8,6 +8,7 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,11 @@ import { useTheme, ThemeMode } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { handleApiError } from '../../lib/errorHandler';
 import { salonRepository } from '../../repositories/salonRepository';
+import { showToast } from '../../store/toastStore';
+import {
+  ACCOUNT_DELETION_SUPPORT_EMAIL,
+  ACCOUNT_DELETION_WEB_URL,
+} from '../../lib/accountDeletion';
 
 import { OwnerSettingsScreenProps } from '../../navigation/types';
 
@@ -29,7 +35,8 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
   const { theme, themeMode, setThemeMode } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const queryClient = useQueryClient();
-  const { logout } = useAuthStore();
+  const { logout, deleteAccount, isLoading: authLoading } = useAuthStore();
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [allowMultipleBookings, setAllowMultipleBookings] = useState(false);
   const [autoAccept, setAutoAccept] = useState(true);
   const [enableOffers, setEnableOffers] = useState(true);
@@ -91,6 +98,65 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
   const handleSave = () => {
     saveMutation.mutate();
   };
+
+  const openAccountDeletionWeb = () => {
+    void Linking.openURL(ACCOUNT_DELETION_WEB_URL).catch(() => {
+      showToast(`Visit ${ACCOUNT_DELETION_WEB_URL} or email ${ACCOUNT_DELETION_SUPPORT_EMAIL}`, 'error');
+    });
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete account',
+      'This permanently deletes your TrimiT account, salon data, and associated records. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete account',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeletingAccount(true);
+            const result = await deleteAccount();
+            setIsDeletingAccount(false);
+            if (!result.success) {
+              showToast(result.error ?? 'Could not delete account', 'error');
+            } else {
+              showToast('Your account has been deleted', 'success');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const renderAccountDeletionSection = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Account</Text>
+      <View style={styles.settingCard}>
+        <Text style={styles.settingDescription}>
+          Delete your account and associated data from the app, or request deletion on the web.
+        </Text>
+        <TouchableOpacity
+          style={styles.deleteAccountButton}
+          onPress={handleDeleteAccount}
+          disabled={isDeletingAccount || authLoading}
+        >
+          {isDeletingAccount ? (
+            <ActivityIndicator size="small" color={theme.colors.error} />
+          ) : (
+            <>
+              <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+              <Text style={styles.deleteAccountText}>Delete account</Text>
+            </>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.deleteWebLink} onPress={openAccountDeletionWeb}>
+          <Text style={styles.deleteWebLinkText}>Request deletion on the web</Text>
+          <Ionicons name="open-outline" size={16} color={theme.colors.primary} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   if (salonLoading) {
     return (
@@ -229,6 +295,8 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
               <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
+
+          {renderAccountDeletionSection()}
 
           {/* Logout Section */}
           <View style={styles.section}>
@@ -547,6 +615,8 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
 
         </View>
 
+        {renderAccountDeletionSection()}
+
         {/* Logout Section */}
         <View style={styles.section}>
           <TouchableOpacity
@@ -831,6 +901,36 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
+  },
+  deleteAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.error + '55',
+    backgroundColor: theme.colors.error + '0D',
+  },
+  deleteAccountText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.error,
+  },
+  deleteWebLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 8,
+  },
+  deleteWebLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.primary,
   },
   logoutButton: {
     flexDirection: 'row',

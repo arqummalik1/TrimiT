@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,15 +22,20 @@ import { useTheme, ThemeMode } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { handleApiError } from '../../lib/errorHandler';
 import { ProfileStackScreenProps } from '../../navigation/types';
+import {
+  ACCOUNT_DELETION_SUPPORT_EMAIL,
+  ACCOUNT_DELETION_WEB_URL,
+} from '../../lib/accountDeletion';
 
 type ProfileStyles = ReturnType<typeof createStyles>;
 
 export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'ProfileMain'>) {
   const { theme, themeMode, setThemeMode } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { user, logout, setUser, token } = useAuthStore();
+  const { user, logout, deleteAccount, setUser, token, isLoading: authLoading } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
 
@@ -58,6 +65,36 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
         onPress: () => logout(),
       },
     ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete account',
+      'This permanently deletes your TrimiT account, profile, and associated data. Active bookings may be cancelled. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete account',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            const result = await deleteAccount();
+            setIsDeleting(false);
+            if (!result.success) {
+              showToast(result.error ?? 'Could not delete account', 'error');
+            } else {
+              showToast('Your account has been deleted', 'success');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const openAccountDeletionWeb = () => {
+    void Linking.openURL(ACCOUNT_DELETION_WEB_URL).catch(() => {
+      showToast(`Visit ${ACCOUNT_DELETION_WEB_URL} or email ${ACCOUNT_DELETION_SUPPORT_EMAIL}`, 'error');
+    });
   };
 
   return (
@@ -215,6 +252,32 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
           </View>
         </View>
 
+        {/* Account deletion (Google Play requirement) */}
+        <View style={[styles.card, shadows.sm, styles.linksCard, { marginBottom: spacing.lg }]}>
+          <Text style={styles.cardTitle}>Account</Text>
+          <Text style={styles.deleteHint}>
+            You can delete your account and associated data from the app, or request deletion on the web.
+          </Text>
+          <TouchableOpacity
+            style={styles.deleteAccountButton}
+            onPress={handleDeleteAccount}
+            disabled={isDeleting || authLoading}
+          >
+            {isDeleting ? (
+              <ActivityIndicator size="small" color={theme.colors.error} />
+            ) : (
+              <>
+                <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+                <Text style={styles.deleteAccountText}>Delete account</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.deleteWebLink} onPress={openAccountDeletionWeb}>
+            <Text style={styles.deleteWebLinkText}>Request deletion on the web</Text>
+            <Ionicons name="open-outline" size={16} color={theme.colors.primary} />
+          </TouchableOpacity>
+        </View>
+
         {/* Logout */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={22} color={theme.colors.error} />
@@ -370,6 +433,39 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   infoValue: {
     ...typography.bodySmallMedium,
     color: theme.colors.text,
+  },
+  deleteHint: {
+    ...typography.caption,
+    color: theme.colors.textSecondary,
+    marginBottom: spacing.md,
+    lineHeight: 18,
+  },
+  deleteAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.error + '55',
+    backgroundColor: theme.colors.error + '0D',
+    marginBottom: spacing.sm,
+  },
+  deleteAccountText: {
+    ...typography.bodySmallMedium,
+    color: theme.colors.error,
+  },
+  deleteWebLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: spacing.sm,
+  },
+  deleteWebLinkText: {
+    ...typography.captionMedium,
+    color: theme.colors.primary,
   },
   logoutButton: {
     flexDirection: 'row',

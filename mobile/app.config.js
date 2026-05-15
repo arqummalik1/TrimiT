@@ -40,7 +40,7 @@ module.exports = ({ config }) => {
       android: {
         package: 'com.trimit.app',
         adaptiveIcon: {
-          foregroundImage: './assets/SquareLogo.png',
+          foregroundImage: './assets/adaptive-icon.png',
           backgroundColor: '#000000',
         },
         edgeToEdgeEnabled: true,
@@ -48,9 +48,8 @@ module.exports = ({ config }) => {
           'android.permission.ACCESS_FINE_LOCATION',
           'android.permission.ACCESS_COARSE_LOCATION',
           'android.permission.CAMERA',
-          'android.permission.READ_EXTERNAL_STORAGE',
-          'android.permission.NOTIFICATIONS',
-          'android.permission.RECORD_AUDIO',
+          'android.permission.READ_MEDIA_IMAGES',
+          'android.permission.POST_NOTIFICATIONS',
         ],
         config: {
           googleMaps: {

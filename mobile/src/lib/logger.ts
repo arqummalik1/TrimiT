@@ -4,7 +4,7 @@ import * as Sentry from '@sentry/react-native';
  * Paused with App.tsx (no Sentry.init / no wrap). Set true and restore Sentry in App.tsx
  * to send breadcrumbs and exceptions again.
  */
-const SENTRY_ENABLED = false;
+const SENTRY_ENABLED = Boolean(process.env.EXPO_PUBLIC_SENTRY_DSN);
 
 /**
  * logger.ts

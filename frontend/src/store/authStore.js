@@ -203,6 +203,24 @@ export const useAuthStore = create(
           return { success: false, error: message };
         }
       },
+
+      deleteAccount: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          await api.delete('/auth/account');
+          get().logout();
+          set({ isLoading: false });
+          return { success: true };
+        } catch (error) {
+          const detail = error.response?.data?.detail;
+          const message =
+            (typeof detail === 'object' && detail?.message) ||
+            (typeof detail === 'string' && detail) ||
+            'Could not delete your account. Please try again or contact support@trimit.app.';
+          set({ isLoading: false, error: message });
+          return { success: false, error: message };
+        }
+      },
     }),
     {
       name: 'trimit-auth',

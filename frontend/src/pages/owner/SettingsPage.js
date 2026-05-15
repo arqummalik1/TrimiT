@@ -15,6 +15,7 @@ import {
   Users
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
+import AccountDeletionSection from '../../components/AccountDeletionSection';
 
 const SettingsPage = () => {
   const queryClient = useQueryClient();
@@ -96,6 +97,7 @@ const SettingsPage = () => {
               Create Salon
             </Link>
           </div>
+          <AccountDeletionSection />
         </div>
       </div>
     );
@@ -279,6 +281,8 @@ const SettingsPage = () => {
             )}
           </div>
         </motion.div>
+
+        <AccountDeletionSection />
       </div>
     </div>
   );

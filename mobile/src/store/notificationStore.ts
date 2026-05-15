@@ -11,6 +11,10 @@ import { create } from 'zustand';
 import { Audio } from 'expo-av';
 import type { Booking } from '../types';
 
+const devLog = (...args: unknown[]) => {
+  if (__DEV__) devLog(...args);
+};
+
 export interface BookingNotification {
   id: string;
   booking: Booking;
@@ -53,7 +57,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   // Add a new notification
   addNotification: (booking, type) => {
-    console.log('[NotificationStore] Adding notification:', { bookingId: booking.id, type });
+    devLog('[NotificationStore] Adding notification:', { bookingId: booking.id, type });
     
     const notification: BookingNotification = {
       id: `${booking.id}-${Date.now()}`,
@@ -75,7 +79,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       void get().playNotificationSound();
     }
 
-    console.log('[NotificationStore] ✅ Notification recorded', { type, modal: type === 'new_booking' });
+    devLog('[NotificationStore] ✅ Notification recorded', { type, modal: type === 'new_booking' });
   },
 
   // Mark notification as read
@@ -126,7 +130,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   // Set active notification (for modal display)
   setActiveNotification: (notification) => {
-    console.log('[NotificationStore] Setting active notification:', notification?.id);
+    devLog('[NotificationStore] Setting active notification:', notification?.id);
     set({ activeNotification: notification });
     if (notification) {
       get().markAsRead(notification.id);
@@ -137,12 +141,12 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   playNotificationSound: async () => {
     const { soundEnabled, sound } = get();
     if (!soundEnabled || !sound) {
-      console.log('[NotificationStore] Sound disabled or not loaded');
+      devLog('[NotificationStore] Sound disabled or not loaded');
       return;
     }
 
     try {
-      console.log('[NotificationStore] Playing notification sound');
+      devLog('[NotificationStore] Playing notification sound');
       await sound.replayAsync();
     } catch (error) {
       console.warn('[NotificationStore] Failed to play sound:', error);
@@ -157,13 +161,13 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   // Initialize sound
   initializeSound: async () => {
     try {
-      console.log('[NotificationStore] Initializing notification sound');
+      devLog('[NotificationStore] Initializing notification sound');
       const { sound } = await Audio.Sound.createAsync(
         require('../../assets/sounds/notification.mp3'),
         { shouldPlay: false }
       );
       set({ sound });
-      console.log('[NotificationStore] ✅ Sound initialized');
+      devLog('[NotificationStore] ✅ Sound initialized');
     } catch (error) {
       console.warn('[NotificationStore] Failed to load sound:', error);
     }

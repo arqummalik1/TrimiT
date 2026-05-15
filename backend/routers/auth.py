@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request, HTTPException, Depends, status
+from fastapi.responses import JSONResponse
 from typing import Dict, Any
 from datetime import datetime, timezone
 import httpx
@@ -287,3 +288,39 @@ async def reset_password(data: ResetPasswordRequest):
     if response.status_code != 200:
         raise HTTPException(status_code=400, detail="Failed to reset password")
     return {"message": "Password reset successful"}
+
+
+@router.delete("/account")
+@limiter.limit("3/hour")
+async def delete_account(request: Request, current_user: dict = Depends(get_current_user)):
+    """
+    Permanently delete the authenticated user's account and associated data.
+    Cascades via FK (public.users → auth.users ON DELETE CASCADE).
+    Required for Google Play account-deletion policy.
+    """
+    user_id = current_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    response = await supabase.request(
+        "DELETE",
+        f"auth/v1/admin/users/{user_id}",
+        service_role=True,
+    )
+
+    if response.status_code not in (200, 204):
+        logger.error(
+            "Account deletion failed for user %s: %s %s",
+            user_id,
+            response.status_code,
+            response.text,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "ACCOUNT_DELETION_FAILED",
+                "message": "Could not delete your account. Please try again or contact support@trimit.app.",
+            },
+        )
+
+    return {"message": "Account deleted successfully"}

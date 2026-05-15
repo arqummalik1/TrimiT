@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
@@ -131,6 +132,18 @@ export default function WriteReviewScreen({ navigation, route }: CustomerDiscove
             disabled={rating === 0}
             style={{ marginTop: spacing.xxl }}
           />
+
+          <Text style={styles.ugcNotice}>
+            Reviews must be honest and based on your experience. To report inappropriate content,
+            contact{' '}
+            <Text
+              style={styles.ugcLink}
+              onPress={() => void Linking.openURL('mailto:privacy@trimit.app')}
+            >
+              privacy@trimit.app
+            </Text>
+            .
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenWrapper>
@@ -193,6 +206,17 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     minHeight: 120,
     borderWidth: 1,
     borderColor: theme.colors.border,
+  },
+  ugcNotice: {
+    ...typography.caption,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.lg,
+    lineHeight: 18,
+  },
+  ugcLink: {
+    color: theme.colors.primary,
+    fontWeight: '600',
   },
   charCount: {
     ...typography.caption,

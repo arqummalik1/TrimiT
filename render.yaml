@@ -32,4 +32,25 @@ services:
       - key: SENTRY_DSN
         sync: false
       - key: ALLOWED_ORIGINS
-        value: https://trimit.com,http://localhost:3000,http://localhost:8081
+        value: https://trimit.app,https://www.trimit.app,http://localhost:3000,http://localhost:8081
+
+  - type: web
+    name: trimit-frontend
+    env: static
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: build
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: REACT_APP_BACKEND_URL
+        value: https://trimit-az5h.onrender.com
+      - key: REACT_APP_SUPABASE_URL
+        sync: false
+      - key: REACT_APP_SUPABASE_ANON_KEY
+        sync: false

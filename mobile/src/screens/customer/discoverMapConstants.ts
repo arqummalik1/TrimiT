@@ -1,5 +1,8 @@
 import type { Coordinates } from '../../lib/maps';
 
+/** Nearby salons API search radius (km). */
+export const DISCOVER_NEARBY_RADIUS_KM = 50;
+
 /** Debounce for client-side salon name/address filter (ms). */
 export const DISCOVER_SEARCH_DEBOUNCE_MS = 250;
 

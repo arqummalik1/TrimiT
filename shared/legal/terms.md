@@ -48,6 +48,8 @@ You agree not to:
 
 You retain ownership of content you submit (profile photos, salon images, reviews). You grant TrimiT a worldwide, non-exclusive, royalty-free license to host, display, and distribute that content solely for operating and promoting the Service.
 
+Reviews and other user-generated content must be honest and based on your genuine experience. You must not post content that is false, defamatory, harassing, hateful, or infringes others' rights. We may remove or restrict content that violates these Terms or applicable law. To report inappropriate reviews or other content, contact us at **privacy@trimit.app** or via our Contact page.
+
 ## 8. Intellectual Property
 
 The Service, including the TrimiT name, logo, design, and code, is owned by TrimiT and protected by copyright and trademark laws. Nothing in these Terms grants you any right to our trademarks.

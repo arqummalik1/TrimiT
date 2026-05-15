@@ -204,5 +204,25 @@ export const authRepository = {
     await authService.updateProfile(data);
     return data;
   },
+
+  async deleteAccount(): Promise<{ success: boolean; error?: string }> {
+    try {
+      await authService.deleteAccount();
+      return { success: true };
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        const detail = err.response?.data?.detail;
+        const message =
+          (typeof detail === 'object' && detail?.message) ||
+          (typeof detail === 'string' && detail) ||
+          'Could not delete your account. Please try again or contact support@trimit.app.';
+        return { success: false, error: message };
+      }
+      return {
+        success: false,
+        error: 'Network error. Please try again or contact support@trimit.app.',
+      };
+    }
+  },
 };
 

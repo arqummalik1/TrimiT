@@ -199,7 +199,8 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                     longitude: salon.longitude,
                   }}
                   label={salon.name}
-                  trackViewChanges={false}
+                  variant="brand"
+                  showCallout={false}
                 />
               </MapView>
 

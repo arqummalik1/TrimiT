@@ -21,6 +21,18 @@ For privacy requests, data export or deletion, or legal matters:
 
 - **Email**: privacy@trimit.app
 
+## Account deletion {#account-deletion}
+
+You can delete your TrimiT account and associated personal data in the following ways:
+
+- **Mobile app (customers)**: Profile → Account → Delete account
+- **Mobile app (salon owners)**: Settings → Account → Delete account
+- **Website (customers)**: Account page → Delete account (when signed in)
+- **Website (salon owners)**: Settings → Account → Delete account (when signed in)
+- **Web request**: email **privacy@trimit.app** from the address on your account with the subject "Account deletion"
+
+Deletion is permanent and cannot be undone. Active bookings may be cancelled. We remove deleted account data within **30 days**, except where retention is required for legal, accounting, or fraud-prevention reasons.
+
 ## Office
 
 TrimiT

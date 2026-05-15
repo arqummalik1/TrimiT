@@ -86,7 +86,10 @@ app.add_middleware(SignatureMiddleware)
 
 # CORSMiddleware must be added LAST to be the outermost layer (executes first on request)
 # Parse allowed origins from environment variable
-ALLOWED_ORIGINS_STR = os.environ.get("ALLOWED_ORIGINS", "https://trimit.com,http://localhost:3000,http://localhost:8081")
+ALLOWED_ORIGINS_STR = os.environ.get(
+    "ALLOWED_ORIGINS",
+    "https://trimit.app,https://www.trimit.app,http://localhost:3000,http://localhost:8081",
+)
 ALLOWED_ORIGINS_LIST = [o.strip() for o in ALLOWED_ORIGINS_STR.split(",") if o.strip()]
 
 # Always add localhost origins for mobile development

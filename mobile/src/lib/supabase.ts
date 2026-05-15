@@ -88,7 +88,9 @@ export const subscribeToBookings = (
   bookingDate: string,
   onChange: (payload: BookingPayload) => void
 ): RealtimeChannel => {
-  console.log('[Supabase] Subscribing to bookings:', { salonId, bookingDate });
+  if (__DEV__) {
+    console.log('[Supabase] Subscribing to bookings:', { salonId, bookingDate });
+  }
   
   const channel = supabase
     .channel(`bookings:${salonId}:${bookingDate}`)
@@ -101,7 +103,9 @@ export const subscribeToBookings = (
         filter: `salon_id=eq.${salonId}`,
       },
       (payload: BookingPayload) => {
-        console.log('[Supabase] Booking change received:', payload.eventType, payload);
+        if (__DEV__) {
+          console.log('[Supabase] Booking change received:', payload.eventType, payload);
+        }
         const newRecord = payload.new as Record<string, unknown> | undefined;
         const oldRecord = payload.old as Record<string, unknown> | undefined;
         const newDate = newRecord?.booking_date;
@@ -112,7 +116,9 @@ export const subscribeToBookings = (
       }
     )
     .subscribe((status, err) => {
-      console.log('[Supabase] bookings channel status:', { salonId, bookingDate, status, err: err?.message });
+      if (__DEV__) {
+        console.log('[Supabase] bookings channel status:', { salonId, bookingDate, status, err: err?.message });
+      }
     });
 
   return channel;
@@ -120,7 +126,9 @@ export const subscribeToBookings = (
 
 // Helper to unsubscribe from a channel
 export const unsubscribeFromBookings = (channel: RealtimeChannel): void => {
-  console.log('[Supabase] Unsubscribing from channel');
+  if (__DEV__) {
+    console.log('[Supabase] Unsubscribing from channel');
+  }
   supabase.removeChannel(channel);
 };
 
@@ -129,7 +137,9 @@ export const subscribeToSalonBookings = (
   salonId: string,
   onChange: (payload: BookingPayload) => void
 ): RealtimeChannel => {
-  console.log('[Supabase] Subscribing to salon bookings:', salonId);
+  if (__DEV__) {
+    console.log('[Supabase] Subscribing to salon bookings:', salonId);
+  }
   
   const channel = supabase
     .channel(`salon-bookings:${salonId}`)
@@ -142,20 +152,20 @@ export const subscribeToSalonBookings = (
         filter: `salon_id=eq.${salonId}`,
       },
       (payload: BookingPayload) => {
-        console.log('[Supabase] ✅ BOOKING EVENT RECEIVED:', {
-          eventType: payload.eventType,
-          new: payload.new,
-          old: payload.old,
-        });
+        if (__DEV__) {
+          console.log('[Supabase] ✅ BOOKING EVENT RECEIVED:', {
+            eventType: payload.eventType,
+            new: payload.new,
+            old: payload.old,
+          });
+        }
         onChange(payload);
       }
     )
     .subscribe((status, err) => {
-      if (status === 'SUBSCRIBED') {
-        console.log('[Supabase] ✅ salon-bookings SUBSCRIBED', { salonId });
-      } else if (status === 'CHANNEL_ERROR') {
+      if (status === 'CHANNEL_ERROR') {
         console.error('[Supabase] ❌ salon-bookings CHANNEL_ERROR', { salonId, err });
-      } else {
+      } else if (__DEV__) {
         console.log('[Supabase] salon-bookings status', { salonId, status, err: err?.message });
       }
     });

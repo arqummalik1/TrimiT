@@ -20,6 +20,10 @@ import {
   getLastNotificationResponse 
 } from '../lib/notifications';
 
+const devLog = (...args: unknown[]) => {
+  if (__DEV__) console.log(...args);
+};
+
 // Configure notifications to show and play sound when app is in foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -127,14 +131,14 @@ export default function OwnerTabs() {
     salonId: salon?.id,
     enabled: isReady && !!salon?.id,
     onNewBooking: (booking) => {
-      console.log('[OwnerTabs] New booking received:', booking.id);
+      devLog('[OwnerTabs] New booking received:', booking.id);
       // Notification is automatically added by the hook
     },
     onBookingUpdate: (booking) => {
-      console.log('[OwnerTabs] Booking updated:', booking.id);
+      devLog('[OwnerTabs] Booking updated:', booking.id);
     },
     onBookingDelete: (bookingId) => {
-      console.log('[OwnerTabs] Booking deleted:', bookingId);
+      devLog('[OwnerTabs] Booking deleted:', bookingId);
     },
   });
 

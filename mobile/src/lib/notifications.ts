@@ -13,6 +13,10 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import api from './api';
 
+const devLog = (...args: unknown[]) => {
+  if (__DEV__) devLog(...args);
+};
+
 // Configure notification behavior (avoid deprecated shouldShowAlert)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -36,7 +40,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
       'e4f2eade-fe15-4a16-8766-83b0771a4643';
 
     if (Constants.appOwnership === 'expo') {
-      console.log(
+      devLog(
         '[Notifications] Expo Go: attempting push token (use a dev build for production-grade remote push).'
       );
     }
@@ -44,7 +48,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
     // Check if running on a physical device (using Constants instead of Device)
     const isDevice = Constants.isDevice;
     if (!isDevice) {
-      console.log('[Notifications] Skipping push registration: not a physical device (simulator).');
+      devLog('[Notifications] Skipping push registration: not a physical device (simulator).');
       return null;
     }
 
@@ -68,7 +72,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
     });
 
     const token = tokenData.data;
-    console.log('[Notifications] ✅ Push token obtained:', token.substring(0, 30) + '...');
+    devLog('[Notifications] ✅ Push token obtained:', token.substring(0, 30) + '...');
 
     // Configure Android notification channel
     if (Platform.OS === 'android') {
@@ -83,7 +87,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
         showBadge: true,
       });
 
-      console.log('[Notifications] ✅ Android notification channel configured');
+      devLog('[Notifications] ✅ Android notification channel configured');
     }
 
     return token;
@@ -104,7 +108,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
 export async function sendPushTokenToBackend(token: string): Promise<boolean> {
   try {
     await api.post('/auth/push-token', { push_token: token });
-    console.log('[Notifications] ✅ Push token sent to backend');
+    devLog('[Notifications] ✅ Push token sent to backend');
     return true;
   } catch (error) {
     console.error('[Notifications] ❌ Failed to send push token to backend:', error);
@@ -122,7 +126,7 @@ export async function sendPushTokenToBackend(token: string): Promise<boolean> {
  */
 export async function setupPushNotifications(): Promise<void> {
   try {
-    console.log('[Notifications] Setting up push notifications...');
+    devLog('[Notifications] Setting up push notifications...');
 
     const token = await registerForPushNotifications();
     if (!token) {
@@ -132,7 +136,7 @@ export async function setupPushNotifications(): Promise<void> {
 
     const success = await sendPushTokenToBackend(token);
     if (success) {
-      console.log('[Notifications] ✅ Push notifications setup complete');
+      devLog('[Notifications] ✅ Push notifications setup complete');
     } else {
       console.warn('[Notifications] ⚠️ Failed to register token with backend');
     }
@@ -229,7 +233,7 @@ export async function scheduleBookingReminder(params: {
           date: reminderDate,
         },
       });
-      console.log('[Notifications] ✅ Scheduled reminder for:', reminderDate.toISOString());
+      devLog('[Notifications] ✅ Scheduled reminder for:', reminderDate.toISOString());
     }
   } catch (error) {
     console.warn('[Notifications] ⚠️ Failed to schedule reminder:', error);

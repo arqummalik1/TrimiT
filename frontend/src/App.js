@@ -21,6 +21,7 @@ import SettingsPage from './pages/owner/SettingsPage';
 import PrivacyPage from './pages/legal/PrivacyPage';
 import TermsPage from './pages/legal/TermsPage';
 import ContactPage from './pages/legal/ContactPage';
+import AccountPage from './pages/customer/AccountPage';
 
 // Components
 import Header from './components/Header';
@@ -121,6 +122,14 @@ function App() {
                 <MyBookings />
               </ProtectedRoute>
             } 
+          />
+          <Route
+            path="/account"
+            element={
+              <ProtectedRoute allowedRoles={['customer']}>
+                <AccountPage />
+              </ProtectedRoute>
+            }
           />
           
           {/* Owner Routes */}

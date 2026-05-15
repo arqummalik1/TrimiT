@@ -60,6 +60,20 @@ const Header = () => {
                   </span>
                 </Link>
                 <Link
+                  to="/account"
+                  data-testid="nav-account"
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    isActive('/account')
+                      ? 'bg-orange-100 text-orange-800'
+                      : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <User size={18} weight={isActive('/account') ? 'fill' : 'regular'} />
+                    Account
+                  </span>
+                </Link>
+                <Link
                   to="/my-bookings"
                   data-testid="nav-my-bookings"
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
@@ -118,6 +132,20 @@ const Header = () => {
                   <span className="flex items-center gap-2">
                     <List size={18} weight={isActive('/owner/services') ? 'fill' : 'regular'} />
                     Services
+                  </span>
+                </Link>
+                <Link
+                  to="/owner/settings"
+                  data-testid="nav-settings"
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    isActive('/owner/settings')
+                      ? 'bg-orange-100 text-orange-800'
+                      : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <User size={18} weight={isActive('/owner/settings') ? 'fill' : 'regular'} />
+                    Settings
                   </span>
                 </Link>
                 <Link

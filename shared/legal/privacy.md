@@ -43,8 +43,9 @@ Your data is stored on Supabase infrastructure. We use industry-standard measure
 
 You may:
 
-- Access, update, or delete your account information at any time from your profile settings.
-- Request export or deletion of your data by contacting us at the email below.
+- Access and update your profile from **Profile** (customers) or **Settings** (salon owners).
+- **Delete your account** in-app from Profile → Account → Delete account, or Settings → Account → Delete account.
+- Request export or deletion of your data on the web at https://trimit.app/contact or by emailing privacy@trimit.app.
 - Opt out of non-essential notifications.
 
 ## 6. Data Retention

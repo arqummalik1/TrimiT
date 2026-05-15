@@ -24,4 +24,8 @@ export const authService = {
   getMe: async () => {
     return apiClient.get('/auth/me');
   },
+
+  deleteAccount: async () => {
+    return apiClient.delete('/auth/account');
+  },
 };

@@ -242,8 +242,10 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           >
             <SalonMapMarker
               coordinate={selectedCoords}
-              trackViewChanges // owner is actively moving the pin → allow updates
+              variant="brand"
               selected
+              trackViewChanges
+              showCallout={false}
             />
           </MapView>
 
