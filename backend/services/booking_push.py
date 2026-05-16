@@ -5,7 +5,7 @@ Booking-related push helpers used by bookings router.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from core.supabase import supabase
 from services import push_dispatch
@@ -16,7 +16,7 @@ logger = logging.getLogger("trimit")
 async def fetch_booking_push_context(booking_id: str, token: str) -> Optional[Dict[str, Any]]:
     resp = await supabase.request(
         "GET",
-        f"rest/v1/bookings?id=eq.{booking_id}&select=id,user_id,status,booking_date,time_slot,services(name),salons(owner_id,name)",
+        f"rest/v1/bookings?id=eq.{booking_id}&select=id,user_id,status,booking_date,time_slot,amount,payment_method,payment_status,services(name),salons(owner_id,name)",
         token=token,
     )
     if resp.status_code != 200 or not resp.json():
@@ -39,6 +39,9 @@ async def fetch_booking_push_context(booking_id: str, token: str) -> Optional[Di
         "service_name": service_name,
         "owner_id": salons.get("owner_id") if isinstance(salons, dict) else None,
         "salon_name": salons.get("name", "Salon") if isinstance(salons, dict) else "Salon",
+        "amount": row.get("amount"),
+        "payment_method": row.get("payment_method"),
+        "payment_status": row.get("payment_status"),
     }
 
 
@@ -56,22 +59,30 @@ async def fetch_user_name(user_id: str) -> str:
 async def after_booking_created(
     *,
     booking_id: str,
-    salon_owner_id: str,
+    salon_owner_id: Optional[str],
     customer_id: str,
     customer_name: str,
     service_name: str,
     booking_date: str,
     time_slot: str,
     initial_status: str,
+    is_premium: bool = False,
+    payment_method: Optional[str] = None,
 ) -> None:
-    await push_dispatch.notify_owner_new_booking(
-        owner_id=salon_owner_id,
-        booking_id=booking_id,
-        customer_name=customer_name,
-        service_name=service_name,
-        booking_date=booking_date,
-        time_slot=time_slot,
-    )
+    if salon_owner_id:
+        await push_dispatch.notify_owner_new_booking(
+            owner_id=salon_owner_id,
+            booking_id=booking_id,
+            customer_name=customer_name,
+            service_name=service_name,
+            booking_date=booking_date,
+            time_slot=time_slot,
+            is_premium=is_premium,
+            payment_method=payment_method,
+        )
+    else:
+        logger.error("[Push] after_booking_created missing owner_id booking_id=%s", booking_id)
+
     if initial_status == "confirmed":
         await push_dispatch.notify_customer_booking_confirmed(
             customer_id=customer_id,
@@ -79,6 +90,25 @@ async def after_booking_created(
             service_name=service_name,
             booking_date=booking_date,
             time_slot=time_slot,
+        )
+
+
+async def after_payment_verified(
+    *,
+    booking_id: str,
+    owner_id: Optional[str],
+    customer_id: str,
+    customer_name: str,
+    service_name: str,
+    amount: float,
+) -> None:
+    if owner_id:
+        await push_dispatch.notify_owner_payment_received(
+            owner_id=owner_id,
+            booking_id=booking_id,
+            customer_name=customer_name,
+            service_name=service_name,
+            amount=amount,
         )
 
 

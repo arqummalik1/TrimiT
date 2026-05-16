@@ -5,7 +5,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import * as Notifications from 'expo-notifications';
 import { OwnerTabParamList, OwnerSettingsStackParamList } from './types';
 import { useTheme } from '../theme/ThemeContext';
 import { salonRepository } from '../repositories/salonRepository';
@@ -96,11 +95,7 @@ export default function OwnerTabs() {
   useEffect(() => {
     initializeSound();
     
-    // Request notification permissions
-    Notifications.requestPermissionsAsync();
-    
-    // Setup push notifications (safe - won't break if it fails)
-    setupPushNotifications().catch((error) => {
+    void setupPushNotifications().catch((error) => {
       console.warn('[OwnerTabs] Push notification setup failed (non-critical):', error);
     });
     

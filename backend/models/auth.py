@@ -30,7 +30,14 @@ class NotificationPreferencesUpdate(BaseModel):
     notify_reminders: Optional[bool] = None
 
 class PushTokenUpdate(BaseModel):
-    push_token: str = Field(..., description="Expo push token (ExponentPushToken[...])")
+    push_token: Optional[str] = Field(
+        None,
+        description="Expo push token (ExponentPushToken[...]) or null to unregister",
+    )
+
+class ResendConfirmationRequest(BaseModel):
+    email: EmailStr
+
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr

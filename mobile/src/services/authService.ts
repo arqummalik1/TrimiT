@@ -13,6 +13,10 @@ export const authService = {
     return apiClient.post('/auth/forgot-password', { email });
   },
 
+  resendConfirmation: async (email: string) => {
+    return apiClient.post('/auth/resend-confirmation', { email });
+  },
+
   updateProfile: async (data: Partial<{ name: string; phone: string }>) => {
     return apiClient.patch('/auth/profile', data);
   },

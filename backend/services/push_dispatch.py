@@ -8,7 +8,11 @@ import logging
 from typing import Any, Dict, Optional
 
 from services.push_notifications import push_service
-from services.push_preferences import record_notification_event, should_send_push
+from services.push_preferences import (
+    is_duplicate_notification,
+    mark_notification_sent,
+    should_send_push,
+)
 
 logger = logging.getLogger("trimit")
 
@@ -43,17 +47,27 @@ async def send_booking_push(
     body: str,
     extra_data: Optional[Dict[str, Any]] = None,
 ) -> bool:
+    if not recipient_user_id:
+        logger.warning("[Push] skipped event=%s — missing recipient", event_type)
+        return False
+
     allowed, token, reason = await should_send_push(recipient_user_id, category)
     if not allowed:
         logger.info(
             "[Push] skipped user=%s event=%s reason=%s",
-            recipient_user_id[:8] if recipient_user_id else "?",
+            recipient_user_id[:8],
             event_type,
             reason,
         )
         return False
 
-    if not await record_notification_event(booking_id, event_type, recipient_user_id):
+    if await is_duplicate_notification(booking_id, event_type, recipient_user_id):
+        logger.info(
+            "[Push] duplicate skipped booking_id=%s event=%s user=%s",
+            booking_id,
+            event_type,
+            recipient_user_id[:8],
+        )
         return False
 
     ok = await push_service.send_notification(
@@ -61,9 +75,23 @@ async def send_booking_push(
         title=title,
         body=body,
         data=_payload(event_type, booking_id, role_hint, extra_data),
+        recipient_user_id=recipient_user_id,
     )
     if ok:
-        logger.info("[Push] sent event=%s booking_id=%s recipient=%s", event_type, booking_id, recipient_user_id[:8])
+        await mark_notification_sent(booking_id, event_type, recipient_user_id)
+        logger.info(
+            "[Push] delivered event=%s booking_id=%s recipient=%s",
+            event_type,
+            booking_id,
+            recipient_user_id[:8],
+        )
+    else:
+        logger.error(
+            "[Push] delivery failed event=%s booking_id=%s recipient=%s",
+            event_type,
+            booking_id,
+            recipient_user_id[:8],
+        )
     return ok
 
 
@@ -74,15 +102,48 @@ async def notify_owner_new_booking(
     service_name: str,
     booking_date: str,
     time_slot: str,
+    *,
+    is_premium: bool = False,
+    payment_method: Optional[str] = None,
 ) -> bool:
+    title = "Premium booking" if is_premium else "New booking"
+    body = f"{customer_name} booked {service_name} on {booking_date} at {time_slot}"
+    if is_premium:
+        body = f"⭐ {body}"
+    extra: Dict[str, Any] = {}
+    if payment_method:
+        extra["payment_method"] = payment_method
+    if is_premium:
+        extra["is_premium"] = True
+
     return await send_booking_push(
         recipient_user_id=owner_id,
         booking_id=booking_id,
         event_type="new_booking",
         category="bookings",
         role_hint="owner",
-        title="New booking",
-        body=f"{customer_name} booked {service_name} on {booking_date} at {time_slot}",
+        title=title,
+        body=body,
+        extra_data=extra or None,
+    )
+
+
+async def notify_owner_payment_received(
+    owner_id: str,
+    booking_id: str,
+    customer_name: str,
+    service_name: str,
+    amount: float,
+) -> bool:
+    return await send_booking_push(
+        recipient_user_id=owner_id,
+        booking_id=booking_id,
+        event_type="payment_received",
+        category="bookings",
+        role_hint="owner",
+        title="Payment received",
+        body=f"{customer_name} paid {service_name} — ₹{amount:.0f} online.",
+        extra_data={"payment_status": "paid"},
     )
 
 
@@ -171,11 +232,12 @@ async def notify_booking_rescheduled(
     body: str,
     initiated_by: str,
 ) -> bool:
+    category = "bookings" if role_hint == "owner" else "booking_updates"
     return await send_booking_push(
         recipient_user_id=recipient_user_id,
         booking_id=booking_id,
         event_type="booking_rescheduled",
-        category="booking_updates",
+        category=category,
         role_hint=role_hint,
         title=title,
         body=body,

@@ -7,6 +7,8 @@ import { useAuthStore } from '../store/authStore';
 import { setupPushNotifications } from '../lib/notifications';
 import { showToast } from '../store/toastStore';
 import { logger } from '../lib/logger';
+import { useNotificationPrefsStore } from '../store/notificationPrefsStore';
+import { useNotificationStore } from '../store/notificationStore';
 import type { NotificationPreferences } from '../types';
 
 const DEFAULT_PREFS: NotificationPreferences = {
@@ -35,6 +37,11 @@ export function NotificationSettingsSection() {
 
   const [prefs, setPrefs] = useState<NotificationPreferences>(() => prefsFromUser(user));
   const [saving, setSaving] = useState(false);
+  const soundEnabled = useNotificationPrefsStore((s) => s.soundEnabled);
+  const vibrationEnabled = useNotificationPrefsStore((s) => s.vibrationEnabled);
+  const setSoundEnabled = useNotificationPrefsStore((s) => s.setSoundEnabled);
+  const setVibrationEnabled = useNotificationPrefsStore((s) => s.setVibrationEnabled);
+  const setStoreSoundEnabled = useNotificationStore((s) => s.setSoundEnabled);
 
   useEffect(() => {
     setPrefs(prefsFromUser(user));
@@ -120,6 +127,26 @@ export function NotificationSettingsSection() {
         label="Offers and promotions"
         value={prefs.notify_promotional}
         onToggle={() => toggle('notify_promotional')}
+        theme={theme}
+        disabled={disabled}
+      />
+      <Row
+        label="Notification sound"
+        subtitle="In-app alert and Android channel"
+        value={soundEnabled}
+        onToggle={() => {
+          const next = !soundEnabled;
+          setSoundEnabled(next);
+          setStoreSoundEnabled(next);
+        }}
+        theme={theme}
+        disabled={disabled}
+      />
+      <Row
+        label="Vibration"
+        subtitle="Android booking alerts"
+        value={vibrationEnabled}
+        onToggle={() => setVibrationEnabled(!vibrationEnabled)}
         theme={theme}
         disabled={disabled}
       />

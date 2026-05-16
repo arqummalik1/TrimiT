@@ -76,7 +76,14 @@ module.exports = ({ config }) => {
     'expo-asset',
     'expo-audio',
     'expo-font',
-    'expo-notifications',
+    [
+      'expo-notifications',
+      {
+        icon: './assets/adaptive-icon.png',
+        color: '#000000',
+        sounds: ['./assets/sounds/notification.mp3'],
+      },
+    ],
     'expo-location',
     'expo-image-picker',
     'expo-secure-store',

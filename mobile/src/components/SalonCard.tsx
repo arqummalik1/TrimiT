@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Salon } from '../types';
-import { fonts, borderRadius, spacing, formatPrice } from '../lib/utils';
+import { fonts, borderRadius, spacing, formatPrice, formatDistanceKm } from '../lib/utils';
 import { useTheme } from '../theme/ThemeContext';
 import { Theme } from '../theme/tokens';
 
@@ -35,7 +35,7 @@ export const SalonCard: React.FC<SalonCardProps> = ({ salon, onPress }) => {
         {typeof salon.distance === 'number' && !Number.isNaN(salon.distance) && (
           <View style={styles.distanceBadge}>
             <Ionicons name="navigate" size={12} color={theme.colors.primary} />
-            <Text style={styles.distanceText}>{salon.distance} km</Text>
+            <Text style={styles.distanceText}>{formatDistanceKm(salon.distance)}</Text>
           </View>
         )}
       </View>

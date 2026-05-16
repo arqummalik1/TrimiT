@@ -17,7 +17,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
@@ -328,15 +327,20 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
 
   const subtitle = useMemo(() => {
     if (!locationReady) {
-      return phase === 'primer' ? 'Choose location access to see nearby salons' : 'Getting your location…';
+      return phase === 'primer' ? 'Allow location to see salons near you' : 'Finding salons near you…';
     }
     if (coords) {
-      return source === 'gps_last_known'
-        ? `Salons within ${DISCOVER_NEARBY_RADIUS_KM} km (refining location…)`
-        : `Salons within ${DISCOVER_NEARBY_RADIUS_KM} km of you`;
+      if (source === 'gps_last_known') {
+        return 'Nearby salons · updating location…';
+      }
+      const count = filteredSalons.length;
+      if (count > 0) {
+        return `${count} salon${count === 1 ? '' : 's'} nearby`;
+      }
+      return 'Nearby salons';
     }
-    return errorMessage ?? 'Enable location for nearby salons';
-  }, [locationReady, phase, coords, errorMessage, source]);
+    return errorMessage ?? 'Turn on location to see nearby salons';
+  }, [locationReady, phase, coords, errorMessage, source, filteredSalons.length]);
 
   const zoomByFactor = useCallback((factor: number) => {
     const next = Math.min(1.8, Math.max(0.006, mapDeltaRef.current * factor));
@@ -411,7 +415,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     return (
       <ScreenWrapper variant="tab">
         <View style={styles.header}>
-          <Text style={styles.title}>Find Your Perfect Salon</Text>
+          <Text style={styles.title}>Discover Salons</Text>
         </View>
         <ErrorState
           title="Couldn't load salons"
@@ -453,13 +457,8 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>Find Your Perfect Salon</Text>
+            <Text style={styles.title}>Discover Salons</Text>
             <Text style={styles.subtitle}>{subtitle}</Text>
-            {__DEV__ && coords ? (
-              <Text style={styles.debugLine} numberOfLines={1}>
-                GPS: {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)} ({source}) · {Platform.OS}
-              </Text>
-            ) : null}
           </View>
           <View
             style={styles.viewToggle}
@@ -618,7 +617,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
               message={
                 debouncedSearchQuery
                   ? `No salons match "${debouncedSearchQuery}". Try a different search.`
-                  : 'Try widening search, enabling location, or check back later. On emulators, set a mock GPS location in device settings.'
+                  : 'Enable location or try a different search.'
               }
               compact
               action={
@@ -660,12 +659,6 @@ const createStyles = (theme: Theme) =>
       fontSize: 14,
       color: theme.colors.textSecondary,
       letterSpacing: 0.5,
-    },
-    debugLine: {
-      marginTop: 4,
-      fontSize: 11,
-      fontFamily: fonts.body,
-      color: theme.colors.textTertiary,
     },
     viewToggle: {
       flexDirection: 'row',

@@ -11,13 +11,27 @@ from core.supabase import supabase
 
 logger = logging.getLogger("trimit")
 
-# Maps push category to user preference column
 _CATEGORY_PREF = {
     "bookings": "notify_bookings",
     "booking_updates": "notify_booking_updates",
     "promotional": "notify_promotional",
     "reminders": "notify_reminders",
 }
+
+
+async def clear_user_push_token(user_id: str) -> None:
+    resp = await supabase.request(
+        "PATCH",
+        f"rest/v1/users?id=eq.{user_id}",
+        json={"push_token": None},
+        service_role=True,
+    )
+    if resp.status_code not in (200, 201, 204):
+        logger.warning(
+            "[Push] clear_user_push_token failed user=%s status=%s",
+            user_id[:8],
+            resp.status_code,
+        )
 
 
 async def get_user_push_prefs(user_id: str) -> dict:
@@ -47,9 +61,7 @@ async def get_user_push_prefs(user_id: str) -> dict:
 
 
 async def should_send_push(user_id: str, category: str) -> tuple[bool, Optional[str], Optional[str]]:
-    """
-    Returns (allowed, push_token, skip_reason).
-    """
+    """Returns (allowed, push_token, skip_reason)."""
     prefs = await get_user_push_prefs(user_id)
     if not prefs.get("push_enabled", True):
         return False, None, "push_disabled_master"
@@ -62,14 +74,11 @@ async def should_send_push(user_id: str, category: str) -> tuple[bool, Optional[
     return True, token, None
 
 
-async def record_notification_event(
+async def is_duplicate_notification(
     booking_id: str,
     event_type: str,
     recipient_user_id: str,
 ) -> bool:
-    """
-    Insert dedupe row. Returns True if this is the first send for this event, False if duplicate.
-    """
     existing = await supabase.request(
         "GET",
         (
@@ -79,10 +88,14 @@ async def record_notification_event(
         ),
         service_role=True,
     )
-    if existing.status_code == 200 and existing.json():
-        logger.info("[Push] duplicate event skipped booking_id=%s type=%s", booking_id, event_type)
-        return False
+    return existing.status_code == 200 and bool(existing.json())
 
+
+async def mark_notification_sent(
+    booking_id: str,
+    event_type: str,
+    recipient_user_id: str,
+) -> None:
     resp = await supabase.request(
         "POST",
         "rest/v1/notification_events",
@@ -93,13 +106,15 @@ async def record_notification_event(
         },
         service_role=True,
     )
-    if resp.status_code in (200, 201):
-        return True
     if resp.status_code == 409:
-        return False
-    logger.warning(
-        "[Push] notification_events insert status=%s body=%s",
-        resp.status_code,
-        resp.text[:300] if resp.text else "",
-    )
-    return True
+        logger.info(
+            "[Push] dedupe race booking_id=%s type=%s",
+            booking_id,
+            event_type,
+        )
+    elif resp.status_code not in (200, 201):
+        logger.warning(
+            "[Push] mark_notification_sent status=%s body=%s",
+            resp.status_code,
+            resp.text[:300] if resp.text else "",
+        )

@@ -31,7 +31,11 @@ import RootNavigator, { navigationRef } from './src/navigation/index';
 import { useAuthStore } from './src/store/authStore';
 import { SessionExpiredModal } from './src/components/SessionExpiredModal';
 import { handleNotificationNavigation } from './src/lib/notificationNavigation';
-import { getLastNotificationResponse } from './src/lib/notifications';
+import {
+  getLastNotificationResponse,
+  handleOwnerForegroundPush,
+  setupPushNotifications,
+} from './src/lib/notifications';
 import { ThemeProvider } from './src/theme/ThemeContext';
 import { logger } from './src/lib/logger';
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -191,12 +195,20 @@ function AppContent() {
       return;
     }
 
+    void setupPushNotifications();
+
     const onResponse = (response: Notifications.NotificationResponse) => {
       const data = response.notification.request.content.data as Record<string, string | undefined>;
       handleNotificationNavigation(navigationRef.current, data, user?.role);
     };
 
-    const sub = Notifications.addNotificationResponseReceivedListener(onResponse);
+    const responseSub = Notifications.addNotificationResponseReceivedListener(onResponse);
+
+    const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
+      if (user?.role === 'owner') {
+        void handleOwnerForegroundPush(notification);
+      }
+    });
 
     void getLastNotificationResponse().then((last) => {
       if (last) {
@@ -204,7 +216,10 @@ function AppContent() {
       }
     });
 
-    return () => sub.remove();
+    return () => {
+      responseSub.remove();
+      receivedSub.remove();
+    };
   }, [isAuthenticated, authBootstrapComplete, user?.role]);
 
   if (bootError) {

@@ -13,6 +13,17 @@
 // FORMATTERS
 // =============================================================================
 
+/** Human-readable distance for salon cards (max 1 decimal). */
+export const formatDistanceKm = (km: number): string => {
+  if (!Number.isFinite(km) || km < 0) {
+    return '';
+  }
+  if (km < 10) {
+    return `${Number(km.toFixed(1))} km`;
+  }
+  return `${Math.round(km)} km`;
+};
+
 export const formatPrice = (price: number): string => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',

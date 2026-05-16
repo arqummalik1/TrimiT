@@ -66,7 +66,7 @@ async def _fallback_nearby_salons(
                 continue
         item = {**s, "avg_rating": 0, "review_count": 0, "services": []}
         if dist is not None:
-            item["distance"] = round(dist, 2)
+            item["distance"] = round(dist, 1)
         enriched.append(item)
 
     if p_lat == 0.0 and p_lng == 0.0:
@@ -114,6 +114,11 @@ async def get_salons(
         salons = await _fallback_nearby_salons(p_lat, p_lng, radius, search, limit, offset)
     else:
         salons = response.json()
+
+    for s in salons:
+        d = s.get("distance")
+        if isinstance(d, (int, float)) and d is not None:
+            s["distance"] = round(float(d), 1)
     
     # Return paginated envelope
     return {

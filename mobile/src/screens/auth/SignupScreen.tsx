@@ -23,6 +23,7 @@ import {
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
+import { showToast } from '../../store/toastStore';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { ErrorState } from '../../components/ErrorState';
@@ -55,16 +56,18 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const role: 'customer' | 'owner' = route.params?.role || 'customer';
-  const { signup, isLoading, error: authError, clearError } = useAuthStore();
+  const { signup, resendConfirmation, isLoading, error: authError, clearError } = useAuthStore();
 
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [emailConfirmationSent, setEmailConfirmationSent] = useState(false);
   const [confirmedEmail, setConfirmedEmail] = useState('');
+  const [lastSignupErrorCode, setLastSignupErrorCode] = useState<string | null>(null);
 
   const {
     control,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
@@ -88,13 +91,35 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
 
     if (result.success) {
       if (result.requiresEmailConfirmation) {
-        // Supabase email confirmation is enabled — show the "check your email" screen
         setConfirmedEmail(data.email.trim());
         setEmailConfirmationSent(true);
+        setLastSignupErrorCode(null);
       }
-      // Otherwise, navigation is driven by isAuthenticated changing in authStore
+    } else {
+      setLastSignupErrorCode(result.errorCode ?? null);
+      setConfirmedEmail(data.email.trim());
     }
   };
+
+  const handleResendConfirmation = async () => {
+    const email = (confirmedEmail || getValues('email') || '').trim();
+    if (!email) {
+      showToast('Enter your email address first', 'warning');
+      return;
+    }
+    const result = await resendConfirmation(email);
+    if (result.success) {
+      setEmailConfirmationSent(true);
+      setLastSignupErrorCode(null);
+      clearError();
+      showToast('Confirmation email sent', 'success');
+    }
+  };
+
+  const showSignupRecovery =
+    lastSignupErrorCode === 'EMAIL_RATE_LIMIT' ||
+    lastSignupErrorCode === 'ALREADY_REGISTERED' ||
+    lastSignupErrorCode === 'RATE_LIMITED';
 
   return (
     <ScreenWrapper style={styles.container}>
@@ -167,8 +192,33 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
                 variant="inline"
                 message={authError}
                 kind="validation"
-                style={{ marginBottom: spacing.lg }}
+                style={{ marginBottom: spacing.md }}
               />
+            )}
+
+            {showSignupRecovery && (
+              <View style={styles.recoveryBox}>
+                <Text style={styles.recoveryHint}>
+                  Already started signup? Check your email for the confirmation link instead of signing up again.
+                </Text>
+                <TouchableOpacity
+                  style={styles.recoveryBtn}
+                  onPress={() => void handleResendConfirmation()}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.recoveryBtnText}>Resend confirmation email</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.recoveryBtnSecondary}
+                  onPress={() => {
+                    setEmailConfirmationSent(true);
+                    navigation.replace('Login');
+                  }}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.recoveryBtnSecondaryText}>Go to sign in</Text>
+                </TouchableOpacity>
+              </View>
             )}
 
             <Controller
@@ -400,6 +450,39 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '600',
   },
   submitButton: { marginTop: spacing.sm },
+  recoveryBox: {
+    backgroundColor: theme.colors.surfaceSecondary,
+    borderRadius: borderRadius.md,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  recoveryHint: {
+    ...typography.caption,
+    color: theme.colors.textSecondary,
+    marginBottom: spacing.md,
+    lineHeight: 18,
+  },
+  recoveryBtn: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  recoveryBtnText: {
+    ...typography.bodySmallMedium,
+    color: theme.colors.textInverse,
+  },
+  recoveryBtnSecondary: {
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+  },
+  recoveryBtnSecondaryText: {
+    ...typography.bodySmallMedium,
+    color: theme.colors.primary,
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',

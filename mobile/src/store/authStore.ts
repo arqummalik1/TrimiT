@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { authRepository } from '../repositories/authRepository';
+import { authRepository, parseAuthFailure } from '../repositories/authRepository';
 import { setAuthToken } from '../services/apiClient';
 import { User } from '../types';
+import { normalizeAuthUser } from '../lib/authUser';
 import { safeAuthStorage } from '../lib/safeAuthStorage';
 import { supabase, syncSupabaseAuthSession } from '../lib/supabase';
 import { QueryClient } from '@tanstack/react-query';
@@ -29,7 +30,8 @@ interface AuthState {
   clearSession: (options?: { sessionExpired?: boolean; errorMessage?: string }) => Promise<void>;
   dismissSessionExpired: () => void;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; requiresEmailConfirmation?: boolean }>;
-  signup: (email: string, password: string, name: string, phone: string, role: 'customer' | 'owner') => Promise<{ success: boolean; error?: string; requiresEmailConfirmation?: boolean }>;
+  signup: (email: string, password: string, name: string, phone: string, role: 'customer' | 'owner') => Promise<{ success: boolean; error?: string; errorCode?: string; requiresEmailConfirmation?: boolean }>;
+  resendConfirmation: (email: string) => Promise<{ success: boolean; error?: string }>;
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (data: { name?: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
@@ -129,6 +131,7 @@ export const useAuthStore = create<AuthState>()(
         });
         setAuthToken(result.token);
         void syncSupabaseAuthSession(result.token, result.refreshToken ?? null);
+        void import('../lib/notifications').then(({ setupPushNotifications }) => setupPushNotifications());
         return { success: true };
       },
 
@@ -148,7 +151,7 @@ export const useAuthStore = create<AuthState>()(
         if (!result.token || !result.user) {
           const errorMsg = result.error ?? 'Signup failed. Please try again.';
           set({ isLoading: false, error: errorMsg });
-          return { success: false, error: errorMsg };
+          return { success: false, error: errorMsg, errorCode: result.errorCode };
         }
 
         set({
@@ -163,7 +166,22 @@ export const useAuthStore = create<AuthState>()(
         });
         setAuthToken(result.token);
         void syncSupabaseAuthSession(result.token, result.refreshToken ?? null);
+        void import('../lib/notifications').then(({ setupPushNotifications }) => setupPushNotifications());
         return { success: true };
+      },
+
+      resendConfirmation: async (email) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { authService } = require('../services/authService');
+          await authService.resendConfirmation(email.trim());
+          set({ isLoading: false });
+          return { success: true };
+        } catch (err: unknown) {
+          const { message } = parseAuthFailure(err);
+          set({ isLoading: false, error: message });
+          return { success: false, error: message };
+        }
       },
 
       forgotPassword: async (email) => {
@@ -211,6 +229,12 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        try {
+          const { teardownPushNotifications } = await import('../lib/notifications');
+          await teardownPushNotifications();
+        } catch {
+          // continue logout
+        }
         await get().clearSession({ sessionExpired: false });
       },
 
@@ -229,24 +253,8 @@ export const useAuthStore = create<AuthState>()(
         try {
           const { authService } = require('../services/authService');
           const meResponse = await authService.getMe();
-          const me = meResponse.data as { profile?: User } & Partial<User>;
-          const profile = me?.profile ?? me;
-          const user: User | null = profile
-            ? {
-                id: profile.id ?? state.user?.id ?? '',
-                email: profile.email ?? state.user?.email ?? '',
-                name: profile.name ?? state.user?.name ?? '',
-                phone: profile.phone ?? state.user?.phone,
-                role: profile.role ?? state.user?.role ?? 'customer',
-                push_token: profile.push_token,
-                push_enabled: profile.push_enabled,
-                notify_bookings: profile.notify_bookings,
-                notify_booking_updates: profile.notify_booking_updates,
-                notify_promotional: profile.notify_promotional,
-                notify_reminders: profile.notify_reminders,
-                created_at: profile.created_at ?? state.user?.created_at ?? '',
-              }
-            : state.user;
+          const user: User | null =
+            normalizeAuthUser(meResponse.data as { profile?: User }) ?? state.user;
 
           set({
             user,
@@ -258,6 +266,7 @@ export const useAuthStore = create<AuthState>()(
             authBootstrapComplete: true,
           });
           await syncSupabaseAuthSession(state.token, state.refreshToken);
+          void import('../lib/notifications').then(({ setupPushNotifications }) => setupPushNotifications());
           logger.info('[Auth] initializeAuth ok', { role: user?.role });
         } catch (err) {
           logger.warn('[Auth] initializeAuth failed — clearing session', { err });

@@ -11,61 +11,27 @@ from core.limiter import limiter
 from models.auth import (
     UserCreate, UserLogin, UserUpdate, PushTokenUpdate,
     NotificationPreferencesUpdate,
+    ResendConfirmationRequest,
     ForgotPasswordRequest, ValidateTokenRequest, ResetPasswordRequest
 )
 from dependencies.auth import get_current_user, user_profile_cache
 from services.auth_errors import map_supabase_signup_error, safe_auth_response_json
+from services.user_profile import resolve_profile_for_user, upsert_user_profile
+from services.auth_signup import (
+    try_idempotent_signup,
+    perform_supabase_signup,
+    resend_confirmation_email,
+    check_existing_signup_state,
+    pending_confirmation_response,
+)
 
 logger = logging.getLogger("trimit")
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-async def _upsert_user_profile(user_id: str, profile_data: dict) -> None:
-    """
-    Write the user profile to public.users using the service role.
-    Attempts INSERT first; falls back to UPDATE on conflict.
-    Raises RuntimeError if both fail so the caller can respond appropriately.
-    """
-    # First, try a straight insert
-    insert_resp = await supabase.request(
-        "POST",
-        "rest/v1/users",
-        json=profile_data,
-        service_role=True,
-    )
-    if insert_resp.status_code in (200, 201):
-        return  # success
-
-    # 409 = duplicate (profile already exists) — try PATCH instead
-    if insert_resp.status_code == 409:
-        patch_resp = await supabase.request(
-            "PATCH",
-            f"rest/v1/users?id=eq.{user_id}",
-            json={k: v for k, v in profile_data.items() if k != "id"},
-            service_role=True,
-        )
-        if patch_resp.status_code in (200, 201, 204):
-            return  # upsert succeeded
-        logger.error(
-            "Profile upsert (PATCH) failed for user %s: %s %s",
-            user_id,
-            patch_resp.status_code,
-            patch_resp.text,
-        )
-        raise RuntimeError(f"Profile upsert failed: {patch_resp.status_code}")
-
-    logger.error(
-        "Profile insert failed for user %s: %s %s",
-        user_id,
-        insert_resp.status_code,
-        insert_resp.text,
-    )
-    raise RuntimeError(f"Profile insert failed: {insert_resp.status_code}")
-
-
 @router.post("/signup")
-@limiter.limit("15/minute")
+@limiter.limit("30/hour")
 async def signup(request: Request, user: UserCreate):
     """
     Sign up a new user.
@@ -77,11 +43,16 @@ async def signup(request: Request, user: UserCreate):
     - 400  → Validation error (already registered, bad email, etc.)
     - 429  → Rate limited.
     """
-    # 1. Create auth user in Supabase
-    response = await supabase.request("POST", "auth/v1/signup", json={
-        "email": user.email,
-        "password": user.password,
-    })
+    # Idempotent path — do not call Supabase signup again if email is already pending
+    existing = await try_idempotent_signup(user)
+    if existing:
+        status_code, body = existing
+        if status_code == 202:
+            return JSONResponse(status_code=202, content=body)
+        raise HTTPException(status_code=status_code, detail=body)
+
+    # 1. Create auth user in Supabase (role in user_metadata for post-confirm login/repair)
+    response = await perform_supabase_signup(user)
 
     auth_data = safe_auth_response_json(response)
 
@@ -106,6 +77,30 @@ async def signup(request: Request, user: UserCreate):
             err_code,
             auth_data,
         )
+
+        # Rate limit / duplicate — recover gracefully if account is pending (no new email)
+        if err_code in ("EMAIL_RATE_LIMIT", "RATE_LIMITED", "ALREADY_REGISTERED"):
+            recovery = await try_idempotent_signup(user)
+            if recovery:
+                r_status, r_body = recovery
+                if r_status == 202:
+                    return JSONResponse(status_code=202, content=r_body)
+                if r_status == 400:
+                    raise HTTPException(status_code=400, detail=r_body)
+
+            if err_code == "EMAIL_RATE_LIMIT":
+                state = await check_existing_signup_state(user.email)
+                if state and state[0] == "pending":
+                    _, body = await pending_confirmation_response(
+                        email=user.email.strip().lower(),
+                        user_id=state[1],
+                        message=(
+                            "Your account is waiting for email confirmation. "
+                            "Check your inbox and spam, or use Resend confirmation after a minute."
+                        ),
+                    )
+                    return JSONResponse(status_code=202, content=body)
+
         http_status = 429 if err_code in ("RATE_LIMITED", "EMAIL_RATE_LIMIT") else 400
         raise HTTPException(
             status_code=http_status,
@@ -125,7 +120,15 @@ async def signup(request: Request, user: UserCreate):
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         try:
-            await _upsert_user_profile(user_id, profile_data)
+            saved = await upsert_user_profile(
+                user_id, profile_data, prefer_incoming_role=True
+            )
+            logger.info(
+                "Signup profile saved user=%s role=%s email=%s",
+                user_id[:8],
+                saved.get("role"),
+                user.email,
+            )
         except RuntimeError as exc:
             # Auth account was created but profile failed — this is a partial failure.
             # Log it but do NOT return success; surface a specific error so the user can retry.
@@ -197,35 +200,24 @@ async def login(request: Request, user: UserLogin):
     user_id = auth_data.get("user", {}).get("id") if isinstance(auth_data.get("user"), dict) else None
     access_token = auth_data.get("access_token")
 
-    # Fetch the public profile (includes `role`) and merge it into the response.
-    # This ensures the mobile client always has the correct role for navigation.
     profile: dict | None = None
     if user_id and access_token:
-        profile_response = await supabase.request(
-            "GET",
-            f"rest/v1/users?id=eq.{user_id}&select=*",
-            token=access_token,
-        )
-        if profile_response.status_code == 200:
-            profiles = profile_response.json()
-            if profiles:
-                profile = profiles[0]
-            else:
-                # Profile row missing — attempt auto-repair using service role
-                logger.warning("Login: profile missing for user %s — attempting auto-repair", user_id)
-                supabase_user = auth_data.get("user", {})
-                fallback_profile = {
-                    "id": user_id,
-                    "email": supabase_user.get("email", ""),
-                    "name": supabase_user.get("user_metadata", {}).get("name", ""),
-                    "role": supabase_user.get("user_metadata", {}).get("role", "customer"),
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                }
-                try:
-                    await _upsert_user_profile(user_id, fallback_profile)
-                    profile = fallback_profile
-                except RuntimeError:
-                    logger.error("Auto-repair profile failed for user %s on login", user_id)
+        supabase_user = auth_data.get("user", {}) if isinstance(auth_data.get("user"), dict) else {}
+        user_profile_cache.pop(user_id, None)
+        try:
+            profile = await resolve_profile_for_user(
+                user_id,
+                supabase_user.get("email", user.email),
+                supabase_user.get("user_metadata"),
+                user_jwt=access_token,
+            )
+            logger.info(
+                "Login profile resolved user=%s role=%s",
+                user_id[:8],
+                profile.get("role"),
+            )
+        except RuntimeError:
+            logger.error("Login profile resolve failed for user %s", user_id)
 
     # Build a clean, flat response the mobile client can depend on
     return {
@@ -283,13 +275,41 @@ async def update_notification_preferences(
 async def register_push_token(data: PushTokenUpdate, current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id")
     token = current_user.get("access_token")
-    
-    response = await supabase.request("PATCH", f"rest/v1/users?id=eq.{user_id}", json={"push_token": data.push_token}, token=token)
-    
+    push_token = data.push_token
+
+    if push_token is not None:
+        t = push_token.strip()
+        if not (
+            t.startswith("ExponentPushToken[")
+            or t.startswith("ExpoPushToken[")
+        ):
+            raise HTTPException(status_code=400, detail="Invalid Expo push token format")
+        push_token = t
+
+    response = await supabase.request(
+        "PATCH",
+        f"rest/v1/users?id=eq.{user_id}",
+        json={"push_token": push_token},
+        token=token,
+    )
+
     if response.status_code not in [200, 201, 204]:
         raise HTTPException(status_code=400, detail="Failed to register push token")
-    
-    return {"message": "Push token registered successfully"}
+
+    user_profile_cache.pop(user_id, None)
+    action = "registered" if push_token else "cleared"
+    logger.info("[Push] token %s user_id=%s", action, user_id[:8] if user_id else "?")
+    return {"message": f"Push token {action} successfully"}
+
+@router.post("/resend-confirmation")
+@limiter.limit("3/hour")
+async def resend_confirmation(request: Request, data: ResendConfirmationRequest):
+    """Resend signup confirmation email (use instead of repeated signup taps)."""
+    status_code, body = await resend_confirmation_email(data.email)
+    if status_code == 200:
+        return body
+    raise HTTPException(status_code=status_code, detail=body)
+
 
 @router.post("/forgot-password")
 @limiter.limit("3/hour")

@@ -3,6 +3,9 @@ import { setAuthToken } from '../services/apiClient';
 import { SUPPORT_EMAIL } from '../lib/contactInfo';
 import { isAppError } from '../types/error';
 import { User } from '../types';
+import { normalizeAuthUser } from '../lib/authUser';
+
+type ProfileLike = Parameters<typeof normalizeAuthUser>[0];
 import axios from 'axios';
 
 // Structured error codes the store and UI can respond to specifically
@@ -20,7 +23,7 @@ export type AuthErrorCode =
   | 'NETWORK_ERROR'
   | 'UNKNOWN';
 
-function parseAuthFailure(err: unknown): { message: string; code: AuthErrorCode } {
+export function parseAuthFailure(err: unknown): { message: string; code: AuthErrorCode } {
   if (isAppError(err)) {
     const nested = err.details as { code?: string; message?: string } | undefined;
     const code = (nested?.code || err.code || 'UNKNOWN') as AuthErrorCode;
@@ -56,7 +59,7 @@ export interface AuthResult {
   /** Friendly error message for display */
   error?: string;
   /** Machine-readable error code */
-  errorCode?: AuthErrorCode;
+  errorCode?: AuthErrorCode | string;
 }
 
 /**
@@ -112,24 +115,33 @@ export const authRepository = {
     // Set token so subsequent requests are authenticated
     setAuthToken(access_token);
 
-    // The `profile` key from our backend is the public.users row with `role`.
-    // If for any reason it's missing, fall back to the raw Supabase user object.
-    const resolvedUser = (profile || user || {}) as User;
-
-    // Guarantee role is present: fetch /auth/me as the definitive source of truth.
-    // This also validates the session is accepted by the backend.
+    // Guarantee role from public.users via /auth/me (never trust raw Supabase auth user).
     try {
       const meResponse = await authService.getMe();
-      const meData = meResponse.data as { profile?: User; id?: string; email?: string };
-      const meProfile = meData?.profile || meData;
-      if (meProfile && (meProfile as User).id) {
-        return { user: meProfile as User, token: access_token, refreshToken: refresh_token ?? null };
+      const normalized = normalizeAuthUser(
+        meResponse.data as { profile?: User; id?: string; email?: string }
+      );
+      if (normalized) {
+        return { user: normalized, token: access_token, refreshToken: refresh_token ?? null };
       }
     } catch {
-      // /auth/me failure is non-fatal — use what we have from the login response
+      // fall through to login response profile
     }
 
-    return { user: resolvedUser, token: access_token, refreshToken: refresh_token ?? null };
+    const fromLogin =
+      normalizeAuthUser(profile as unknown as ProfileLike) ??
+      normalizeAuthUser(user as unknown as ProfileLike);
+    if (fromLogin) {
+      return { user: fromLogin, token: access_token, refreshToken: refresh_token ?? null };
+    }
+
+    return {
+      user: null,
+      token: access_token,
+      refreshToken: refresh_token ?? null,
+      error: 'Could not load your profile. Please try again.',
+      errorCode: 'LOGIN_FAILED',
+    };
   },
 
   /**
@@ -148,7 +160,7 @@ export const authRepository = {
       response = await authService.signup(data);
     } catch (err: unknown) {
       const { message, code } = parseAuthFailure(err);
-      return { user: null, token: null, error: message, errorCode: code };
+      return { user: null, token: null, error: message, errorCode: code as AuthErrorCode };
     }
 
     const responseData = response.data as {
@@ -185,21 +197,28 @@ export const authRepository = {
     // Fetch full profile (with role) immediately after signup
     try {
       const meResponse = await authService.getMe();
-      const meData = meResponse.data as { profile?: User; id?: string };
-      const meProfile = meData?.profile || meData;
-      if (meProfile && (meProfile as User).id) {
+      const normalized = normalizeAuthUser(meResponse.data as { profile?: User });
+      if (normalized) {
         return {
-          user: meProfile as User,
+          user: normalized,
           token: session.access_token,
           refreshToken: session.refresh_token ?? null,
         };
       }
     } catch {
-      // Fall back to raw signup user if /auth/me fails
+      // Fall back below
     }
 
+    const fallback = normalizeAuthUser({
+      ...(responseData.user as object),
+      role: data.role,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+    } as User);
+
     return {
-      user: { ...responseData.user, ...data } as unknown as User,
+      user: fallback,
       token: session.access_token,
       refreshToken: session.refresh_token ?? null,
     };

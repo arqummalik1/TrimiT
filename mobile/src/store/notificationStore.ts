@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import type { Booking } from '../types';
+import { useNotificationPrefsStore } from './notificationPrefsStore';
 
 const devLog = (...args: unknown[]) => {
   if (__DEV__) console.log(...args);
@@ -118,8 +119,9 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   },
 
   playNotificationSound: async () => {
+    const prefsSound = useNotificationPrefsStore.getState().soundEnabled;
     const { soundEnabled, sound } = get();
-    if (!soundEnabled || !sound) return;
+    if (!prefsSound || !soundEnabled || !sound) return;
 
     try {
       sound.seekTo(0);

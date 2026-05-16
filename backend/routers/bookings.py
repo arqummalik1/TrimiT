@@ -653,6 +653,7 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
     try:
         initial_status = result.get("status") or ("confirmed" if salon.get("auto_accept") else "pending")
         customer_name = await booking_push.fetch_user_name(user_id)
+        is_premium = final_amount > original_amount + 0.01
         await booking_push.after_booking_created(
             booking_id=booking_id,
             salon_owner_id=salon.get("owner_id"),
@@ -662,6 +663,8 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
             booking_date=data.booking_date,
             time_slot=data.time_slot,
             initial_status=initial_status,
+            is_premium=is_premium,
+            payment_method=data.payment_method,
         )
     except Exception as e:
         logger.error("[CREATE_BOOKING] push failed booking_id=%s err=%s", booking_id, str(e))

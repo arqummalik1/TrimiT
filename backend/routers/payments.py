@@ -11,6 +11,7 @@ from core.limiter import limiter
 from core.idempotency import idempotency_required
 from dependencies.auth import get_current_user
 from models.payments import PaymentCreate, PaymentVerifyRequest, PaymentStatus
+from services import booking_push
 
 logger = logging.getLogger("trimit")
 
@@ -127,6 +128,25 @@ async def verify_payment(request: Request, payload: PaymentVerifyRequest, curren
 
     if response.status_code not in [200, 201, 204]:
         raise HTTPException(status_code=400, detail="Failed to update payment status")
+
+    try:
+        ctx = await booking_push.fetch_booking_push_context(
+            str(payload.booking_id),
+            token,
+        )
+        if ctx:
+            owner_id = ctx.get("owner_id")
+            customer_name = await booking_push.fetch_user_name(current_user.get("id"))
+            await booking_push.after_payment_verified(
+                booking_id=str(payload.booking_id),
+                owner_id=owner_id,
+                customer_id=current_user.get("id"),
+                customer_name=customer_name,
+                service_name=ctx.get("service_name", "Service"),
+                amount=float(booking.get("amount") or 0),
+            )
+    except Exception as e:
+        logger.error("[Payments] owner push after verify failed: %s", e)
 
     return {"status": "success", "message": "Payment verified"}
 

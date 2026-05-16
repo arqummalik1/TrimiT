@@ -1,25 +1,19 @@
 /**
  * Push Notification Service
- * ────────────────────────────────────────────────────────────────────────────
- * Handles push notification registration and management via Expo Push.
- *
- * Reliable background / killed-state delivery needs a dev build or store build.
- * In Expo Go we still attempt registration so owners can test on a physical device;
- * if the SDK cannot issue a token, the catch path logs and returns null.
+ * Handles Expo push registration, Android channels, and backend token sync.
  */
 
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import api from './api';
+import { logger } from './logger';
 
-const devLog = (...args: unknown[]) => {
-  if (__DEV__) {
-    console.log(...args);
-  }
-};
+const BOOKINGS_CHANNEL_ID = 'bookings';
+const DEFAULT_EAS_PROJECT_ID = 'e4f2eade-fe15-4a16-8766-83b0771a4643';
 
-// Configure notification behavior (avoid deprecated shouldShowAlert)
+let pushTokenListener: Notifications.Subscription | null = null;
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
@@ -29,184 +23,232 @@ Notifications.setNotificationHandler({
   }),
 });
 
+function resolveEasProjectId(): string {
+  return (
+    (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId ??
+    DEFAULT_EAS_PROJECT_ID
+  );
+}
+
+export async function ensureAndroidNotificationChannels(): Promise<void> {
+  if (Platform.OS !== 'android') {
+    return;
+  }
+
+  const { useNotificationPrefsStore } = await import('../store/notificationPrefsStore');
+  const { soundEnabled, vibrationEnabled } = useNotificationPrefsStore.getState();
+
+  await Notifications.setNotificationChannelAsync(BOOKINGS_CHANNEL_ID, {
+    name: 'Bookings',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: vibrationEnabled ? [0, 250, 250, 250] : undefined,
+    enableVibrate: vibrationEnabled,
+    lightColor: '#FF6B6B',
+    sound: soundEnabled ? 'default' : undefined,
+    enableLights: true,
+    showBadge: true,
+  });
+}
+
+/**
+ * Android 13+ requires runtime POST_NOTIFICATIONS grant for tray delivery in standalone builds.
+ */
+async function ensureNotificationPermissions(): Promise<boolean> {
+  const { status: existingStatus, canAskAgain } = await Notifications.getPermissionsAsync();
+
+  if (existingStatus === 'granted') {
+    return true;
+  }
+
+  if (existingStatus === 'denied' && canAskAgain === false) {
+    logger.warn('[Notifications] Permission permanently denied');
+    return false;
+  }
+
+  const { status } = await Notifications.requestPermissionsAsync({
+    ios: {
+      allowAlert: true,
+      allowBadge: true,
+      allowSound: true,
+    },
+  });
+
+  return status === 'granted';
+}
+
 /**
  * Register for push notifications and get Expo push token.
- * This token is sent to the backend and used to send notifications.
- * 
- * @returns Expo push token or null if registration failed
  */
 export async function registerForPushNotifications(): Promise<string | null> {
   try {
-    const easProjectId =
-      (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId ??
-      'e4f2eade-fe15-4a16-8766-83b0771a4643';
-
     if (Constants.appOwnership === 'expo') {
-      devLog(
-        '[Notifications] Expo Go: attempting push token (use a dev build for production-grade remote push).'
-      );
+      logger.info('[Notifications] Expo Go: remote push may be limited; use a release APK for production testing.');
     }
 
-    // Check if running on a physical device (using Constants instead of Device)
-    const isDevice = Constants.isDevice;
-    if (!isDevice) {
-      devLog('[Notifications] Skipping push registration: not a physical device (simulator).');
+    if (!Constants.isDevice) {
+      logger.info('[Notifications] Skipping push registration: simulator/emulator');
       return null;
     }
 
-    // Request permissions
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      console.warn('[Notifications] Permission not granted for push notifications');
+    const granted = await ensureNotificationPermissions();
+    if (!granted) {
+      logger.warn('[Notifications] Permission not granted');
       return null;
     }
 
-    // Get Expo push token
+    await ensureAndroidNotificationChannels();
+
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: easProjectId,
+      projectId: resolveEasProjectId(),
     });
 
     const token = tokenData.data;
-    devLog('[Notifications] ✅ Push token obtained:', token.substring(0, 30) + '...');
-
-    // Configure Android notification channel
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('bookings', {
-        name: 'Bookings',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF6B6B',
-        sound: 'notification.mp3',
-        enableVibrate: true,
-        enableLights: true,
-        showBadge: true,
-      });
-
-      devLog('[Notifications] ✅ Android notification channel configured');
-    }
-
+    logger.info('[Notifications] Push token obtained', { prefix: token.substring(0, 28) });
     return token;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Notifications] ❌ Failed to register for push notifications:', message, error);
+    logger.error('[Notifications] Registration failed', { message, error });
     return null;
   }
 }
 
-/**
- * Send push token to backend for storage.
- * This allows the backend to send push notifications to this device.
- * 
- * @param token - Expo push token
- * @returns true if successful, false otherwise
- */
 export async function sendPushTokenToBackend(token: string): Promise<boolean> {
   try {
     await api.post('/auth/push-token', { push_token: token });
-    devLog('[Notifications] ✅ Push token sent to backend');
+    logger.info('[Notifications] Push token synced to backend');
     return true;
   } catch (error) {
-    console.error('[Notifications] ❌ Failed to send push token to backend:', error);
+    logger.error('[Notifications] Failed to sync push token', error);
     return false;
   }
 }
 
+export async function clearPushTokenOnBackend(): Promise<void> {
+  try {
+    await api.post('/auth/push-token', { push_token: null });
+  } catch {
+    // Best-effort on logout
+  }
+}
+
+export function startPushTokenRefreshListener(): void {
+  if (pushTokenListener) {
+    return;
+  }
+
+  pushTokenListener = Notifications.addPushTokenListener(({ data }) => {
+    if (!data) {
+      return;
+    }
+    logger.info('[Notifications] Push token refreshed by OS');
+    void sendPushTokenToBackend(data);
+  });
+}
+
+export function stopPushTokenRefreshListener(): void {
+  pushTokenListener?.remove();
+  pushTokenListener = null;
+}
+
 /**
- * Complete push notification setup:
- * 1. Register for push notifications
- * 2. Get Expo push token
- * 3. Send token to backend
- * 
- * Call this after user logs in.
+ * Complete push notification setup after login.
  */
 export async function setupPushNotifications(): Promise<void> {
   try {
-    devLog('[Notifications] Setting up push notifications...');
-
     const { useAuthStore } = await import('../store/authStore');
     const user = useAuthStore.getState().user;
     if (user?.push_enabled === false) {
-      devLog('[Notifications] Skipped — push_enabled is false');
+      logger.info('[Notifications] Skipped — push_enabled is false');
       return;
     }
 
     const token = await registerForPushNotifications();
     if (!token) {
-      // registerForPushNotifications already logs the specific reason (Expo Go, simulator, permission, etc.)
       return;
     }
 
-    const success = await sendPushTokenToBackend(token);
-    if (success) {
-      devLog('[Notifications] ✅ Push notifications setup complete');
-    } else {
-      console.warn('[Notifications] ⚠️ Failed to register token with backend');
-    }
+    await sendPushTokenToBackend(token);
+    startPushTokenRefreshListener();
   } catch (error) {
-    console.error('[Notifications] ❌ Push notification setup failed:', error);
+    logger.error('[Notifications] Setup failed', error);
   }
 }
 
-/**
- * Add listener for notifications received while app is in foreground.
- * 
- * @param callback - Function to call when notification is received
- * @returns Subscription object (call .remove() to unsubscribe)
- */
+export async function teardownPushNotifications(): Promise<void> {
+  stopPushTokenRefreshListener();
+  await clearPushTokenOnBackend();
+}
+
 export function addNotificationReceivedListener(
   callback: (notification: Notifications.Notification) => void
 ) {
   return Notifications.addNotificationReceivedListener(callback);
 }
 
-/**
- * Add listener for notification responses (user tapped notification).
- * 
- * @param callback - Function to call when user taps notification
- * @returns Subscription object (call .remove() to unsubscribe)
- */
 export function addNotificationResponseListener(
   callback: (response: Notifications.NotificationResponse) => void
 ) {
   return Notifications.addNotificationResponseReceivedListener(callback);
 }
 
-/**
- * Get the notification that opened the app (if any).
- * Useful for handling cold start from notification tap.
- * 
- * @returns Notification response or null
- */
 export async function getLastNotificationResponse(): Promise<Notifications.NotificationResponse | null> {
-  return await Notifications.getLastNotificationResponseAsync();
+  return Notifications.getLastNotificationResponseAsync();
 }
 
-/**
- * Clear all delivered notifications from notification tray.
- */
 export async function clearAllNotifications(): Promise<void> {
   await Notifications.dismissAllNotificationsAsync();
 }
 
-/**
- * Set app badge count (iOS only).
- * 
- * @param count - Badge count (0 to clear)
- */
 export async function setBadgeCount(count: number): Promise<void> {
   await Notifications.setBadgeCountAsync(count);
 }
 
 /**
- * Schedule a local reminder notification 1 hour before the booking.
+ * Owner foreground: map remote push payload to in-app booking modal when app is active.
  */
+export async function handleOwnerForegroundPush(
+  notification: Notifications.Notification
+): Promise<void> {
+  if (AppState.currentState !== 'active') {
+    return;
+  }
+
+  const data = notification.request.content.data as Record<string, unknown> | undefined;
+  const roleHint = typeof data?.role_hint === 'string' ? data.role_hint : '';
+  if (roleHint && roleHint !== 'owner') {
+    return;
+  }
+
+  const bookingId =
+    (typeof data?.booking_id === 'string' && data.booking_id) ||
+    (typeof data?.bookingId === 'string' && data.bookingId) ||
+    null;
+
+  if (!bookingId) {
+    return;
+  }
+
+  const eventType = typeof data?.type === 'string' ? data.type : 'new_booking';
+  const modalType =
+    eventType === 'booking_cancelled' || eventType === 'booking_cancelled_by_owner'
+      ? 'cancellation'
+      : eventType === 'new_booking' || eventType === 'payment_received'
+        ? 'new_booking'
+        : 'status_change';
+
+  try {
+    const { bookingService } = await import('../services/bookingService');
+    const { useNotificationStore } = await import('../store/notificationStore');
+    const booking = await bookingService.getBooking(bookingId);
+    useNotificationStore.getState().addNotification(booking, modalType);
+  } catch (error) {
+    logger.warn('[Notifications] Foreground owner push handling failed', {
+      bookingId,
+      error: String(error),
+    });
+  }
+}
+
 export async function scheduleBookingReminder(params: {
   bookingId: string;
   salonName: string;
@@ -215,20 +257,20 @@ export async function scheduleBookingReminder(params: {
   time: string;
 }) {
   try {
+    const { useAuthStore } = await import('../store/authStore');
+    if (useAuthStore.getState().user?.notify_reminders === false) {
+      return;
+    }
+
     if (!params.date || !params.time) {
-      console.warn('[Notifications] ⚠️ scheduleBookingReminder: missing date or time');
       return;
     }
     const [year, month, day] = params.date.split('-').map(Number);
     const [hour, minute] = params.time.split(':').map(Number);
-    
-    // Create Date object for the booking
+
     const bookingDate = new Date(year, month - 1, day, hour, minute);
-    
-    // Subtract 1 hour for the reminder
     const reminderDate = new Date(bookingDate.getTime() - 60 * 60 * 1000);
-    
-    // Only schedule if the reminder time is in the future
+
     if (reminderDate.getTime() > Date.now()) {
       await Notifications.scheduleNotificationAsync({
         content: {
@@ -236,23 +278,19 @@ export async function scheduleBookingReminder(params: {
           body: `Your ${params.serviceName} appointment is in 1 hour (${params.time}).`,
           sound: true,
           data: { bookingId: params.bookingId },
+          ...(Platform.OS === 'android' ? { channelId: BOOKINGS_CHANNEL_ID } : {}),
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: reminderDate,
         },
       });
-      devLog('[Notifications] ✅ Scheduled reminder for:', reminderDate.toISOString());
     }
   } catch (error) {
-    console.warn('[Notifications] ⚠️ Failed to schedule reminder:', error);
+    logger.warn('[Notifications] scheduleBookingReminder failed', { error: String(error) });
   }
 }
 
-/**
- * Immediate local notification when the customer’s booking is created (confirmed path).
- * Best-effort: no-op if permissions denied or Expo Go limitations apply.
- */
 export async function presentBookingConfirmedLocal(params: {
   salonName: string;
   serviceName: string;
@@ -260,22 +298,20 @@ export async function presentBookingConfirmedLocal(params: {
   time: string;
 }): Promise<void> {
   try {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') {
-      const req = await Notifications.requestPermissionsAsync();
-      if (req.status !== 'granted') {
-        return;
-      }
+    const granted = await ensureNotificationPermissions();
+    if (!granted) {
+      return;
     }
     await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Booking confirmed',
         body: `${params.serviceName} at ${params.salonName} — ${params.date} at ${params.time}`,
         sound: true,
+        ...(Platform.OS === 'android' ? { channelId: BOOKINGS_CHANNEL_ID } : {}),
       },
       trigger: null,
     });
   } catch (error) {
-    console.warn('[Notifications] ⚠️ presentBookingConfirmedLocal failed:', error);
+    logger.warn('[Notifications] presentBookingConfirmedLocal failed', { error: String(error) });
   }
 }

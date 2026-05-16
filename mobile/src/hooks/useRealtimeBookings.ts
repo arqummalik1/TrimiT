@@ -55,7 +55,7 @@ export function useRealtimeBookings({
   callbacksRef.current = { onNewBooking, onBookingUpdate, onBookingDelete };
 
   const shouldShowInAppNotification = useCallback(() => {
-    return AppState.currentState !== 'active';
+    return AppState.currentState === 'active';
   }, []);
 
   const handleBookingChange = useCallback(
