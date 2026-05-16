@@ -60,7 +60,7 @@ gantt
 - [ ] Upload AAB to internal track
 - [ ] Data Safety form ([`PLAY_CONSOLE_CHECKLIST.md`](./PLAY_CONSOLE_CHECKLIST.md))
 - [ ] Content rating (IARC)
-- [ ] Store listing (icon 512, feature graphic, screenshots, descriptions)
+- [ ] Store listing + ASO ([PLAY_STORE_LISTING_COPY.md](./PLAY_STORE_LISTING_COPY.md), Hindi hi-IN)
 - [ ] Reviewer test accounts in App Access
 - [ ] Fix pre-launch report issues
 
@@ -98,7 +98,7 @@ See [`POST_V1_BACKLOG.md`](./POST_V1_BACKLOG.md):
 | EAS production AAB build | Not started | P0 | Mobile | ☐ |
 | Device E2E cash flow test | Not started | P0 | QA | ☐ |
 | Play Data Safety form | Not started | P0 | Legal | ☐ |
-| Play store screenshots + copy | Not started | P1 | Design | ☐ |
+| Play store screenshots + ASO copy | Copy ready in docs | P1 | Paste in Console + design screenshots | ☐ |
 | Reviewer test accounts | Not started | P1 | QA | ☐ |
 | Maps API key SHA-1 restrict | Not started | P2 | DevOps | ☐ |
 | Re-run `07_check_rls_policies.sql` | Not started | P2 | Database | ☐ |
@@ -169,7 +169,11 @@ See [`POST_V1_BACKLOG.md`](./POST_V1_BACKLOG.md):
 
 | Doc | Use for |
 |-----|---------|
-| [PLAY_STORE_V1_OPS.md](./PLAY_STORE_V1_OPS.md) | EAS build + Play steps |
+| [PLAY_STORE_DEPLOYMENT_GUIDE.md](./PLAY_STORE_DEPLOYMENT_GUIDE.md) | **Step-by-step AAB + keystore + Play (start here)** |
+| [EXPO_ENV_SETUP.md](./EXPO_ENV_SETUP.md) | Re-add Expo env vars after dashboard reset |
+| [PLAY_STORE_ASO.md](./PLAY_STORE_ASO.md) | Play Store SEO / ASO strategy |
+| [PLAY_STORE_LISTING_COPY.md](./PLAY_STORE_LISTING_COPY.md) | Paste-ready title, descriptions, screenshots |
+| [PLAY_STORE_V1_OPS.md](./PLAY_STORE_V1_OPS.md) | Short checklist |
 | [CASH_E2E_V1.md](./qa/CASH_E2E_V1.md) | Device test script |
 | [launch-readiness.md](./audit/launch-readiness.md) | Go/no-go gates |
 | [POST_V1_BACKLOG.md](./POST_V1_BACKLOG.md) | After v1.0 |

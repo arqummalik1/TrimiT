@@ -28,8 +28,11 @@ cd mobile
 npm start                         # Expo dev server
 npm run android                   # expo run:android
 npm run ios                       # expo run:ios
+npm run verify:env                # check .env before release builds
+npm run build:apk:local           # release APK — see mobile/BUILD_RELEASE.md
+npm run build:aab:local           # Play Store AAB
 ```
-Production builds via `eas build` (config in `mobile/eas.json`). `EXPO_PUBLIC_API_URL` overrides backend URL; otherwise `mobile/src/lib/api.ts` auto-detects host IP in dev and falls back to `https://trimit-az5h.onrender.com` in production.
+Production builds: **always** use `npm run build:apk:local` / `build:aab:local` (loads `.env`). See `mobile/BUILD_RELEASE.md`. Cloud `eas build` uses expo.dev env vars. `EXPO_PUBLIC_API_URL` overrides backend URL; otherwise `mobile/src/lib/api.ts` auto-detects host IP in dev and falls back to `https://trimit-az5h.onrender.com` in production.
 
 ### Web
 ```bash

@@ -1,10 +1,12 @@
-import * as Sentry from '@sentry/react-native';
+import { buildConfig } from './buildConfig';
 
-/**
- * Paused with App.tsx (no Sentry.init / no wrap). Set true and restore Sentry in App.tsx
- * to send breadcrumbs and exceptions again.
- */
-const SENTRY_ENABLED = Boolean(process.env.EXPO_PUBLIC_SENTRY_DSN);
+/** Release builds only; init runs in App.tsx before errors are logged. */
+const SENTRY_ENABLED = Boolean(buildConfig.sentryDsn) && !__DEV__;
+
+function sentry() {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('@sentry/react-native') as typeof import('@sentry/react-native');
+}
 
 /**
  * logger.ts
@@ -35,16 +37,21 @@ class Logger {
       return;
     }
 
-    Sentry.withScope((scope) => {
-      if (extra) {
-        scope.setExtras(extra);
-      }
-      if (error instanceof Error) {
-        Sentry.captureException(error);
-      } else {
-        Sentry.captureMessage(`${message}: ${JSON.stringify(error)}`, 'error');
-      }
-    });
+    try {
+      const Sentry = sentry();
+      Sentry.withScope((scope) => {
+        if (extra) {
+          scope.setExtras(extra);
+        }
+        if (error instanceof Error) {
+          Sentry.captureException(error);
+        } else {
+          Sentry.captureMessage(`${message}: ${JSON.stringify(error)}`, 'error');
+        }
+      });
+    } catch {
+      // Sentry not ready — console.error above is enough
+    }
   }
 
   warn(message: string, extra?: Record<string, unknown>) {
@@ -54,7 +61,7 @@ class Logger {
       return;
     }
 
-    Sentry.addBreadcrumb({
+    sentry().addBreadcrumb({
       category: 'log',
       message,
       level: 'warning',
@@ -72,7 +79,7 @@ class Logger {
       return;
     }
 
-    Sentry.addBreadcrumb({
+    sentry().addBreadcrumb({
       category: 'log',
       message,
       level: 'info',
@@ -84,14 +91,14 @@ class Logger {
     if (!SENTRY_ENABLED) {
       return;
     }
-    Sentry.setUser({ id, email, username });
+    sentry().setUser({ id, email, username });
   }
 
   clearUser() {
     if (!SENTRY_ENABLED) {
       return;
     }
-    Sentry.setUser(null);
+    sentry().setUser(null);
   }
 }
 

@@ -16,7 +16,7 @@ Support: **admin@audentix.com** · **+91 70060 82958**
 
 Set `REACT_APP_PUBLIC_SITE_URL` on Vercel to that base URL (no trailing slash), then redeploy.
 
-For mobile in-app web link, set EAS secret `EXPO_PUBLIC_PUBLIC_SITE_URL` to the same URL before production build.
+For mobile in-app web link, set `EXPO_PUBLIC_PUBLIC_SITE_URL` on Expo (see [EXPO_ENV_SETUP.md](./EXPO_ENV_SETUP.md)) before production build.
 
 ### Vercel deploy (quick)
 
@@ -97,11 +97,14 @@ Paste the same credentials into Play Console → **App content** → **App acces
 
 Later: Vercel → Project → **Domains** → add `trimit.app` → DNS at your registrar. Do **not** use `trimit.com` (different company).
 
-## EAS production secrets
+## Store listing ASO
 
-- [ ] `EXPO_PUBLIC_SENTRY_DSN` — crash reporting
-- [ ] `EXPO_PUBLIC_PUBLIC_SITE_URL` — `https://trimi-t.vercel.app` (or custom domain)
+- [ ] Paste copy from [PLAY_STORE_LISTING_COPY.md](./PLAY_STORE_LISTING_COPY.md)
+- [ ] Category **Beauty** + tags; add **Hindi (hi-IN)** listing
+- [ ] 6 screenshots with headlines from ASO doc
+
+## Expo env + signing
+
+- [ ] Expo env vars per [EXPO_ENV_SETUP.md](./EXPO_ENV_SETUP.md)
 - [ ] Upload keystore via `eas credentials` (not debug keystore)
 - [ ] GCP Maps key restricted to `com.trimit.app` + upload + Play signing SHA-1
-
-API request signing (HMAC) was removed; auth uses TLS + Supabase JWT only.

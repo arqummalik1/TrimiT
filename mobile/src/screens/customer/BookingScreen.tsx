@@ -33,6 +33,7 @@ import { BookingParamsSchema } from '../../navigation/params';
 
 import { analytics } from '../../lib/analytics';
 import { ENABLE_ONLINE_PAY } from '../../lib/featureFlags';
+import { createIdempotencyKey } from '../../lib/idempotency';
 
 // Staff selection imports
 import StaffPicker from '../../components/StaffPicker';
@@ -86,6 +87,12 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   const [holdId, setHoldId] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+  /** Stable key per confirm attempt so retries are safe; reset when slot/date changes. */
+  const idempotencyKeyRef = React.useRef<string | null>(null);
+
+  const resetBookingAttempt = useCallback(() => {
+    idempotencyKeyRef.current = null;
+  }, []);
 
   // Real-time booking store
   const {
@@ -479,12 +486,19 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       };
       logger.debug('[BookingFlow] booking.create.request', payload);
 
-      const response = await api.post('/bookings/', payload);
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = await createIdempotencyKey();
+      }
+
+      const response = await api.post('/bookings/', payload, {
+        headers: { 'Idempotency-Key': idempotencyKeyRef.current },
+      });
       logger.debug('[BookingFlow] booking.create.response', response.data);
       return response.data;
     },
 
     onSuccess: (booking: { booking_id?: string; id?: string; message?: string }) => {
+      idempotencyKeyRef.current = null;
       const bookingId = booking?.booking_id ?? booking?.id;
       logger.debug('[BookingFlow] booking.create.success', { bookingId });
 
@@ -556,25 +570,53 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     },
     onError: (error: unknown) => {
       logger.debug('[BookingFlow] booking.create.error', { error: String(error) });
-      // Interceptor returns normalized AppError, so avoid assuming axios shape.
       const appErr = isAppError(error) ? error : handleApiError(error);
       const errorDetail = appErr.message || 'Failed to create booking';
       const statusCode = appErr.status;
-      
-      // Always re-fetch slots on error so user sees updated availability
+
       queryClient.invalidateQueries({ queryKey: ['slots', salonId, serviceId, selectedDate] });
       refetchSlots();
-      setSelectedSlot(null);
-      setHoldId(null);
-      setTimeLeft(null);
 
-      // Handle slot conflict specifically
-      if (appErr.kind === 'conflict' || statusCode === 409) {
-        Alert.alert('Slot Unavailable', errorDetail);
+      const isSlotGone = appErr.kind === 'conflict' || statusCode === 409;
+      const isHoldExpired =
+        statusCode === 400 &&
+        (errorDetail.toLowerCase().includes('hold') ||
+          errorDetail.toLowerCase().includes('expired') ||
+          errorDetail.toLowerCase().includes('unavailable'));
+
+      if (isSlotGone || isHoldExpired) {
+        resetBookingAttempt();
+        setSelectedSlot(null);
+        setHoldId(null);
+        setTimeLeft(null);
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        Alert.alert(
+          'Slot Unavailable',
+          isHoldExpired
+            ? 'Your hold expired or this slot was taken. Please pick a time again.'
+            : errorDetail
+        );
         setSlotConflictError(errorDetail);
-      } else {
-        Alert.alert('Booking Failed', errorDetail);
+        return;
       }
+
+      // Retryable: keep slot + hold; same idempotency key for "Try again"
+      Alert.alert('Booking Failed', errorDetail, [
+        { text: 'Try Again', onPress: () => bookingMutation.mutate() },
+        {
+          text: 'Pick another slot',
+          style: 'cancel',
+          onPress: () => {
+            resetBookingAttempt();
+            setSelectedSlot(null);
+            setHoldId(null);
+            setTimeLeft(null);
+          },
+        },
+      ]);
     },
   });
 
@@ -593,7 +635,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     });
   }, []);
 
-  const handleConfirmBooking = () => {
+  const handleConfirmBooking = async () => {
     logger.debug('[BookingFlow] confirm.tap', {
       selectedSlot,
       holdId,
@@ -618,7 +660,6 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       return;
     }
 
-    // Check if slot was just booked by someone else
     const scopedKey = `${selectedDate}::${selectedSlot}`;
     if (justBookedSlots.has(scopedKey) && !effectiveAllowMultiple) {
       logger.debug('[BookingFlow] confirm.blocked', { reason: 'justBookedSlots', scopedKey });
@@ -626,6 +667,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
         'Slot Unavailable',
         'This time slot was just booked by someone else. Please select another slot.',
         [{ text: 'OK', onPress: () => {
+          resetBookingAttempt();
           setSelectedSlot(null);
           setHoldId(null);
           setTimeLeft(null);
@@ -635,19 +677,40 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       return;
     }
 
+    // Re-place hold if missing (e.g. after a failed confirm cleared state or reserve error recovery)
+    if (!effectiveAllowMultiple && !holdId && selectedSlot) {
+      try {
+        logger.debug('[BookingFlow] confirm.reReserve', { slot: selectedSlot });
+        await reserveMutation.mutateAsync(selectedSlot);
+      } catch {
+        Alert.alert(
+          'Could not reserve slot',
+          'Please tap your time slot again, then confirm booking.'
+        );
+        return;
+      }
+    }
+
     if (!holdId && !effectiveAllowMultiple) {
       logger.debug('[BookingFlow] confirm.blocked', { reason: 'no_hold' });
-      Alert.alert('Error', 'Slot reservation not found. Please re-select your slot.');
-      setSelectedSlot(null);
+      Alert.alert('Error', 'Slot reservation not found. Please tap your time slot again.');
       return;
     }
     if (!effectiveAllowMultiple && (timeLeft === null || timeLeft <= 0)) {
       logger.debug('[BookingFlow] confirm.blocked', { reason: 'hold_expired', timeLeft });
-      Alert.alert('Hold Expired', 'Your temporary slot reservation has expired. Please select a slot again to continue.');
-      setSelectedSlot(null);
-      setHoldId(null);
-      setTimeLeft(null);
-      return;
+      try {
+        await reserveMutation.mutateAsync(selectedSlot);
+      } catch {
+        Alert.alert(
+          'Hold Expired',
+          'Your temporary reservation expired. Please select your time slot again.'
+        );
+        resetBookingAttempt();
+        setSelectedSlot(null);
+        setHoldId(null);
+        setTimeLeft(null);
+        return;
+      }
     }
 
     setSlotConflictError(null);
@@ -902,9 +965,9 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
                     ]}
                     onPress={() => {
                       if (selectedSlot !== slot.time) {
+                        resetBookingAttempt();
                         setSelectedSlot(slot.time);
                         reserveMutation.mutate(slot.time);
-                        // Reset staff selection when slot changes
                         setSelectedStaffId(null);
                         setAnyStaffSelected(true);
                       }

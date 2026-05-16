@@ -7,7 +7,12 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "test": "jest",
-    "sync-legal": "node ../scripts/sync-legal.cjs"
+    "sync-legal": "node ../scripts/sync-legal.cjs",
+    "verify:env": "node scripts/verify-build-env.js",
+    "eas:sync-env": "node scripts/sync-env-to-dotenv.js",
+    "eas-build-post-install": "node scripts/sync-env-to-dotenv.js",
+    "build:aab:local": "bash scripts/build-aab-local.sh",
+    "build:apk:local": "bash scripts/build-apk-local.sh"
   },
   "jest": {
     "preset": "jest-expo",
@@ -42,9 +47,10 @@
     "crypto-js": "^4.2.0",
     "date-fns": "^4.1.0",
     "expo": "~54.0.34",
-    "expo-audio": "~1.0.16",
-    "expo-build-properties": "~1.0.10",
+    "expo-asset": "~12.0.13",
+    "expo-audio": "~1.1.1",
     "expo-blur": "~15.0.8",
+    "expo-build-properties": "~1.0.10",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.9",
     "expo-font": "~14.0.11",
@@ -88,5 +94,7 @@
     "typescript": "~5.9.2"
   },
   "private": true,
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  "engines": {
+    "node": ">=22.14.0 <23"
+  }
 }

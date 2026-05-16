@@ -1,13 +1,13 @@
 import { createClient, RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import type { Booking } from '../types';
+import { buildConfig } from './buildConfig';
 
-// Supabase configuration — must be provided via EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY.
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'dummy_key';
+const SUPABASE_URL = buildConfig.supabaseUrl || 'https://placeholder.supabase.co';
+const SUPABASE_ANON_KEY = buildConfig.supabaseAnonKey || 'placeholder';
 
-if (!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) {
+if (__DEV__ && (!buildConfig.supabaseUrl || !buildConfig.supabaseAnonKey)) {
   console.warn(
-    '⚠️ [Supabase] Env vars missing. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.'
+    '⚠️ [Supabase] Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in mobile/.env'
   );
 }
 

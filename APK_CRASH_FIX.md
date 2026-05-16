@@ -1,7 +1,47 @@
 # APK Crash Fix - White Screen Issue
 
-## 🚨 Problem
-App crashes immediately on startup with white screen for 1-2 seconds, then closes automatically on OnePlus 9R (real Android device).
+## ✅ RESOLVED (May 2026)
+
+Release APK with env baked correctly (`npm run build:apk:local`) **opens successfully**.
+
+**Root cause:** Missing `EXPO_PUBLIC_SUPABASE_*` and `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` in the release bundle (`.env` not included in EAS archive; broken `eas.json` `$VAR` placeholders).
+
+**Permanent process:** See [mobile/BUILD_RELEASE.md](mobile/BUILD_RELEASE.md).
+
+---
+
+## 🚨 Problem (historical)
+App crashes immediately on startup with white screen for 1-2 seconds, then closes automatically on release APK/AAB (not Expo Go).
+
+## May 2026 — Env vars not baked into local APK (most common)
+
+**Symptom:** Expo Go OK, release APK closes immediately.
+
+**Cause:** `mobile/.env` is gitignored — `eas build --local` did **not** load it unless you exported vars manually. Empty Supabase/Maps keys → crash.
+
+**Fix:**
+
+```bash
+cd mobile
+npm run verify:env          # must pass
+npm run build:apk:local     # loads .env automatically
+adb uninstall com.trimit.app && adb install build-*.apk
+```
+
+**Prebuild failed?** Remove `"$EXPO_PUBLIC_*"` from `eas.json` — use `npm run build:apk:local` only (loads `.env` into shell). See `scripts/sync-env-to-dotenv.js` prebuild hook.
+
+See **[APK_CRASH_DEBUG.md](./APK_CRASH_DEBUG.md)** for `adb logcat` steps.
+
+---
+
+## May 2026 — Release crash hardening (permanent)
+- **R8/ProGuard:** full rules in `mobile/proguard-rules.pro`
+- **Resource shrink:** disabled (`enableShrinkResourcesInReleaseBuilds: false`) — shrinker can strip splash/logo assets
+- **New Architecture:** disabled (`newArchEnabled: false`) for OEM stability
+- **Auth persist:** `safeAuthStorage.ts` — corrupt SecureStore JSON no longer crashes startup
+- **Sentry:** safe init in `startupGuards.ts` (no `Sentry.wrap` on root)
+- **ErrorBoundary:** wraps entire app including splash
+- **Rebuild required** after these changes: `npm run build:apk:local` and uninstall old APK first
 
 ## 🔍 Root Cause Analysis
 

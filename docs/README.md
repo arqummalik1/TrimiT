@@ -77,6 +77,7 @@ This folder is the single source of truth for production readiness, architecture
 | [NOTION_LAUNCH_HQ.md](./NOTION_LAUNCH_HQ.md) | Notion-style launch dashboard |
 
 ### Existing docs
+- [PLAY_STORE_DEPLOYMENT_GUIDE.md](./PLAY_STORE_DEPLOYMENT_GUIDE.md) — **Beginner Play Store + AAB guide**
 - [API_GUIDE.md](./API_GUIDE.md)
 - [PLAY_CONSOLE_CHECKLIST.md](./PLAY_CONSOLE_CHECKLIST.md)
 - Root: [PRODUCTION_READINESS_AUDIT.md](../PRODUCTION_READINESS_AUDIT.md) (detailed Play Store + backend notes)

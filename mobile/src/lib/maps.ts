@@ -16,6 +16,7 @@
  */
 
 import { Linking, Platform, Alert } from 'react-native';
+import { buildConfig } from './buildConfig';
 
 // ─── Constants ────────────────────────────────────────────────────
 
@@ -23,7 +24,8 @@ import { Linking, Platform, Alert } from 'react-native';
 const GEOCODING_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
 
 /** Key comes from the bundle — same key injected by app.config.js into the native layer. */
-const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
+
+const GOOGLE_API_KEY = buildConfig.googleMapsApiKey;
 
 // ─── Types ────────────────────────────────────────────────────────
 

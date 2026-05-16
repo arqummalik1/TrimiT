@@ -1,7 +1,8 @@
 {
   "cli": {
-    "version": ">= 18.0.0",
-    "appVersionSource": "remote"
+    "version": "18.13.0",
+    "appVersionSource": "remote",
+    "requireCommit": false
   },
   "build": {
     "development": {
@@ -13,31 +14,29 @@
     },
     "preview": {
       "distribution": "internal",
+      "node": "22.14.0",
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "$EXPO_PUBLIC_API_URL",
-        "EXPO_PUBLIC_SUPABASE_URL": "$EXPO_PUBLIC_SUPABASE_URL",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "$EXPO_PUBLIC_SUPABASE_ANON_KEY",
-        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "$EXPO_PUBLIC_GOOGLE_MAPS_API_KEY",
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_ENABLE_ONLINE_PAY": "false",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "production": {
       "autoIncrement": true,
+      "node": "22.14.0",
       "android": {
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "$EXPO_PUBLIC_API_URL",
-        "EXPO_PUBLIC_SUPABASE_URL": "$EXPO_PUBLIC_SUPABASE_URL",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "$EXPO_PUBLIC_SUPABASE_ANON_KEY",
-        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "$EXPO_PUBLIC_GOOGLE_MAPS_API_KEY",
-        "EXPO_PUBLIC_PUBLIC_SITE_URL": "$EXPO_PUBLIC_PUBLIC_SITE_URL",
-        "EXPO_PUBLIC_SENTRY_DSN": "$EXPO_PUBLIC_SENTRY_DSN",
-        "EXPO_PUBLIC_ENABLE_ONLINE_PAY": "false"
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_ENABLE_ONLINE_PAY": "false",
+        "SENTRY_ORG": "trimit-inc",
+        "SENTRY_PROJECT": "trimit-mobile",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }
   }

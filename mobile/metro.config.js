@@ -1,15 +1,11 @@
-const { getDefaultConfig } = require('expo/metro-config');
+const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 const path = require('path');
 
-/**
- * Metro configuration
- * https://reactnative.dev/docs/metro
- *
- * @type {import('metro-config').MetroConfig}
- */
-const config = getDefaultConfig(__dirname);
+/** @type {import('metro-config').MetroConfig} */
+const config = getSentryExpoConfig(__dirname);
 
-// Alias react-native-maps to our web mock when bundling for web
+const defaultResolveRequest = config.resolver.resolveRequest;
+
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (platform === 'web' && moduleName === 'react-native-maps') {
     return {
@@ -17,8 +13,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       type: 'sourceFile',
     };
   }
-  
-  // Force Zustand to use CJS version to avoid import.meta issues on web
+
   if (platform === 'web' && moduleName === 'zustand') {
     return {
       filePath: path.resolve(__dirname, 'node_modules/zustand/index.js'),
@@ -32,7 +27,10 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       type: 'sourceFile',
     };
   }
-  
+
+  if (defaultResolveRequest) {
+    return defaultResolveRequest(context, moduleName, platform);
+  }
   return context.resolveRequest(context, moduleName, platform);
 };
 

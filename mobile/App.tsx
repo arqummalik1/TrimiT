@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, StyleSheet, Text, Image } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text, Image, InteractionManager } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Font from 'expo-font';
 import * as Notifications from 'expo-notifications';
-import Constants from 'expo-constants';
 import {
   Manrope_400Regular,
   Manrope_500Medium,
@@ -38,6 +37,9 @@ import { logger } from './src/lib/logger';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import OfflineBanner from './src/components/OfflineBanner';
 import Toast from './src/components/Toast';
+import { initSentryIfNeeded } from './src/lib/startupGuards';
+import { analytics } from './src/lib/analytics';
+import { getReleaseConfigIssues } from './src/lib/buildConfig';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
@@ -47,8 +49,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 2,
-      staleTime: 1000 * 60 * 60, // 1 hour stale time for offline support
-      gcTime: 1000 * 60 * 60 * 24, // 24 hours garbage collection
+      staleTime: 1000 * 60 * 60,
+      gcTime: 1000 * 60 * 60 * 24,
       refetchOnWindowFocus: false,
     },
   },
@@ -73,9 +75,6 @@ const CUSTOM_FONTS = {
   CormorantGaramond_700Bold,
 };
 
-import * as Sentry from '@sentry/react-native';
-import { analytics } from './src/lib/analytics';
-
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldPlaySound: true,
@@ -85,53 +84,102 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
-if (sentryDsn) {
-  Sentry.init({
-    dsn: sentryDsn,
-    debug: __DEV__,
-    tracesSampleRate: __DEV__ ? 1.0 : 0.2,
-    enabled: !__DEV__ || Boolean(sentryDsn),
-  });
-}
+const configIssues = getReleaseConfigIssues();
 
 function AppContent() {
   const { isDark } = useTheme();
-  const { isAuthenticated, initializeAuth, isHydrated, authBootstrapComplete, setQueryClient, user } =
+  const { isAuthenticated, isHydrated, authBootstrapComplete, setQueryClient, user } =
     useAuthStore();
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [bootError, setBootError] = useState<string | null>(null);
+
+  if (configIssues.length > 0) {
+    return (
+      <View style={styles.splash}>
+        <Text style={styles.splashTitle}>TrimiT</Text>
+        <Text style={[styles.splashTitle, { fontSize: 16, marginTop: 16, fontWeight: '600' }]}>
+          This build is missing configuration
+        </Text>
+        {configIssues.map((issue) => (
+          <Text
+            key={issue.key}
+            style={{ marginTop: 8, color: lightPalette.textSecondary, textAlign: 'center', fontSize: 13 }}
+          >
+            • {issue.message}
+          </Text>
+        ))}
+        <Text style={{ marginTop: 16, color: lightPalette.textSecondary, textAlign: 'center', fontSize: 12 }}>
+          Rebuild with mobile/.env loaded: npm run build:apk:local
+        </Text>
+      </View>
+    );
+  }
 
   const loadResources = useCallback(async () => {
     try {
       await Font.loadAsync(CUSTOM_FONTS);
-      setFontsLoaded(true);
     } catch (e) {
-      console.warn('[App] Font loading failed:', e);
-      setFontsLoaded(true); // Continue with system fonts
+      console.warn('[App] Font loading failed — using system fonts', e);
+    } finally {
+      setFontsLoaded(true);
     }
   }, []);
 
   useEffect(() => {
-    loadResources();
-    initializeAuth();
-    setQueryClient(queryClient as any);
-    analytics.init();
+    let cancelled = false;
 
-    // Initialize React Query persistence safely after the JS engine is ready
-    persistQueryClient({
-      queryClient: queryClient as any,
-      persister: asyncStoragePersister,
-      maxAge: 1000 * 60 * 60 * 24, // 24 hours
-    });
-  }, []);
+    const boot = async () => {
+      try {
+        initSentryIfNeeded(); // release only; must not throw
+        await loadResources();
+        if (cancelled) return;
 
-  // Senior Architect: Track user identity in Sentry/Analytics when authenticated
+        setQueryClient(queryClient as never);
+        analytics.init();
+
+        // Auth bootstrap runs from zustand onRehydrateStorage — do not duplicate here.
+        if (!useAuthStore.getState().isHydrated) {
+          useAuthStore.getState().setHydrated(true);
+          if (!useAuthStore.getState().authBootstrapComplete) {
+            await useAuthStore.getState().initializeAuth();
+          }
+        }
+
+        InteractionManager.runAfterInteractions(() => {
+          if (cancelled) return;
+          try {
+            persistQueryClient({
+              queryClient: queryClient as never,
+              persister: asyncStoragePersister,
+              maxAge: 1000 * 60 * 60 * 24,
+            });
+          } catch (e) {
+            console.warn('[App] Query cache persist skipped', e);
+          }
+        });
+      } catch (e) {
+        console.error('[App] Boot failed', e);
+        if (!cancelled) {
+          setBootError(e instanceof Error ? e.message : 'Startup failed');
+          useAuthStore.getState().setHydrated(true);
+          useAuthStore.setState({ authBootstrapComplete: true });
+          setFontsLoaded(true);
+        }
+      }
+    };
+
+    void boot();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadResources, setQueryClient]);
+
   useEffect(() => {
     if (isAuthenticated && isHydrated) {
-      const user = useAuthStore.getState().user;
-      if (user) {
-        logger.setUser(user.id, user.email, user.name);
-        analytics.identify(user.id, { email: user.email, name: user.name });
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser) {
+        logger.setUser(currentUser.id, currentUser.email, currentUser.name);
+        analytics.identify(currentUser.id, { email: currentUser.email, name: currentUser.name });
       }
     } else {
       logger.clearUser();
@@ -159,40 +207,41 @@ function AppContent() {
     return () => sub.remove();
   }, [isAuthenticated, authBootstrapComplete, user?.role]);
 
-  if (!isHydrated || !authBootstrapComplete || !fontsLoaded) {
+  if (bootError) {
     return (
       <View style={styles.splash}>
-        <View style={styles.splashLogo}>
-          <Image source={require('./assets/logo.png')} style={{ width: 40, height: 40, resizeMode: 'contain', tintColor: '#FFFFFF' }} />
-        </View>
         <Text style={styles.splashTitle}>TrimiT</Text>
-        <ActivityIndicator
-          size="large"
-          color={lightPalette.primary}
-          style={{ marginTop: 24 }}
-        />
+        <Text style={[styles.splashTitle, { fontSize: 14, marginTop: 12, fontWeight: '400' }]}>
+          {bootError}
+        </Text>
+        <Text style={{ marginTop: 8, color: lightPalette.textSecondary, textAlign: 'center' }}>
+          Try clearing app storage in Settings, then reopen.
+        </Text>
       </View>
     );
   }
 
-  // Safety check: Ensure all critical components are defined
-  if (!ErrorBoundary || !RootNavigator || !Toast) {
-    console.error('[App] Critical components missing. Check imports.');
+  if (!isHydrated || !authBootstrapComplete || !fontsLoaded) {
     return (
       <View style={styles.splash}>
-        <Text>Loading application modules...</Text>
+        <View style={styles.splashLogo}>
+          <Image
+            source={require('./assets/logo.png')}
+            style={{ width: 40, height: 40, resizeMode: 'contain', tintColor: '#FFFFFF' }}
+          />
+        </View>
+        <Text style={styles.splashTitle}>TrimiT</Text>
+        <ActivityIndicator size="large" color={lightPalette.primary} style={{ marginTop: 24 }} />
       </View>
     );
   }
 
   return (
     <NavigationContainer ref={navigationRef}>
-      <ErrorBoundary>
-        <RootNavigator />
-        <SessionExpiredModal />
-        <OfflineBanner />
-        <Toast />
-      </ErrorBoundary>
+      <RootNavigator />
+      <SessionExpiredModal />
+      <OfflineBanner />
+      <Toast />
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </NavigationContainer>
   );
@@ -200,26 +249,27 @@ function AppContent() {
 
 function App() {
   return (
-    <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <AppContent />
-        </ThemeProvider>
-      </QueryClientProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <AppContent />
+          </ThemeProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
 
-const RootApp = sentryDsn ? Sentry.wrap(App) : App;
-export default RootApp;
+export default App;
 
-// Splash uses light palette — it shows before theme hydrates from AsyncStorage
 const styles = StyleSheet.create({
   splash: {
     flex: 1,
     backgroundColor: lightPalette.background,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 24,
   },
   splashLogo: {
     width: 80,
@@ -229,10 +279,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-  },
-  splashIcon: {
-    fontSize: 36,
-    color: '#FFFFFF',
   },
   splashTitle: {
     fontSize: 28,

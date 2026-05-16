@@ -34,9 +34,19 @@ yarn-error.*
 .env
 .env*.local
 
+# Android signing (never commit)
+credentials/
+credentials.json
+*.jks
+*.keystore
+
 # typescript
 *.tsbuildinfo
 
 # generated native folders
 /ios
 /android
+
+# local EAS build artifacts
+build-*.apk
+build-*.aab

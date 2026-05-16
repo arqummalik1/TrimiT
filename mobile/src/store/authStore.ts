@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { authRepository } from '../repositories/authRepository';
 import { setAuthToken } from '../services/apiClient';
 import { User } from '../types';
-import { secureStorage } from '../lib/secureStorage';
+import { safeAuthStorage } from '../lib/safeAuthStorage';
 import { supabase, syncSupabaseAuthSession } from '../lib/supabase';
 import { QueryClient } from '@tanstack/react-query';
 import { isAppError } from '../types/error';
@@ -274,14 +274,23 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'trimit-auth-storage',
-      storage: createJSONStorage(() => secureStorage),
+      storage: createJSONStorage(() => safeAuthStorage),
       onRehydrateStorage: () => {
         return (state, err) => {
           if (err) {
-            logger.error('[Auth] rehydrate failed', err);
+            logger.error('[Auth] rehydrate failed — clearing corrupt persist', err);
+            void safeAuthStorage.removeItem('trimit-auth-storage');
           }
-          state?.setHydrated(true);
-          void state?.initializeAuth();
+
+          const store = state ?? useAuthStore.getState();
+          store.setHydrated(true);
+
+          if (!state) {
+            useAuthStore.setState({ authBootstrapComplete: true, isAuthenticated: false });
+            return;
+          }
+
+          void state.initializeAuth();
         };
       },
       partialize: (state) => ({

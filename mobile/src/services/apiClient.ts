@@ -2,9 +2,9 @@ import axios, { InternalAxiosRequestConfig } from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { handleApiError } from '../lib/errorHandler';
+import { buildConfig } from '../lib/buildConfig';
+import { createIdempotencyKey, pathRequiresIdempotencyKey } from '../lib/idempotency';
 
-/** Host only (no /api/v1). Production Render URL. */
-const PRODUCTION_HOST = 'https://trimit-az5h.onrender.com';
 const LOCAL_PORT = '8000';
 
 function stripApiVersionSuffix(url: string): string {
@@ -18,12 +18,13 @@ function stripApiVersionSuffix(url: string): string {
  */
 const getBaseURL = (): string => {
   let host: string;
+  const releaseHost = stripApiVersionSuffix(buildConfig.apiUrl);
+
   if (!__DEV__) {
-    host = PRODUCTION_HOST;
+    host = releaseHost;
   } else {
-    const ENV_URL = process.env.EXPO_PUBLIC_API_URL;
-    if (ENV_URL) {
-      host = stripApiVersionSuffix(ENV_URL);
+    if (buildConfig.apiUrl) {
+      host = releaseHost;
     } else {
       const hostUri = Constants.expoConfig?.hostUri;
       const hostIP = hostUri?.split(':')[0];
@@ -32,7 +33,7 @@ const getBaseURL = (): string => {
       } else if (Platform.OS === 'android') {
         host = `http://10.0.2.2:${LOCAL_PORT}`;
       } else {
-        host = PRODUCTION_HOST;
+        host = releaseHost;
       }
     }
   }
@@ -57,13 +58,25 @@ function getRequestUrl(config: InternalAxiosRequestConfig): string {
 
 apiClient.interceptors.request.use(
   async (config) => {
-    // Emoji-first API request log for quick scanning in Metro.
+    const method = (config.method || 'get').toLowerCase();
+    if (method === 'post' && pathRequiresIdempotencyKey(config.url)) {
+      const headers = config.headers ?? {};
+      const existing =
+        (headers['Idempotency-Key'] as string | undefined) ??
+        (headers['idempotency-key'] as string | undefined);
+      if (!existing) {
+        headers['Idempotency-Key'] = await createIdempotencyKey();
+        config.headers = headers;
+      }
+    }
+
     if (__DEV__) {
       console.log('🚀 [API][REQ]', {
         method: (config.method || 'GET').toUpperCase(),
         url: getRequestUrl(config),
         params: config.params,
         hasAuth: !!config.headers?.Authorization || !!apiClient.defaults.headers.common['Authorization'],
+        idempotencyKey: config.headers?.['Idempotency-Key'] as string | undefined,
       });
     }
 

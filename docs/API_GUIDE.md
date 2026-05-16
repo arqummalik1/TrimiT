@@ -37,7 +37,7 @@ When **`API_SIGNING_SECRET`** is set on the server, **mutating** requests (`POST
 | `X-Trimit-Timestamp` | Unix time in seconds (string) |
 | `X-Trimit-Signature` | HMAC-SHA256 hex of `METHOD\|PATH\|TIMESTAMP` using the shared secret |
 
-- **`PATH`** must match the server’s path (e.g. `/api/v1/bookings/`), including query string if your signing implementation uses it—**match `mobile/src/services/apiClient.ts` → `resolvePathForSignature`** and `mobile/src/lib/security.ts`.
+- **`PATH`** must match the server’s path (e.g. `/api/v1/bookings/`). Signing is optional and disabled when `API_SIGNING_SECRET` is unset on the server.
 - **Exempt from signing:** `GET`, `OPTIONS`, and the explicit whitelist in `backend/core/middleware.py` (e.g. `/health`, `/api/v1/auth/signup`, `/api/v1/auth/login`).
 - If the secret is **unset** on the server, signing is not enforced.
 
