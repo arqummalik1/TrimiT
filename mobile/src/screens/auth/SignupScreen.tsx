@@ -63,6 +63,7 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
   const [emailConfirmationSent, setEmailConfirmationSent] = useState(false);
   const [confirmedEmail, setConfirmedEmail] = useState('');
   const [lastSignupErrorCode, setLastSignupErrorCode] = useState<string | null>(null);
+  const [accountReadyForLogin, setAccountReadyForLogin] = useState(false);
 
   const {
     control,
@@ -93,6 +94,7 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
       if (result.requiresEmailConfirmation) {
         setConfirmedEmail(data.email.trim());
         setEmailConfirmationSent(true);
+        setAccountReadyForLogin(!!result.accountReadyForLogin);
         setLastSignupErrorCode(null);
       }
     } else {
@@ -110,14 +112,19 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
     const result = await resendConfirmation(email);
     if (result.success) {
       setEmailConfirmationSent(true);
+      setAccountReadyForLogin(!!result.accountReadyForLogin);
       setLastSignupErrorCode(null);
       clearError();
-      showToast('Confirmation email sent', 'success');
+      showToast(
+        result.accountReadyForLogin ? 'Account activated — you can sign in' : 'Confirmation email sent',
+        'success'
+      );
     }
   };
 
   const showSignupRecovery =
     lastSignupErrorCode === 'EMAIL_RATE_LIMIT' ||
+    lastSignupErrorCode === 'AUTH_PROVIDER_EMAIL_QUOTA' ||
     lastSignupErrorCode === 'ALREADY_REGISTERED' ||
     lastSignupErrorCode === 'RATE_LIMITED';
 
@@ -129,12 +136,22 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
           <View style={[styles.scrollContent, { justifyContent: 'center', alignItems: 'center' }]}>
             <Ionicons name="mail-open-outline" size={64} color={theme.colors.primary} />
             <Text style={[styles.title, { marginTop: 24, textAlign: 'center' }]}>
-              Check your email
+              {accountReadyForLogin ? 'Account ready' : 'Check your email'}
             </Text>
             <Text style={[styles.subtitle, { textAlign: 'center', marginTop: 12, paddingHorizontal: 24 }]}>
-              We sent a confirmation link to{' '}
-              <Text style={{ fontWeight: '700', color: theme.colors.text }}>{confirmedEmail}</Text>.
-              {' '}Click the link to activate your account, then come back to log in.
+              {accountReadyForLogin ? (
+                <>
+                  Your account for{' '}
+                  <Text style={{ fontWeight: '700', color: theme.colors.text }}>{confirmedEmail}</Text>
+                  {' '}is active. Sign in with the password you just created.
+                </>
+              ) : (
+                <>
+                  We sent a confirmation link to{' '}
+                  <Text style={{ fontWeight: '700', color: theme.colors.text }}>{confirmedEmail}</Text>.
+                  {' '}Click the link to activate your account, then come back to log in.
+                </>
+              )}
             </Text>
             <TouchableOpacity
               style={[styles.signInButton, { marginTop: 40 }]}

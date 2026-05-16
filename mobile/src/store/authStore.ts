@@ -30,8 +30,8 @@ interface AuthState {
   clearSession: (options?: { sessionExpired?: boolean; errorMessage?: string }) => Promise<void>;
   dismissSessionExpired: () => void;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; requiresEmailConfirmation?: boolean }>;
-  signup: (email: string, password: string, name: string, phone: string, role: 'customer' | 'owner') => Promise<{ success: boolean; error?: string; errorCode?: string; requiresEmailConfirmation?: boolean }>;
-  resendConfirmation: (email: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (email: string, password: string, name: string, phone: string, role: 'customer' | 'owner') => Promise<{ success: boolean; error?: string; errorCode?: string; requiresEmailConfirmation?: boolean; accountReadyForLogin?: boolean }>;
+  resendConfirmation: (email: string) => Promise<{ success: boolean; error?: string; accountReadyForLogin?: boolean }>;
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (data: { name?: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
@@ -145,7 +145,11 @@ export const useAuthStore = create<AuthState>()(
             requiresEmailConfirmation: true,
             error: null,
           });
-          return { success: true, requiresEmailConfirmation: true };
+          return {
+            success: true,
+            requiresEmailConfirmation: true,
+            accountReadyForLogin: result.accountReadyForLogin,
+          };
         }
 
         if (!result.token || !result.user) {
@@ -173,14 +177,13 @@ export const useAuthStore = create<AuthState>()(
       resendConfirmation: async (email) => {
         set({ isLoading: true, error: null });
         try {
-          const { authService } = require('../services/authService');
-          await authService.resendConfirmation(email.trim());
+          const result = await authRepository.resendConfirmation(email);
+          if (!result.success) {
+            set({ error: result.error ?? 'Could not resend confirmation' });
+          }
+          return result;
+        } finally {
           set({ isLoading: false });
-          return { success: true };
-        } catch (err: unknown) {
-          const { message } = parseAuthFailure(err);
-          set({ isLoading: false, error: message });
-          return { success: false, error: message };
         }
       },
 

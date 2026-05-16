@@ -42,13 +42,14 @@ def map_supabase_signup_error(response) -> tuple[str, str]:
 
     if (
         "over_email_send_rate_limit" in combined
+        or "email_rate_limit" in combined
         or "email rate limit" in combined
         or "too many emails" in combined
     ):
         return (
             "EMAIL_RATE_LIMIT",
-            "Too many confirmation emails were requested. If you already signed up, check your inbox "
-            "(and spam) for the link, or wait a few minutes and tap Resend confirmation.",
+            "Email delivery is temporarily limited for this app (Supabase project quota). "
+            "We will try to activate your account automatically when possible.",
         )
 
     if "rate limit" in combined or "too many requests" in combined or status == 429:

@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "https://trimi-t.vercel.app,https://trimit.app,https://www.trimit.app,http://localhost:3000,http://localhost:8081"
     # Password-reset emails redirect here (must be allowlisted in Supabase Auth → URL config)
     PUBLIC_SITE_URL: str = "https://trimi-t.vercel.app"
+    # Staging only: create pre-confirmed users (no Supabase confirmation email).
+    # Production must use Custom SMTP in Supabase for scalable signups.
+    AUTH_AUTO_CONFIRM_SIGNUP: bool = False
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,

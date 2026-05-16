@@ -14,6 +14,8 @@ export type AuthErrorCode =
   | 'EMAIL_NOT_CONFIRMED'
   | 'ALREADY_REGISTERED'
   | 'EMAIL_RATE_LIMIT'
+  | 'AUTH_PROVIDER_EMAIL_QUOTA'
+  | 'SIGNUP_READY_SIGN_IN'
   | 'RATE_LIMITED'
   | 'WEAK_PASSWORD'
   | 'INVALID_EMAIL'
@@ -56,6 +58,8 @@ export interface AuthResult {
   refreshToken?: string | null;
   /** Set when signup succeeds but email confirmation is needed before login. */
   requiresEmailConfirmation?: boolean;
+  /** Account activated server-side; user should sign in (no email link). */
+  accountReadyForLogin?: boolean;
   /** Friendly error message for display */
   error?: string;
   /** Machine-readable error code */
@@ -170,14 +174,20 @@ export const authRepository = {
       session?: { access_token: string } | null;
     };
 
-    // HTTP 202: email confirmation required — not an error, but not logged in yet
-    if (response.status === 202 || responseData.code === 'EMAIL_CONFIRMATION_REQUIRED') {
+    // HTTP 202: email confirmation or server-activated account
+    if (
+      response.status === 202 ||
+      responseData.code === 'EMAIL_CONFIRMATION_REQUIRED' ||
+      responseData.code === 'SIGNUP_READY_SIGN_IN'
+    ) {
+      const ready = responseData.code === 'SIGNUP_READY_SIGN_IN';
       return {
         user: null,
         token: null,
         requiresEmailConfirmation: true,
+        accountReadyForLogin: ready,
         error: responseData.message || 'Please check your email to confirm your account.',
-        errorCode: 'EMAIL_CONFIRMATION_REQUIRED',
+        errorCode: responseData.code || 'EMAIL_CONFIRMATION_REQUIRED',
       };
     }
 
@@ -230,6 +240,26 @@ export const authRepository = {
   async updateProfile(data: Partial<User>): Promise<Partial<User>> {
     await authService.updateProfile(data);
     return data;
+  },
+
+  async resendConfirmation(email: string): Promise<{
+    success: boolean;
+    error?: string;
+    accountReadyForLogin?: boolean;
+  }> {
+    try {
+      const response = await authService.resendConfirmation(email.trim());
+      const data = response.data as { code?: string; message?: string };
+      const ready = data.code === 'SIGNUP_READY_SIGN_IN';
+      return {
+        success: true,
+        accountReadyForLogin: ready,
+        error: data.message,
+      };
+    } catch (err: unknown) {
+      const { message, code } = parseAuthFailure(err);
+      return { success: false, error: message, accountReadyForLogin: code === 'SIGNUP_READY_SIGN_IN' };
+    }
   },
 
   async deleteAccount(): Promise<{ success: boolean; error?: string }> {

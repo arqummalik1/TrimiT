@@ -20,9 +20,16 @@ from services.user_profile import resolve_profile_for_user, upsert_user_profile
 from services.auth_signup import (
     try_idempotent_signup,
     perform_supabase_signup,
+    perform_admin_signup,
     resend_confirmation_email,
     check_existing_signup_state,
     pending_confirmation_response,
+    salvage_rate_limited_signup,
+    login_with_password,
+    _ensure_profile,
+    admin_confirm_user,
+    _fetch_auth_user_admin,
+    _is_email_confirmed,
 )
 
 logger = logging.getLogger("trimit")
@@ -50,6 +57,46 @@ async def signup(request: Request, user: UserCreate):
         if status_code == 202:
             return JSONResponse(status_code=202, content=body)
         raise HTTPException(status_code=status_code, detail=body)
+
+    # Staging/dev: pre-confirmed admin user — no Supabase email (avoids project email quota)
+    if settings.AUTH_AUTO_CONFIRM_SIGNUP:
+        status_code, admin_user = await perform_admin_signup(user)
+        if status_code not in (200, 201) or not admin_user.get("id"):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "SIGNUP_FAILED",
+                    "message": "Could not create account. Try a different email or contact support.",
+                },
+            )
+        user_id = admin_user["id"]
+        await _ensure_profile(user_id, user)
+        token_resp = await login_with_password(user.email, user.password)
+        if token_resp.status_code != 200:
+            return JSONResponse(
+                status_code=202,
+                content={
+                    "code": "SIGNUP_READY_SIGN_IN",
+                    "message": "Account created. Sign in with your email and password.",
+                    "email": user.email.strip().lower(),
+                },
+            )
+        auth_data = token_resp.json()
+        profile = await resolve_profile_for_user(
+            user_id,
+            user.email,
+            admin_user.get("user_metadata"),
+            user_jwt=auth_data.get("access_token"),
+        )
+        return {
+            "access_token": auth_data.get("access_token"),
+            "token_type": auth_data.get("token_type", "bearer"),
+            "expires_in": auth_data.get("expires_in"),
+            "refresh_token": auth_data.get("refresh_token"),
+            "user": admin_user,
+            "profile": profile,
+            "message": "Signup successful",
+        }
 
     # 1. Create auth user in Supabase (role in user_metadata for post-confirm login/repair)
     response = await perform_supabase_signup(user)
@@ -89,6 +136,16 @@ async def signup(request: Request, user: UserCreate):
                     raise HTTPException(status_code=400, detail=r_body)
 
             if err_code == "EMAIL_RATE_LIMIT":
+                user_id_hint = None
+                if isinstance(auth_data, dict):
+                    nested = auth_data.get("user")
+                    if isinstance(nested, dict):
+                        user_id_hint = nested.get("id")
+                salvaged = await salvage_rate_limited_signup(user, auth_user_id=user_id_hint)
+                if salvaged:
+                    s_code, s_body = salvaged
+                    return JSONResponse(status_code=s_code, content=s_body)
+
                 state = await check_existing_signup_state(user.email)
                 if state and state[0] == "pending":
                     _, body = await pending_confirmation_response(
@@ -100,6 +157,19 @@ async def signup(request: Request, user: UserCreate):
                         ),
                     )
                     return JSONResponse(status_code=202, content=body)
+
+                raise HTTPException(
+                    status_code=429,
+                    detail={
+                        "code": "AUTH_PROVIDER_EMAIL_QUOTA",
+                        "message": (
+                            "Supabase has paused confirmation emails for this project "
+                            "(shared limit for all users). Wait about an hour, or configure "
+                            "Custom SMTP under Supabase → Authentication → SMTP Settings. "
+                            "Ten simultaneous signups need custom SMTP — not the default mailer."
+                        ),
+                    },
+                )
 
         http_status = 429 if err_code in ("RATE_LIMITED", "EMAIL_RATE_LIMIT") else 400
         raise HTTPException(
@@ -141,11 +211,24 @@ async def signup(request: Request, user: UserCreate):
                 },
             )
 
-    # 3. Detect email-confirmation-required (session is null)
+    # 3. Email confirmation required (session is null)
     session = auth_data.get("session")
     if session is None:
-        # Supabase email confirmation is enabled — user must verify before logging in.
-        # Return HTTP 202 Accepted so mobile can show "Check your email" UI.
+        if user_id:
+            auth_row = await _fetch_auth_user_admin(user_id)
+            if auth_row and not _is_email_confirmed(auth_row):
+                if await admin_confirm_user(user_id):
+                    _, body = await pending_confirmation_response(
+                        email=user.email.strip().lower(),
+                        user_id=user_id,
+                        message=(
+                            "Your account is ready. Confirmation email could not be sent "
+                            "(provider limit), but we activated your account. Sign in with your password."
+                        ),
+                        code="SIGNUP_READY_SIGN_IN",
+                    )
+                    return JSONResponse(status_code=202, content=body)
+
         return JSONResponse(
             status_code=202,
             content={
