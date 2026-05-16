@@ -74,6 +74,17 @@ In **Supabase → Authentication → URL Configuration**, add:
 
 Set Render env **`PUBLIC_SITE_URL`** = `https://trimi-t.vercel.app` (in `render.yaml`).
 
+## Play reviewer test accounts (App access)
+
+Create dedicated accounts before internal testing; store credentials in your team password manager only.
+
+| Role | Email (example) | Password | Notes |
+|------|-----------------|----------|-------|
+| Customer | `play.reviewer.customer@trimi-t.test` | (strong, unique) | Has at least one past booking if possible |
+| Owner | `play.reviewer.owner@trimi-t.test` | (strong, unique) | Salon with services + hours configured |
+
+Paste the same credentials into Play Console → **App content** → **App access**.
+
 ## Pre-upload testing
 
 - [ ] Internal track AAB installed on physical device
@@ -86,6 +97,11 @@ Set Render env **`PUBLIC_SITE_URL`** = `https://trimi-t.vercel.app` (in `render.
 
 Later: Vercel → Project → **Domains** → add `trimit.app` → DNS at your registrar. Do **not** use `trimit.com` (different company).
 
-## Deferred (your note)
+## EAS production secrets
 
-- EAS `EXPO_PUBLIC_API_SIGNING_SECRET` must match Render `API_SIGNING_SECRET` before production API mutations work.
+- [ ] `EXPO_PUBLIC_SENTRY_DSN` — crash reporting
+- [ ] `EXPO_PUBLIC_PUBLIC_SITE_URL` — `https://trimi-t.vercel.app` (or custom domain)
+- [ ] Upload keystore via `eas credentials` (not debug keystore)
+- [ ] GCP Maps key restricted to `com.trimit.app` + upload + Play signing SHA-1
+
+API request signing (HMAC) was removed; auth uses TLS + Supabase JWT only.

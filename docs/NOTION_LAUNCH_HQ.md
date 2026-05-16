@@ -2,7 +2,9 @@
 
 > **How to use:** Duplicate this page in Notion. Create linked databases from each section below. Pin this page for daily standups.
 
-**Last audit:** 2026-05-16 · **Readiness:** 58/100 · **ETA to Play Store:** 8–12 engineering days
+**Last audit:** 2026-05-16 · **Readiness:** ~78/100 (cash-only v1 code done) · **ETA to Play:** 3–7 days ops  
+
+> **Daily tracker (updated):** [NOTION_V1_DAILY_TRACKER.md](./NOTION_V1_DAILY_TRACKER.md)
 
 ---
 

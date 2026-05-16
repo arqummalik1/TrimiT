@@ -32,7 +32,10 @@ try:
     print("📦 Importing core modules...")
     from core.limiter import limiter
     from core.exceptions import setup_exception_handlers
-    from core.middleware import RequestIDMiddleware, SignatureMiddleware
+    from core.middleware import RequestIDMiddleware
+    from slowapi import _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
+    from slowapi.middleware import SlowAPIMiddleware
     print("✅ Core modules imported")
 except Exception as e:
     print(f"❌ FATAL: Failed to import core modules: {e}")
@@ -47,7 +50,8 @@ try:
     from routers import bookings
     from routers import payments
     from routers import promotions
-    from routers import staff
+    from routers import staff_availability
+    # staff CRUD router disabled until rewritten for httpx supabase wrapper (BC2)
     from routers import owner
     from routers import reviews
     from routers import uploads
@@ -81,28 +85,28 @@ app = FastAPI(
 # Exception Handlers
 setup_exception_handlers(app)
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(RequestIDMiddleware)
-app.add_middleware(SignatureMiddleware)
 
 # CORSMiddleware must be added LAST to be the outermost layer (executes first on request)
-# Parse allowed origins from environment variable
 ALLOWED_ORIGINS_STR = os.environ.get(
     "ALLOWED_ORIGINS",
-    "https://trimi-t.vercel.app,https://trimit.app,https://www.trimit.app,http://localhost:3000,http://localhost:8081",
+    "https://trimi-t.vercel.app,https://trimit.app,https://www.trimit.app",
 )
 ALLOWED_ORIGINS_LIST = [o.strip() for o in ALLOWED_ORIGINS_STR.split(",") if o.strip()]
 
-# Always add localhost origins for mobile development
-# These are safe because authentication is still required
-ALLOWED_ORIGINS_LIST.extend([
-    "http://localhost:8081",
-    "http://localhost:19006",
-    "http://127.0.0.1:8081",
-    "http://127.0.0.1:19006",
-])
+if settings.ENVIRONMENT != "production":
+    ALLOWED_ORIGINS_LIST.extend([
+        "http://localhost:3000",
+        "http://localhost:8081",
+        "http://localhost:19006",
+        "http://127.0.0.1:8081",
+        "http://127.0.0.1:19006",
+    ])
 
-# Remove duplicates
-ALLOWED_ORIGINS_LIST = list(set(ALLOWED_ORIGINS_LIST))
+ALLOWED_ORIGINS_LIST = list(dict.fromkeys(ALLOWED_ORIGINS_LIST))
 
 logger.info(f"CORS Configuration - Environment: {settings.ENVIRONMENT}")
 logger.info(f"CORS Allowed origins: {ALLOWED_ORIGINS_LIST}")
@@ -124,7 +128,8 @@ v1_router.include_router(salons.router)
 v1_router.include_router(bookings.router)
 v1_router.include_router(payments.router)
 v1_router.include_router(promotions.router)
-v1_router.include_router(staff.router)
+v1_router.include_router(staff_availability.router)
+# v1_router.include_router(staff.router)  # BC2: full CRUD after staff.py rewrite
 v1_router.include_router(owner.router)
 v1_router.include_router(reviews.router)
 v1_router.include_router(uploads.router)
@@ -150,7 +155,6 @@ async def root():
             "bookings": "/api/v1/bookings",
             "payments": "/api/v1/payments",
             "promotions": "/api/v1/promotions",
-            "staff": "/api/v1/staff",
             "owner": "/api/v1/owner",
             "reviews": "/api/v1/reviews",
         }

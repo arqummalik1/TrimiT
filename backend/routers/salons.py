@@ -6,6 +6,8 @@ import logging
 from math import radians, sin, cos, sqrt, atan2
 
 from core.supabase import supabase
+from core.salon_auth import assert_salon_owner
+from config import settings
 from dependencies.auth import get_current_user
 from models.salons import SalonCreate, SalonUpdate, ServiceCreate, ServiceUpdate
 
@@ -84,6 +86,8 @@ async def get_salons(
     limit: int = 20,
     offset: int = 0
 ):
+    limit = min(max(limit, 1), 100)
+    offset = max(offset, 0)
     # Default to 0,0 if no location provided (or handle as search-only)
     # In a real production app, we might use IP-based geocoding as a fallback
     p_lat = lat if lat is not None else 0.0
@@ -142,8 +146,7 @@ async def get_salon(salon_id: str):
 
 @router.post("/")
 async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_current_user)):
-    logger.info(f"[CREATE_SALON] Received request from user {current_user.get('id')}")
-    logger.info(f"[CREATE_SALON] Salon data: {salon.model_dump()}")
+    logger.debug("[CREATE_SALON] user=%s", current_user.get("id"))
     
     profile = current_user.get("profile")
     if not profile or profile.get("role") != "owner":
@@ -170,12 +173,12 @@ async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_curr
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     
-    logger.info(f"[CREATE_SALON] Sending to Supabase: {salon_data}")
+    logger.debug("[CREATE_SALON] creating salon for owner=%s", current_user.get("id"))
     
     response = await supabase.request("POST", "rest/v1/salons", json=salon_data, token=current_user.get("access_token"))
     
-    logger.info(f"[CREATE_SALON] Supabase response status: {response.status_code}")
-    logger.info(f"[CREATE_SALON] Supabase response body: {response.text}")
+    if settings.ENVIRONMENT != "production":
+        logger.debug("[CREATE_SALON] status=%s", response.status_code)
     
     if response.status_code not in [200, 201]:
         error_detail = response.text
@@ -198,16 +201,14 @@ async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_curr
         logger.error("[CREATE_SALON] Salon created but no data returned")
         raise HTTPException(status_code=500, detail="Salon created but no data returned")
         
-    logger.info(f"[CREATE_SALON] Success: {res_data[0]}")
+    if settings.ENVIRONMENT != "production":
+        logger.debug("[CREATE_SALON] Success salon_id=%s", res_data[0].get("id"))
     return res_data[0]
 
 @router.patch("/{salon_id}")
 async def update_salon(salon_id: str, data: SalonUpdate, current_user: dict = Depends(get_current_user)):
-    # Ownership check
-    check = await supabase.request("GET", f"rest/v1/salons?id=eq.{salon_id}&select=owner_id")
-    if check.status_code != 200 or not check.json() or check.json()[0].get("owner_id") != current_user.get("id"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
-        
+    await assert_salon_owner(salon_id, current_user.get("id"))
+
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
     response = await supabase.request("PATCH", f"rest/v1/salons?id=eq.{salon_id}", json=update_data, token=current_user.get("access_token"))
     return {"message": "Updated"}
@@ -215,10 +216,8 @@ async def update_salon(salon_id: str, data: SalonUpdate, current_user: dict = De
 @router.post("/{salon_id}/services")
 async def create_service(salon_id: str, service: ServiceCreate, current_user: dict = Depends(get_current_user)):
     # Ownership check... (omitted for brevity in this step, but I'll include it)
-    check = await supabase.request("GET", f"rest/v1/salons?id=eq.{salon_id}&select=owner_id")
-    if check.status_code != 200 or not check.json() or check.json()[0].get("owner_id") != current_user.get("id"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
-        
+    await assert_salon_owner(salon_id, current_user.get("id"))
+
     service_data = {
         "id": str(uuid.uuid4()),
         "salon_id": salon_id,
@@ -251,9 +250,7 @@ async def update_service(
     data: ServiceUpdate,
     current_user: dict = Depends(get_current_user),
 ):
-    check = await supabase.request("GET", f"rest/v1/salons?id=eq.{salon_id}&select=owner_id")
-    if check.status_code != 200 or not check.json() or check.json()[0].get("owner_id") != current_user.get("id"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    await assert_salon_owner(salon_id, current_user.get("id"))
     svc = await supabase.request(
         "GET",
         f"rest/v1/services?id=eq.{service_id}&select=id,salon_id",
@@ -279,9 +276,7 @@ async def delete_service(
     service_id: str,
     current_user: dict = Depends(get_current_user),
 ):
-    check = await supabase.request("GET", f"rest/v1/salons?id=eq.{salon_id}&select=owner_id")
-    if check.status_code != 200 or not check.json() or check.json()[0].get("owner_id") != current_user.get("id"):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    await assert_salon_owner(salon_id, current_user.get("id"))
     svc = await supabase.request(
         "GET",
         f"rest/v1/services?id=eq.{service_id}&select=salon_id",

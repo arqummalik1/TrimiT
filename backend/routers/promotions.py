@@ -5,6 +5,7 @@ import logging
 from datetime import datetime, timezone
 
 from core.supabase import supabase
+from core.salon_auth import assert_salon_owner
 from core.limiter import limiter
 from dependencies.auth import get_current_user
 from models.promotions import (
@@ -114,23 +115,7 @@ async def create_promotion(
     
     # If salon-specific, verify ownership
     if promo.salon_id:
-        check = await supabase.request(
-            "GET",
-            f"rest/v1/salons?id=eq.{promo.salon_id}&select=owner_id"
-        )
-        
-        if check.status_code != 200 or not check.json():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Salon not found"
-            )
-        
-        salon = check.json()[0]
-        if salon.get("owner_id") != current_user.get("id"):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only create promotions for your own salon"
-            )
+        await assert_salon_owner(str(promo.salon_id), current_user.get("id"))
     else:
         # Global promos require admin role (future feature)
         # For now, block global promos
@@ -236,23 +221,8 @@ async def update_promotion(
     
     # Verify salon ownership
     if salon_id:
-        salon_check = await supabase.request(
-            "GET",
-            f"rest/v1/salons?id=eq.{salon_id}&select=owner_id"
-        )
-        
-        if salon_check.status_code != 200 or not salon_check.json():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Unauthorized"
-            )
-        
-        if salon_check.json()[0].get("owner_id") != current_user.get("id"):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Unauthorized"
-            )
-    
+        await assert_salon_owner(str(salon_id), current_user.get("id"))
+
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
     
     response = await supabase.request(
@@ -295,23 +265,8 @@ async def delete_promotion(
     salon_id = promo.get("salon_id")
     
     if salon_id:
-        salon_check = await supabase.request(
-            "GET",
-            f"rest/v1/salons?id=eq.{salon_id}&select=owner_id"
-        )
-        
-        if salon_check.status_code != 200 or not salon_check.json():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Unauthorized"
-            )
-        
-        if salon_check.json()[0].get("owner_id") != current_user.get("id"):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Unauthorized"
-            )
-    
+        await assert_salon_owner(str(salon_id), current_user.get("id"))
+
     # Soft delete by setting active = false
     response = await supabase.request(
         "PATCH",

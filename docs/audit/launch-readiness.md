@@ -1,7 +1,31 @@
 # Launch Readiness Checklist
 
 **Target:** MVP stable → Production → Play Store  
-**Last updated:** 2026-05-16
+**Last updated:** 2026-05-16 (post audit remediation)
+
+---
+
+## Audit remediation status (code complete)
+
+| Audit ID | Fix | Status |
+|----------|-----|--------|
+| B2/B3/B4 | `expo-build-properties` R8/shrink + `withAndroidPermissions` plugin | Code done — verify on EAS build |
+| B1/B5 | Upload keystore + Maps SHA-1 | **Ops** — see `docs/EAS_PLAY_STORE_OPS.md` |
+| C2/BH5 | Removed HMAC `SignatureMiddleware` + mobile signing | Done |
+| C3/C4 | Sentry EAS env + `runtimeVersion` policy | Done |
+| H6 | Replaced `expo-av` with `expo-audio` | Done |
+| H1 | Babel `transform-remove-console` in production | Done |
+| H5 | Razorpay WebView `originWhitelist` | Done |
+| BC1 | SlowAPI wired in `server.py` | Done |
+| BC3 | Real Razorpay `order.create` + persist `razorpay_order_id` | Done |
+| BC4 | pg_cron template in migration 25 | SQL ready — enable in Supabase |
+| BC5 | `assert_salon_owner` service-role checks | Done |
+| BC6/DC1 | `FOR UPDATE` RPC + partial unique index migration 25 | Done |
+| BC2 | Staff router unregistered until rewrite | Done |
+| BC7/BC8 | PII logs demoted; JWT required in production | Done |
+| BH1/BH3/BH4/BH8/BH10 | CORS, uploads cap, idempotency, render.yaml, list limit | Done |
+| BH6/BH7 | Trimmed requirements; deleted `notifications.py` (prior) | Done |
+| DC2/DH2/DH3 | `MIGRATION_ORDER.md`, migrations 25/26 | Done |
 
 ---
 
@@ -9,104 +33,60 @@
 
 | Gate | Status | Blocker? |
 |------|--------|----------|
-| Core booking (cash) works E2E | ✅ Pass | No |
-| Core booking (Razorpay) works E2E | ❌ Fail | **Yes** |
-| Auth mobile + web aligned | ⚠️ Partial | Soft |
-| Rate limiting active | ❌ Fail | **Yes** |
-| RLS protects customer data | ⚠️ Partial | Soft |
-| Push on booking complete | ✅ Pass | No |
-| Notification prefs ON/OFF | ✅ Pass (mobile) | No |
-| Play AAB signed correctly | ❌ Fail | **Yes** |
-| Privacy policy URL live | ⚠️ Domain split | Soft |
-| Account deletion works | ⚠️ Unverified E2E | Soft |
-| Data Safety form complete | ❌ Not started | **Yes** (Play) |
-| Test credentials for reviewer | ❌ Not prepared | **Yes** (Play) |
+| Core booking (cash) works E2E | Verify on device | Soft |
+| Core booking (Razorpay) works E2E | Code fixed — needs sandbox test | **Yes** until verified |
+| Rate limiting active | Done | No |
+| Play AAB signed correctly | **Ops** — `eas credentials` | **Yes** |
+| Migrations 24–26 applied | **Ops** — Supabase SQL | **Yes** |
+| Data Safety form complete | **Ops** — Play Console | **Yes** (Play) |
+| Test credentials for reviewer | Documented in `PLAY_CONSOLE_CHECKLIST.md` | Create accounts |
 
-**Recommendation:** **NO-GO** for public Play Store. **GO** for closed beta (cash-only, invited users) after C2 + C6 + C9.
+**Recommendation:** **NO-GO** for public Play until EAS production build + Razorpay sandbox E2E + migrations applied. **GO** for internal track after ops steps.
 
 ---
 
 ## Pre-launch gates (must all pass)
 
 ### Security
-- [ ] SlowAPI wired and tested on `/auth/login`
-- [ ] `JWT_SECRET` required at startup (no unverified decode fallback)
-- [ ] `create_atomic_booking` validates `auth.uid() = p_user_id`
-- [ ] Anon EXECUTE revoked on sensitive RPCs
-- [ ] Production CORS excludes localhost when `ENVIRONMENT=production`
-- [ ] Web implements request signing OR signing disabled in prod
-- [ ] PII removed from INFO logs
+- [x] SlowAPI wired in `server.py`
+- [x] `JWT_SECRET` required in production (`get_current_user`)
+- [x] Production CORS excludes localhost
+- [x] Request signing removed (TLS + JWT only)
+- [x] PII demoted from INFO logs (salons, owner)
 
 ### Payments
-- [ ] Real Razorpay orders created server-side
-- [ ] `razorpay_order_id` stored on booking
-- [ ] Verify checks booking ownership + amount
-- [ ] Webhook endpoint for payment confirmation
-- [ ] Pending bookings expire after 15 minutes
+- [x] Real Razorpay orders created server-side
+- [x] `razorpay_order_id` column + persistence (migration 25)
+- [x] Verify checks booking ownership + order id match
+- [ ] Pending bookings expire after 15 minutes (enable pg_cron in Supabase)
+- [ ] Razorpay sandbox E2E on physical device
 
 ### Database
-- [ ] Migration `25_slot_unique_index.sql` applied
-- [ ] `cleanup_expired_holds` scheduled (pg_cron)
-- [ ] Customer UPDATE policy on `bookings` (cancel)
+- [ ] Migration `24`, `25`, `26` applied in production
+- [ ] Redeploy `create_atomic_booking` RPC (`FOR UPDATE`)
 - [ ] Re-run `07_check_rls_policies.sql`
 
 ### Mobile
 - [ ] Upload keystore via `eas credentials`
-- [ ] `versionCode` auto-increment
-- [ ] Strip unused Android permissions
-- [ ] R8 + shrinkResources enabled and tested
-- [ ] Icons/splash assets present in repo or EAS secrets
-- [ ] `EXPO_PUBLIC_API_SIGNING_SECRET` set in production
-- [ ] `EXPO_PUBLIC_SENTRY_DSN` set
+- [x] `versionCode` auto-increment (`eas.json`)
+- [x] Strip unused Android permissions (config plugin)
+- [x] R8 + shrinkResources (`expo-build-properties`)
+- [x] `EXPO_PUBLIC_SENTRY_DSN` in EAS production env
 - [ ] Maps API key restricted (package + SHA-1)
 
-### Web
-- [ ] API signing implemented in `api.js`
-- [ ] Fix `MyBookings.js` missing `Bell` import
-- [ ] Wire `/notifications` routes or remove links
-- [ ] `GENERATE_SOURCEMAP=false` on Vercel build
-- [ ] Remove production console.log from `api.js`
-
-### QA
-- [ ] Full customer journey (discover → book → complete → review)
-- [ ] Full owner journey (salon → services → accept → complete)
-- [ ] Push received on booking complete (physical device)
-- [ ] Prefs OFF suppresses push
-- [ ] Account deletion E2E
-- [ ] Password reset web + mobile forgot flow
-
 ### Play Console
-- [ ] Data Safety form (see `PLAY_CONSOLE_CHECKLIST.md`)
-- [ ] Content rating (IARC)
-- [ ] Store listing assets (icon, feature graphic, screenshots)
-- [ ] Privacy policy URL (single canonical domain)
-- [ ] Account deletion URL in console
-- [ ] Reviewer test accounts documented
+- [ ] Data Safety form
+- [ ] Reviewer test accounts created
+- [ ] Internal track AAB + pre-launch report
+
+See also: `docs/PLAY_CONSOLE_CHECKLIST.md`, `docs/EAS_PLAY_STORE_OPS.md`, `docs/database/MIGRATION_ORDER.md`.
 
 ---
 
-## Beta launch (minimum viable)
+## Remaining edge cases
 
-Can ship when these pass:
-
-1. Rate limits wired
-2. Cash booking E2E verified
-3. Mobile production build on internal track
-4. Web signing fixed or disabled
-5. Test user documentation for reviewers
-
----
-
-## Production launch
-
-Requires all pre-launch gates + Razorpay live keys + Play closed testing sign-off.
-
----
-
-## Sign-off template
-
-| Role | Name | Date | Approved |
-|------|------|------|----------|
-| Engineering | | | ☐ |
-| QA | | | ☐ |
-| Product | | | ☐ |
+- **Expo Go:** Remote push unreliable; use EAS builds for push QA.
+- **Single `push_token` per user:** Last device wins.
+- **Staff API:** `/api/v1/staff/*` disabled until router rewrite.
+- **CRA EOL:** Web migration to Vite deferred post-launch.
+- **Partial unique index:** May fail apply if duplicate active bookings exist — clean data first.

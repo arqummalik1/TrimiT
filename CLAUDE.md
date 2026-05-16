@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a monorepo for **TrimiT**, a salon marketplace platform. Three deployable apps share one backend and one Postgres (Supabase) database:
 
-- `backend/` — FastAPI (Python 3.10+). Single-file orchestrator at `backend/server.py` (~54k lines of routing + business logic). Sub-services live in `backend/services/` (currently `notifications.py`).
+- `backend/` — FastAPI (Python 3.10+). Bootstrap at `backend/server.py` (~190 lines); versioned routes in `backend/routers/`. Push logic in `backend/services/push_dispatch.py` and `booking_push.py`.
 - `mobile/` — Expo SDK 54 / React Native 0.81 / React 19. Customer + owner flows in one app.
 - `frontend/` — Create React App (react-scripts 5) + Tailwind. Web dashboard / portal.
 - `database/` — Numbered SQL migrations (`01_schema.sql` … `09_production_updates.sql`) applied manually in Supabase SQL editor. Run them in order on a fresh project.

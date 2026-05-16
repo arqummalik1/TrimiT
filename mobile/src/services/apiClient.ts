@@ -2,7 +2,6 @@ import axios, { InternalAxiosRequestConfig } from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { handleApiError } from '../lib/errorHandler';
-import { generateRequestSignature } from '../lib/security';
 
 /** Host only (no /api/v1). Production Render URL. */
 const PRODUCTION_HOST = 'https://trimit-az5h.onrender.com';
@@ -56,26 +55,6 @@ function getRequestUrl(config: InternalAxiosRequestConfig): string {
   return `${base}${path}`;
 }
 
-/** Path as seen by the server (e.g. `/api/v1/salons/`) for HMAC signature middleware. */
-function resolvePathForSignature(config: InternalAxiosRequestConfig): string {
-  const raw = config.url || '';
-  if (raw.startsWith('http')) {
-    try {
-      return new URL(raw).pathname;
-    } catch {
-      return raw;
-    }
-  }
-  const base = (config.baseURL || '').replace(/\/$/, '');
-  const rel = raw.startsWith('/') ? raw : `/${raw}`;
-  const joined = `${base}${rel}`;
-  try {
-    return new URL(joined).pathname;
-  } catch {
-    return `/api/v1${rel.startsWith('/') ? rel : `/${rel}`}`;
-  }
-}
-
 apiClient.interceptors.request.use(
   async (config) => {
     // Emoji-first API request log for quick scanning in Metro.
@@ -88,28 +67,6 @@ apiClient.interceptors.request.use(
       });
     }
 
-    const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(config.method?.toUpperCase() || '');
-    if (isMutating && config.url) {
-      try {
-        const timestamp = Math.floor(Date.now() / 1000).toString();
-        const path = resolvePathForSignature(config);
-        const signature = await generateRequestSignature(
-          config.method || 'POST',
-          path,
-          config.data,
-          timestamp
-        );
-        if (signature) {
-          config.headers['X-Trimit-Timestamp'] = timestamp;
-          config.headers['X-Trimit-Signature'] = signature;
-        }
-      } catch (err) {
-        console.warn('⚠️ [API][SIGNATURE_FAIL]', {
-          method: (config.method || 'POST').toUpperCase(),
-          url: getRequestUrl(config),
-        });
-      }
-    }
     return config;
   },
   (error) => Promise.reject(error)

@@ -32,6 +32,7 @@ import { CustomerDiscoverScreenProps } from '../../navigation/types';
 import { BookingParamsSchema } from '../../navigation/params';
 
 import { analytics } from '../../lib/analytics';
+import { ENABLE_ONLINE_PAY } from '../../lib/featureFlags';
 
 // Staff selection imports
 import StaffPicker from '../../components/StaffPicker';
@@ -438,14 +439,21 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   }, [salonId, serviceId]);
 
   const handleViewStaffProfile = useCallback(async (staffId: string) => {
-    try {
-      const response = await api.get(`/staff/${staffId}`);
-      setSelectedStaffForProfile(response.data);
+    const fromList = availableStaffData?.available_staff?.find((s) => s.staff_id === staffId);
+    if (fromList) {
+      setSelectedStaffForProfile({
+        id: fromList.staff_id,
+        name: fromList.staff_name,
+        image_url: fromList.staff_image_url,
+        bio: fromList.staff_bio,
+        average_rating: fromList.average_rating,
+        total_reviews: fromList.total_reviews,
+      } as StaffWithServices);
       setStaffProfileVisible(true);
-    } catch (error: unknown) {
-      Alert.alert('Error', 'Failed to load staff profile');
+      return;
     }
-  }, []);
+    Alert.alert('Staff', 'Profile details are shown from the list during booking.');
+  }, [availableStaffData]);
 
   const handleSelectFromProfile = useCallback(() => {
     if (selectedStaffForProfile) {
@@ -456,7 +464,8 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   // Create booking mutation
   const bookingMutation = useMutation({
     mutationFn: async () => {
-      const dbPaymentMethod = selectedPaymentMethod === 'cash' ? 'salon_cash' : 'online';
+      const dbPaymentMethod =
+        ENABLE_ONLINE_PAY && selectedPaymentMethod === 'card' ? 'online' : 'salon_cash';
 
       const payload = {
         salon_id: salonId,
@@ -524,7 +533,14 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       }
 
       // If online payment selected, route to payment screen (replace so back cannot re-submit booking)
-      if (selectedPaymentMethod === 'card' && bookingId && service && salon && selectedSlot) {
+      if (
+        ENABLE_ONLINE_PAY &&
+        selectedPaymentMethod === 'card' &&
+        bookingId &&
+        service &&
+        salon &&
+        selectedSlot
+      ) {
         navigation.replace('Payment', {
           bookingId,
           amount: service.price,
@@ -976,23 +992,39 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
             {selectedPaymentMethod === 'cash' && <Ionicons name="checkmark-circle" size={24} color={theme.colors.textInverse} />}
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[
-              styles.paymentOption, 
-              selectedPaymentMethod === 'card' && styles.paymentOptionSelected,
-              { marginTop: 12 }
-            ]}
-            onPress={() => setSelectedPaymentMethod('card')}
-          >
-            <View style={styles.paymentIconContainer}>
-              <Ionicons name="card-outline" size={24} color={selectedPaymentMethod === 'card' ? theme.colors.textInverse : theme.colors.text} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.paymentTitle, selectedPaymentMethod === 'card' && styles.paymentTextSelected]}>Online Payment</Text>
-              <Text style={[styles.paymentSub, selectedPaymentMethod === 'card' && styles.paymentTextSelected]}>Secure payment via card or UPI</Text>
-            </View>
-            {selectedPaymentMethod === 'card' && <Ionicons name="checkmark-circle" size={24} color={theme.colors.textInverse} />}
-          </TouchableOpacity>
+          {ENABLE_ONLINE_PAY ? (
+            <TouchableOpacity
+              style={[
+                styles.paymentOption,
+                selectedPaymentMethod === 'card' && styles.paymentOptionSelected,
+                { marginTop: 12 },
+              ]}
+              onPress={() => setSelectedPaymentMethod('card')}
+            >
+              <View style={styles.paymentIconContainer}>
+                <Ionicons
+                  name="card-outline"
+                  size={24}
+                  color={selectedPaymentMethod === 'card' ? theme.colors.textInverse : theme.colors.text}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.paymentTitle, selectedPaymentMethod === 'card' && styles.paymentTextSelected]}>
+                  Online Payment
+                </Text>
+                <Text style={[styles.paymentSub, selectedPaymentMethod === 'card' && styles.paymentTextSelected]}>
+                  Secure payment via card or UPI
+                </Text>
+              </View>
+              {selectedPaymentMethod === 'card' && (
+                <Ionicons name="checkmark-circle" size={24} color={theme.colors.textInverse} />
+              )}
+            </TouchableOpacity>
+          ) : (
+            <Text style={[styles.paymentSub, { marginTop: 12 }]}>
+              Pay at the salon after your service. Online payment coming soon.
+            </Text>
+          )}
         </View>
 
         {/* Promo Code Section */}

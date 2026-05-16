@@ -40,16 +40,17 @@ def try_get_user_id_from_authorization(authorization: Optional[str]) -> Optional
         except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, Exception):
             return None
 
-    try:
-        payload = jwt.decode(
-            token,
-            options={"verify_signature": False, "verify_aud": False, "verify_exp": False},
-        )
-        sub = payload.get("sub")
-        return str(sub) if sub else None
-    except Exception:
-        logger.warning("try_get_user_id_from_authorization: unverified decode failed")
-        return None
+    if settings.ENVIRONMENT != "production":
+        try:
+            payload = jwt.decode(
+                token,
+                options={"verify_signature": False, "verify_aud": False, "verify_exp": False},
+            )
+            sub = payload.get("sub")
+            return str(sub) if sub else None
+        except Exception:
+            logger.warning("try_get_user_id_from_authorization: unverified decode failed")
+    return None
 
 
 async def get_current_user(authorization: str = Header(None)):
@@ -58,8 +59,12 @@ async def get_current_user(authorization: str = Header(None)):
 
     token = authorization.replace("Bearer ", "")
 
+    if settings.ENVIRONMENT == "production":
+        if not settings.JWT_SECRET or settings.JWT_SECRET == "your-secret-key-change-this-in-production":
+            logger.error("JWT_SECRET is not configured for production")
+            raise HTTPException(status_code=500, detail="Authentication misconfigured")
+
     # 1. High-Performance Path: Local JWT Validation
-    # Avoids hitting the network for every request if we have the secret.
     if settings.JWT_SECRET and settings.JWT_SECRET != "your-secret-key-change-this-in-production":
         try:
             payload = jwt.decode(

@@ -21,6 +21,7 @@ import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import axios from 'axios';
 import { handleApiError } from '../../lib/errorHandler';
+import { ENABLE_ONLINE_PAY } from '../../lib/featureFlags';
 
 type Props = CustomerDiscoverScreenProps<'Payment'>;
 
@@ -47,6 +48,16 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { bookingId, amount, salonName, serviceName, bookingDate, timeSlot } = route.params;
+
+  useEffect(() => {
+    if (!ENABLE_ONLINE_PAY) {
+      Alert.alert(
+        'Pay at salon',
+        'Online payment is not available in this version. Your booking uses pay-at-salon.',
+        [{ text: 'OK', onPress: () => navigation.navigate('Bookings') }],
+      );
+    }
+  }, [navigation]);
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
 
@@ -227,7 +238,11 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
       ) : (
         <View style={styles.webviewWrap}>
           <WebView
-            originWhitelist={['*']}
+            originWhitelist={[
+              'https://api.razorpay.com',
+              'https://checkout.razorpay.com',
+              'https://cdn.razorpay.com',
+            ]}
             source={{ html: checkoutHtml }}
             onMessage={onMessage}
             onLoadStart={onLoadStart}

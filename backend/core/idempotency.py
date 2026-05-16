@@ -7,11 +7,26 @@ from dependencies.auth import get_current_user
 
 logger = logging.getLogger("trimit")
 
-def idempotency_required(func):
+def idempotency_required(required: bool = False):
     """
     Decorator to enforce idempotency on POST requests.
-    Expects 'Idempotency-Key' header.
+    Expects 'Idempotency-Key' header; when required=True, missing header returns 400.
+    Cache key includes request_path to prevent cross-endpoint replay.
     """
+
+    def decorator(func):
+        return _idempotency_wrapper(func, required=required)
+
+    if callable(required):
+        # @idempotency_required without parentheses
+        func = required
+        required = False
+        return _idempotency_wrapper(func, required=False)
+
+    return decorator
+
+
+def _idempotency_wrapper(func, required: bool = False):
     @wraps(func)
     async def wrapper(*args, **kwargs):
         request: Request = kwargs.get("request")
@@ -28,8 +43,11 @@ def idempotency_required(func):
 
         idempotency_key = request.headers.get("Idempotency-Key")
         if not idempotency_key:
-            # For now, we allow it to be optional but log a warning
-            # In a stricter version, we would raise an error
+            if required:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Idempotency-Key header is required",
+                )
             return await func(*args, **kwargs)
 
         # We need the current user to isolate idempotency keys
@@ -46,9 +64,9 @@ def idempotency_required(func):
         # 1. Check if key exists
         try:
             response = await supabase.request(
-                "GET", 
-                f"rest/v1/idempotency_keys?user_id=eq.{user_id}&idempotency_key=eq.{idempotency_key}",
-                service_role=True
+                "GET",
+                f"rest/v1/idempotency_keys?user_id=eq.{user_id}&idempotency_key=eq.{idempotency_key}&request_path=eq.{path}",
+                service_role=True,
             )
             
             if response.status_code == 200:

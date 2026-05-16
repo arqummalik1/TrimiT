@@ -21,7 +21,12 @@ Enable WhatsApp/Instagram-like push notifications that work when app is open, mi
 - [x] Sound alerts working
 
 ### Database Changes
-- [ ] Migration 21 needs to be executed (add push_token column)
+- [ ] Migration 21 — push_token column
+- [ ] Migration 24 — notification preferences (`database/24_user_notification_preferences.sql`)
+- [ ] Migration 25 — razorpay_order_id + slot unique index (`database/25_booking_integrity_and_payments.sql`)
+- [ ] Migration 26 — slot_holds unique (`database/26_slot_holds_unique.sql`)
+- [ ] See `docs/database/MIGRATION_ORDER.md` for collision ordering (`03_`, `15_`, `16_`)
+- [ ] Enable Supabase **Point-in-time recovery (PITR)** on paid tier before launch
 
 ---
 

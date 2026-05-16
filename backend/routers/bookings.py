@@ -523,7 +523,7 @@ async def reserve_slot(request: Request, data: SlotReserve, current_user: dict =
 
 @router.post("/")
 @limiter.limit("10/minute")
-@idempotency_required
+@idempotency_required(required=True)
 async def create_booking(request: Request, data: BookingCreate, current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id")
     token = current_user.get("access_token")
@@ -603,7 +603,7 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
         "p_time_slot": data.time_slot,
         "p_status": "confirmed" if salon.get("auto_accept") else "pending",
         "p_payment_method": data.payment_method,
-        "p_payment_status": "pending",
+        "p_payment_status": "paid" if data.payment_method == "salon_cash" else "pending",
         "p_amount": final_amount,
         "p_promo_code": promo_code_upper,
         "p_discount_amount": discount_amount,

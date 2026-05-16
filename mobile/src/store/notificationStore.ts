@@ -1,18 +1,14 @@
 /**
  * Real-Time Notification Store
- * ────────────────────────────────────────────────────────────────────────────
- * Professional notification management for real-time booking updates.
- * Handles in-app notifications, sound playback, and notification state.
- * 
- * NOTE: Expo Notifications don't work in Expo Go. This uses in-app notifications only.
+ * In-app notifications and sound for owner booking updates.
  */
 
 import { create } from 'zustand';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import type { Booking } from '../types';
 
 const devLog = (...args: unknown[]) => {
-  if (__DEV__) devLog(...args);
+  if (__DEV__) console.log(...args);
 };
 
 export interface BookingNotification {
@@ -21,20 +17,15 @@ export interface BookingNotification {
   type: 'new_booking' | 'status_change' | 'cancellation';
   timestamp: number;
   read: boolean;
-  actionRequired: boolean; // For pending bookings that need owner action
+  actionRequired: boolean;
 }
 
 interface NotificationState {
-  // Notifications
   notifications: BookingNotification[];
   unreadCount: number;
   activeNotification: BookingNotification | null;
-  
-  // Sound
   soundEnabled: boolean;
-  sound: Audio.Sound | null;
-  
-  // Actions
+  sound: AudioPlayer | null;
   addNotification: (booking: Booking, type: BookingNotification['type']) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
@@ -48,17 +39,15 @@ interface NotificationState {
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
-  // Initial state
   notifications: [],
   unreadCount: 0,
   activeNotification: null,
   soundEnabled: true,
   sound: null,
 
-  // Add a new notification
   addNotification: (booking, type) => {
     devLog('[NotificationStore] Adding notification:', { bookingId: booking.id, type });
-    
+
     const notification: BookingNotification = {
       id: `${booking.id}-${Date.now()}`,
       booking,
@@ -69,20 +58,16 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     };
 
     set((state) => ({
-      notifications: [notification, ...state.notifications].slice(0, 50), // Keep last 50
+      notifications: [notification, ...state.notifications].slice(0, 50),
       unreadCount: type === 'new_booking' ? state.unreadCount + 1 : state.unreadCount,
-      // Modal + sound only for new bookings; status/cancel updates use toast elsewhere.
       activeNotification: type === 'new_booking' ? notification : state.activeNotification,
     }));
 
     if (type === 'new_booking') {
       void get().playNotificationSound();
     }
-
-    devLog('[NotificationStore] ✅ Notification recorded', { type, modal: type === 'new_booking' });
   },
 
-  // Mark notification as read
   markAsRead: (id) => {
     set((state) => {
       const notification = state.notifications.find((n) => n.id === id);
@@ -97,7 +82,6 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     });
   },
 
-  // Mark all as read
   markAllAsRead: () => {
     set((state) => ({
       notifications: state.notifications.map((n) => ({ ...n, read: true })),
@@ -105,7 +89,6 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     }));
   },
 
-  // Clear a notification
   clearNotification: (id) => {
     set((state) => {
       const notification = state.notifications.find((n) => n.id === id);
@@ -119,7 +102,6 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     });
   },
 
-  // Clear all notifications
   clearAllNotifications: () => {
     set({
       notifications: [],
@@ -128,57 +110,44 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     });
   },
 
-  // Set active notification (for modal display)
   setActiveNotification: (notification) => {
-    devLog('[NotificationStore] Setting active notification:', notification?.id);
     set({ activeNotification: notification });
     if (notification) {
       get().markAsRead(notification.id);
     }
   },
 
-  // Play notification sound
   playNotificationSound: async () => {
     const { soundEnabled, sound } = get();
-    if (!soundEnabled || !sound) {
-      devLog('[NotificationStore] Sound disabled or not loaded');
-      return;
-    }
+    if (!soundEnabled || !sound) return;
 
     try {
-      devLog('[NotificationStore] Playing notification sound');
-      await sound.replayAsync();
+      sound.seekTo(0);
+      sound.play();
     } catch (error) {
       console.warn('[NotificationStore] Failed to play sound:', error);
     }
   },
 
-  // Toggle sound
   setSoundEnabled: (enabled) => {
     set({ soundEnabled: enabled });
   },
 
-  // Initialize sound
   initializeSound: async () => {
     try {
-      devLog('[NotificationStore] Initializing notification sound');
-      const { sound } = await Audio.Sound.createAsync(
-        require('../../assets/sounds/notification.mp3'),
-        { shouldPlay: false }
-      );
-      set({ sound });
-      devLog('[NotificationStore] ✅ Sound initialized');
+      const player = createAudioPlayer(require('../../assets/sounds/notification.mp3'));
+      set({ sound: player });
+      devLog('[NotificationStore] Sound initialized');
     } catch (error) {
       console.warn('[NotificationStore] Failed to load sound:', error);
     }
   },
 
-  // Cleanup sound
   cleanupSound: async () => {
     const { sound } = get();
     if (sound) {
       try {
-        await sound.unloadAsync();
+        sound.remove();
       } catch (error) {
         console.warn('[NotificationStore] Failed to unload sound:', error);
       }
@@ -186,35 +155,3 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     }
   },
 }));
-
-// Helper functions
-function getNotificationTitle(type: BookingNotification['type'], booking: Booking): string {
-  switch (type) {
-    case 'new_booking':
-      return '🔔 New Booking Received!';
-    case 'status_change':
-      return `📋 Booking ${booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}`;
-    case 'cancellation':
-      return '❌ Booking Cancelled';
-    default:
-      return 'Booking Update';
-  }
-}
-
-function getNotificationBody(type: BookingNotification['type'], booking: Booking): string {
-  const serviceName = booking.services?.name || 'Service';
-  const date = booking.booking_date;
-  const time = booking.time_slot;
-  const customerName = booking.users?.name || 'Customer';
-
-  switch (type) {
-    case 'new_booking':
-      return `${customerName} booked ${serviceName} on ${date} at ${time}`;
-    case 'status_change':
-      return `${serviceName} booking on ${date} at ${time} is now ${booking.status}`;
-    case 'cancellation':
-      return `${serviceName} booking on ${date} at ${time} was cancelled`;
-    default:
-      return `Booking update for ${serviceName}`;
-  }
-}

@@ -1,6 +1,8 @@
 // Dynamic Expo config — reads Google Maps key from env so it never lands in source.
 // Set EXPO_PUBLIC_GOOGLE_MAPS_API_KEY locally (.env) and via EAS secrets for builds.
 
+const withAndroidPermissions = require('./plugins/withAndroidPermissions');
+
 module.exports = ({ config }) => {
   const mapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
@@ -9,13 +11,16 @@ module.exports = ({ config }) => {
     console.warn('⚠️ EXPO_PUBLIC_GOOGLE_MAPS_API_KEY is missing. Maps may not work properly.');
   }
 
-  return {
+  return withAndroidPermissions({
     ...config,
     expo: {
       name: 'TrimiT',
       slug: 'trimit',
       scheme: 'trimit',
       version: '1.0.0',
+      runtimeVersion: {
+        policy: 'appVersion',
+      },
       orientation: 'portrait',
       icon: './assets/SquareLogo.png',
       userInterfaceStyle: 'automatic',
@@ -66,11 +71,26 @@ module.exports = ({ config }) => {
         favicon: './assets/SquareLogo.png',
       },
       plugins: [
+        './plugins/withAndroidPermissions.js',
         'expo-font',
         'expo-notifications',
         'expo-location',
         'expo-image-picker',
         'expo-secure-store',
+        [
+          'expo-build-properties',
+          {
+            android: {
+              enableMinifyInReleaseBuilds: true,
+              enableShrinkResourcesInReleaseBuilds: true,
+              extraProguardRules: [
+                '-keep class com.facebook.react.** { *; }',
+                '-keep class com.swmansion.reanimated.** { *; }',
+                '-keep class com.razorpay.** { *; }',
+              ].join('\n'),
+            },
+          },
+        ],
         [
           '@sentry/react-native/expo',
           {
@@ -86,5 +106,5 @@ module.exports = ({ config }) => {
       },
       owner: 'arqummalik1',
     },
-  };
+  });
 };

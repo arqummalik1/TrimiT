@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 import logging
 
 from core.supabase import supabase
+from config import settings
 from dependencies.auth import get_current_user
 
 logger = logging.getLogger("trimit")
@@ -18,8 +19,7 @@ async def get_owner_salon(current_user: dict = Depends(get_current_user)):
     """
     user_id = current_user.get("id")
     
-    logger.info(f"[GET_OWNER_SALON] Fetching salon for user {user_id}")
-    logger.info(f"[GET_OWNER_SALON] Token present: {bool(current_user.get('access_token'))}")
+    logger.debug("[GET_OWNER_SALON] Fetching salon for user %s", user_id)
     
     # Step 1: Query salon WITHOUT services join to isolate any RLS issues
     response = await supabase.request(
@@ -28,8 +28,8 @@ async def get_owner_salon(current_user: dict = Depends(get_current_user)):
         token=current_user.get("access_token")
     )
     
-    logger.info(f"[GET_OWNER_SALON] Salon query response status: {response.status_code}")
-    logger.info(f"[GET_OWNER_SALON] Salon query response body: {response.text}")
+    if settings.ENVIRONMENT != "production":
+        logger.debug("[GET_OWNER_SALON] status=%s", response.status_code)
     
     if response.status_code != 200:
         logger.error(f"[GET_OWNER_SALON] Failed to fetch owner salon: {response.text}")

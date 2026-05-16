@@ -329,3 +329,19 @@ These are real issues but don't gate the Play upload. Schedule for the first pos
 ---
 
 *Audit produced by reading the codebase end-to-end; severity calls reflect current Play Store policy as of the audit date. Re-run after the Day 1–3 remediation completes.*
+
+---
+
+## Appendix A — Remediation log (2026-05-16)
+
+Code remediation per implementation plan. **Ops still required:** EAS upload keystore, GCP Maps SHA-1 restriction, apply SQL migrations 24–27 in Supabase, Play Console Data Safety + reviewer accounts, Razorpay sandbox E2E test.
+
+| Area | Key files changed |
+|------|-------------------|
+| Mobile Play | `app.config.js`, `plugins/withAndroidPermissions.js`, `package.json`, `eas.json` |
+| Mobile security | `apiClient.ts` (signing removed), `PaymentScreen.tsx`, `babel.config.js`, `notificationStore.ts` (expo-audio) |
+| Backend | `server.py`, `payments.py`, `salon_auth.py`, `idempotency.py`, `uploads.py`, `requirements.txt`, `render.yaml` |
+| Database | `25_*`, `26_*`, `27_*`, `docs/database/MIGRATION_ORDER.md` |
+| Docs | `docs/audit/launch-readiness.md`, `docs/EAS_PLAY_STORE_OPS.md`, `docs/PLAY_CONSOLE_CHECKLIST.md`, `CLAUDE.md` |
+
+Full checklist: `docs/audit/launch-readiness.md`.

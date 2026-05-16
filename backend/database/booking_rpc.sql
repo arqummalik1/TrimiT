@@ -28,7 +28,7 @@ BEGIN
     INTO v_allow_multiple, v_max_bookings
     FROM salons 
     WHERE id = p_salon_id
-    FOR SHARE;
+    FOR UPDATE;
 
     IF NOT FOUND THEN
         RETURN json_build_object('success', false, 'error', 'Salon not found');

@@ -3,16 +3,19 @@ services:
     name: trimit-backend
     env: python
     region: oregon
-    plan: free
+    plan: starter
     branch: main
     rootDir: backend
+    healthCheckPath: /health
     buildCommand: pip install -r requirements.txt
-    startCommand: PYTHONPATH=/opt/render/project/src/backend python -c "import server; print('Import successful')" && PYTHONPATH=/opt/render/project/src/backend gunicorn -w 4 -k uvicorn.workers.UvicornWorker server:app --bind 0.0.0.0:$PORT --timeout 120 --log-level debug
+    startCommand: PYTHONPATH=/opt/render/project/src/backend python -c "import server; print('Import successful')" && PYTHONPATH=/opt/render/project/src/backend gunicorn -w 2 -k uvicorn.workers.UvicornWorker server:app --bind 0.0.0.0:$PORT --timeout 120 --log-level info
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: ENVIRONMENT
         value: production
+      - key: DEBUG
+        value: "false"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
@@ -21,18 +24,14 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
-      - key: API_SIGNING_SECRET
-        sync: false
       - key: RAZORPAY_KEY_ID
         sync: false
       - key: RAZORPAY_KEY_SECRET
         sync: false
-      - key: STRIPE_SECRET_KEY
-        sync: false
       - key: SENTRY_DSN
         sync: false
       - key: ALLOWED_ORIGINS
-        value: https://trimi-t.vercel.app,https://trimit.app,https://www.trimit.app,http://localhost:3000,http://localhost:8081
+        value: https://trimi-t.vercel.app,https://trimit.app,https://www.trimit.app
       - key: PUBLIC_SITE_URL
         value: https://trimi-t.vercel.app
 
@@ -43,7 +42,7 @@ services:
     plan: free
     branch: main
     rootDir: frontend
-    buildCommand: npm ci && npm run build
+    buildCommand: GENERATE_SOURCEMAP=false npm ci && npm run build
     staticPublishPath: build
     routes:
       - type: rewrite
