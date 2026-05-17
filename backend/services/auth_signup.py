@@ -247,6 +247,7 @@ async def perform_supabase_signup(user: UserCreate):
                 "role": user.role.value,
             },
             "redirect_to": redirect_to,
+            "options": {"email_redirect_to": redirect_to},
         },
     )
 
@@ -326,13 +327,15 @@ async def resend_confirmation_email(email: str) -> Tuple[int, Dict[str, Any]]:
             },
         )
 
+    redirect_to = email_confirmation_redirect_url()
     resp = await supabase.request(
         "POST",
         "auth/v1/resend",
         json={
             "type": "signup",
             "email": email_norm,
-            "redirect_to": email_confirmation_redirect_url(),
+            "redirect_to": redirect_to,
+            "options": {"email_redirect_to": redirect_to},
         },
     )
     if resp.status_code in (200, 201):

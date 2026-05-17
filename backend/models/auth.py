@@ -42,6 +42,13 @@ class ResendConfirmationRequest(BaseModel):
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
+
+class ConfirmEmailCallbackRequest(BaseModel):
+    """Tokens from Supabase email link (web confirmation page fallback)."""
+    token_hash: Optional[str] = None
+    token: Optional[str] = None
+    type: str = "signup"
+
 class ValidateTokenRequest(BaseModel):
     token: str
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Scissors, CheckCircle, XCircle, DeviceMobile } from '@phosphor-icons/react';
-import { parseAuthCallbackFromUrl } from '../lib/authCallbackParams';
+import { completeAuthEmailCallback } from '../lib/completeAuthCallback';
 
 /**
  * Landing page after the user taps the signup confirmation link in email.
@@ -13,30 +13,35 @@ const EmailConfirmedPage = () => {
   const [detail, setDetail] = useState('');
 
   useEffect(() => {
-    const { error, errorDescription, accessToken, tokenHash, isEmailConfirmation, type } =
-      parseAuthCallbackFromUrl();
+    let cancelled = false;
 
-    if (error) {
+    const run = async () => {
+      const result = await completeAuthEmailCallback();
+      if (cancelled) return;
+
+      window.history.replaceState(null, '', '/auth/email-confirmed');
+
+      if (result.success) {
+        setStatus('success');
+        return;
+      }
+
+      if (result.idle) {
+        setStatus('idle');
+        return;
+      }
+
       setStatus('error');
       setDetail(
-        errorDescription ||
-          'This confirmation link is invalid or has expired. Request a new confirmation email from the app.'
+        result.error ||
+          'This confirmation link is invalid or has expired. Open the TrimiT app and tap Resend confirmation email.'
       );
-      window.history.replaceState(null, '', '/auth/email-confirmed');
-      return;
-    }
+    };
 
-    if (accessToken || tokenHash || isEmailConfirmation) {
-      setStatus('success');
-      if (type === 'email_change') {
-        setDetail('Your email address has been updated.');
-      }
-      window.history.replaceState(null, '', '/auth/email-confirmed');
-      return;
-    }
-
-    setStatus('idle');
-    window.history.replaceState(null, '', '/auth/email-confirmed');
+    void run();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

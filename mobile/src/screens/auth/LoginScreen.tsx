@@ -66,7 +66,15 @@ type LoginProps = AuthScreenProps<'Login'>;
 export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { login, isLoading, error: authError, clearError } = useAuthStore();
+  const {
+    login,
+    resendConfirmation,
+    isLoading,
+    error: authError,
+    clearError,
+    requiresEmailConfirmation,
+  } = useAuthStore();
+  const [resendLoading, setResendLoading] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -135,6 +143,32 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
                 style={{ marginBottom: spacing.lg }}
               />
             )}
+
+            {requiresEmailConfirmation ? (
+              <TouchableOpacity
+                style={styles.resendConfirmRow}
+                disabled={resendLoading || isLoading || !email.trim()}
+                onPress={async () => {
+                  setResendLoading(true);
+                  const result = await resendConfirmation(email.trim());
+                  setResendLoading(false);
+                  if (result.success) {
+                    showToast(
+                      result.accountReadyForLogin
+                        ? 'Account is ready — you can sign in now'
+                        : 'Confirmation email sent — check your inbox',
+                      'success'
+                    );
+                  } else {
+                    showToast(result.error ?? 'Could not resend confirmation email', 'error');
+                  }
+                }}
+              >
+                <Text style={styles.resendConfirmText}>
+                  {resendLoading ? 'Sending…' : 'Resend confirmation email'}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
 
             <Input
               label="Email Address"
@@ -246,6 +280,15 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     right: spacing.lg,
     top: 42,
     padding: spacing.xs,
+  },
+  resendConfirmRow: {
+    alignSelf: 'center',
+    paddingVertical: spacing.sm,
+  },
+  resendConfirmText: {
+    ...typography.bodySmallMedium,
+    color: theme.colors.primary,
+    textAlign: 'center',
   },
   forgotButton: {
     alignSelf: 'flex-end',

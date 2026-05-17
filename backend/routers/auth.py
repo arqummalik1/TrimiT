@@ -12,7 +12,10 @@ from models.auth import (
     UserCreate, UserLogin, UserUpdate, PushTokenUpdate,
     NotificationPreferencesUpdate,
     ResendConfirmationRequest,
-    ForgotPasswordRequest, ValidateTokenRequest, ResetPasswordRequest
+    ForgotPasswordRequest,
+    ConfirmEmailCallbackRequest,
+    ValidateTokenRequest,
+    ResetPasswordRequest,
 )
 from dependencies.auth import get_current_user, user_profile_cache
 from services.auth_errors import map_supabase_signup_error, safe_auth_response_json
@@ -384,8 +387,49 @@ async def register_push_token(data: PushTokenUpdate, current_user: dict = Depend
     logger.info("[Push] token %s user_id=%s", action, user_id[:8] if user_id else "?")
     return {"message": f"Push token {action} successfully"}
 
+@router.post("/confirm-email-callback")
+@limiter.limit("30/hour")
+async def confirm_email_callback(request: Request, data: ConfirmEmailCallbackRequest):
+    """
+    Server-side completion of signup email links (token_hash flow).
+    Used when the web app cannot finish verification via the Supabase JS client alone.
+    """
+    if not data.token_hash and not data.token:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "MISSING_TOKEN",
+                "message": "Missing verification token in callback.",
+            },
+        )
+
+    otp_type = data.type if data.type in ("signup", "email", "recovery", "invite", "magiclink", "email_change") else "signup"
+    payload: Dict[str, Any] = {"type": otp_type}
+    if data.token_hash:
+        payload["token_hash"] = data.token_hash
+    if data.token:
+        payload["token"] = data.token
+
+    response = await supabase.request("POST", "auth/v1/verify", json=payload)
+    if response.status_code not in (200, 201):
+        logger.warning(
+            "confirm_email_callback failed status=%s body=%s",
+            response.status_code,
+            response.text[:300] if response.text else "",
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "EMAIL_VERIFY_FAILED",
+                "message": "This confirmation link is invalid or has expired. Request a new confirmation email from the app.",
+            },
+        )
+
+    return {"success": True, "message": "Email confirmed"}
+
+
 @router.post("/resend-confirmation")
-@limiter.limit("3/hour")
+@limiter.limit("6/hour")
 async def resend_confirmation(request: Request, data: ResendConfirmationRequest):
     """Resend signup confirmation email (use instead of repeated signup taps)."""
     status_code, body = await resend_confirmation_email(data.email)
@@ -395,17 +439,34 @@ async def resend_confirmation(request: Request, data: ResendConfirmationRequest)
 
 
 @router.post("/forgot-password")
-@limiter.limit("3/hour")
+@limiter.limit("10/hour")
 async def forgot_password(request: Request, data: ForgotPasswordRequest):
     site_base = settings.PUBLIC_SITE_URL.rstrip("/")
     redirect_to = f"{site_base}/reset-password"
     response = await supabase.request(
         "POST",
         "auth/v1/recover",
-        json={"email": data.email, "redirect_to": redirect_to},
+        json={
+            "email": data.email.strip().lower(),
+            "redirect_to": redirect_to,
+            "options": {"email_redirect_to": redirect_to},
+        },
     )
     if response.status_code == 429:
-        raise HTTPException(status_code=429, detail="Too many reset attempts.")
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "RATE_LIMIT_EXCEEDED",
+                "message": "Too many reset attempts. Wait about an hour and try again, or check your spam folder for an earlier email.",
+            },
+        )
+    if response.status_code >= 400:
+        logger.warning(
+            "forgot_password supabase status=%s email=%s body=%s",
+            response.status_code,
+            data.email,
+            response.text[:200] if response.text else "",
+        )
     # Always return success to avoid email enumeration (Supabase may return 200 even if email unknown)
     return {"message": "If an account exists, a reset link has been sent", "redirect_to": redirect_to}
 

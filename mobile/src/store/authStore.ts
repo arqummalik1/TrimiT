@@ -197,7 +197,8 @@ export const useAuthStore = create<AuthState>()(
           return { success: true };
         } catch (err) {
           set({ isLoading: false });
-          const message = err instanceof Error ? err.message : 'Could not send reset email';
+          const { parseAuthFailure } = require('../repositories/authRepository');
+          const { message } = parseAuthFailure(err);
           return { success: false, error: message };
         }
       },

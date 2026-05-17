@@ -42,13 +42,16 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordProps
       await api.post('/auth/forgot-password', { email });
       setIsSent(true);
     } catch (error) {
-      // For forgot password, we sometimes want to swallow the error to prevent email enumeration,
-      // but we should still log it or handle it gracefully if it's a network error.
       const appErr = handleApiError(error);
-      if (appErr.kind === 'network') {
+      if (
+        appErr.kind === 'network' ||
+        appErr.kind === 'rate_limit' ||
+        appErr.code === 'RATE_LIMIT_EXCEEDED' ||
+        appErr.code === 'AUTH_PROVIDER_EMAIL_QUOTA'
+      ) {
         showToast(appErr.message, 'error');
       } else {
-        // Always show success for security reasons (don't reveal if account exists)
+        // Avoid revealing whether the email exists
         setIsSent(true);
       }
     } finally {
