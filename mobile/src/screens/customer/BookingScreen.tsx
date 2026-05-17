@@ -35,6 +35,7 @@ import { BookingParamsSchema } from '../../navigation/params';
 import { analytics } from '../../lib/analytics';
 import { ENABLE_ONLINE_PAY, ENABLE_STAFF_SELECTION } from '../../lib/featureFlags';
 import { createIdempotencyKey } from '../../lib/idempotency';
+import { isTransientNetworkError, withTransientNetworkRetry } from '../../lib/networkRetry';
 
 // Staff selection imports
 import StaffPicker from '../../components/StaffPicker';
@@ -277,16 +278,26 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   }, [slotsData, updateSlots]);
 
   // Reserve slot mutation
+  const RESERVE_TIMEOUT_MS = 28000;
+
   const reserveMutation = useMutation({
     mutationFn: async (slot: string) => {
       logger.debug('[BookingFlow] reserve.request', { salonId, serviceId, selectedDate, slot });
       const slotKey = normalizeSlotTimeToHHMM(slot) || slot;
-      const response = await api.post('/bookings/reserve', {
-        salon_id: salonId,
-        service_id: serviceId,
-        booking_date: selectedDate,
-        time_slot: slotKey,
-      });
+      const response = await withTransientNetworkRetry(
+        () =>
+          api.post(
+            '/bookings/reserve',
+            {
+              salon_id: salonId,
+              service_id: serviceId,
+              booking_date: selectedDate,
+              time_slot: slotKey,
+            },
+            { timeout: RESERVE_TIMEOUT_MS }
+          ),
+        { maxAttempts: 3, baseDelayMs: 500 }
+      );
       logger.debug('[BookingFlow] reserve.response', {
         holdId: response.data?.hold_id,
         fallback: response.data?.fallback,
@@ -312,9 +323,12 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       }, 1000);
     },
     onError: (error: unknown) => {
-      logger.debug('[BookingFlow] reserve.error', { error: String(error) });
-      // Interceptor returns normalized AppError, so avoid assuming axios shape.
       const appErr = isAppError(error) ? error : handleApiError(error);
+      logger.debug('[BookingFlow] reserve.error', {
+        kind: appErr.kind,
+        code: appErr.code,
+        message: appErr.message,
+      });
       const fallbackMsg = 'This slot is currently being held by someone else.';
       const errorMsg = appErr.message || fallbackMsg;
 
@@ -326,13 +340,21 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
         return;
       }
 
-      // Server/network issues should not look like slot conflict; keep selected slot.
-      Alert.alert(
-        'Temporary Server Issue',
-        'We could not place a temporary hold right now. You can still continue and we will re-check slot availability at booking confirmation.'
-      );
+      // Keep selected slot; confirm will retry hold with the same retries.
       setHoldId(null);
       setTimeLeft(null);
+      if (isTransientNetworkError(error)) {
+        Alert.alert(
+          'Connection issue',
+          'We could not reserve this slot yet. Check your connection and tap Confirm booking to try again, or re-select the time slot.'
+        );
+        return;
+      }
+
+      Alert.alert(
+        'Temporary server issue',
+        'We could not place a temporary hold right now. Tap Confirm booking to try again, or pick another slot.'
+      );
     }
   });
 
@@ -501,9 +523,14 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
         idempotencyKeyRef.current = await createIdempotencyKey();
       }
 
-      const response = await api.post('/bookings/', payload, {
-        headers: { 'Idempotency-Key': idempotencyKeyRef.current },
-      });
+      const response = await withTransientNetworkRetry(
+        () =>
+          api.post('/bookings/', payload, {
+            headers: { 'Idempotency-Key': idempotencyKeyRef.current },
+            timeout: RESERVE_TIMEOUT_MS,
+          }),
+        { maxAttempts: 3, baseDelayMs: 500 }
+      );
       logger.debug('[BookingFlow] booking.create.response', response.data);
       return response.data;
     },
@@ -683,32 +710,40 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       return;
     }
 
-    // Re-place hold if missing (e.g. after a failed confirm cleared state or reserve error recovery)
-    if (!holdId && selectedSlot) {
+    let activeHoldId = holdId;
+
+    // Re-place hold if missing (failed reserve on slot tap, or stale timer)
+    if (!activeHoldId && selectedSlot) {
       try {
         logger.debug('[BookingFlow] confirm.reReserve', { slot: selectedSlot });
-        await reserveMutation.mutateAsync(selectedSlot);
-      } catch {
+        const reserveData = await reserveMutation.mutateAsync(selectedSlot);
+        activeHoldId = reserveData?.hold_id ?? null;
+      } catch (reserveErr) {
+        const appErr = isAppError(reserveErr) ? reserveErr : handleApiError(reserveErr);
+        logger.debug('[BookingFlow] confirm.reReserve.failed', { message: appErr.message });
         Alert.alert(
-          'Could not reserve slot',
-          'Please tap your time slot again, then confirm booking.'
+          isTransientNetworkError(reserveErr) ? 'Connection issue' : 'Could not reserve slot',
+          isTransientNetworkError(reserveErr)
+            ? 'Please check your connection and try again in a moment.'
+            : 'Please tap your time slot again, then confirm booking.'
         );
         return;
       }
     }
 
-    if (!holdId) {
+    if (!activeHoldId) {
       logger.debug('[BookingFlow] confirm.blocked', { reason: 'no_hold' });
       Alert.alert('Error', 'Slot reservation not found. Please tap your time slot again.');
       return;
     }
     if (timeLeft === null || timeLeft <= 0) {
-      logger.debug('[BookingFlow] confirm.blocked', { reason: 'hold_expired', timeLeft });
+      logger.debug('[BookingFlow] confirm.reReserve', { reason: 'hold_expired', timeLeft });
       try {
-        await reserveMutation.mutateAsync(selectedSlot);
+        const reserveData = await reserveMutation.mutateAsync(selectedSlot);
+        activeHoldId = reserveData?.hold_id ?? activeHoldId;
       } catch {
         Alert.alert(
-          'Hold Expired',
+          'Hold expired',
           'Your temporary reservation expired. Please select your time slot again.'
         );
         resetBookingAttempt();

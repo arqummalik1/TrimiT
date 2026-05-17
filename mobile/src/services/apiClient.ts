@@ -63,7 +63,9 @@ function getRequestUrl(config: InternalAxiosRequestConfig): string {
 apiClient.interceptors.request.use(
   async (config) => {
     const net = await NetInfo.fetch();
-    const offline = !(net.isConnected && net.isInternetReachable !== false);
+    // Only block when the OS reports disconnected. isInternetReachable flickers on
+    // cellular/Wi‑Fi handoff and caused false "no internet" errors during booking.
+    const offline = net.isConnected === false;
     if (offline) {
       const now = Date.now();
       if (now - lastOfflineToastAt > 4000) {
