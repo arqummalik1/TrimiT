@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { parseAuthCallbackFromUrl } from './lib/authCallbackParams';
-import { Scissors } from '@phosphor-icons/react';
+import TrimitLogo from './components/brand/TrimitLogo';
 import { useAuthStore } from './store/authStore';
 
 // Pages
@@ -74,9 +74,13 @@ function App() {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-orange-800 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <Scissors size={32} weight="bold" className="text-white" />
-          </div>
+          <TrimitLogo
+            variant="icon"
+            asLink={false}
+            iconClassName="h-16 w-16 mx-auto mb-4 animate-pulse"
+            showWordmark={false}
+            className="justify-center"
+          />
           <h1 className="font-heading text-2xl font-bold text-stone-900">TrimiT</h1>
           <p className="text-stone-500 mt-2">Loading...</p>
         </div>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Lock, Eye, EyeSlash, Scissors, CheckCircle, XCircle } from '@phosphor-icons/react';
+import { Lock, Eye, EyeSlash, CheckCircle, XCircle } from '@phosphor-icons/react';
+import AuthBrandMark from '../components/brand/AuthBrandMark';
 import { useAuthStore } from '../store/authStore';
 import { extractRecoveryToken } from '../lib/recoveryToken';
 
@@ -103,9 +104,7 @@ const ResetPasswordPage = () => {
               animate={{ opacity: 1, y: 0 }}
               className="w-full max-w-md"
             >
-              <div className="w-16 h-16 bg-orange-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Scissors size={32} weight="bold" className="text-white" />
-              </div>
+              <AuthBrandMark className="mb-4" />
               <h1 className="font-heading text-3xl font-bold text-stone-900 mb-2">
                 {isSuccess ? 'Password Reset!' : 'Create New Password'}
               </h1>

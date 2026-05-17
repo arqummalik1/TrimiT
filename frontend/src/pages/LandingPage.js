@@ -1,208 +1,273 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  Scissors, 
-  MapPin, 
-  Calendar, 
-  CreditCard, 
-  Star, 
+import {
+  MapPin,
+  Calendar,
+  CreditCard,
+  Star,
   ArrowRight,
   Storefront,
-  Users
+  Users,
+  Sparkle,
+  Clock,
+  ShieldCheck,
 } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
 import StoreDownloadLinks from '../components/StoreDownloadLinks';
+import TrimitLogo from '../components/brand/TrimitLogo';
+import { LazyImage } from '../components/ui/LazyImage';
+import { LANDING_HERO } from '../lib/landingAssets';
+import { HeroAccentIllustration, StepIllustration } from '../components/landing/LandingIllustrations';
+
+const features = [
+  {
+    icon: MapPin,
+    title: 'Discover Nearby',
+    description: 'Find top-rated salons around you with smart location search.',
+    accent: 'from-orange-50 to-amber-50',
+  },
+  {
+    icon: Calendar,
+    title: 'Easy Booking',
+    description: 'Pick a slot in seconds — live availability, no phone tag.',
+    accent: 'from-stone-50 to-orange-50/80',
+  },
+  {
+    icon: CreditCard,
+    title: 'Secure Payments',
+    description: 'Pay in-app with confidence when online pay is enabled.',
+    accent: 'from-emerald-50/80 to-stone-50',
+  },
+  {
+    icon: Star,
+    title: 'Verified Reviews',
+    description: 'Real feedback from customers who actually visited.',
+    accent: 'from-amber-50 to-orange-50',
+  },
+];
+
+const services = [
+  {
+    name: 'Haircut & styling',
+    icon: Sparkle,
+    gradient: 'from-amber-100 via-orange-50 to-stone-100',
+    ring: 'ring-orange-200/60',
+  },
+  {
+    name: 'Spa & wellness',
+    icon: Clock,
+    gradient: 'from-stone-100 via-rose-50 to-orange-50',
+    ring: 'ring-stone-200/80',
+  },
+  {
+    name: 'Beard grooming',
+    icon: ShieldCheck,
+    gradient: 'from-orange-100 via-amber-50 to-stone-50',
+    ring: 'ring-amber-200/60',
+  },
+  {
+    name: 'Skin & facial',
+    icon: Star,
+    gradient: 'from-rose-50 via-orange-50 to-amber-50',
+    ring: 'ring-rose-200/50',
+  },
+];
+
+const steps = [
+  { n: 1, title: 'Discover', text: 'Browse salons, services, and reviews near you.' },
+  { n: 2, title: 'Book', text: 'Choose a time slot that fits your schedule.' },
+  { n: 3, title: 'Enjoy', text: 'Show up, get the service, rate your experience.' },
+];
+
+const stats = [
+  { value: '30 min', label: 'Average booking time' },
+  { value: '24/7', label: 'Book anytime' },
+  { value: '100%', label: 'Salon-verified listings' },
+];
 
 const LandingPage = () => {
   const { isAuthenticated, profile } = useAuthStore();
 
-  const features = [
-    {
-      icon: MapPin,
-      title: 'Discover Nearby',
-      description: 'Find the best salons near you with real-time location search',
-    },
-    {
-      icon: Calendar,
-      title: 'Easy Booking',
-      description: 'Book your preferred time slot in seconds, no hassle',
-    },
-    {
-      icon: CreditCard,
-      title: 'Secure Payments',
-      description: 'Pay online safely with multiple payment options',
-    },
-    {
-      icon: Star,
-      title: 'Verified Reviews',
-      description: 'Read genuine reviews from real customers',
-    },
-  ];
-
   const getStartedLink = () => {
-    return !isAuthenticated ? '/signup' : profile?.role === 'owner' ? '/owner/dashboard' : '/discover';
+    if (!isAuthenticated) return '/signup';
+    return profile?.role === 'owner' ? '/owner/dashboard' : '/discover';
   };
 
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = LANDING_HERO.preloadHref;
+    document.head.appendChild(link);
+    return () => document.head.removeChild(link);
+  }, []);
+
   return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative h-[90vh] flex items-center justify-center overflow-hidden">
-        {/* Background Image */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: 'url(https://images.unsplash.com/photo-1626383137804-ff908d2753a2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHw0fHxzYWxvbiUyMGludGVyaW9yJTIwd2FybSUyMGxpZ2h0aW5nfGVufDB8fHx8MTc3NTY3NzQzNnww&ixlib=rb-4.1.0&q=85)',
-          }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-b from-stone-900/60 via-stone-900/40 to-stone-900/80" />
+    <div className="min-h-screen bg-stone-50">
+      {/* Hero */}
+      <section className="relative min-h-[92vh] flex items-center overflow-hidden">
+        <div className="absolute inset-0">
+          <LazyImage
+            src={LANDING_HERO.src}
+            srcSet={LANDING_HERO.srcSet}
+            sizes={LANDING_HERO.sizes}
+            alt=""
+            priority
+            className="w-full h-full object-cover"
+            wrapperClassName="absolute inset-0"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-stone-950/85 via-stone-900/70 to-orange-950/80" />
+          <div
+            className="absolute inset-0 opacity-[0.12]"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 20% 30%, #fb923c 0%, transparent 45%), radial-gradient(circle at 80% 70%, #ea580c 0%, transparent 40%)',
+            }}
+          />
         </div>
 
-        {/* Content */}
-        <div className="relative z-10 max-w-5xl mx-auto px-4 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <span className="uppercase text-xs tracking-[0.2em] font-bold text-orange-400 mb-4 block">
-              Your Beauty Destination
-            </span>
-            <h1 className="font-heading text-5xl md:text-7xl font-extrabold text-white mb-6 leading-none tracking-tight">
-              Book Your Perfect
-              <br />
-              <span className="text-orange-400">Salon Experience</span>
-            </h1>
-            <p className="text-lg md:text-xl text-stone-200 mb-8 max-w-2xl mx-auto leading-relaxed">
-              Discover and book appointments at the best salons near you. 
-              From haircuts to spa treatments, find it all in one place.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                to={getStartedLink()}
-                data-testid="hero-get-started"
-                className="btn-primary flex items-center gap-2 text-lg px-8 py-4"
-              >
-                <Users size={24} />
-                Find Salons
-                <ArrowRight size={20} />
-              </Link>
-              <Link
-                to="/signup?role=owner"
-                data-testid="hero-list-salon"
-                className="flex items-center gap-2 text-lg px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-full font-semibold hover:bg-white/20 transition-all border border-white/30"
-              >
-                <Storefront size={24} />
-                List Your Salon
-              </Link>
-            </div>
-          </motion.div>
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7 }}
+            >
+              <TrimitLogo
+                variant="horizontal"
+                tone="dark"
+                asLink={false}
+                horizontalClassName="h-10 sm:h-12 w-auto max-w-[200px] sm:max-w-[240px] brightness-0 invert opacity-95 mb-8"
+              />
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-orange-200 text-xs font-semibold tracking-widest uppercase mb-5">
+                <Sparkle size={14} weight="fill" />
+                Premium salon booking
+              </span>
+              <h1 className="font-heading text-4xl sm:text-5xl md:text-6xl font-extrabold text-white leading-[1.05] tracking-tight mb-6">
+                Book your perfect
+                <span className="block text-orange-400 mt-1">salon experience</span>
+              </h1>
+              <p className="text-lg text-stone-200/95 max-w-xl leading-relaxed mb-8">
+                Discover salons, reserve your slot, and manage appointments — one elegant app for
+                customers and owners across India.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link
+                  to={getStartedLink()}
+                  data-testid="hero-get-started"
+                  className="btn-primary inline-flex items-center justify-center gap-2 text-base sm:text-lg px-8 py-4 shadow-lg shadow-orange-900/30"
+                >
+                  <Users size={22} weight="bold" />
+                  Find salons
+                  <ArrowRight size={20} weight="bold" />
+                </Link>
+                <Link
+                  to="/signup?role=owner"
+                  data-testid="hero-list-salon"
+                  className="inline-flex items-center justify-center gap-2 text-base sm:text-lg px-8 py-4 rounded-full font-semibold text-white bg-white/10 border border-white/25 backdrop-blur-md hover:bg-white/20 transition-all"
+                >
+                  <Storefront size={22} weight="duotone" />
+                  List your salon
+                </Link>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.15 }}
+              className="hidden lg:flex justify-center"
+            >
+              <div className="relative">
+                <div className="absolute -inset-4 bg-orange-500/20 rounded-full blur-3xl" />
+                <HeroAccentIllustration className="w-[min(100%,380px)] h-auto drop-shadow-2xl" />
+              </div>
+            </motion.div>
+          </div>
         </div>
 
-        {/* Scroll indicator */}
-        <motion.div 
-          className="absolute bottom-8 left-1/2 -translate-x-1/2"
-          animate={{ y: [0, 10, 0] }}
-          transition={{ repeat: Infinity, duration: 2 }}
+        <motion.div
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
+          animate={{ y: [0, 8, 0] }}
+          transition={{ repeat: Infinity, duration: 2.2 }}
         >
-          <div className="w-6 h-10 rounded-full border-2 border-white/50 flex items-start justify-center p-2">
-            <div className="w-1.5 h-3 bg-white/80 rounded-full" />
+          <div className="w-6 h-10 rounded-full border-2 border-white/40 flex justify-center pt-2">
+            <div className="w-1 h-2 rounded-full bg-white/80" />
           </div>
         </motion.div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-24 px-4 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-16"
-          >
-            <span className="uppercase text-xs tracking-[0.2em] font-bold text-orange-800 mb-4 block">
-              Why Choose Us
-            </span>
-            <h2 className="font-heading text-4xl md:text-5xl font-bold text-stone-900 mb-4">
-              Everything You Need
-            </h2>
-            <p className="text-stone-500 text-lg max-w-2xl mx-auto">
-              A seamless experience from discovery to booking, designed with your convenience in mind
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="card p-8 text-center group"
-              >
-                <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:bg-orange-800 transition-colors">
-                  <feature.icon 
-                    size={32} 
-                    weight="duotone" 
-                    className="text-orange-800 group-hover:text-white transition-colors" 
-                  />
-                </div>
-                <h3 className="font-heading text-xl font-bold text-stone-900 mb-3">
-                  {feature.title}
-                </h3>
-                <p className="text-stone-500 leading-relaxed">
-                  {feature.description}
-                </p>
-              </motion.div>
-            ))}
-          </div>
+      {/* Stats strip */}
+      <section className="relative z-20 -mt-8 mx-4 sm:mx-6 lg:mx-8 max-w-6xl lg:mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white rounded-2xl shadow-xl shadow-stone-900/5 border border-stone-200/80 p-6 sm:p-8">
+          {stats.map((s) => (
+            <div key={s.label} className="text-center sm:text-left sm:px-4 sm:border-r sm:border-stone-100 last:border-0">
+              <p className="font-heading text-2xl sm:text-3xl font-bold text-orange-800">{s.value}</p>
+              <p className="text-sm text-stone-500 mt-1">{s.label}</p>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Services Preview */}
+      {/* Features */}
+      <section className="py-24 px-4 bg-white mt-12">
+        <motion.div className="max-w-6xl mx-auto text-center mb-16">
+          <span className="text-xs font-bold tracking-[0.2em] uppercase text-orange-800">Why TrimiT</span>
+          <h2 className="font-heading text-4xl md:text-5xl font-bold text-stone-900 mt-3 mb-4">
+            Everything you need
+          </h2>
+          <p className="text-stone-500 text-lg max-w-2xl mx-auto">
+            A polished journey from discovery to booking — built for speed and trust.
+          </p>
+        </motion.div>
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {features.map((f, i) => (
+            <motion.div
+              key={f.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.08 }}
+              className={`rounded-2xl border border-stone-200/80 p-8 bg-gradient-to-br ${f.accent} hover:shadow-lg hover:-translate-y-1 transition-all duration-300`}
+            >
+              <div className="w-14 h-14 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-5 ring-1 ring-stone-200/60">
+                <f.icon size={28} weight="duotone" className="text-orange-800" />
+              </div>
+              <h3 className="font-heading text-lg font-bold text-stone-900 mb-2">{f.title}</h3>
+              <p className="text-stone-600 text-sm leading-relaxed">{f.description}</p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* What we offer — illustrated (no slow external photos) */}
       <section className="py-24 px-4 bg-stone-50">
         <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <span className="uppercase text-xs tracking-[0.2em] font-bold text-orange-800 mb-4 block">
-              Popular Services
-            </span>
-            <h2 className="font-heading text-4xl md:text-5xl font-bold text-stone-900">
-              What We Offer
-            </h2>
-          </motion.div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {[
-              { name: 'Haircut', image: 'https://images.unsplash.com/photo-1511920922889-5c35bfd95a7f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODB8MHwxfHNlYXJjaHwyfHxoYWlyJTIwc3R5bGlzdCUyMGN1dHRpbmclMjBoYWlyfGVufDB8fHx8MTc3NTY3NzQzNnww&ixlib=rb-4.1.0&q=85' },
-              { name: 'Spa & Massage', image: 'https://images.unsplash.com/photo-1559185590-765cdc663325?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODh8MHwxfHNlYXJjaHw0fHxzcGElMjBtYXNzYWdlJTIwd2VsbG5lc3N8ZW58MHx8fHwxNzc1Njc3NDM2fDA&ixlib=rb-4.1.0&q=85' },
-              { name: 'Beard Grooming', image: 'https://images.unsplash.com/photo-1629794138560-46d2815a6d79?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMG5hdHVyYWwlMjBsaWdodGluZ3xlbnwwfHx8fDE3NzU2Nzc0NDZ8MA&ixlib=rb-4.1.0&q=85' },
-              { name: 'Facial Treatment', image: 'https://images.unsplash.com/photo-1679943350848-e58bad25c130?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwyfHxwb3J0cmFpdCUyMG5hdHVyYWwlMjBsaWdodGluZ3xlbnwwfHx8fDE3NzU2Nzc0NDZ8MA&ixlib=rb-4.1.0&q=85' },
-            ].map((service, index) => (
+          <div className="text-center mb-14">
+            <span className="text-xs font-bold tracking-[0.2em] uppercase text-orange-800">Services</span>
+            <h2 className="font-heading text-4xl md:text-5xl font-bold text-stone-900 mt-3">What we offer</h2>
+            <p className="text-stone-500 mt-3 max-w-xl mx-auto">
+              From quick trims to full spa days — book the experience that fits you.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {services.map((s, i) => (
               <motion.div
-                key={service.name}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
+                key={s.name}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-                className="relative aspect-square rounded-3xl overflow-hidden group cursor-pointer"
+                transition={{ delay: i * 0.06 }}
+                className={`relative aspect-[4/5] rounded-3xl overflow-hidden bg-gradient-to-br ${s.gradient} ring-1 ${s.ring} group hover:shadow-xl hover:-translate-y-1 transition-all duration-300`}
               >
-                <img 
-                  src={service.image} 
-                  alt={service.name}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-stone-900/80 via-transparent to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4">
-                  <h3 className="font-heading text-lg font-bold text-white">
-                    {service.name}
+                <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/40 blur-2xl group-hover:scale-125 transition-transform" />
+                <div className="relative h-full flex flex-col justify-between p-5 sm:p-6">
+                  <div className="w-12 h-12 rounded-xl bg-white/90 shadow-sm flex items-center justify-center">
+                    <s.icon size={26} weight="duotone" className="text-orange-800" />
+                  </div>
+                  <h3 className="font-heading text-base sm:text-lg font-bold text-stone-900 leading-snug">
+                    {s.name}
                   </h3>
                 </div>
               </motion.div>
@@ -211,47 +276,90 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* How it works */}
+      <section className="py-24 px-4 bg-white border-y border-stone-100">
+        <div className="max-w-6xl mx-auto">
+          <motion.div className="text-center mb-16">
+            <span className="text-xs font-bold tracking-[0.2em] uppercase text-orange-800">How it works</span>
+            <h2 className="font-heading text-4xl font-bold text-stone-900 mt-3">Three simple steps</h2>
+          </motion.div>
+          <div className="grid md:grid-cols-3 gap-10">
+            {steps.map((step, i) => (
+              <motion.div
+                key={step.n}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="text-center"
+              >
+                <StepIllustration step={step.n} className="w-28 h-28 mx-auto mb-6" />
+                <span className="text-xs font-bold text-orange-800">Step {step.n}</span>
+                <h3 className="font-heading text-xl font-bold text-stone-900 mt-2 mb-2">{step.title}</h3>
+                <p className="text-stone-500 text-sm leading-relaxed max-w-xs mx-auto">{step.text}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* For salons */}
+      <section className="py-20 px-4">
+        <div className="max-w-6xl mx-auto rounded-3xl bg-gradient-to-r from-stone-900 to-orange-950 p-10 sm:p-14 flex flex-col md:flex-row items-center gap-10">
+          <div className="flex-1 text-center md:text-left">
+            <TrimitLogo variant="icon" tone="dark" asLink={false} iconClassName="h-14 w-14 mb-6" showWordmark={false} />
+            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-white mb-4">Grow your salon</h2>
+            <p className="text-stone-300 leading-relaxed">
+              Owners get a dedicated dashboard for bookings, services, and schedules — all in one place.
+            </p>
+          </div>
+          <Link
+            to="/signup?role=owner"
+            className="shrink-0 inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-900 rounded-full font-bold hover:bg-orange-50 transition-colors"
+          >
+            Partner with us
+            <ArrowRight size={20} weight="bold" />
+          </Link>
+        </div>
+      </section>
+
+      {/* CTA */}
       <section className="py-24 px-4 bg-orange-800">
         <div className="max-w-4xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+          <TrimitLogo
+            variant="icon"
+            asLink={false}
+            tone="dark"
+            iconClassName="h-16 w-16 mx-auto mb-6"
+            showWordmark={false}
+          />
+          <h2 className="font-heading text-4xl md:text-5xl font-bold text-white mb-6">Ready to look your best?</h2>
+          <p className="text-orange-100 text-lg mb-8 max-w-2xl mx-auto">
+            Join customers and salon owners who book smarter with TrimiT.
+          </p>
+          <Link
+            to={getStartedLink()}
+            data-testid="cta-get-started"
+            className="inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-800 rounded-full font-bold text-lg hover:bg-orange-50 transition-colors shadow-lg"
           >
-            <Scissors size={64} weight="duotone" className="text-orange-200 mx-auto mb-6" />
-            <h2 className="font-heading text-4xl md:text-5xl font-bold text-white mb-6">
-              Ready to Look Your Best?
-            </h2>
-            <p className="text-orange-100 text-lg mb-8 max-w-2xl mx-auto">
-              Join thousands of happy customers who trust TrimiT for their grooming needs
-            </p>
-            <Link
-              to={getStartedLink()}
-              data-testid="cta-get-started"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-800 rounded-full font-bold text-lg hover:bg-orange-50 transition-colors"
-            >
-              Get Started Now
-              <ArrowRight size={24} />
-            </Link>
-          </motion.div>
+            Get started now
+            <ArrowRight size={24} weight="bold" />
+          </Link>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="py-12 px-4 bg-stone-900 text-stone-400">
         <div className="max-w-6xl mx-auto text-center">
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <div className="w-8 h-8 bg-orange-800 rounded-lg flex items-center justify-center">
-              <Scissors size={18} weight="bold" className="text-white" />
-            </div>
-            <span className="font-heading text-lg font-bold text-white">TrimiT</span>
-          </div>
+          <TrimitLogo
+            variant="horizontal"
+            tone="dark"
+            asLink
+            horizontalClassName="h-9 w-auto max-w-[160px] mx-auto brightness-0 invert opacity-90 mb-6"
+          />
           <p className="text-sm font-medium text-stone-300 mb-4">Get the app</p>
           <StoreDownloadLinks variant="dark" />
-          <p className="text-sm mt-8">
-            &copy; {new Date().getFullYear()} TrimiT. All rights reserved.
-          </p>
+          <p className="text-sm mt-8">&copy; {new Date().getFullYear()} TrimiT. All rights reserved.</p>
         </div>
       </footer>
     </div>

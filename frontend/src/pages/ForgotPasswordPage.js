@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { EnvelopeSimple, Scissors, ArrowLeft, CheckCircle } from '@phosphor-icons/react';
+import { EnvelopeSimple, ArrowLeft, CheckCircle } from '@phosphor-icons/react';
+import AuthBrandMark from '../components/brand/AuthBrandMark';
 import { useAuthStore } from '../store/authStore';
 
 const ForgotPasswordPage = () => {
@@ -41,10 +42,8 @@ const ForgotPasswordPage = () => {
         className="w-full max-w-md"
       >
         {/* Logo */}
+        <AuthBrandMark />
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-orange-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Scissors size={32} weight="bold" className="text-white" />
-          </div>
           <h1 className="font-heading text-3xl font-bold text-stone-900 mb-2">
             Reset Password
           </h1>

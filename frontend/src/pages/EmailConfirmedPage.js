@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Scissors, CheckCircle, XCircle, DeviceMobile } from '@phosphor-icons/react';
+import { CheckCircle, XCircle, DeviceMobile } from '@phosphor-icons/react';
+import AuthBrandMark from '../components/brand/AuthBrandMark';
 import { completeAuthEmailCallback } from '../lib/completeAuthCallback';
 
 /**
@@ -55,13 +56,7 @@ const EmailConfirmedPage = () => {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-lg bg-white rounded-3xl shadow-xl p-8 md:p-10 border border-stone-200 text-center"
       >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-16 h-16 bg-orange-800 rounded-2xl flex items-center justify-center mx-auto mb-6"
-        >
-          <Scissors size={32} weight="bold" className="text-white" />
-        </motion.div>
+        <AuthBrandMark />
 
         {status === 'loading' && (
           <>

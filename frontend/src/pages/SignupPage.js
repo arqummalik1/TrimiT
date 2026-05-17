@@ -8,11 +8,11 @@ import {
   EyeSlash, 
   User, 
   Phone, 
-  Scissors,
   Storefront,
   Users
 } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
+import AuthBrandMark from '../components/brand/AuthBrandMark';
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -106,11 +106,8 @@ const SignupPage = () => {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md"
       >
-        {/* Logo */}
+        <AuthBrandMark />
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-orange-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Scissors size={32} weight="bold" className="text-white" />
-          </div>
           <h1 className="font-heading text-3xl font-bold text-stone-900 mb-2">
             Join TrimiT
           </h1>

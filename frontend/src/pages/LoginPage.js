@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { EnvelopeSimple, Lock, Eye, EyeSlash, Scissors } from '@phosphor-icons/react';
+import { EnvelopeSimple, Lock, Eye, EyeSlash } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
+import AuthBrandMark from '../components/brand/AuthBrandMark';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -55,16 +56,10 @@ const LoginPage = () => {
         className="w-full max-w-md"
       >
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-orange-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Scissors size={32} weight="bold" className="text-white" />
-          </div>
-          <h1 className="font-heading text-3xl font-bold text-stone-900 mb-2">
-            Welcome Back
-          </h1>
-          <p className="text-stone-500">
-            Sign in to continue to TrimiT
-          </p>
+        <AuthBrandMark />
+        <div className="text-center mb-8 -mt-4">
+          <h1 className="font-heading text-3xl font-bold text-stone-900 mb-2">Welcome back</h1>
+          <p className="text-stone-500">Sign in to continue</p>
         </div>
 
         {/* Form */}

@@ -2,7 +2,6 @@ import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { 
-  Scissors, 
   User, 
   SignOut, 
   House, 
@@ -12,6 +11,7 @@ import {
   List
 } from '@phosphor-icons/react';
 import DownloadAppButton from './DownloadAppButton';
+import TrimitLogo from './brand/TrimitLogo';
 
 const Header = () => {
   const { isAuthenticated, profile, logout } = useAuthStore();
@@ -33,14 +33,7 @@ const Header = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 bg-orange-800 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105">
-              <Scissors size={24} weight="bold" className="text-white" />
-            </div>
-            <span className="font-heading text-xl font-bold text-stone-900 tracking-tight">
-              TrimiT
-            </span>
-          </Link>
+          <TrimitLogo variant="icon-text" iconClassName="h-10 w-10" />
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center gap-1">
