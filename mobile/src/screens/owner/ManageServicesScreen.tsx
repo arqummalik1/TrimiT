@@ -14,7 +14,8 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -74,6 +75,7 @@ export default function ManageServicesScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const route = useRoute<ServicesRoute>();
+  const navigation = useNavigation<BottomTabNavigationProp<OwnerTabParamList, 'Services'>>();
   const queryClient = useQueryClient();
 
   const [modalVisible, setModalVisible] = useState(false);

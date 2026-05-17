@@ -280,11 +280,12 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   const reserveMutation = useMutation({
     mutationFn: async (slot: string) => {
       logger.debug('[BookingFlow] reserve.request', { salonId, serviceId, selectedDate, slot });
+      const slotKey = normalizeSlotTimeToHHMM(slot) || slot;
       const response = await api.post('/bookings/reserve', {
         salon_id: salonId,
         service_id: serviceId,
         booking_date: selectedDate,
-        time_slot: slot,
+        time_slot: slotKey,
       });
       logger.debug('[BookingFlow] reserve.response', {
         holdId: response.data?.hold_id,
@@ -479,11 +480,12 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       const dbPaymentMethod =
         ENABLE_ONLINE_PAY && selectedPaymentMethod === 'card' ? 'online' : 'salon_cash';
 
+      const normalizedSlot = selectedSlot ? normalizeSlotTimeToHHMM(selectedSlot) : '';
       const payload = {
         salon_id: salonId,
         service_id: serviceId,
         booking_date: selectedDate,
-        time_slot: selectedSlot,
+        time_slot: normalizedSlot || selectedSlot,
         payment_method: dbPaymentMethod,
         promo_code: promoApplied ? promoCode.trim().toUpperCase() : undefined,
         ...(ENABLE_STAFF_SELECTION
@@ -586,12 +588,28 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       queryClient.invalidateQueries({ queryKey: ['slots', salonId, serviceId, selectedDate] });
       refetchSlots();
 
-      const isSlotGone = appErr.kind === 'conflict' || statusCode === 409;
+      const isHoldRequired = appErr.code === 'HOLD_REQUIRED';
+      const isSlotGone =
+        (appErr.kind === 'conflict' || statusCode === 409) && !isHoldRequired;
       const isHoldExpired =
         statusCode === 400 &&
         (errorDetail.toLowerCase().includes('hold') ||
           errorDetail.toLowerCase().includes('expired') ||
           errorDetail.toLowerCase().includes('unavailable'));
+
+      if (isHoldRequired && selectedSlot) {
+        try {
+          await reserveMutation.mutateAsync(selectedSlot);
+          bookingMutation.mutate();
+          return;
+        } catch {
+          Alert.alert(
+            'Could not reserve slot',
+            'Please tap your time slot again, wait a moment, then confirm.'
+          );
+          return;
+        }
+      }
 
       if (isSlotGone || isHoldExpired) {
         resetBookingAttempt();
@@ -603,7 +621,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
           timerRef.current = null;
         }
         Alert.alert(
-          'Slot Unavailable',
+          isHoldRequired ? 'Booking Conflict' : 'Slot Unavailable',
           isHoldExpired
             ? 'Your hold expired or this slot was taken. Please pick a time again.'
             : errorDetail

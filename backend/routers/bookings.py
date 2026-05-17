@@ -664,10 +664,19 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
         f"&user_id=eq.{user_id}"
         f"&expires_at=gt.{datetime.now(timezone.utc).isoformat()}"
     )
-    hold_resp = await supabase.request("GET", holds_query, token=token)
+    # Service role: user JWT + RLS can hide the caller's own holds from this pre-check.
+    hold_resp = await supabase.request("GET", holds_query, service_role=True)
     hold_rows = hold_resp.json() if hold_resp.status_code == 200 else []
     norm_slot = _slot_time_key(data.time_slot)
     if not norm_slot or not _has_active_hold(hold_rows, str(user_id), norm_slot):
+        logger.warning(
+            "[CREATE_BOOKING] HOLD_REQUIRED user=%s salon=%s date=%s slot=%s holds_found=%s",
+            user_id,
+            data.salon_id,
+            data.booking_date,
+            norm_slot,
+            len(hold_rows),
+        )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
