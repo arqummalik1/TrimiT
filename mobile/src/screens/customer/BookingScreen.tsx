@@ -579,7 +579,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
         setBookingComplete(true);
       }
     },
-    onError: (error: unknown) => {
+    onError: async (error: unknown) => {
       logger.debug('[BookingFlow] booking.create.error', { error: String(error) });
       const appErr = isAppError(error) ? error : handleApiError(error);
       const errorDetail = appErr.message || 'Failed to create booking';
