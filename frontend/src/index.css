@@ -78,6 +78,47 @@ h1, h2, h3, h4, h5, h6 {
   @apply bg-emerald-700 text-white transform -translate-y-0.5 shadow-lg;
 }
 
+/* Header download CTA — clockwise running border highlight */
+@keyframes download-app-border-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.download-app-btn {
+  border-radius: 9999px;
+  padding: 2px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.download-app-btn__ring {
+  position: absolute;
+  inset: -120%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg 250deg,
+    rgba(154, 52, 18, 0.15) 265deg,
+    #ea580c 280deg,
+    #fdba74 295deg,
+    #fff7ed 305deg,
+    #ea580c 320deg,
+    rgba(154, 52, 18, 0.2) 335deg,
+    transparent 350deg 360deg
+  );
+  animation: download-app-border-spin 2.2s linear infinite;
+  pointer-events: none;
+}
+
+.download-app-btn__inner {
+  margin: 0;
+}
+
+.download-app-btn:focus-visible {
+  outline: 2px solid #9a3412;
+  outline-offset: 3px;
+}
+
 /* Card styles */
 .card {
   @apply bg-white rounded-2xl border border-stone-200 transition-all duration-300;

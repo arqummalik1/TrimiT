@@ -11,6 +11,7 @@ import {
   ChartBar,
   List
 } from '@phosphor-icons/react';
+import DownloadAppButton from './DownloadAppButton';
 
 const Header = () => {
   const { isAuthenticated, profile, logout } = useAuthStore();
@@ -166,8 +167,9 @@ const Header = () => {
             )}
           </nav>
 
-          {/* Auth Actions */}
-          <div className="flex items-center gap-3">
+          {/* Download + auth */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <DownloadAppButton />
             {isAuthenticated ? (
               <div className="flex items-center gap-3">
                 <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-stone-100 rounded-full">

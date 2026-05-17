@@ -1,11 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import { GooglePlayLogo, AppleLogo, X } from '@phosphor-icons/react';
-import { PLAY_STORE_URL } from '../config/storeLinks';
+import { PLAY_STORE_URL, IS_APK_DRIVE_DOWNLOAD } from '../config/storeLinks';
 import { PUBLIC_SITE_URL } from '../config/site';
 
 /**
- * Play Store + App Store badges for site footers.
- * Play → listing URL (env or default). iOS → coming-soon modal.
+ * Android APK (Drive until Play Store) + App Store coming-soon for footers.
  */
 export function StoreDownloadLinks({ variant = 'light' }) {
   const [iosModalOpen, setIosModalOpen] = useState(false);
@@ -35,13 +34,19 @@ export function StoreDownloadLinks({ variant = 'light' }) {
           target="_blank"
           rel="noopener noreferrer"
           className={playClass}
-          aria-label="Get TrimiT on Google Play"
-          data-testid="footer-play-store"
+          aria-label={
+            IS_APK_DRIVE_DOWNLOAD ? 'Download TrimiT APK' : 'Get TrimiT on Google Play'
+          }
+          data-testid="footer-download-android"
         >
           <GooglePlayLogo size={28} weight="fill" className={isDark ? 'text-green-400' : 'text-stone-800'} />
           <span className={labelClass}>
-            <span className={smallClass}>Get it on</span>
-            <span className={mainClass}>Google Play</span>
+            <span className={smallClass}>
+              {IS_APK_DRIVE_DOWNLOAD ? 'Download' : 'Get it on'}
+            </span>
+            <span className={mainClass}>
+              {IS_APK_DRIVE_DOWNLOAD ? 'Android APK' : 'Google Play'}
+            </span>
           </span>
         </a>
 
