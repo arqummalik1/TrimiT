@@ -1,6 +1,6 @@
 import React from 'react';
 
-/** Salon booking confirmed — upbeat motif (no face-like shapes) */
+/** Premium salon booking visual — phone + calendar (no face-like shapes) */
 export function HeroAccentIllustration({ className = '' }) {
   return (
     <svg
@@ -10,52 +10,39 @@ export function HeroAccentIllustration({ className = '' }) {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
-      <circle cx="200" cy="200" r="160" stroke="rgba(251,146,60,0.35)" strokeWidth="1.5" />
-      <circle cx="200" cy="200" r="120" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+      <circle cx="200" cy="200" r="168" stroke="rgba(251,146,60,0.28)" strokeWidth="1.5" />
+      <circle cx="200" cy="200" r="128" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
 
-      {/* Calendar — booking at a glance */}
-      <rect x="118" y="118" width="164" height="148" rx="20" fill="rgba(255,247,237,0.95)" />
-      <rect x="118" y="118" width="164" height="40" rx="20" fill="rgba(234,88,12,0.9)" />
-      <circle cx="148" cy="138" r="6" fill="rgba(255,237,213,0.9)" />
-      <circle cx="252" cy="138" r="6" fill="rgba(255,237,213,0.9)" />
-      <path d="M148 178h32M148 206h48M148 234h40" stroke="rgba(120,53,15,0.35)" strokeWidth="3" strokeLinecap="round" />
-      <path d="M212 178h48M212 206h32" stroke="rgba(120,53,15,0.25)" strokeWidth="3" strokeLinecap="round" />
+      {/* Phone frame */}
+      <rect x="128" y="72" width="144" height="256" rx="28" fill="rgba(28,25,23,0.55)" stroke="rgba(255,237,213,0.5)" strokeWidth="2" />
+      <rect x="168" y="88" width="64" height="8" rx="4" fill="rgba(255,255,255,0.25)" />
 
-      {/* Confirmed check — positive completion */}
-      <circle cx="268" cy="248" r="36" fill="rgba(22,163,74,0.92)" />
-      <path
-        d="M252 248l12 12 24-28"
-        stroke="#fff"
-        strokeWidth="5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      {/* App screen */}
+      <rect x="140" y="108" width="120" height="196" rx="16" fill="rgba(255,247,237,0.96)" />
+      <rect x="140" y="108" width="120" height="36" rx="16" fill="rgba(234,88,12,0.92)" />
+      <path d="M156 128h88M156 160h56M156 184h72" stroke="rgba(120,53,15,0.3)" strokeWidth="3" strokeLinecap="round" />
+      <rect x="156" y="200" width="88" height="28" rx="8" fill="rgba(251,146,60,0.25)" />
+      <rect x="156" y="236" width="88" height="28" rx="8" fill="rgba(251,146,60,0.15)" />
 
-      {/* Scissors — salon cue */}
-      <g transform="translate(88 92) rotate(-18)">
-        <circle cx="18" cy="18" r="14" stroke="rgba(255,237,213,0.95)" strokeWidth="3" fill="none" />
-        <circle cx="42" cy="42" r="14" stroke="rgba(255,237,213,0.95)" strokeWidth="3" fill="none" />
-        <path d="M28 28 L52 52" stroke="rgba(251,146,60,0.95)" strokeWidth="3" strokeLinecap="round" />
+      {/* Scissors accent */}
+      <g transform="translate(72 108) rotate(-22)">
+        <circle cx="16" cy="16" r="12" stroke="rgba(255,237,213,0.9)" strokeWidth="2.5" fill="none" />
+        <circle cx="38" cy="38" r="12" stroke="rgba(255,237,213,0.9)" strokeWidth="2.5" fill="none" />
+        <path d="M24 24 L44 44" stroke="#fb923c" strokeWidth="3" strokeLinecap="round" />
       </g>
 
-      {/* Upward celebration arc */}
+      {/* Success badge */}
+      <circle cx="288" cy="268" r="34" fill="rgba(22,163,74,0.95)" />
       <path
-        d="M96 292 Q200 340 304 292"
-        stroke="rgba(251,146,60,0.55)"
-        strokeWidth="2.5"
-        fill="none"
-        strokeLinecap="round"
-      />
-
-      <circle cx="300" cy="118" r="9" fill="#fb923c" opacity="0.95" />
-      <circle cx="92" cy="268" r="7" fill="#fdba74" opacity="0.85" />
-      <path
-        d="M318 168l6 12 14-18"
-        stroke="#fde68a"
-        strokeWidth="2.5"
+        d="M272 268l10 10 22-26"
+        stroke="#fff"
+        strokeWidth="4.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+
+      <circle cx="312" cy="108" r="7" fill="#fb923c" opacity="0.9" />
+      <circle cx="88" cy="288" r="5" fill="#fdba74" opacity="0.85" />
     </svg>
   );
 }

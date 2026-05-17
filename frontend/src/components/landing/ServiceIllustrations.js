@@ -93,18 +93,12 @@ export function ServiceIllustration({ type, className = '' }) {
     <svg
       className={className}
       viewBox="0 0 240 220"
-      fill="none"
+      width="240"
+      height="220"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
       role="img"
     >
-      <defs>
-        <linearGradient id={`svc-shine-${type}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <rect width="240" height="220" fill={`url(#svc-shine-${type})`} />
       {content}
     </svg>
   );

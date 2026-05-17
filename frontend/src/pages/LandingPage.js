@@ -12,6 +12,8 @@ import {
   Sparkle,
   Clock,
   ShieldCheck,
+  DeviceMobile,
+  GooglePlayLogo,
 } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
 import StoreDownloadLinks from '../components/StoreDownloadLinks';
@@ -19,7 +21,8 @@ import TrimitLogo from '../components/brand/TrimitLogo';
 import { LazyImage } from '../components/ui/LazyImage';
 import { LANDING_HERO } from '../lib/landingAssets';
 import { HeroAccentIllustration, StepIllustration } from '../components/landing/LandingIllustrations';
-import { ServiceIllustration } from '../components/landing/ServiceIllustrations';
+import { ServiceCardImage } from '../components/landing/ServiceCardImage';
+import { DOWNLOAD_APP_URL } from '../config/storeLinks';
 
 const features = [
   {
@@ -139,17 +142,12 @@ const LandingPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7 }}
             >
-              <TrimitLogo
-                variant="icon-text"
-                tone="dark"
-                asLink={false}
-                iconClassName="h-11 w-11 sm:h-12 sm:w-12"
-                className="mb-6"
-              />
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-orange-200 text-xs font-semibold tracking-widest uppercase mb-5">
-                <Sparkle size={14} weight="fill" />
-                Premium salon booking
-              </span>
+              <div className="mb-6">
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-orange-200 text-xs font-semibold tracking-widest uppercase backdrop-blur-sm">
+                  <Sparkle size={14} weight="fill" className="text-orange-300" />
+                  Premium salon booking
+                </span>
+              </div>
               <h1 className="font-heading text-4xl sm:text-5xl md:text-6xl font-extrabold text-white leading-[1.05] tracking-tight mb-6">
                 Book your perfect
                 <span className="block text-orange-400 mt-1">salon experience</span>
@@ -247,7 +245,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* What we offer — premium inline illustrations (fast, no external images) */}
+      {/* What we offer — local service photos with SVG fallback */}
       <section className="py-24 px-4 bg-stone-50">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
@@ -265,36 +263,49 @@ const LandingPage = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.06 }}
-                className={`relative aspect-[4/5] rounded-3xl overflow-hidden bg-gradient-to-br ${s.gradient} ring-1 ${s.ring} group hover:shadow-xl hover:-translate-y-1 transition-all duration-300`}
+                className={`relative aspect-[4/5] rounded-3xl overflow-hidden ring-1 ${s.ring} group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-stone-200`}
               >
-                <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/50 blur-2xl group-hover:scale-110 transition-transform duration-500" />
-                <div className="absolute -left-4 bottom-20 w-20 h-20 rounded-full bg-orange-200/30 blur-xl" />
-                <motion.div className="relative h-full flex flex-col">
-                  <div className="flex items-center p-4 sm:p-5 pb-0">
-                    <div className="w-11 h-11 rounded-xl bg-white/95 shadow-md flex items-center justify-center ring-1 ring-white/80">
-                      <s.icon size={22} weight="duotone" className="text-orange-800" />
-                    </div>
-                  </div>
-                  <div className="flex-1 flex items-center justify-center px-3 py-2 min-h-[120px]">
-                    <ServiceIllustration
-                      type={s.illustration}
-                      className="w-full h-full max-h-[min(52vw,200px)] drop-shadow-sm group-hover:scale-[1.03] transition-transform duration-500"
-                    />
-                  </div>
-                  <div className="p-4 sm:p-5 pt-2 bg-gradient-to-t from-white/80 via-white/50 to-transparent">
-                    <h3 className="font-heading text-base sm:text-lg font-bold text-stone-900 leading-snug">
-                      {s.name}
-                    </h3>
-                  </div>
+                <ServiceCardImage type={s.illustration} alt={s.name} />
+                <div className="absolute inset-0 bg-gradient-to-t from-stone-950/85 via-stone-900/25 to-transparent pointer-events-none" />
+                <div className="absolute top-3 left-3 sm:top-4 sm:left-4 w-10 h-10 rounded-xl bg-white/95 shadow-md flex items-center justify-center ring-1 ring-white/80">
+                  <s.icon size={20} weight="duotone" className="text-orange-800" />
                 </div>
+                <h3 className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 font-heading text-base sm:text-lg font-bold text-white leading-snug">
+                  {s.name}
+                </h3>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
+      {/* Mobile app */}
+      <section className="py-20 px-4 bg-white border-y border-stone-100">
+        <div className="max-w-3xl mx-auto text-center">
+          <DeviceMobile size={36} weight="duotone" className="text-orange-800 mx-auto mb-4" />
+          <h2 className="font-heading text-3xl sm:text-4xl font-bold text-stone-900 mb-4">
+            Get the best TrimiT experience on Android
+          </h2>
+          <p className="text-stone-600 leading-relaxed mb-8">
+            Book appointments faster, manage bookings easily, and receive real-time updates directly
+            from the mobile app. iOS support is coming soon.
+          </p>
+          <a
+            href={DOWNLOAD_APP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-orange-800 text-white font-semibold hover:bg-orange-900 transition-colors shadow-md"
+            data-testid="landing-download-android"
+          >
+            <GooglePlayLogo size={24} weight="fill" />
+            Download for Android
+          </a>
+          <p className="text-sm text-stone-400 mt-4">iOS app coming soon</p>
+        </div>
+      </section>
+
       {/* How it works */}
-      <section className="py-24 px-4 bg-white border-y border-stone-100">
+      <section className="py-24 px-4 bg-stone-50">
         <div className="max-w-6xl mx-auto">
           <motion.div className="text-center mb-16">
             <span className="text-xs font-bold tracking-[0.2em] uppercase text-orange-800">How it works</span>
