@@ -19,15 +19,15 @@ export function SessionExpiredModal() {
           </View>
           <Text style={[styles.title, { color: theme.colors.text }]}>Session expired</Text>
           <Text style={[styles.message, { color: theme.colors.textSecondary }]}>
-            Your session has expired. Please log in again to continue.
+            Your session has expired. Please sign in again to continue.
           </Text>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: theme.colors.primary }]}
             onPress={dismissSessionExpired}
             accessibilityRole="button"
-            accessibilityLabel="Log in again"
+            accessibilityLabel="Sign in again"
           >
-            <Text style={[styles.buttonText, { color: theme.colors.textInverse }]}>Log in again</Text>
+            <Text style={[styles.buttonText, { color: theme.colors.textInverse }]}>Sign In</Text>
           </TouchableOpacity>
         </View>
       </View>

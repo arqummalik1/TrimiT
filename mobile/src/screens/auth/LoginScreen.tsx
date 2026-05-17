@@ -99,7 +99,7 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
       // Auth error is already stored in authStore.error — displayed inline
       // For network-level failures, api interceptor already showed a toast
       if (!result.error) {
-        showToast('Login failed. Please try again.', 'error');
+        showToast('Sign in failed. Please try again.', 'error');
       }
     }
   };

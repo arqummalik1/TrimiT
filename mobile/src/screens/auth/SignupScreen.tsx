@@ -149,7 +149,7 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
                 <>
                   We sent a confirmation link to{' '}
                   <Text style={{ fontWeight: '700', color: theme.colors.text }}>{confirmedEmail}</Text>.
-                  {' '}Click the link to activate your account, then come back to log in.
+                  {' '}Click the link to activate your account, then come back to sign in.
                 </>
               )}
             </Text>
@@ -158,7 +158,7 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
               onPress={() => navigation.replace('Login')}
             >
               <Text style={styles.signInText}>
-                Go to Login
+                Go to Sign In
               </Text>
             </TouchableOpacity>
           </View>
@@ -369,7 +369,7 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account?</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')} disabled={isLoading}>
-              <Text style={styles.linkText}>Sign in</Text>
+              <Text style={styles.linkText}>Sign In</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

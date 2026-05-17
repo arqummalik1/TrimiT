@@ -59,7 +59,7 @@ export const RoleSelectScreen: React.FC<RoleSelectProps> = ({ navigation }) => {
       <View style={styles.footer}>
         <Text style={styles.footerText}>Already have an account?</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.linkText}>Sign in</Text>
+          <Text style={styles.linkText}>Sign In</Text>
         </TouchableOpacity>
       </View>
     </ScreenWrapper>

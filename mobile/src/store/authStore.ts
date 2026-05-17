@@ -16,6 +16,8 @@ interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  /** True while explicit sign-out teardown is in progress. */
+  isSigningOut: boolean;
   isHydrated: boolean;
   /** True after initializeAuth finishes (success or clear). */
   authBootstrapComplete: boolean;
@@ -48,6 +50,7 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
+      isSigningOut: false,
       isHydrated: false,
       authBootstrapComplete: false,
       sessionExpired: false,
@@ -231,13 +234,27 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        try {
-          const { teardownPushNotifications } = await import('../lib/notifications');
-          await teardownPushNotifications();
-        } catch {
-          // continue logout
+        if (get().isSigningOut) {
+          return;
         }
-        await get().clearSession({ sessionExpired: false });
+        set({ isSigningOut: true, error: null });
+        try {
+          try {
+            const { teardownPushNotifications } = await import('../lib/notifications');
+            await teardownPushNotifications();
+          } catch {
+            // continue sign-out
+          }
+          const { queryClient } = get();
+          if (queryClient) {
+            queryClient.cancelQueries();
+            queryClient.clear();
+          }
+          await get().clearSession({ sessionExpired: false });
+          await new Promise((resolve) => setTimeout(resolve, 180));
+        } finally {
+          set({ isSigningOut: false });
+        }
       },
 
       clearError: () => set({ error: null }),

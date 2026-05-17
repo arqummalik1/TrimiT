@@ -28,6 +28,7 @@ import {
   ACCOUNT_DELETION_WEB_URL,
 } from '../../lib/accountDeletion';
 import { NotificationSettingsSection } from '../../components/NotificationSettingsSection';
+import { SignOutButton } from '../../components/SignOutButton';
 import { normalizeSalon, resolveSalonImageSource } from '../../lib/salonImage';
 
 import { OwnerSettingsScreenProps } from '../../navigation/types';
@@ -38,7 +39,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
   const { theme, themeMode, setThemeMode } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const queryClient = useQueryClient();
-  const { logout, deleteAccount, isLoading: authLoading } = useAuthStore();
+  const { deleteAccount, isLoading: authLoading } = useAuthStore();
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [allowMultipleBookings, setAllowMultipleBookings] = useState(false);
   const [autoAccept, setAutoAccept] = useState(true);
@@ -303,31 +304,12 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
 
           {renderAccountDeletionSection()}
 
-          {/* Logout Section */}
           <View style={styles.section}>
-            <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={() => {
-                Alert.alert(
-                  'Logout',
-                  'Are you sure you want to logout?',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { 
-                      text: 'Logout', 
-                      style: 'destructive',
-                      onPress: async () => {
-                        queryClient.clear();
-                        await logout();
-                      }
-                    },
-                  ]
-                );
-              }}
-            >
-              <Ionicons name="log-out-outline" size={22} color={theme.colors.error} />
-              <Text style={styles.logoutText}>Logout from Account</Text>
-            </TouchableOpacity>
+            <SignOutButton
+              style={styles.signOutButton}
+              textStyle={styles.signOutText}
+              confirmDetail="Your local cache will be cleared."
+            />
             <Text style={styles.versionText}>Version 1.0.0 (Production)</Text>
           </View>
         </ScrollView>
@@ -627,31 +609,12 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
 
         {renderAccountDeletionSection()}
 
-        {/* Logout Section */}
         <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={() => {
-              Alert.alert(
-                'Logout',
-                'Are you sure you want to logout? All cached data will be cleared.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { 
-                    text: 'Logout', 
-                    style: 'destructive',
-                    onPress: async () => {
-                      queryClient.clear();
-                      await logout();
-                    }
-                  },
-                ]
-              );
-            }}
-          >
-            <Ionicons name="log-out-outline" size={22} color={theme.colors.error} />
-            <Text style={styles.logoutText}>Logout from Account</Text>
-          </TouchableOpacity>
+          <SignOutButton
+            style={styles.signOutButton}
+            textStyle={styles.signOutText}
+            confirmDetail="Your local cache will be cleared."
+          />
           <Text style={styles.versionText}>Version 1.0.0 (Production)</Text>
         </View>
       </ScrollView>
@@ -948,7 +911,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.primary,
   },
-  logoutButton: {
+  signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -959,7 +922,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.error + '40',
   },
-  logoutText: {
+  signOutText: {
     fontSize: 16,
     fontWeight: '700',
     color: theme.colors.error,

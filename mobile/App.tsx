@@ -30,6 +30,7 @@ import { useTheme } from './src/theme/ThemeContext';
 import RootNavigator, { navigationRef } from './src/navigation/index';
 import { useAuthStore } from './src/store/authStore';
 import { SessionExpiredModal } from './src/components/SessionExpiredModal';
+import { SigningOutOverlay } from './src/components/SigningOutOverlay';
 import { handleNotificationNavigation } from './src/lib/notificationNavigation';
 import {
   getLastNotificationResponse,
@@ -251,6 +252,7 @@ function AppContent() {
   return (
     <NavigationContainer ref={navigationRef}>
       <RootNavigator />
+      <SigningOutOverlay />
       <SessionExpiredModal />
       <OfflineBanner />
       <Toast />

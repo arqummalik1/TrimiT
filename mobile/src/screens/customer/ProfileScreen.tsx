@@ -27,13 +27,14 @@ import {
   ACCOUNT_DELETION_WEB_URL,
 } from '../../lib/accountDeletion';
 import { NotificationSettingsSection } from '../../components/NotificationSettingsSection';
+import { SignOutButton } from '../../components/SignOutButton';
 
 type ProfileStyles = ReturnType<typeof createStyles>;
 
 export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'ProfileMain'>) {
   const { theme, themeMode, setThemeMode } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { user, logout, deleteAccount, setUser, token, isLoading: authLoading } = useAuthStore();
+  const { user, deleteAccount, setUser, token, isLoading: authLoading } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -55,17 +56,6 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: () => logout(),
-      },
-    ]);
   };
 
   const handleDeleteAccount = () => {
@@ -281,11 +271,7 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
           </TouchableOpacity>
         </View>
 
-        {/* Logout */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={22} color={theme.colors.error} />
-          <Text style={styles.logoutText}>Sign Out</Text>
-        </TouchableOpacity>
+        <SignOutButton style={styles.signOutButton} textStyle={styles.signOutText} />
 
         <Text style={styles.version}>TrimiT v1.0.0</Text>
       </ScrollView>
@@ -470,7 +456,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     ...typography.captionMedium,
     color: theme.colors.primary,
   },
-  logoutButton: {
+  signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -481,7 +467,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderColor: theme.colors.error + '40', // light error border
     backgroundColor: theme.colors.surface,
   },
-  logoutText: {
+  signOutText: {
     ...typography.bodyMedium,
     color: theme.colors.error,
   },

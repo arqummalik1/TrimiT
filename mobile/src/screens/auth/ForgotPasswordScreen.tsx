@@ -69,7 +69,7 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordProps
             (Safari/Chrome) to set a new password, then return here to sign in.
           </Text>
           <Button
-            title="Back to Login"
+            title="Back to Sign In"
             onPress={() => navigation.navigate('Login')}
             style={{ marginTop: spacing.xxl }}
           />
