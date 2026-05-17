@@ -28,6 +28,7 @@ import { bookingRepository } from '../../repositories/bookingRepository';
 import { Salon, Analytics, Booking } from '../../types';
 import { formatPrice, typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme, Theme } from '../../theme/ThemeContext';
+import { navigateToOwnerBookings } from '../../lib/navigationHelpers';
 import { Button } from '../../components/Button';
 import { DashboardSkeleton } from '../../components/skeletons/DashboardSkeleton';
 import { ErrorState } from '../../components/ErrorState';
@@ -300,7 +301,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
           </View>
           <TouchableOpacity
             style={styles.notificationBell}
-            onPress={() => navigation.navigate('OwnerTabs', { screen: 'Bookings' })}
+            onPress={() => navigateToOwnerBookings(navigation)}
           >
             <Ionicons name="notifications-outline" size={24} color={theme.colors.text} />
             {analytics && analytics.pending_bookings > 0 && <View style={styles.bellDot} />}
@@ -336,7 +337,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
               <Text style={styles.sectionTitle}>Recent Activity</Text>
               <PulseIndicator />
             </View>
-            <TouchableOpacity onPress={() => navigation.navigate('OwnerTabs', { screen: 'Bookings' })}>
+            <TouchableOpacity onPress={() => navigateToOwnerBookings(navigation)}>
               <Text style={styles.seeAllText}>View All</Text>
             </TouchableOpacity>
           </View>

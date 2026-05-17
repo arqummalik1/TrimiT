@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -32,7 +33,7 @@ import { CustomerDiscoverScreenProps } from '../../navigation/types';
 import { BookingParamsSchema } from '../../navigation/params';
 
 import { analytics } from '../../lib/analytics';
-import { ENABLE_ONLINE_PAY } from '../../lib/featureFlags';
+import { ENABLE_ONLINE_PAY, ENABLE_STAFF_SELECTION } from '../../lib/featureFlags';
 import { createIdempotencyKey } from '../../lib/idempotency';
 
 // Staff selection imports
@@ -89,6 +90,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
   /** Stable key per confirm attempt so retries are safe; reset when slot/date changes. */
   const idempotencyKeyRef = React.useRef<string | null>(null);
+  const successNavigatedRef = useRef(false);
 
   const resetBookingAttempt = useCallback(() => {
     idempotencyKeyRef.current = null;
@@ -248,22 +250,25 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     };
   }, []);
 
-  // Subscribe only when salon/date/service/staff context changes — not on every slots refetch
-  // (including slotsData) to avoid rapid removeChannel/subscribe and Supabase CHANNEL_ERROR.
-  useEffect(() => {
-    if (!salonId || !selectedDate || !slotsQuerySuccess || !slotsData?.slots) return;
+  // Subscribe only while screen is focused (avoids leaking channel when switching tabs).
+  useFocusEffect(
+    useCallback(() => {
+      if (!salonId || !selectedDate || !slotsQuerySuccess || !slotsData?.slots) {
+        return undefined;
+      }
 
-    subscribeToSlots(
-      salonId,
-      selectedDate,
-      slotsData.slots,
-      !!slotsData.allow_multiple_bookings_per_slot
-    );
+      subscribeToSlots(
+        salonId,
+        selectedDate,
+        slotsData.slots,
+        !!slotsData.allow_multiple_bookings_per_slot
+      );
 
-    return () => {
-      unsubscribeFromSlots();
-    };
-  }, [salonId, serviceId, selectedDate, slotsStaffId, slotsQuerySuccess]);
+      return () => {
+        unsubscribeFromSlots();
+      };
+    }, [salonId, serviceId, selectedDate, slotsStaffId, slotsQuerySuccess, slotsData?.slots, slotsData?.allow_multiple_bookings_per_slot])
+  );
 
   // Merge server slot list into the realtime store whenever the slots query updates.
   useEffect(() => {
@@ -481,8 +486,12 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
         time_slot: selectedSlot,
         payment_method: dbPaymentMethod,
         promo_code: promoApplied ? promoCode.trim().toUpperCase() : undefined,
-        staff_id: selectedStaffId,
-        any_staff: anyStaffSelected,
+        ...(ENABLE_STAFF_SELECTION
+          ? {
+              staff_id: selectedStaffId ?? undefined,
+              any_staff: anyStaffSelected,
+            }
+          : {}),
       };
       logger.debug('[BookingFlow] booking.create.request', payload);
 
@@ -655,7 +664,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       return;
     }
 
-    if (!effectiveAllowMultiple && reserveMutation.isPending) {
+    if (reserveMutation.isPending) {
       logger.debug('[BookingFlow] confirm.blocked', { reason: 'reserve_in_flight' });
       return;
     }
@@ -678,7 +687,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     }
 
     // Re-place hold if missing (e.g. after a failed confirm cleared state or reserve error recovery)
-    if (!effectiveAllowMultiple && !holdId && selectedSlot) {
+    if (!holdId && selectedSlot) {
       try {
         logger.debug('[BookingFlow] confirm.reReserve', { slot: selectedSlot });
         await reserveMutation.mutateAsync(selectedSlot);
@@ -691,12 +700,12 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       }
     }
 
-    if (!holdId && !effectiveAllowMultiple) {
+    if (!holdId) {
       logger.debug('[BookingFlow] confirm.blocked', { reason: 'no_hold' });
       Alert.alert('Error', 'Slot reservation not found. Please tap your time slot again.');
       return;
     }
-    if (!effectiveAllowMultiple && (timeLeft === null || timeLeft <= 0)) {
+    if (timeLeft === null || timeLeft <= 0) {
       logger.debug('[BookingFlow] confirm.blocked', { reason: 'hold_expired', timeLeft });
       try {
         await reserveMutation.mutateAsync(selectedSlot);
@@ -736,6 +745,20 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       );
     }
   }, [slotConflictError]);
+
+  useEffect(() => {
+    if (!bookingComplete) {
+      successNavigatedRef.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (!successNavigatedRef.current) {
+        successNavigatedRef.current = true;
+        navigation.navigate('CustomerTabs', { screen: 'Bookings' });
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [bookingComplete, navigation]);
 
   if (bookingComplete) {
     return (
@@ -792,8 +815,9 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
 
             <View style={styles.successActionRow}>
               <TouchableOpacity
-                style={styles.secondaryButton}
+                style={[styles.secondaryButton, styles.primarySuccessButton]}
                 onPress={() => {
+                  successNavigatedRef.current = true;
                   setBookingComplete(false);
                   setSelectedSlot(null);
                   setHoldId(null);
@@ -801,12 +825,13 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
                   navigation.navigate('CustomerTabs', { screen: 'Bookings' });
                 }}
               >
-                <Text style={styles.secondaryButtonText}>View Bookings</Text>
+                <Text style={styles.primarySuccessButtonText}>View Bookings</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={styles.secondaryButton}
                 onPress={() => {
+                  successNavigatedRef.current = true;
                   setBookingComplete(false);
                   setSelectedSlot(null);
                   setHoldId(null);
@@ -1019,8 +1044,8 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
           )}
         </View>
 
-        {/* Staff Selection - Only show when slot is selected */}
-        {selectedSlot && availableStaffData && (
+        {/* Staff Selection - Only show when slot is selected (Phase 4 flag) */}
+        {ENABLE_STAFF_SELECTION && selectedSlot && availableStaffData && (
           <StaffPicker
             availableStaff={availableStaffData.available_staff}
             selectedStaffId={selectedStaffId}
@@ -1675,6 +1700,15 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   secondaryButtonText: {
     fontFamily: fonts.bodySemiBold,
     color: theme.colors.text,
+    fontSize: 15,
+  },
+  primarySuccessButton: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  primarySuccessButtonText: {
+    fontFamily: fonts.bodySemiBold,
+    color: theme.colors.textInverse,
     fontSize: 15,
   },
   // Promo Code Styles

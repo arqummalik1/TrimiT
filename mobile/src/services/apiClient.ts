@@ -9,7 +9,7 @@ import { showToast } from '../store/toastStore';
 
 let lastOfflineToastAt = 0;
 
-const LOCAL_PORT = '8000';
+const LOCAL_PORT = '8001';
 
 function stripApiVersionSuffix(url: string): string {
   return url.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '');

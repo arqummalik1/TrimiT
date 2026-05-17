@@ -39,7 +39,7 @@ export type CustomerDiscoverStackParamList = {
     bookingDate: string;
     timeSlot: string;
   };
-  WriteReview: { salonId: string; bookingId?: string };
+  WriteReview: { salonId: string; bookingId: string };
   PrivacyPolicy: undefined;
   Terms: undefined;
   Contact: undefined;

@@ -13,7 +13,6 @@ import { bookingRepository } from '../repositories/bookingRepository';
 import { useRealtimeBookings } from '../hooks/useRealtimeBookings';
 import { useNotificationStore } from '../store/notificationStore';
 import { BookingNotificationModal } from '../components/BookingNotificationModal';
-import { setupPushNotifications } from '../lib/notifications';
 
 const devLog = (...args: unknown[]) => {
   if (__DEV__) console.log(...args);
@@ -94,16 +93,9 @@ export default function OwnerTabs() {
     },
   });
 
-  // Initialize notification sound and push notifications
   useEffect(() => {
     initializeSound();
-    
-    void setupPushNotifications().catch((error) => {
-      console.warn('[OwnerTabs] Push notification setup failed (non-critical):', error);
-    });
-    
     setIsReady(true);
-
     return () => {
       cleanupSound();
     };
@@ -128,10 +120,6 @@ export default function OwnerTabs() {
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
-
-      setupPushNotifications().catch((err) => {
-        console.warn('[OwnerTabs] Push token refresh failed:', err);
-      });
 
       if (!salon?.id) return;
       void Promise.all([

@@ -1,14 +1,12 @@
-import React, { useEffect } from 'react';
-import { AppState, StyleSheet } from 'react-native';
+import React from 'react';
+import { StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Notifications from 'expo-notifications';
 import { CustomerTabParamList, ProfileStackParamList } from './types';
 import { fonts } from '../lib/utils';
 import { useTheme } from '../theme/ThemeContext';
-import { setupPushNotifications } from '../lib/notifications';
 
 import CustomerStack from './CustomerStack';
 import MyBookingsScreen from '../screens/customer/MyBookingsScreen';
@@ -35,22 +33,6 @@ export default function CustomerTabs() {
   const { theme } = useTheme();
   const { colors } = theme;
   const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    void Notifications.requestPermissionsAsync();
-    setupPushNotifications().catch((err) => {
-      console.warn('[CustomerTabs] Push setup failed (non-critical):', err);
-    });
-
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        setupPushNotifications().catch((err) => {
-          console.warn('[CustomerTabs] Push token refresh failed:', err);
-        });
-      }
-    });
-    return () => sub.remove();
-  }, []);
 
   return (
     <Tab.Navigator

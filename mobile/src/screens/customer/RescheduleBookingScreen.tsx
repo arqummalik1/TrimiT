@@ -23,6 +23,7 @@ import { Button } from '../../components/Button';
 import { handleApiError } from '../../lib/errorHandler';
 import { showToast } from '../../store/toastStore';
 import { analytics } from '../../lib/analytics';
+import { navigateToCustomerBookings } from '../../lib/navigationHelpers';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { CustomerDiscoverStackParamList } from '../../navigation/types';
 
@@ -133,7 +134,7 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
             text: 'View Bookings',
             onPress: () => {
               // Navigate to root, then to CustomerTabs, then to Bookings
-              navigation.getParent()?.navigate('CustomerTabs', { screen: 'Bookings' });
+              navigateToCustomerBookings(navigation);
             },
           },
           {

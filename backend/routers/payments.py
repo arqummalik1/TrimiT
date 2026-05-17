@@ -115,6 +115,21 @@ async def verify_payment(request: Request, payload: PaymentVerifyRequest, curren
     if not hmac.compare_digest(expected, payload.razorpay_signature):
         raise HTTPException(status_code=400, detail="Invalid signature")
 
+    if booking.get("payment_status") == PaymentStatus.paid.value:
+        return {"status": "success", "message": "Payment already verified"}
+
+    client = _razorpay_client()
+    try:
+        order = client.order.fetch(payload.razorpay_order_id)
+        expected_paise = int(float(booking.get("amount", 0)) * 100)
+        if int(order.get("amount", 0)) != expected_paise:
+            raise HTTPException(status_code=400, detail="Payment amount mismatch")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[Payments] order.fetch failed: %s", e)
+        raise HTTPException(status_code=502, detail="Could not verify payment amount")
+
     response = await supabase.request(
         "PATCH",
         f"rest/v1/bookings?id=eq.{payload.booking_id}",
@@ -148,7 +163,12 @@ async def verify_payment(request: Request, payload: PaymentVerifyRequest, curren
     except Exception as e:
         logger.error("[Payments] owner push after verify failed: %s", e)
 
-    return {"status": "success", "message": "Payment verified"}
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=200,
+        content={"status": "success", "message": "Payment verified"},
+    )
 
 
 @router.get("/status")

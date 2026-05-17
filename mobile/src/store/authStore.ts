@@ -91,7 +91,7 @@ export const useAuthStore = create<AuthState>()(
           refreshToken: null,
           isAuthenticated: false,
           isLoading: false,
-          sessionExpired: options?.sessionExpired ?? false,
+          sessionExpired: options?.sessionExpired === true,
           error: options?.errorMessage ?? null,
         });
       },
@@ -131,7 +131,6 @@ export const useAuthStore = create<AuthState>()(
         });
         setAuthToken(result.token);
         void syncSupabaseAuthSession(result.token, result.refreshToken ?? null);
-        void import('../lib/notifications').then(({ setupPushNotifications }) => setupPushNotifications());
         return { success: true };
       },
 
@@ -170,7 +169,6 @@ export const useAuthStore = create<AuthState>()(
         });
         setAuthToken(result.token);
         void syncSupabaseAuthSession(result.token, result.refreshToken ?? null);
-        void import('../lib/notifications').then(({ setupPushNotifications }) => setupPushNotifications());
         return { success: true };
       },
 
@@ -194,9 +192,10 @@ export const useAuthStore = create<AuthState>()(
           await authService.forgotPassword(email);
           set({ isLoading: false });
           return { success: true };
-        } catch {
+        } catch (err) {
           set({ isLoading: false });
-          return { success: true };
+          const message = err instanceof Error ? err.message : 'Could not send reset email';
+          return { success: false, error: message };
         }
       },
 
@@ -269,7 +268,6 @@ export const useAuthStore = create<AuthState>()(
             authBootstrapComplete: true,
           });
           await syncSupabaseAuthSession(state.token, state.refreshToken);
-          void import('../lib/notifications').then(({ setupPushNotifications }) => setupPushNotifications());
           logger.info('[Auth] initializeAuth ok', { role: user?.role });
         } catch (err) {
           logger.warn('[Auth] initializeAuth failed — clearing session', { err });

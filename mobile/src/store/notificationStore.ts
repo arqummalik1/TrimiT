@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import type { Booking } from '../types';
 import { useNotificationPrefsStore } from './notificationPrefsStore';
+import { shouldShowBookingNotification } from '../lib/notificationDedupe';
 
 const devLog = (...args: unknown[]) => {
   if (__DEV__) console.log(...args);
@@ -47,6 +48,11 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   sound: null,
 
   addNotification: (booking, type) => {
+    if (!shouldShowBookingNotification(booking.id, type)) {
+      devLog('[NotificationStore] Skipping duplicate notification:', { bookingId: booking.id, type });
+      return;
+    }
+
     devLog('[NotificationStore] Adding notification:', { bookingId: booking.id, type });
 
     const notification: BookingNotification = {

@@ -16,16 +16,7 @@
  */
 
 import { Linking, Platform, Alert } from 'react-native';
-import { buildConfig } from './buildConfig';
-
-// ─── Constants ────────────────────────────────────────────────────
-
-/** Google Maps Geocoding REST endpoint — only used by the owner address-search. */
-const GEOCODING_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
-
-/** Key comes from the bundle — same key injected by app.config.js into the native layer. */
-
-const GOOGLE_API_KEY = buildConfig.googleMapsApiKey;
+import apiClient from '../services/apiClient';
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -101,38 +92,10 @@ export async function openNativeDirections(
  * display a user-visible error message.
  */
 export async function geocodeAddress(address: string): Promise<GeocodeResult> {
-  if (!GOOGLE_API_KEY) {
-    throw new Error('Google Maps API key is not configured.');
-  }
-
-  const params = new URLSearchParams({
-    address,
-    key: GOOGLE_API_KEY,
+  const response = await apiClient.get<GeocodeResult>('/geocode/', {
+    params: { address },
   });
-
-  const response = await fetch(`${GEOCODING_URL}?${params.toString()}`);
-
-  if (!response.ok) {
-    throw new Error(`Geocoding request failed with status ${response.status}`);
-  }
-
-  const json = await response.json();
-
-  if (json.status === 'ZERO_RESULTS') {
-    throw new Error('No locations found for this address. Please try a more specific address.');
-  }
-
-  if (json.status !== 'OK') {
-    throw new Error(`Geocoding error: ${json.status}`);
-  }
-
-  const result = json.results[0];
-  const { lat, lng } = result.geometry.location;
-
-  return {
-    coordinates: { latitude: lat, longitude: lng },
-    formattedAddress: result.formatted_address as string,
-  };
+  return response.data;
 }
 
 // ─── Region helpers ───────────────────────────────────────────────

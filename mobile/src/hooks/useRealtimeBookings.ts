@@ -1,8 +1,6 @@
 /**
  * useRealtimeBookings Hook
- * ────────────────────────────────────────────────────────────────────────────
  * Real-time subscription for booking rows (owner dashboard + notifications).
- * Uses Supabase JS client — requires syncSupabaseAuthSession() so RLS allows events.
  */
 
 import { useEffect, useRef, useCallback } from 'react';
@@ -15,6 +13,7 @@ import { logger } from '../lib/logger';
 import { useNotificationStore } from '../store/notificationStore';
 import type { Booking } from '../types';
 import { bookingService } from '../services/bookingService';
+import { setOwnerRealtimeSubscribed } from '../lib/realtimeOwnerGuard';
 
 async function enrichBookingForNotification(raw: Booking): Promise<Booking> {
   try {
@@ -32,10 +31,8 @@ interface UseRealtimeBookingsOptions {
   onBookingDelete?: (bookingId: string) => void;
 }
 
-/**
- * Hook to subscribe to real-time booking updates for a salon.
- * Automatically invalidates React Query cache and triggers notifications.
- */
+const INVALIDATE_DEBOUNCE_MS = 400;
+
 export function useRealtimeBookings({
   salonId,
   enabled = true,
@@ -46,6 +43,7 @@ export function useRealtimeBookings({
   const queryClient = useQueryClient();
   const addNotification = useNotificationStore((state) => state.addNotification);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const invalidateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const callbacksRef = useRef({
     onNewBooking,
@@ -54,35 +52,30 @@ export function useRealtimeBookings({
   });
   callbacksRef.current = { onNewBooking, onBookingUpdate, onBookingDelete };
 
-  const shouldShowInAppNotification = useCallback(() => {
-    return AppState.currentState === 'active';
-  }, []);
+  const scheduleInvalidate = useCallback(() => {
+    if (invalidateTimerRef.current) {
+      clearTimeout(invalidateTimerRef.current);
+    }
+    invalidateTimerRef.current = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['ownerBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['recentBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
+      queryClient.invalidateQueries({ queryKey: ['salonBookings'] });
+    }, INVALIDATE_DEBOUNCE_MS);
+  }, [queryClient]);
 
   const handleBookingChange = useCallback(
     (payload: RealtimePostgresChangesPayload<Booking>) => {
       const { eventType, new: newRecord, old: oldRecord } = payload;
-      const showInApp = shouldShowInAppNotification();
+      const showInApp = AppState.currentState === 'active';
 
-      console.log('[RealtimeBookings] postgres_changes', {
+      logger.debug('[RealtimeBookings] postgres_changes', {
         eventType,
         salonId,
         bookingId: (newRecord as Booking | null)?.id ?? (oldRecord as Booking | null)?.id,
       });
 
-      queryClient.invalidateQueries({ queryKey: ['ownerBookings'] });
-      queryClient.invalidateQueries({ queryKey: ['recentBookings'] });
-      queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
-      queryClient.invalidateQueries({ queryKey: ['salonBookings'] });
-      queryClient.invalidateQueries({ queryKey: ['slots'] });
-
-      // Global staleTime is very high (persisted cache). Invalidation alone can leave UI stale;
-      // force active owner queries to hit the network immediately.
-      void Promise.all([
-        queryClient.refetchQueries({ queryKey: ['ownerBookings'] }),
-        queryClient.refetchQueries({ queryKey: ['recentBookings'] }),
-        queryClient.refetchQueries({ queryKey: ['salonBookings'] }),
-        queryClient.refetchQueries({ queryKey: ['ownerAnalytics'] }),
-      ]).catch(() => {});
+      scheduleInvalidate();
 
       switch (eventType) {
         case 'INSERT': {
@@ -101,7 +94,6 @@ export function useRealtimeBookings({
                 }
               }
               callbacksRef.current.onNewBooking?.(enriched);
-              console.log('[RealtimeBookings] INSERT handled', booking.id);
             })();
           }
           break;
@@ -122,7 +114,6 @@ export function useRealtimeBookings({
               })();
             }
             callbacksRef.current.onBookingUpdate?.(booking);
-            console.log('[RealtimeBookings] UPDATE handled', booking.id);
           }
           break;
         }
@@ -138,7 +129,6 @@ export function useRealtimeBookings({
               }
             }
             callbacksRef.current.onBookingDelete?.(booking.id);
-            console.log('[RealtimeBookings] DELETE handled', booking.id);
           }
           break;
         }
@@ -147,11 +137,15 @@ export function useRealtimeBookings({
           break;
       }
     },
-    [queryClient, addNotification, salonId, shouldShowInAppNotification]
+    [addNotification, salonId, scheduleInvalidate]
   );
+
+  const handleBookingChangeRef = useRef(handleBookingChange);
+  handleBookingChangeRef.current = handleBookingChange;
 
   useEffect(() => {
     if (!enabled || !salonId) {
+      setOwnerRealtimeSubscribed(false);
       return;
     }
 
@@ -166,25 +160,32 @@ export function useRealtimeBookings({
         return;
       }
 
-      console.log('[RealtimeBookings] Subscribing', { salonId, enabled });
+      logger.debug('[RealtimeBookings] Subscribing', { salonId, enabled });
 
-      const channel = subscribeToSalonBookings(salonId, handleBookingChange);
+      const channel = subscribeToSalonBookings(salonId, (payload) => {
+        handleBookingChangeRef.current(payload);
+      });
       if (cancelled) {
         unsubscribeFromBookings(channel);
         return;
       }
       channelRef.current = channel;
+      setOwnerRealtimeSubscribed(true);
     })();
 
     return () => {
       cancelled = true;
-      console.log('[RealtimeBookings] Cleanup unsubscribe', { salonId });
+      setOwnerRealtimeSubscribed(false);
+      if (invalidateTimerRef.current) {
+        clearTimeout(invalidateTimerRef.current);
+        invalidateTimerRef.current = null;
+      }
       if (channelRef.current) {
         unsubscribeFromBookings(channelRef.current);
         channelRef.current = null;
       }
     };
-  }, [salonId, enabled, handleBookingChange]);
+  }, [salonId, enabled]);
 
   return {
     isSubscribed: !!channelRef.current,

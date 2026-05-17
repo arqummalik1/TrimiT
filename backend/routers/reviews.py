@@ -20,18 +20,32 @@ async def create_review(data: ReviewCreate, current_user: dict = Depends(get_cur
     br = await supabase.request(
         "GET",
         (
-            f"rest/v1/bookings?salon_id=eq.{data.salon_id}&user_id=eq.{uid}"
-            "&status=eq.completed&select=id&order=created_at.desc&limit=1"
+            f"rest/v1/bookings?id=eq.{data.booking_id}"
+            f"&user_id=eq.{uid}&salon_id=eq.{data.salon_id}"
+            "&status=eq.completed&select=id"
         ),
         token=token,
     )
-    booking_id = None
-    if br.status_code == 200 and br.json():
-        booking_id = br.json()[0]["id"]
+    if br.status_code != 200 or not br.json():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You can only review a completed booking you attended",
+        )
+
+    existing = await supabase.request(
+        "GET",
+        f"rest/v1/reviews?booking_id=eq.{data.booking_id}&user_id=eq.{uid}&select=id",
+        token=token,
+    )
+    if existing.status_code == 200 and existing.json():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You have already reviewed this booking",
+        )
 
     row = {
         "id": str(uuid.uuid4()),
-        "booking_id": booking_id,
+        "booking_id": data.booking_id,
         "user_id": uid,
         "salon_id": data.salon_id,
         "rating": data.rating,

@@ -79,15 +79,6 @@ const CUSTOM_FONTS = {
   CormorantGaramond_700Bold,
 };
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
 const configIssues = getReleaseConfigIssues();
 
 function AppContent() {
@@ -141,14 +132,6 @@ function AppContent() {
         setQueryClient(queryClient as never);
         analytics.init();
 
-        // Auth bootstrap runs from zustand onRehydrateStorage — do not duplicate here.
-        if (!useAuthStore.getState().isHydrated) {
-          useAuthStore.getState().setHydrated(true);
-          if (!useAuthStore.getState().authBootstrapComplete) {
-            await useAuthStore.getState().initializeAuth();
-          }
-        }
-
         InteractionManager.runAfterInteractions(() => {
           if (cancelled) return;
           try {
@@ -197,22 +180,36 @@ function AppContent() {
 
     void setupPushNotifications();
 
-    const onResponse = (response: Notifications.NotificationResponse) => {
+    const onResponse = async (response: Notifications.NotificationResponse) => {
+      const reqId = response.notification.request.identifier;
+      const lastHandled = await AsyncStorage.getItem('trimit_last_handled_notification_id');
+      if (lastHandled === reqId) {
+        return;
+      }
+      await AsyncStorage.setItem('trimit_last_handled_notification_id', reqId);
       const data = response.notification.request.content.data as Record<string, string | undefined>;
       handleNotificationNavigation(navigationRef.current, data, user?.role);
+      await Notifications.clearLastNotificationResponseAsync().catch(() => {});
     };
 
-    const responseSub = Notifications.addNotificationResponseReceivedListener(onResponse);
+    const responseSub = Notifications.addNotificationResponseReceivedListener((r) => {
+      void onResponse(r);
+    });
 
     const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
-      if (user?.role === 'owner') {
-        void handleOwnerForegroundPush(notification);
+      if (user?.role !== 'owner') {
+        return;
       }
+      void import('./src/lib/realtimeOwnerGuard').then(({ isOwnerRealtimeSubscribed }) => {
+        if (!isOwnerRealtimeSubscribed()) {
+          void handleOwnerForegroundPush(notification);
+        }
+      });
     });
 
     void getLastNotificationResponse().then((last) => {
       if (last) {
-        onResponse(last);
+        void onResponse(last);
       }
     });
 

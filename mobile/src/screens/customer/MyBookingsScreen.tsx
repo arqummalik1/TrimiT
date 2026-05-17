@@ -73,6 +73,10 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['slots'] });
+      void import('../../lib/notifications').then(({ cancelBookingReminder }) =>
+        cancelBookingReminder(bookingId)
+      );
       showToast('Booking cancelled successfully.', 'success');
     },
     onError: (error: unknown) => {
@@ -144,10 +148,19 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
           data={bookings}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <BookingCard 
-              booking={item} 
+            <BookingCard
+              booking={item}
               onCancel={() => handleCancel(item.id)}
               onReschedule={() => handleReschedule(item)}
+              onWriteReview={
+                item.status === 'completed'
+                  ? () =>
+                      navigation.navigate('Discover', {
+                        screen: 'WriteReview',
+                        params: { salonId: item.salon_id, bookingId: item.id },
+                      })
+                  : undefined
+              }
             />
           )}
           contentContainerStyle={[styles.listContent, { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }]}

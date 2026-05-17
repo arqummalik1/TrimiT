@@ -22,9 +22,10 @@ interface BookingCardProps {
   onReject?: () => void;
   onComplete?: () => void;
   onReschedule?: () => void;
+  onWriteReview?: () => void;
 }
 
-export const BookingCard: React.FC<BookingCardProps> = ({
+const BookingCardComponent: React.FC<BookingCardProps> = ({
   booking,
   isOwner = false,
   compact = false,
@@ -35,6 +36,7 @@ export const BookingCard: React.FC<BookingCardProps> = ({
   onReject,
   onComplete,
   onReschedule,
+  onWriteReview,
 }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -134,6 +136,19 @@ export const BookingCard: React.FC<BookingCardProps> = ({
                   <Text style={styles.rescheduleText}>Reschedule</Text>
                 </TouchableOpacity>
               )}
+
+            {/* Customer: rate completed visit */}
+            {!isOwner && booking.status === 'completed' && onWriteReview && (
+              <TouchableOpacity
+                style={styles.reviewButton}
+                onPress={onWriteReview}
+                accessibilityRole="button"
+                accessibilityLabel="Rate your visit"
+              >
+                <Ionicons name="star-outline" size={16} color={theme.colors.primary} />
+                <Text style={styles.reviewText}>Rate visit</Text>
+              </TouchableOpacity>
+            )}
 
             {/* Customer: cancel pending */}
             {!isOwner && booking.status === 'pending' && onCancel && (
@@ -352,6 +367,22 @@ const createStyles = (theme: Theme) =>
       fontWeight: '600',
       color: theme.colors.primary,
     },
+    reviewButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 10,
+      backgroundColor: theme.colors.primary + '18',
+      borderWidth: 1,
+      borderColor: theme.colors.primary + '44',
+      gap: 4,
+    },
+    reviewText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.primary,
+    },
     directionsIconButton: {
       alignItems: 'center',
       justifyContent: 'center',
@@ -407,4 +438,5 @@ const createStyles = (theme: Theme) =>
     },
   });
 
+export const BookingCard = React.memo(BookingCardComponent);
 export default BookingCard;

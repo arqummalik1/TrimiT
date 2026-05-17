@@ -9,7 +9,7 @@ import OwnerTabs from './OwnerTabs';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// Exported for use in API interceptor (401 → navigate to auth)
+// Exported for notification deep links; auth remounts root stack on 401 via authStore.
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 export default function RootNavigator() {

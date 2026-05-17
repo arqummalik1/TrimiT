@@ -55,6 +55,7 @@ try:
     from routers import owner
     from routers import reviews
     from routers import uploads
+    from routers import geocode
     print("✅ Routers imported successfully")
 except Exception as e:
     print(f"❌ FATAL: Failed to import routers: {e}")
@@ -133,6 +134,7 @@ v1_router.include_router(staff_availability.router)
 v1_router.include_router(owner.router)
 v1_router.include_router(reviews.router)
 v1_router.include_router(uploads.router)
+v1_router.include_router(geocode.router)
 
 app.include_router(v1_router)
 

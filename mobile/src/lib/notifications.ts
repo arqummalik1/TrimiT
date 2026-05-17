@@ -271,8 +271,12 @@ export async function scheduleBookingReminder(params: {
     const bookingDate = new Date(year, month - 1, day, hour, minute);
     const reminderDate = new Date(bookingDate.getTime() - 60 * 60 * 1000);
 
+    const reminderId = `reminder-${params.bookingId}`;
+    await Notifications.cancelScheduledNotificationAsync(reminderId).catch(() => {});
+
     if (reminderDate.getTime() > Date.now()) {
       await Notifications.scheduleNotificationAsync({
+        identifier: reminderId,
         content: {
           title: `Upcoming Appointment at ${params.salonName}`,
           body: `Your ${params.serviceName} appointment is in 1 hour (${params.time}).`,
@@ -288,6 +292,14 @@ export async function scheduleBookingReminder(params: {
     }
   } catch (error) {
     logger.warn('[Notifications] scheduleBookingReminder failed', { error: String(error) });
+  }
+}
+
+export async function cancelBookingReminder(bookingId: string): Promise<void> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(`reminder-${bookingId}`);
+  } catch {
+    // non-fatal
   }
 }
 

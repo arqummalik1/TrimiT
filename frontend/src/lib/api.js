@@ -29,12 +29,13 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    // Emoji-first request logs for easier browser console scanning.
-    console.log('🚀 [WEB_API][REQ]', {
-      method: (config.method || 'GET').toUpperCase(),
-      url: `${(config.baseURL || '').replace(/\/$/, '')}${(config.url || '').startsWith('/') ? config.url : `/${config.url || ''}`}`,
-      params: config.params,
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🚀 [WEB_API][REQ]', {
+        method: (config.method || 'GET').toUpperCase(),
+        url: `${(config.baseURL || '').replace(/\/$/, '')}${(config.url || '').startsWith('/') ? config.url : `/${config.url || ''}`}`,
+        params: config.params,
+      });
+    }
     return config;
   },
   (error) => Promise.reject(error)
@@ -42,11 +43,13 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => {
-    console.log('✅ [WEB_API][RES]', {
-      status: response.status,
-      method: (response.config.method || 'GET').toUpperCase(),
-      url: `${(response.config.baseURL || '').replace(/\/$/, '')}${(response.config.url || '').startsWith('/') ? response.config.url : `/${response.config.url || ''}`}`,
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ [WEB_API][RES]', {
+        status: response.status,
+        method: (response.config.method || 'GET').toUpperCase(),
+        url: `${(response.config.baseURL || '').replace(/\/$/, '')}${(response.config.url || '').startsWith('/') ? response.config.url : `/${response.config.url || ''}`}`,
+      });
+    }
     return response;
   },
   (error) => {

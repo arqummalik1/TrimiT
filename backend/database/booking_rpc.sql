@@ -1,6 +1,6 @@
--- Atomic Booking RPC for TrimiT
--- Prevents race conditions during simultaneous booking attempts.
--- Updated to support promo codes
+-- REFERENCE ONLY — do not apply this file to production Supabase.
+-- Production RPCs: database/23_fix_timeslot_format.sql, database/27_booking_rpc_for_update.sql,
+-- database/29_booking_rpc_hardening.sql, database/34_create_atomic_booking_staff.sql
 
 CREATE OR REPLACE FUNCTION create_atomic_booking(
     p_user_id UUID,

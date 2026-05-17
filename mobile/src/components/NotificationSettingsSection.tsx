@@ -77,7 +77,11 @@ export function NotificationSettingsSection() {
     }
     if (key === 'push_enabled' && !next.push_enabled) {
       setPrefs(next);
-      void persist(next);
+      void (async () => {
+        await persist(next);
+        const { clearPushTokenOnBackend } = await import('../lib/notifications');
+        await clearPushTokenOnBackend();
+      })();
       return;
     }
     setPrefs(next);

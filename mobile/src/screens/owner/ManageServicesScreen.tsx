@@ -116,8 +116,9 @@ export default function ManageServicesScreen() {
     if (fromStore || fromRoute) {
       setShowSetupBanner(true);
       openModal();
+      navigation.setParams({ openAddService: undefined });
     }
-  }, [route.params?.openAddService, openModal]);
+  }, [route.params?.openAddService, openModal, navigation]);
 
   const patchSalonServices = useCallback(
     (updater: (services: Service[]) => Service[]) => {

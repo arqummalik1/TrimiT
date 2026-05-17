@@ -18,7 +18,14 @@ Apply manually in the Supabase SQL editor. **Do not rename** files already appli
 4. `26_slot_holds_unique.sql` — hold dedupe index
 5. `27_booking_rpc_for_update.sql` — `create_atomic_booking` FOR UPDATE lock
 6. `28_pre_unique_index_duplicate_cleanup.sql` — only if migration 25 unique index fails (23505)
-7. Re-run `07_check_rls_policies.sql` after 22–27
+7. `29_booking_rpc_hardening.sql` — auth.uid, holds, amount, reserve FOR UPDATE
+8. `30_fix_active_slot_unique_index.sql` — drop `uq_bookings_active_slot`
+9. `31_reschedule_history_idor.sql`
+10. `32_idempotency_unique_path.sql`
+11. `33_expire_pending_online_bookings.sql` — function only; cron when online pay enabled
+12. `34_create_atomic_booking_staff.sql` — staff params (Phase 4)
+13. `35_reschedule_holds_capacity.sql` — reschedule counts holds
+14. Re-run `07_check_rls_policies.sql` after 22–35
 
 ## Production checklist
 
@@ -27,5 +34,12 @@ Apply manually in the Supabase SQL editor. **Do not rename** files already appli
 - [x] Migration `26_slot_holds_unique.sql` applied
 - [x] Migration `27_booking_rpc_for_update.sql` applied (12-arg `create_atomic_booking` uses `FOR UPDATE`)
 - [x] If index 25 fails with 23505: run `28_pre_unique_index_duplicate_cleanup.sql` first
-- [ ] Optional: enable pg_cron job in `25` comments (deferred for cash-only v1)
+- [x] Migration `29_booking_rpc_hardening.sql` applied (2026-05-17, Supabase SQL editor)
+- [x] Migration `30_fix_active_slot_unique_index.sql` applied
+- [x] Migration `31_reschedule_history_idor.sql` applied
+- [x] Migration `32_idempotency_unique_path.sql` applied
+- [x] Migration `33_expire_pending_online_bookings.sql` applied
+- [x] Migration `34_create_atomic_booking_staff.sql` applied
+- [x] Migration `35_reschedule_holds_capacity.sql` applied
+- [ ] Optional: enable pg_cron in `33` when online pay ships
 - [ ] Re-run `07_check_rls_policies.sql` in SQL editor after deploy

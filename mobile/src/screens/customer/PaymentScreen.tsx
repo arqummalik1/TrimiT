@@ -22,6 +22,8 @@ import { Theme } from '../../theme/tokens';
 import axios from 'axios';
 import { handleApiError } from '../../lib/errorHandler';
 import { ENABLE_ONLINE_PAY } from '../../lib/featureFlags';
+import { navigateToCustomerBookings } from '../../lib/navigationHelpers';
+import { createIdempotencyKey } from '../../lib/idempotency';
 
 type Props = CustomerDiscoverScreenProps<'Payment'>;
 
@@ -54,7 +56,7 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
       Alert.alert(
         'Pay at salon',
         'Online payment is not available in this version. Your booking uses pay-at-salon.',
-        [{ text: 'OK', onPress: () => navigation.navigate('Bookings') }],
+        [{ text: 'OK', onPress: () => navigateToCustomerBookings(navigation) }],
       );
     }
   }, [navigation]);
@@ -65,6 +67,7 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
   const [verifying, setVerifying] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [isPaying, setIsPaying] = useState(false);
+  const verifyIdempotencyKeyRef = React.useRef<string | null>(null);
 
   // AppState listener for payment recovery
   useEffect(() => {
@@ -77,7 +80,7 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
           if (res.data.status === 'paid') {
             queryClient.invalidateQueries({ queryKey: ['bookings'] });
             Alert.alert('Payment Successful', 'Your booking has been confirmed.', [
-              { text: 'OK', onPress: () => navigation.navigate('DiscoverMain') }
+              { text: 'OK', onPress: () => navigateToCustomerBookings(navigation) }
             ]);
           } else {
             setVerifying(false);
@@ -159,12 +162,21 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const verifyMutation = useMutation({
     mutationFn: async (resp: RazorpayResponse) => {
-      const res = await api.post('/payments/verify', {
-        booking_id: bookingId,
-        razorpay_payment_id: resp.razorpay_payment_id,
-        razorpay_order_id: resp.razorpay_order_id,
-        razorpay_signature: resp.razorpay_signature,
-      });
+      if (!verifyIdempotencyKeyRef.current) {
+        verifyIdempotencyKeyRef.current = await createIdempotencyKey();
+      }
+      const res = await api.post(
+        '/payments/verify',
+        {
+          booking_id: bookingId,
+          razorpay_payment_id: resp.razorpay_payment_id,
+          razorpay_order_id: resp.razorpay_order_id,
+          razorpay_signature: resp.razorpay_signature,
+        },
+        {
+          headers: { 'Idempotency-Key': verifyIdempotencyKeyRef.current },
+        }
+      );
       return res.data;
     },
     onSuccess: () => {
@@ -172,7 +184,7 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
       Alert.alert('Payment successful', 'Your booking is confirmed.', [
         {
           text: 'View bookings',
-          onPress: () => navigation.navigate('DiscoverMain'),
+          onPress: () => navigateToCustomerBookings(navigation),
         },
       ]);
     },

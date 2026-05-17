@@ -15,12 +15,15 @@ class BookingCreate(BaseModel):
     time_slot: str
     payment_method: str = "salon_cash"
     promo_code: Optional[str] = None
+    staff_id: Optional[str] = None
+    any_staff: bool = False
 
 class BookingStatusUpdate(BaseModel):
     status: BookingStatus
 
 class ReviewCreate(BaseModel):
     salon_id: str
+    booking_id: str
     rating: int = Field(..., ge=1, le=5)
     comment: Optional[str] = None
 

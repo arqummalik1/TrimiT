@@ -26,17 +26,22 @@ import { SUPPORT_EMAIL } from '../../lib/contactInfo';
 export default function WriteReviewScreen({ navigation, route }: CustomerDiscoverScreenProps<'WriteReview'>) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { salonId } = route.params;
+  const { salonId, bookingId } = route.params;
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
 
   const mutation = useMutation({
-    mutationFn: () =>
-      api.post('/reviews', {
+    mutationFn: () => {
+      if (!bookingId) {
+        throw new Error('Booking is required to submit a review');
+      }
+      return api.post('/reviews', {
         salon_id: salonId,
+        booking_id: bookingId,
         rating,
         comment: comment.trim() || undefined,
-      }),
+      });
+    },
     onSuccess: () => {
       showToast('Review submitted successfully!', 'success');
       navigation.goBack();

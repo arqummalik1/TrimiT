@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -78,6 +79,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
@@ -120,6 +122,8 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   } = useInfiniteQuery({
     queryKey: ['salons', 'discover', 'nearby', latKey, lngKey],
     enabled: locationReady,
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: 'always',
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
       const params = new URLSearchParams();
@@ -536,17 +540,23 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
         <SalonListSkeleton />
       ) : viewMode === 'map' ? (
         <View style={styles.mapWrap}>
-          {useClustering ? (
-            <ClusteredMapView
-              {...mapCommonProps}
-              radius={DISCOVER_CLUSTER_RADIUS}
-              clusterColor={theme.colors.primary}
-              clusterTextColor="#FFFFFF"
-            >
-              {markerElements}
-            </ClusteredMapView>
+          {isFocused ? (
+            useClustering ? (
+              <ClusteredMapView
+                {...mapCommonProps}
+                radius={DISCOVER_CLUSTER_RADIUS}
+                clusterColor={theme.colors.primary}
+                clusterTextColor="#FFFFFF"
+              >
+                {markerElements}
+              </ClusteredMapView>
+            ) : (
+              <MapView {...mapCommonProps}>{markerElements}</MapView>
+            )
           ) : (
-            <MapView {...mapCommonProps}>{markerElements}</MapView>
+            <View style={styles.mapPausedPlaceholder}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
           )}
 
           <View
@@ -704,6 +714,12 @@ const createStyles = (theme: Theme) =>
     mapWrap: {
       flex: 1,
       position: 'relative',
+    },
+    mapPausedPlaceholder: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.surfaceSecondary,
     },
     map: {
       flex: 1,

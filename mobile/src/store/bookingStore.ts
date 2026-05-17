@@ -5,6 +5,13 @@ import type { TimeSlot } from '../types';
 import { useAuthStore } from './authStore';
 import { normalizeSlotTimeToHHMM } from '../lib/utils';
 
+const justBookedTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function clearJustBookedTimers(): void {
+  justBookedTimers.forEach((t) => clearTimeout(t));
+  justBookedTimers.clear();
+}
+
 interface BookingState {
   // Real-time subscription
   activeChannel: RealtimeChannel | null;
@@ -96,9 +103,16 @@ export const useBookingStore = create<BookingState>((set, get) => ({
               justBookedSlots: new Set([...get().justBookedSlots, scopedKey]),
             });
 
-            setTimeout(() => {
-              get().clearJustBookedSlot(scopeDate, bookedTime);
-            }, 3000);
+            const timerKey = scopedKey;
+            const existing = justBookedTimers.get(timerKey);
+            if (existing) clearTimeout(existing);
+            justBookedTimers.set(
+              timerKey,
+              setTimeout(() => {
+                justBookedTimers.delete(timerKey);
+                get().clearJustBookedSlot(scopeDate, bookedTime);
+              }, 3000)
+            );
           } else {
             // Multi mode: increment count, mark full if at capacity
             const updatedSlots = slots.map((slot) => {
@@ -109,10 +123,28 @@ export const useBookingStore = create<BookingState>((set, get) => ({
             });
             set({ slots: updatedSlots });
           }
-        } else if (payload.eventType === 'DELETE' || payload.eventType === 'UPDATE') {
-          // A booking was cancelled or updated - trigger a refresh
-          // We don't know the exact state without re-fetching
+        } else if (payload.eventType === 'DELETE') {
           set({ needsRefresh: true });
+        } else if (payload.eventType === 'UPDATE') {
+          const updated = payload.new;
+          if (updated?.status === 'cancelled') {
+            const freedTime = normalizeSlotTimeToHHMM(updated.time_slot);
+            const max = allowMultipleBookings
+              ? slots.find((s) => normalizeSlotTimeToHHMM(s.time) === freedTime)?.max_bookings || 1
+              : 1;
+            const updatedSlots = slots.map((slot) => {
+              if (normalizeSlotTimeToHHMM(slot.time) !== freedTime) return slot;
+              const newCount = Math.max((slot.booking_count || 1) - 1, 0);
+              return {
+                ...slot,
+                booking_count: newCount,
+                available: newCount < max,
+              };
+            });
+            set({ slots: updatedSlots, needsRefresh: false });
+          } else {
+            set({ needsRefresh: true });
+          }
         }
       }
     );
@@ -128,6 +160,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
 
   // Unsubscribe from real-time updates
   unsubscribeFromSlots: () => {
+    clearJustBookedTimers();
     const { activeChannel } = get();
     if (activeChannel) {
       unsubscribeFromBookings(activeChannel);

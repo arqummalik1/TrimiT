@@ -27,6 +27,13 @@ async def upload_service_image(
     current_user: dict = Depends(get_current_user),
     file: UploadFile = File(...),
 ):
+    profile = current_user.get("profile") or {}
+    if profile.get("role") != "owner":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "FORBIDDEN", "message": "Only salon owners may upload images"},
+        )
+
     if not file:
         raise HTTPException(status_code=400, detail={"code": "NO_FILE", "message": "No file provided"})
 

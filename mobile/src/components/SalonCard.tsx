@@ -13,7 +13,7 @@ interface SalonCardProps {
   onPress: () => void;
 }
 
-export const SalonCard: React.FC<SalonCardProps> = ({ salon: rawSalon, onPress }) => {
+const SalonCardComponent: React.FC<SalonCardProps> = ({ salon: rawSalon, onPress }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const salon = useMemo(() => normalizeSalon(rawSalon), [rawSalon]);
@@ -182,4 +182,5 @@ const createStyles = (theme: Theme) =>
     },
   });
 
+export const SalonCard = React.memo(SalonCardComponent);
 export default SalonCard;
