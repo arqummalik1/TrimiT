@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
 import { useTheme, Theme } from '../theme/ThemeContext';
+import { showSalonImageSourcePicker } from '../lib/imageUploadPrep';
 import { typography, spacing, borderRadius } from '../lib/utils';
 import { getUserFacingMessage } from '../lib/userFacingError';
 import { showToast } from '../store/toastStore';
@@ -64,16 +64,10 @@ export function ImageUploadField({
       setProgress(5);
 
       try {
-        const manipulated = await ImageManipulator.manipulateAsync(
-          uri,
-          [{ resize: { width: 1280 } }],
-          { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG }
-        );
-
         setPhase('uploading');
         setProgress(10);
 
-        const publicUrl = await onUpload(manipulated.uri, (pct) => {
+        const publicUrl = await onUpload(uri, (pct) => {
           setProgress(Math.max(10, Math.min(99, pct)));
         });
 
@@ -90,54 +84,33 @@ export function ImageUploadField({
     [onChange, onUpload]
   );
 
-  const pickFromGallery = async () => {
-    const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!granted) {
-      Alert.alert('Permission required', 'Please allow access to your photo library.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.85,
-      allowsEditing: true,
-      aspect,
-      exif: false,
-    });
-    if (!result.canceled && result.assets[0]) {
-      await runUpload(result.assets[0].uri);
-    }
-  };
-
-  const pickFromCamera = async () => {
-    const { granted } = await ImagePicker.requestCameraPermissionsAsync();
-    if (!granted) {
-      Alert.alert('Permission required', 'Please allow camera access.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 0.85,
-      allowsEditing: true,
-      aspect,
-      exif: false,
-    });
-    if (!result.canceled && result.assets[0]) {
-      await runUpload(result.assets[0].uri);
-    }
-  };
-
   const openPicker = () => {
     if (disabled || isBusy) return;
 
-    const options: { text: string; onPress?: () => void; style?: 'cancel' }[] = [
-      { text: 'Choose from Gallery', onPress: () => void pickFromGallery() },
-    ];
     if (allowCamera) {
-      options.unshift({ text: 'Take Photo', onPress: () => void pickFromCamera() });
+      showSalonImageSourcePicker((pickedUri) => {
+        void runUpload(pickedUri);
+      });
+      return;
     }
-    options.push({ text: 'Cancel', style: 'cancel' });
 
-    Alert.alert(label, 'Choose an option', options);
+    void (async () => {
+      const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!granted) {
+        Alert.alert('Permission required', 'Please allow access to your photo library.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 1,
+        allowsEditing: true,
+        aspect,
+        exif: false,
+      });
+      if (!result.canceled && result.assets[0]) {
+        await runUpload(result.assets[0].uri);
+      }
+    })();
   };
 
   const retryUpload = () => {

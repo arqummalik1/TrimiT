@@ -149,7 +149,7 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
                 <>
                   We sent a confirmation link to{' '}
                   <Text style={{ fontWeight: '700', color: theme.colors.text }}>{confirmedEmail}</Text>.
-                  {' '}Click the link to activate your account, then come back to sign in.
+                  {' '}Open the link in your browser — you&apos;ll see an &quot;Email verified&quot; page — then return here and sign in with the same email and password.
                 </>
               )}
             </Text>

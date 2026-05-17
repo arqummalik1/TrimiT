@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { parseAuthCallbackFromUrl } from './lib/authCallbackParams';
 import { Scissors } from '@phosphor-icons/react';
 import { useAuthStore } from './store/authStore';
 
@@ -9,6 +10,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import EmailConfirmedPage from './pages/EmailConfirmedPage';
 import CustomerHome from './pages/customer/CustomerHome';
 import SalonDetail from './pages/customer/SalonDetail';
 import BookingPage from './pages/customer/BookingPage';
@@ -43,12 +45,29 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
+const AUTH_CALLBACK_PATHS = ['/auth/email-confirmed', '/reset-password'];
+
 function App() {
   const { initializeAuth, isAuthenticated, profile, isInitializing, hasSalon } = useAuthStore();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isAuthCallbackPage = AUTH_CALLBACK_PATHS.includes(location.pathname);
 
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
+
+  // If Supabase still redirects to Site URL (/) with tokens in hash, forward to the confirm page.
+  useEffect(() => {
+    if (isAuthCallbackPage) return;
+    const { error, accessToken, tokenHash, isEmailConfirmation } = parseAuthCallbackFromUrl();
+    const hasCallback =
+      Boolean(error && window.location.hash) ||
+      Boolean(accessToken || tokenHash) && isEmailConfirmation;
+    if (!hasCallback) return;
+    const suffix = `${window.location.search || ''}${window.location.hash || ''}`;
+    navigate(`/auth/email-confirmed${suffix}`, { replace: true });
+  }, [isAuthCallbackPage, location.pathname, navigate]);
 
   // Show loading screen while initializing auth
   if (isInitializing) {
@@ -77,7 +96,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-stone-50">
-      <Header />
+      {!isAuthCallbackPage && <Header />}
       <main>
         <Routes>
           {/* Public Routes */}
@@ -86,6 +105,7 @@ function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/auth/email-confirmed" element={<EmailConfirmedPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/contact" element={<ContactPage />} />
@@ -179,7 +199,7 @@ function App() {
         </Routes>
       </main>
 
-      <Footer />
+      {!isAuthCallbackPage && <Footer />}
 
       {/* Toast Notifications - Global */}
       <Toast />

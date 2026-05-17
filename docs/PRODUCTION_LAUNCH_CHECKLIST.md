@@ -2,6 +2,13 @@
 
 Complete these **before** promoting the production AAB on Play Console.
 
+## Supabase Auth (email links)
+
+- [ ] **Authentication → URL configuration**: add redirect URL  
+  `https://trimi-t.vercel.app/auth/email-confirmed` (and production domain if different)
+- [ ] **Site URL** can stay the marketing site; signup confirmation uses `redirect_to` from the API
+- [ ] Redeploy **backend** after `PUBLIC_SITE_URL` changes so new signups get the correct link
+
 ## Backend
 
 - [ ] Deploy latest `backend/` to Render (`ENVIRONMENT=production`, `GOOGLE_MAPS_API_KEY` set)

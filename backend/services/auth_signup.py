@@ -22,6 +22,12 @@ from services.user_profile import upsert_user_profile
 logger = logging.getLogger("trimit")
 
 
+def email_confirmation_redirect_url() -> str:
+    """Web page shown after the user taps the signup confirmation link in email."""
+    base = settings.PUBLIC_SITE_URL.rstrip("/")
+    return f"{base}/auth/email-confirmed"
+
+
 def _normalize_email(email: str) -> str:
     return email.strip().lower()
 
@@ -228,6 +234,7 @@ async def salvage_rate_limited_signup(
 
 
 async def perform_supabase_signup(user: UserCreate):
+    redirect_to = email_confirmation_redirect_url()
     return await supabase.request(
         "POST",
         "auth/v1/signup",
@@ -239,6 +246,7 @@ async def perform_supabase_signup(user: UserCreate):
                 "phone": user.phone or "",
                 "role": user.role.value,
             },
+            "redirect_to": redirect_to,
         },
     )
 
@@ -321,7 +329,11 @@ async def resend_confirmation_email(email: str) -> Tuple[int, Dict[str, Any]]:
     resp = await supabase.request(
         "POST",
         "auth/v1/resend",
-        json={"type": "signup", "email": email_norm},
+        json={
+            "type": "signup",
+            "email": email_norm,
+            "redirect_to": email_confirmation_redirect_url(),
+        },
     )
     if resp.status_code in (200, 201):
         return (

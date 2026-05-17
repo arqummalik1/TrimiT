@@ -9,6 +9,7 @@ import { OwnerTabParamList, OwnerSettingsStackParamList } from './types';
 import { useTheme } from '../theme/ThemeContext';
 import { salonRepository } from '../repositories/salonRepository';
 import { queryKeys } from '../lib/queryKeys';
+import { resetOwnerDashboardToMain } from '../lib/ownerNavigation';
 import { bookingRepository } from '../repositories/bookingRepository';
 import { useRealtimeBookings } from '../hooks/useRealtimeBookings';
 import { useNotificationStore } from '../store/notificationStore';
@@ -159,6 +160,13 @@ export default function OwnerTabs() {
         <Tab.Screen
           name="Dashboard"
           component={OwnerStack}
+          listeners={({ navigation }) => ({
+            tabPress: () => {
+              if (salon?.id) {
+                resetOwnerDashboardToMain(navigation);
+              }
+            },
+          })}
           options={{
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="grid" size={size} color={color} />

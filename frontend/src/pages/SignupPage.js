@@ -83,8 +83,9 @@ const SignupPage = () => {
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 border border-stone-200 text-center">
           <h1 className="font-heading text-2xl font-bold text-stone-900 mb-3">Check your email</h1>
           <p className="text-stone-600 mb-6">
-            We sent a confirmation link to <strong>{confirmedEmail}</strong>. Click it to
-            activate your account, then sign in.
+            We sent a confirmation link to <strong>{confirmedEmail}</strong>. Open it in your
+            browser — you&apos;ll see an &quot;Email verified&quot; page — then sign in here with the
+            same email and password.
           </p>
           <Link to="/login" className="btn-primary inline-block">
             Go to Sign In

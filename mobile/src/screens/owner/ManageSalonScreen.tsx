@@ -13,7 +13,7 @@ import { ScreenWrapper } from '../../components/ScreenWrapper';
 import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import * as ImagePicker from 'expo-image-picker';
+import { showSalonImageSourcePicker } from '../../lib/imageUploadPrep';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { typography, spacing, borderRadius, shadows } from '../../lib/utils';
@@ -24,7 +24,7 @@ import { Salon } from '../../types';
 import { getUserFacingMessage } from '../../lib/userFacingError';
 import { salonRepository } from '../../repositories/salonRepository';
 import { queryKeys } from '../../lib/queryKeys';
-import { navigateOwnerToServices } from '../../lib/ownerNavigation';
+import { navigateOwnerToServices, resetOwnerDashboardToMain } from '../../lib/ownerNavigation';
 import { useOwnerOnboardingStore } from '../../store/ownerOnboardingStore';
 import { uploadServiceImage } from '../../services/uploadService';
 import { normalizeSalon } from '../../lib/salonImage';
@@ -61,7 +61,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
 
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [pendingImages, setPendingImages] = useState<
-    { id: string; localUri: string; progress: number }[]
+    { id: string; localUri: string; progress: number; phase: 'preparing' | 'uploading' }[]
   >([]);
   const [formData, setFormData] = useState({
     name: '',
@@ -115,6 +115,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       void queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
       useOwnerOnboardingStore.getState().setPostSalonCreatePending(true);
       showToast('Your salon has been created successfully!', 'success');
+      resetOwnerDashboardToMain(navigation);
       if (!navigateOwnerToServices(navigation, { openAddService: true })) {
         navigation.goBack();
       }
@@ -165,32 +166,18 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     }
   };
 
-  const pickImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission Required', 'Please allow access to your photo library.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-      allowsMultipleSelection: false,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      await uploadImage(result.assets[0].uri);
-    }
-  };
-
   const uploadImage = async (uri: string) => {
     const pendingId = `pending-${Date.now()}`;
-    setPendingImages((prev) => [...prev, { id: pendingId, localUri: uri, progress: 0 }]);
+    setPendingImages((prev) => [...prev, { id: pendingId, localUri: uri, progress: 0, phase: 'preparing' }]);
 
     try {
       const publicUrl = await uploadServiceImage(uri, (pct) => {
         setPendingImages((prev) =>
-          prev.map((p) => (p.id === pendingId ? { ...p, progress: pct } : p))
+          prev.map((p) =>
+            p.id === pendingId
+              ? { ...p, progress: pct, phase: pct < 12 ? 'preparing' : 'uploading' }
+              : p
+          )
         );
       });
 
@@ -198,11 +185,21 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
         ...prev,
         images: [...prev.images, publicUrl],
       }));
+      showToast('Image uploaded successfully', 'success');
     } catch (error) {
       showToast(getUserFacingMessage(error), 'error');
     } finally {
       setPendingImages((prev) => prev.filter((p) => p.id !== pendingId));
     }
+  };
+
+  const pickImage = () => {
+    if (pendingImages.length > 0) {
+      return;
+    }
+    showSalonImageSourcePicker((uri) => {
+      void uploadImage(uri);
+    });
   };
 
   const removeImage = (index: number) => {
@@ -367,6 +364,9 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
             {formData.images.map((uri, index) => (
               <View key={`uploaded-${uri}-${index}`} style={styles.imageWrapper}>
                 <Image source={{ uri }} style={styles.imageThumb} />
+                <View style={styles.uploadedBadge}>
+                  <Ionicons name="checkmark-circle" size={22} color={theme.colors.success} />
+                </View>
                 <TouchableOpacity
                   style={styles.removeImageBtn}
                   onPress={() => removeImage(index)}
@@ -381,7 +381,11 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
                 <View style={styles.uploadOverlay}>
                   <ActivityIndicator color="#fff" />
                   <Text style={styles.uploadOverlayText}>
-                    {pending.progress > 0 ? `${pending.progress}%` : 'Uploading…'}
+                    {pending.phase === 'preparing'
+                      ? 'Preparing…'
+                      : pending.progress > 0
+                        ? `Uploading… ${pending.progress}%`
+                        : 'Uploading…'}
                   </Text>
                 </View>
               </View>
@@ -517,6 +521,14 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     right: -8,
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
+  },
+  uploadedBadge: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    padding: 2,
   },
   addImageBtn: {
     width: 100,

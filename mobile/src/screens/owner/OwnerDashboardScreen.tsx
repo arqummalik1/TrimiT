@@ -49,28 +49,53 @@ type Period = 'today' | '7d' | '30d' | 'all';
 const PulseIndicator = () => {
   const { theme } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const scale = React.useRef(new Animated.Value(1)).current;
-  const opacity = React.useRef(new Animated.Value(1)).current;
+  const ringScale = React.useRef(new Animated.Value(1)).current;
+  const ringOpacity = React.useRef(new Animated.Value(0.65)).current;
+  const coreScale = React.useRef(new Animated.Value(1)).current;
 
   React.useEffect(() => {
-    Animated.loop(
+    const ringLoop = Animated.loop(
       Animated.parallel([
         Animated.sequence([
-          Animated.timing(scale, { toValue: 1.5, duration: 1000, useNativeDriver: true }),
-          Animated.timing(scale, { toValue: 1, duration: 1000, useNativeDriver: true }),
+          Animated.timing(ringScale, { toValue: 2.2, duration: 900, useNativeDriver: true }),
+          Animated.timing(ringScale, { toValue: 1, duration: 900, useNativeDriver: true }),
         ]),
         Animated.sequence([
-          Animated.timing(opacity, { toValue: 0.3, duration: 1000, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 1, duration: 1000, useNativeDriver: true }),
+          Animated.timing(ringOpacity, { toValue: 0.15, duration: 900, useNativeDriver: true }),
+          Animated.timing(ringOpacity, { toValue: 0.65, duration: 900, useNativeDriver: true }),
         ]),
       ])
-    ).start();
-  }, []);
+    );
+
+    const coreLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(coreScale, { toValue: 1.15, duration: 700, useNativeDriver: true }),
+        Animated.timing(coreScale, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    );
+
+    ringLoop.start();
+    coreLoop.start();
+    return () => {
+      ringLoop.stop();
+      coreLoop.stop();
+    };
+  }, [coreScale, ringOpacity, ringScale]);
 
   return (
-    <View style={styles.pulseContainer}>
-      <Animated.View style={[styles.pulseCircle, { transform: [{ scale }], opacity }]} />
-      <View style={[styles.pulseCircle, { backgroundColor: theme.colors.success }]} />
+    <View style={styles.pulseContainer} accessibilityLabel="Live activity">
+      <Animated.View
+        style={[
+          styles.pulseRing,
+          { transform: [{ scale: ringScale }], opacity: ringOpacity },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.pulseCore,
+          { transform: [{ scale: coreScale }], backgroundColor: theme.colors.success },
+        ]}
+      />
     </View>
   );
 };
@@ -481,8 +506,25 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   peakHourBar: { flex: 1, height: 6, backgroundColor: theme.colors.surfaceHighlight, borderRadius: 3, overflow: 'hidden' },
   peakHourFill: { height: '100%', backgroundColor: theme.colors.primary, borderRadius: 3 },
   peakHourCount: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, width: 25, textAlign: 'right' },
-  pulseContainer: { width: 12, height: 12, alignItems: 'center', justifyContent: 'center' },
-  pulseCircle: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.success + '40' },
+  pulseContainer: {
+    width: 14,
+    height: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 2,
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: theme.colors.success,
+  },
+  pulseCore: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
 });
 
 export default OwnerDashboardScreen;

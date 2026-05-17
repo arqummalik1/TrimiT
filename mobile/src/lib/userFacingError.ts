@@ -1,5 +1,6 @@
 import { isAppError } from '../types/error';
 import { handleApiError } from './errorHandler';
+import { ImageTooLargeError, IMAGE_TOO_LARGE_MESSAGE } from './imageUploadPrep';
 
 const MESSAGES: Record<string, string> = {
   network:
@@ -21,9 +22,21 @@ const MESSAGES: Record<string, string> = {
  * Normalize any thrown value into a user-safe message (never raw axios/console text).
  */
 export function getUserFacingMessage(error: unknown): string {
+  if (error instanceof ImageTooLargeError) {
+    return error.message;
+  }
+
   const appErr = isAppError(error) ? error : handleApiError(error);
 
-  if (appErr.code === 'UPLOAD_FAILED' || appErr.code === 'FILE_TOO_LARGE') {
+  if (appErr.code === 'FILE_TOO_LARGE') {
+    return IMAGE_TOO_LARGE_MESSAGE;
+  }
+
+  if (appErr.code === 'INVALID_IMAGE' || appErr.code === 'INVALID_FILE_TYPE') {
+    return 'Could not use this photo. Try another image or take a new picture.';
+  }
+
+  if (appErr.code === 'UPLOAD_FAILED') {
     return appErr.message;
   }
 

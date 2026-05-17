@@ -14,12 +14,24 @@ logger = logging.getLogger("trimit")
 
 router = APIRouter(prefix="/uploads", tags=["Uploads"])
 
-MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+MAX_UPLOAD_MB = 10
 
 
 def _public_storage_url(bucket: str, path: str) -> str:
     base = settings.SUPABASE_URL.rstrip("/")
     return f"{base}/storage/v1/object/public/{bucket}/{path}"
+
+
+def _normalize_image_bytes(data: bytes) -> bytes:
+    """Decode with Pillow and re-encode as JPEG for consistent storage."""
+    with Image.open(io.BytesIO(data)) as img:
+        img.load()
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        out = io.BytesIO()
+        img.save(out, format="JPEG", quality=86, optimize=True)
+        return out.getvalue()
 
 
 @router.post("/service-image")
@@ -37,8 +49,8 @@ async def upload_service_image(
     if not file:
         raise HTTPException(status_code=400, detail={"code": "NO_FILE", "message": "No file provided"})
 
-    content_type = file.content_type or "image/jpeg"
-    if not content_type.startswith("image/"):
+    raw_content_type = (file.content_type or "").lower()
+    if raw_content_type and not raw_content_type.startswith("image/"):
         raise HTTPException(
             status_code=400,
             detail={"code": "INVALID_FILE_TYPE", "message": "Only image uploads are supported"},
@@ -51,21 +63,33 @@ async def upload_service_image(
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(
             status_code=400,
-            detail={"code": "FILE_TOO_LARGE", "message": "Image must be 5 MB or smaller"},
+            detail={
+                "code": "FILE_TOO_LARGE",
+                "message": f"Image is too large to upload. Maximum size is {MAX_UPLOAD_MB} MB.",
+            },
         )
 
     try:
-        with Image.open(io.BytesIO(data)) as img:
-            img.verify()
-    except Exception:
+        data = _normalize_image_bytes(data)
+    except Exception as exc:
+        logger.warning("[upload_service_image] decode failed: %s", exc)
         raise HTTPException(
             status_code=400,
             detail={"code": "INVALID_IMAGE", "message": "File is not a valid image"},
+        ) from exc
+
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "FILE_TOO_LARGE",
+                "message": f"Image is too large to upload. Maximum size is {MAX_UPLOAD_MB} MB.",
+            },
         )
 
+    content_type = "image/jpeg"
     bucket = "salon-images"
-    ext = "png" if content_type.endswith("png") else "jpg"
-    path = f"services/{current_user.get('id')}/{uuid.uuid4().hex}.{ext}"
+    path = f"services/{current_user.get('id')}/{uuid.uuid4().hex}.jpg"
 
     url = f"{settings.SUPABASE_URL.rstrip('/')}/storage/v1/object/{bucket}/{path}"
     headers = {
