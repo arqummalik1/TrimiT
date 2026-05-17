@@ -33,4 +33,33 @@ export const salonService = {
     const response = await apiClient.get('/salons/', { params });
     return response.data;
   },
+
+  createService: async (
+    salonId: string,
+    payload: {
+      name: string;
+      description?: string;
+      price: number;
+      duration: number;
+      image_url?: string | null;
+      is_on_offer?: boolean;
+      discount_percentage?: number | null;
+    }
+  ) => {
+    const response = await apiClient.post(`/salons/${salonId}/services`, payload);
+    return response.data;
+  },
+
+  updateService: async (
+    salonId: string,
+    serviceId: string,
+    payload: Record<string, unknown>
+  ) => {
+    const response = await apiClient.patch(`/salons/${salonId}/services/${serviceId}`, payload);
+    return response.data;
+  },
+
+  deleteService: async (salonId: string, serviceId: string) => {
+    await apiClient.delete(`/salons/${salonId}/services/${serviceId}`);
+  },
 };

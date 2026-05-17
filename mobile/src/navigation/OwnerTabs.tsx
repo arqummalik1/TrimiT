@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { OwnerTabParamList, OwnerSettingsStackParamList } from './types';
 import { useTheme } from '../theme/ThemeContext';
 import { salonRepository } from '../repositories/salonRepository';
+import { queryKeys } from '../lib/queryKeys';
 import { bookingRepository } from '../repositories/bookingRepository';
 import { useRealtimeBookings } from '../hooks/useRealtimeBookings';
 import { useNotificationStore } from '../store/notificationStore';
@@ -62,9 +63,11 @@ export default function OwnerTabs() {
 
   // Fetch salon data
   const { data: salon } = useQuery({
-    queryKey: ['ownerSalon'],
+    queryKey: queryKeys.ownerSalon,
     queryFn: () => salonRepository.getOwnerSalon(),
-    retry: false,
+    staleTime: 30_000,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
   });
 
   // Fetch analytics for badge count

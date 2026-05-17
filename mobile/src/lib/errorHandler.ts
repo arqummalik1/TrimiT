@@ -18,9 +18,12 @@ export const handleApiError = (error: unknown): AppError => {
     status = error.response?.status;
     requestId = error.response?.headers?.['x-request-id'];
     
-    if (!error.response) {
+    if (error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
       kind = 'network';
-      message = 'Check your internet connection';
+      message = 'The request timed out. Please try again.';
+    } else if (!error.response) {
+      kind = 'network';
+      message = 'No internet connection. Please check your network and try again.';
     } else {
       const data = error.response.data;
       
@@ -58,9 +61,14 @@ export const handleApiError = (error: unknown): AppError => {
     message = error.message;
   }
 
-  // Senior Architect: Report server crashes and critical network issues to Sentry
-  if (kind === 'server' || kind === 'network') {
-    logger.error(`API Error: ${kind}`, error, { requestId, code, status: axios.isAxiosError(error) ? error.response?.status : 'N/A' });
+  if (kind === 'server') {
+    logger.error(`API Error: ${kind}`, error, {
+      requestId,
+      code,
+      status: axios.isAxiosError(error) ? error.response?.status : 'N/A',
+    });
+  } else if (kind === 'network') {
+    logger.warn(`API Error: ${kind}`, { requestId, code, message });
   }
 
   return {

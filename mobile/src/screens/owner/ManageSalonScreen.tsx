@@ -19,12 +19,14 @@ import { Button } from '../../components/Button';
 import { typography, spacing, borderRadius, shadows } from '../../lib/utils';
 import { useTheme, Theme } from '../../theme/ThemeContext';
 
-import api from '../../lib/api';
-import { supabase } from '../../lib/supabase';
 import { showToast } from '../../store/toastStore';
 import { Salon } from '../../types';
-import { handleApiError } from '../../lib/errorHandler';
+import { getUserFacingMessage } from '../../lib/userFacingError';
 import { salonRepository } from '../../repositories/salonRepository';
+import { queryKeys } from '../../lib/queryKeys';
+import { navigateOwnerToServices } from '../../lib/ownerNavigation';
+import { useOwnerOnboardingStore } from '../../store/ownerOnboardingStore';
+import { uploadServiceImage } from '../../services/uploadService';
 import { OwnerDashboardScreenProps, OwnerSettingsScreenProps } from '../../navigation/types';
 import { LocationPickerModal } from '../../components/LocationPickerModal';
 import { SalonMapMarker } from '../../components/SalonMapMarker';
@@ -51,12 +53,15 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   const queryClient = useQueryClient();
 
   const { data: salon, isLoading } = useQuery<Salon | null>({
-    queryKey: ['ownerSalon'],
+    queryKey: queryKeys.ownerSalon,
     queryFn: () => salonRepository.getOwnerSalon(),
+    staleTime: 30_000,
   });
 
-  const [uploading, setUploading] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [pendingImages, setPendingImages] = useState<
+    { id: string; localUri: string; progress: number }[]
+  >([]);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -103,44 +108,43 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
 
   const createMutation = useMutation({
     mutationFn: (data: SalonPayload) => salonRepository.createSalon(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
-      showToast('Salon created successfully!', 'success');
-      navigation.goBack();
+    onSuccess: (created: Salon) => {
+      queryClient.setQueryData(queryKeys.ownerSalon, created);
+      void queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
+      useOwnerOnboardingStore.getState().setPostSalonCreatePending(true);
+      showToast('Your salon has been created successfully!', 'success');
+      if (!navigateOwnerToServices(navigation, { openAddService: true })) {
+        navigation.goBack();
+      }
     },
     onError: (error) => {
-      const appErr = handleApiError(error);
-      showToast(appErr.message, 'error');
+      showToast(getUserFacingMessage(error), 'error');
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: (data: SalonPayload) => salonRepository.updateSalon(salon!.id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
+    onSuccess: (updated: Salon) => {
+      queryClient.setQueryData(queryKeys.ownerSalon, updated);
       showToast('Salon updated successfully!', 'success');
+      navigation.goBack();
     },
     onError: (error) => {
-      const appErr = handleApiError(error);
-      showToast(appErr.message, 'error');
+      showToast(getUserFacingMessage(error), 'error');
     },
   });
 
   const handleChange = (field: string, value: string) => {
-    console.log(`[ManageSalon] Field changed: ${field} = "${value}"`);
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async () => {
-    console.log('[ManageSalon] Form data before validation:', formData);
-    
+    if (pendingImages.length > 0) {
+      showToast('Please wait for images to finish uploading', 'warning');
+      return;
+    }
+
     if (!formData.name || !formData.address || !formData.city || !formData.phone) {
-      console.log('[ManageSalon] Validation failed:', {
-        name: !!formData.name,
-        address: !!formData.address,
-        city: !!formData.city,
-        phone: !!formData.phone,
-      });
       showToast('Please fill in all required fields', 'error');
       return;
     }
@@ -150,8 +154,6 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       latitude: parseFloat(formData.latitude),
       longitude: parseFloat(formData.longitude),
     };
-
-    console.log('[ManageSalon] Payload being sent:', payload);
 
     if (salon) {
       updateMutation.mutate(payload);
@@ -179,32 +181,24 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   };
 
   const uploadImage = async (uri: string) => {
-    setUploading(true);
+    const pendingId = `pending-${Date.now()}`;
+    setPendingImages((prev) => [...prev, { id: pendingId, localUri: uri, progress: 0 }]);
+
     try {
-      const fileName = `salon-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-      const response = await fetch(uri);
-      const blob = await response.blob();
-
-      const { data, error } = await supabase.storage
-        .from('salon-images')
-        .upload(fileName, blob, { contentType: 'image/jpeg' });
-
-      if (error) throw error;
-
-      const { data: urlData } = supabase.storage
-        .from('salon-images')
-        .getPublicUrl(data.path);
+      const publicUrl = await uploadServiceImage(uri, (pct) => {
+        setPendingImages((prev) =>
+          prev.map((p) => (p.id === pendingId ? { ...p, progress: pct } : p))
+        );
+      });
 
       setFormData((prev) => ({
         ...prev,
-        images: [...prev.images, urlData.publicUrl],
+        images: [...prev.images, publicUrl],
       }));
-      showToast('Image uploaded!', 'success');
     } catch (error) {
-      const appErr = handleApiError(error);
-      showToast(appErr.message, 'error');
+      showToast(getUserFacingMessage(error), 'error');
     } finally {
-      setUploading(false);
+      setPendingImages((prev) => prev.filter((p) => p.id !== pendingId));
     }
   };
 
@@ -226,6 +220,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isUploading = pendingImages.length > 0;
 
   return (
     <ScreenWrapper variant="stack">
@@ -367,7 +362,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
           <Text style={styles.sectionTitle}>Salon Images</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageRow}>
             {formData.images.map((uri, index) => (
-              <View key={index} style={styles.imageWrapper}>
+              <View key={`uploaded-${uri}-${index}`} style={styles.imageWrapper}>
                 <Image source={{ uri }} style={styles.imageThumb} />
                 <TouchableOpacity
                   style={styles.removeImageBtn}
@@ -377,15 +372,20 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
                 </TouchableOpacity>
               </View>
             ))}
-            <TouchableOpacity style={styles.addImageBtn} onPress={pickImage} disabled={uploading}>
-              {uploading ? (
-                <ActivityIndicator color={theme.colors.primary} />
-              ) : (
-                <>
-                  <Ionicons name="camera" size={28} color={theme.colors.primary} />
-                  <Text style={styles.addImageText}>Add Photo</Text>
-                </>
-              )}
+            {pendingImages.map((pending) => (
+              <View key={pending.id} style={styles.imageWrapper}>
+                <Image source={{ uri: pending.localUri }} style={styles.imageThumb} />
+                <View style={styles.uploadOverlay}>
+                  <ActivityIndicator color="#fff" />
+                  <Text style={styles.uploadOverlayText}>
+                    {pending.progress > 0 ? `${pending.progress}%` : 'Uploading…'}
+                  </Text>
+                </View>
+              </View>
+            ))}
+            <TouchableOpacity style={styles.addImageBtn} onPress={pickImage} disabled={isUploading}>
+              <Ionicons name="camera" size={28} color={theme.colors.primary} />
+              <Text style={styles.addImageText}>Add Photo</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -394,6 +394,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
           title={salon ? 'Save Changes' : 'Create Salon'}
           onPress={handleSubmit}
           loading={isSaving}
+          disabled={isUploading}
           style={{ marginTop: spacing.lg, marginBottom: spacing.xxxxl }}
         />
       </ScrollView>
@@ -528,5 +529,17 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   addImageText: {
     ...typography.caption,
     color: theme.colors.primary,
+  },
+  uploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
+  },
+  uploadOverlayText: {
+    ...typography.caption,
+    color: '#fff',
   },
 });

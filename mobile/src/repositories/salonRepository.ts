@@ -17,7 +17,14 @@ export const salonRepository = {
           throw error;
         }
       }
-      logger.error('[SalonRepository] getOwnerSalon failed', error);
+      const kind = isAppError(error) ? error.kind : undefined;
+      if (kind === 'network') {
+        logger.warn('[SalonRepository] getOwnerSalon network issue', {
+          message: isAppError(error) ? error.message : 'network',
+        });
+      } else {
+        logger.error('[SalonRepository] getOwnerSalon failed', error);
+      }
       throw error;
     }
   },
@@ -45,5 +52,24 @@ export const salonRepository = {
 
   async getNearbySalons(latitude: number, longitude: number, radius?: number): Promise<Salon[]> {
     return await salonService.getNearbySalons({ latitude, longitude, radius });
+  },
+
+  async createService(
+    salonId: string,
+    payload: Parameters<typeof salonService.createService>[1]
+  ) {
+    return await salonService.createService(salonId, payload);
+  },
+
+  async updateService(
+    salonId: string,
+    serviceId: string,
+    payload: Record<string, unknown>
+  ) {
+    return await salonService.updateService(salonId, serviceId, payload);
+  },
+
+  async deleteService(salonId: string, serviceId: string) {
+    return await salonService.deleteService(salonId, serviceId);
   },
 };

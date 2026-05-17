@@ -79,7 +79,7 @@ export type OwnerSettingsStackParamList = {
 export type OwnerTabParamList = {
   Dashboard: NavigatorScreenParams<OwnerDashboardStackParamList>;
   Bookings: undefined;
-  Services: undefined;
+  Services: { openAddService?: boolean } | undefined;
   Settings: NavigatorScreenParams<OwnerSettingsStackParamList>;
 };
 

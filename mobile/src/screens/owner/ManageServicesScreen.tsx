@@ -1,40 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   FlatList,
   TouchableOpacity,
   Modal,
   Alert,
   Switch,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { ServiceCard } from '../../components/ServiceCard';
 import { ServiceListSkeleton } from '../../components/skeletons/ServiceListSkeleton';
-import { typography, spacing, borderRadius, shadows, formatPrice } from '../../lib/utils';
+import { ImageUploadField } from '../../components/ImageUploadField';
+import { OwnerSetupBanner } from '../../components/OwnerSetupBanner';
+import { ErrorState } from '../../components/ErrorState';
+import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme, Theme } from '../../theme/ThemeContext';
-
-import api from '../../lib/api';
 import { salonRepository } from '../../repositories/salonRepository';
+import { uploadServiceImage } from '../../services/uploadService';
 import { showToast } from '../../store/toastStore';
 import { Service, Salon } from '../../types';
-import { isAppError } from '../../types/error';
-import { handleApiError } from '../../lib/errorHandler';
-import axios from 'axios';
+import { getUserFacingMessage } from '../../lib/userFacingError';
+import { queryKeys } from '../../lib/queryKeys';
+import { useOwnerSalonQuery } from '../../hooks/useOwnerSalonQuery';
+import { useOwnerOnboardingStore } from '../../store/ownerOnboardingStore';
+import type { OwnerTabParamList } from '../../navigation/types';
 
 const EMPTY_FORM = {
   name: '',
@@ -46,156 +47,43 @@ const EMPTY_FORM = {
   discount_percentage: '',
 };
 
+type ServicesRoute = RouteProp<OwnerTabParamList, 'Services'>;
+
+function buildServicePayload(data: typeof EMPTY_FORM) {
+  const price = parseFloat(data.price);
+  const duration = parseInt(data.duration, 10);
+  if (!data.name.trim() || Number.isNaN(price) || price <= 0 || Number.isNaN(duration) || duration <= 0) {
+    return null;
+  }
+  return {
+    name: data.name.trim(),
+    description: data.description.trim() || undefined,
+    price,
+    duration,
+    image_url: data.image_url || null,
+    is_on_offer: data.is_on_offer,
+    discount_percentage:
+      data.is_on_offer && data.discount_percentage
+        ? parseInt(data.discount_percentage, 10)
+        : null,
+  };
+}
+
 export default function ManageServicesScreen() {
   const { theme } = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
+  const route = useRoute<ServicesRoute>();
   const queryClient = useQueryClient();
+
   const [modalVisible, setModalVisible] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
-  const [uploading, setUploading] = useState(false);
+  const [showSetupBanner, setShowSetupBanner] = useState(false);
 
-  const { data: salon, isLoading, refetch, isRefetching } = useQuery<Salon | null>({
-    queryKey: ['ownerSalon'],
-    queryFn: () => salonRepository.getOwnerSalon(),
-    staleTime: 0,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-  });
+  const { data: salon, isLoading, isError, error, refetch, isRefetching } = useOwnerSalonQuery();
 
-  const createMutation = useMutation({
-    mutationFn: async (data: typeof EMPTY_FORM) => {
-      const payload = {
-        name: data.name,
-        description: data.description,
-        price: parseFloat(data.price),
-        duration: parseInt(data.duration),
-        image_url: data.image_url || null,
-        is_on_offer: data.is_on_offer,
-        discount_percentage:
-          data.is_on_offer && data.discount_percentage ? parseInt(data.discount_percentage) : null,
-      };
-
-      // #region agent log
-      if (__DEV__) {
-        console.log('🛠️ [SERVICE][CREATE][REQ]', {
-          baseURL: (api as any)?.defaults?.baseURL,
-          salonId: salon?.id,
-          hasImageUrl: !!payload.image_url,
-          imageUrlPrefix: typeof payload.image_url === 'string' ? payload.image_url.slice(0, 32) : null,
-          isOnOffer: payload.is_on_offer,
-          hasDiscount: payload.discount_percentage !== null,
-          duration: payload.duration,
-          price: payload.price,
-        });
-      }
-      // #endregion
-
-      try {
-        const response = await api.post(`/salons/${salon!.id}/services`, payload);
-        // #region agent log
-        if (__DEV__) {
-          console.log('✅ [SERVICE][CREATE][RES]', {
-            status: response.status,
-            salonId: salon?.id,
-            serviceId: response.data?.id,
-          });
-        }
-        // #endregion
-        return response.data;
-      } catch (err: unknown) {
-        // #region agent log
-        if (__DEV__) {
-          const ax = axios.isAxiosError(err) ? err : null;
-          const appErr = isAppError(err) ? err : null;
-          console.log('❌ [SERVICE][CREATE][ERR_RAW]', {
-            salonId: salon?.id,
-            isAxiosError: axios.isAxiosError(err),
-            message: (err as any)?.message,
-            code: ax?.code,
-            status: ax?.response?.status,
-            responseDetail: ax?.response?.data?.detail,
-            normalized: appErr
-              ? {
-                  kind: appErr.kind,
-                  message: appErr.message,
-                  code: appErr.code,
-                  status: appErr.status,
-                  requestId: appErr.requestId,
-                  details: appErr.details,
-                }
-              : null,
-          });
-        }
-        // #endregion
-        throw err;
-      }
-    },
-    onSuccess: (created: Service) => {
-      // Update cache immediately so the list updates even before network refetch finishes.
-      queryClient.setQueryData(['ownerSalon'], (prev: Salon | null | undefined) => {
-        if (!prev) return prev ?? null;
-        const prevServices = Array.isArray(prev.services) ? prev.services : [];
-        const exists = prevServices.some((s) => s.id === created.id);
-        if (exists) return prev;
-        return { ...prev, services: [created, ...prevServices] };
-      });
-
-      queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
-      refetch();
-      closeModal();
-      showToast('Service created!', 'success');
-    },
-    onError: (error: unknown) => {
-      const appErr = handleApiError(error);
-      showToast(appErr.message, 'error');
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: typeof EMPTY_FORM }) => {
-      const response = await api.patch(`/salons/${salon!.id}/services/${id}`, {
-        name: data.name,
-        description: data.description,
-        price: parseFloat(data.price),
-        duration: parseInt(data.duration),
-        image_url: data.image_url || null,
-        is_on_offer: data.is_on_offer,
-        discount_percentage: data.is_on_offer && data.discount_percentage
-          ? parseInt(data.discount_percentage)
-          : null,
-      });
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
-      refetch();
-      closeModal();
-      showToast('Service updated!', 'success');
-    },
-    onError: (error: unknown) => {
-      const appErr = handleApiError(error);
-      showToast(appErr.message, 'error');
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/salons/${salon!.id}/services/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
-      refetch();
-      showToast('Service deleted', 'info');
-    },
-    onError: (error: unknown) => {
-      const appErr = handleApiError(error);
-      showToast(appErr.message, 'error');
-    },
-  });
-
-  const openModal = (service?: Service) => {
+  const openModal = useCallback((service?: Service) => {
     if (service) {
       setEditingService(service);
       setFormData({
@@ -205,131 +93,103 @@ export default function ManageServicesScreen() {
         duration: String(service.duration),
         image_url: service.image_url || '',
         is_on_offer: service.is_on_offer ?? false,
-        discount_percentage: service.discount_percentage ? String(service.discount_percentage) : '',
+        discount_percentage: service.discount_percentage
+          ? String(service.discount_percentage)
+          : '',
       });
     } else {
       setEditingService(null);
       setFormData(EMPTY_FORM);
     }
     setModalVisible(true);
-  };
+  }, []);
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setModalVisible(false);
     setEditingService(null);
     setFormData(EMPTY_FORM);
-  };
+  }, []);
 
-  // ── Image picker helpers (mirrors ManageSalonScreen pattern) ──────────────
-  const pickServiceImage = () => {
-    Alert.alert(
-      'Service Photo',
-      'Choose an option',
-      [
-        { text: 'Take Photo', onPress: () => launchCamera() },
-        { text: 'Choose from Gallery', onPress: () => launchGallery() },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
-  };
-
-  const launchCamera = async () => {
-    const { granted } = await ImagePicker.requestCameraPermissionsAsync();
-    if (!granted) {
-      Alert.alert('Permission Required', 'Please allow camera access to take a photo.');
-      return;
+  useEffect(() => {
+    const fromStore = useOwnerOnboardingStore.getState().consumePostSalonCreate();
+    const fromRoute = route.params?.openAddService === true;
+    if (fromStore || fromRoute) {
+      setShowSetupBanner(true);
+      openModal();
     }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-      allowsEditing: true,
-      aspect: [16, 9],
-      exif: false,
-    });
-    if (!result.canceled && result.assets[0]) {
-      await uploadServiceImage(result.assets[0].uri);
-    }
-  };
+  }, [route.params?.openAddService, openModal]);
 
-  const launchGallery = async () => {
-    const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!granted) {
-      Alert.alert('Permission Required', 'Please allow access to your photo library.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-      allowsEditing: true,
-      aspect: [16, 9],
-      exif: false,
-    });
-    if (!result.canceled && result.assets[0]) {
-      await uploadServiceImage(result.assets[0].uri);
-    }
-  };
-
-  const uploadServiceImage = async (uri: string) => {
-    setUploading(true);
-    try {
-      if (__DEV__) {
-        console.log('🖼️ [SERVICE][IMG][UPLOAD][START]', { uriPrefix: uri.slice(0, 32) });
-      }
-
-      // Normalize image size/format before upload (Expo Go compatible).
-      // Prevents huge uploads + ensures consistent JPEG thumbnails across devices.
-      const manipulated = await ImageManipulator.manipulateAsync(
-        uri,
-        [{ resize: { width: 1280 } }],
-        { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG }
-      );
-      if (__DEV__) {
-        console.log('🖼️ [SERVICE][IMG][MANIPULATED]', {
-          uriPrefix: manipulated.uri.slice(0, 32),
-          width: manipulated.width,
-          height: manipulated.height,
-        });
-      }
-
-      // Upload via backend (SERVICE ROLE) to bypass Supabase Storage RLS.
-      const form = new FormData();
-      const filePayload = {
-        uri: manipulated.uri,
-        name: 'service.jpg',
-        type: 'image/jpeg',
-      };
-      form.append('file', filePayload as unknown as Blob);
-
-      const res = await api.post('/uploads/service-image', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+  const patchSalonServices = useCallback(
+    (updater: (services: Service[]) => Service[]) => {
+      queryClient.setQueryData<Salon | null>(queryKeys.ownerSalon, (prev) => {
+        if (!prev) return prev ?? null;
+        const prevServices = Array.isArray(prev.services) ? prev.services : [];
+        return { ...prev, services: updater(prevServices) };
       });
+    },
+    [queryClient]
+  );
 
-      setFormData((prev) => ({ ...prev, image_url: res.data?.public_url || '' }));
-      if (__DEV__) {
-        console.log('🖼️ [SERVICE][IMG][UPLOAD][DONE]', {
-          publicUrlPrefix: (res.data?.public_url || '').slice(0, 48),
-        });
+  const createMutation = useMutation({
+    mutationFn: async (data: typeof EMPTY_FORM) => {
+      const payload = buildServicePayload(data);
+      if (!payload || !salon?.id) {
+        throw { kind: 'validation' as const, message: 'Please fill in name, price, and duration.' };
       }
-      showToast('Image uploaded!', 'success');
-    } catch (error: unknown) {
-      const appErr = handleApiError(error);
-      if (__DEV__) {
-        console.log('🖼️ [SERVICE][IMG][UPLOAD][FAIL]', {
-          message: appErr.message,
-          kind: appErr.kind,
-          code: appErr.code,
-          status: appErr.status,
-          details: appErr.details,
-        });
+      return salonRepository.createService(salon.id, payload);
+    },
+    onSuccess: (created: Service) => {
+      patchSalonServices((list) => {
+        if (list.some((s) => s.id === created.id)) return list;
+        return [created, ...list];
+      });
+      setShowSetupBanner(false);
+      closeModal();
+      showToast('Service created!', 'success');
+    },
+    onError: (err: unknown) => {
+      showToast(getUserFacingMessage(err), 'error');
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof EMPTY_FORM }) => {
+      const payload = buildServicePayload(data);
+      if (!payload || !salon?.id) {
+        throw { kind: 'validation' as const, message: 'Please fill in name, price, and duration.' };
       }
-      showToast(appErr.message, 'error');
-    } finally {
-      setUploading(false);
-    }
-  };
+      return salonRepository.updateService(salon.id, id, payload);
+    },
+    onSuccess: (updated: Service) => {
+      patchSalonServices((list) => list.map((s) => (s.id === updated.id ? updated : s)));
+      closeModal();
+      showToast('Service updated!', 'success');
+    },
+    onError: (err: unknown) => {
+      showToast(getUserFacingMessage(err), 'error');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!salon?.id) return;
+      await salonRepository.deleteService(salon.id, id);
+      return id;
+    },
+    onSuccess: (deletedId) => {
+      if (deletedId) {
+        patchSalonServices((list) => list.filter((s) => s.id !== deletedId));
+      }
+      showToast('Service deleted', 'info');
+    },
+    onError: (err: unknown) => {
+      showToast(getUserFacingMessage(err), 'error');
+    },
+  });
 
   const handleSubmit = () => {
-    if (!formData.name || !formData.price || !formData.duration) {
+    const payload = buildServicePayload(formData);
+    if (!payload) {
       showToast('Please fill in name, price, and duration', 'error');
       return;
     }
@@ -355,7 +215,14 @@ export default function ManageServicesScreen() {
     );
   };
 
+  const handleImageUpload = useCallback(
+    (localUri: string, onProgress: (pct: number) => void) =>
+      uploadServiceImage(localUri, onProgress),
+    []
+  );
+
   const services = salon?.services || [];
+  const isSaving = createMutation.isPending || updateMutation.isPending;
 
   if (isLoading) {
     return (
@@ -366,6 +233,18 @@ export default function ManageServicesScreen() {
         <View style={styles.skeletonContainer}>
           <ServiceListSkeleton count={3} />
         </View>
+      </ScreenWrapper>
+    );
+  }
+
+  if (isError) {
+    return (
+      <ScreenWrapper variant="tab">
+        <ErrorState
+          title="Could not load services"
+          message={getUserFacingMessage(error)}
+          onRetry={() => refetch()}
+        />
       </ScreenWrapper>
     );
   }
@@ -384,7 +263,6 @@ export default function ManageServicesScreen() {
 
   return (
     <ScreenWrapper variant="tab">
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Services</Text>
         <TouchableOpacity style={styles.addButton} onPress={() => openModal()}>
@@ -393,14 +271,27 @@ export default function ManageServicesScreen() {
         </TouchableOpacity>
       </View>
 
+      {showSetupBanner && services.length === 0 ? (
+        <OwnerSetupBanner
+          title="Salon created — nice work!"
+          message="Customers book services, not just salons. Add your first service with a photo and price to go live."
+          ctaLabel="Add your first service"
+          onPress={() => openModal()}
+          onDismiss={() => setShowSetupBanner(false)}
+        />
+      ) : null}
+
       <FlatList
         data={services}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.listContent, { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }]}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
-            onRefresh={refetch}
+            onRefresh={() => refetch()}
             colors={[theme.colors.primary]}
             tintColor={theme.colors.primary}
           />
@@ -408,8 +299,15 @@ export default function ManageServicesScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="pricetag-outline" size={48} color={theme.colors.textTertiary} />
-            <Text style={styles.emptyTitle}>No Services</Text>
-            <Text style={styles.emptyText}>Add your first service to get started.</Text>
+            <Text style={styles.emptyTitle}>No Services Yet</Text>
+            <Text style={styles.emptyText}>
+              Add haircuts, styling, and other services so customers can book you.
+            </Text>
+            <Button
+              title="Add your first service"
+              onPress={() => openModal()}
+              style={{ marginTop: spacing.lg }}
+            />
           </View>
         }
         renderItem={({ item }) => (
@@ -423,7 +321,6 @@ export default function ManageServicesScreen() {
         )}
       />
 
-      {/* Add/Edit Modal */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -439,7 +336,7 @@ export default function ManageServicesScreen() {
               <Text style={styles.modalTitle}>
                 {editingService ? 'Edit Service' : 'Add Service'}
               </Text>
-              <TouchableOpacity onPress={closeModal}>
+              <TouchableOpacity onPress={closeModal} accessibilityLabel="Close">
                 <Ionicons name="close" size={28} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
@@ -448,41 +345,23 @@ export default function ManageServicesScreen() {
               contentContainerStyle={styles.modalContent}
               keyboardShouldPersistTaps="handled"
             >
-              {/* ── Service Photo picker ── */}
-              <Text style={styles.photoLabel}>Service Photo</Text>
-              <View style={styles.photoRow}>
-                {formData.image_url ? (
-                  <View style={styles.photoPreviewWrapper}>
-                    <Image
-                      source={{ uri: formData.image_url }}
-                      style={styles.photoPreview}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity
-                      style={styles.photoRemoveBtn}
-                      onPress={() => setFormData((p) => ({ ...p, image_url: '' }))}
-                    >
-                      <Ionicons name="close-circle" size={22} color={theme.colors.error} />
-                    </TouchableOpacity>
-                  </View>
-                ) : null}
-                <TouchableOpacity
-                  style={styles.photoPickerBtn}
-                  onPress={pickServiceImage}
-                  disabled={uploading}
-                >
-                  {uploading ? (
-                    <ActivityIndicator color={theme.colors.primary} />
-                  ) : (
-                    <>
-                      <Ionicons name="camera" size={26} color={theme.colors.primary} />
-                      <Text style={styles.photoPickerText}>
-                        {formData.image_url ? 'Change' : 'Add Photo'}
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
+              {!editingService && showSetupBanner ? (
+                <View style={styles.modalHint}>
+                  <Ionicons name="information-circle" size={18} color={theme.colors.primary} />
+                  <Text style={styles.modalHintText}>
+                    Tip: Add a clear photo, fair price, and realistic duration — customers see this
+                    when booking.
+                  </Text>
+                </View>
+              ) : null}
+
+              <ImageUploadField
+                label="Service Photo"
+                value={formData.image_url}
+                onChange={(url) => setFormData((p) => ({ ...p, image_url: url }))}
+                onUpload={handleImageUpload}
+                disabled={isSaving}
+              />
 
               <Input
                 label="Service Name *"
@@ -505,7 +384,9 @@ export default function ManageServicesScreen() {
                     onChangeText={(v) => setFormData({ ...formData, price: v })}
                     placeholder="500"
                     keyboardType="numeric"
-                    icon={<Ionicons name="cash-outline" size={20} color={theme.colors.textSecondary} />}
+                    icon={
+                      <Ionicons name="cash-outline" size={20} color={theme.colors.textSecondary} />
+                    }
                   />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -515,42 +396,60 @@ export default function ManageServicesScreen() {
                     onChangeText={(v) => setFormData({ ...formData, duration: v })}
                     placeholder="30"
                     keyboardType="numeric"
-                    icon={<Ionicons name="time-outline" size={20} color={theme.colors.textSecondary} />}
+                    icon={
+                      <Ionicons name="time-outline" size={20} color={theme.colors.textSecondary} />
+                    }
                   />
                 </View>
               </View>
 
-              {/* ── Offer section ── */}
               <View style={styles.offerSection}>
                 <View style={styles.offerHeaderRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.offerTitle}>On Offer</Text>
-                    <Text style={styles.offerSubtitle}>Show a discount badge on this service</Text>
+                    <Text style={styles.offerSubtitle}>
+                      Show a discount badge on this service
+                    </Text>
                   </View>
                   <Switch
                     value={formData.is_on_offer}
-                    onValueChange={(v) => setFormData((p) => ({ ...p, is_on_offer: v, discount_percentage: v ? p.discount_percentage : '' }))}
-                    trackColor={{ false: theme.colors.border, true: theme.colors.primary + '80' }}
+                    onValueChange={(v) =>
+                      setFormData((p) => ({
+                        ...p,
+                        is_on_offer: v,
+                        discount_percentage: v ? p.discount_percentage : '',
+                      }))
+                    }
+                    trackColor={{
+                      false: theme.colors.border,
+                      true: theme.colors.primary + '80',
+                    }}
                     thumbColor={formData.is_on_offer ? theme.colors.primary : '#f4f3f4'}
                   />
                 </View>
-                {formData.is_on_offer && (
+                {formData.is_on_offer ? (
                   <Input
                     label="Discount %"
                     value={formData.discount_percentage}
                     onChangeText={(v) => setFormData((p) => ({ ...p, discount_percentage: v }))}
                     placeholder="e.g. 20"
                     keyboardType="numeric"
-                    icon={<Ionicons name="pricetag-outline" size={20} color={theme.colors.textSecondary} />}
+                    icon={
+                      <Ionicons
+                        name="pricetag-outline"
+                        size={20}
+                        color={theme.colors.textSecondary}
+                      />
+                    }
                   />
-                )}
+                ) : null}
               </View>
 
               <Button
                 title={editingService ? 'Update Service' : 'Create Service'}
                 onPress={handleSubmit}
-                loading={createMutation.isPending || updateMutation.isPending}
-                disabled={uploading}
+                loading={isSaving}
+                disabled={isSaving}
                 style={{ marginTop: spacing.lg }}
               />
             </ScrollView>
@@ -561,147 +460,110 @@ export default function ManageServicesScreen() {
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  skeletonContainer: {
-    paddingHorizontal: spacing.xl,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-  },
-  title: {
-    ...typography.h2,
-    color: theme.colors.text,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    gap: spacing.xs,
-  },
-  addButtonText: {
-    ...typography.buttonSmall,
-    color: theme.colors.background,
-  },
-  listContent: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xxxxl,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: spacing.xxxxl,
-    gap: spacing.md,
-  },
-  emptyTitle: {
-    ...typography.h3,
-    color: theme.colors.text,
-  },
-  emptyText: {
-    ...typography.body,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
-  // Modal
-  modalContainer: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  modalTitle: {
-    ...typography.h3,
-    color: theme.colors.text,
-  },
-  modalContent: {
-    padding: spacing.xl,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  // ── Photo picker ──
-  photoLabel: {
-    ...typography.bodySmallMedium,
-    color: theme.colors.textSecondary,
-    marginBottom: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  photoRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-    alignItems: 'flex-start',
-  },
-  photoPreviewWrapper: {
-    position: 'relative',
-  },
-  photoPreview: {
-    width: 90,
-    height: 90,
-    borderRadius: borderRadius.md,
-  },
-  photoRemoveBtn: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 11,
-  },
-  photoPickerBtn: {
-    width: 90,
-    height: 90,
-    borderRadius: borderRadius.md,
-    borderWidth: 2,
-    borderColor: theme.colors.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  photoPickerText: {
-    ...typography.caption,
-    color: theme.colors.primary,
-  },
-  // ── Offer section ──
-  offerSection: {
-    backgroundColor: theme.colors.surfaceSecondary,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    gap: spacing.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  offerHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  offerTitle: {
-    ...typography.bodySemiBold,
-    color: theme.colors.text,
-  },
-  offerSubtitle: {
-    ...typography.caption,
-    color: theme.colors.textSecondary,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    skeletonContainer: {
+      paddingHorizontal: spacing.xl,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.lg,
+    },
+    title: {
+      ...typography.h2,
+      color: theme.colors.text,
+    },
+    addButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.primary,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.full,
+      gap: spacing.xs,
+    },
+    addButtonText: {
+      ...typography.buttonSmall,
+      color: theme.colors.background,
+    },
+    listContent: {
+      paddingHorizontal: spacing.xl,
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: spacing.xxxxl,
+      paddingHorizontal: spacing.xl,
+      gap: spacing.md,
+    },
+    emptyTitle: {
+      ...typography.h3,
+      color: theme.colors.text,
+    },
+    emptyText: {
+      ...typography.body,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    modalTitle: {
+      ...typography.h3,
+      color: theme.colors.text,
+    },
+    modalContent: {
+      padding: spacing.xl,
+    },
+    modalHint: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      backgroundColor: theme.colors.primaryLight,
+      padding: spacing.md,
+      borderRadius: borderRadius.md,
+      marginBottom: spacing.lg,
+      alignItems: 'flex-start',
+    },
+    modalHintText: {
+      ...typography.bodySmall,
+      color: theme.colors.textSecondary,
+      flex: 1,
+      lineHeight: 20,
+    },
+    row: {
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
+    offerSection: {
+      backgroundColor: theme.colors.surfaceSecondary,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+      gap: spacing.md,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    offerHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    offerTitle: {
+      ...typography.bodySemiBold,
+      color: theme.colors.text,
+    },
+    offerSubtitle: {
+      ...typography.caption,
+      color: theme.colors.textSecondary,
+    },
+  });

@@ -240,7 +240,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
         <EmptyState
           icon="storefront-outline"
           title="Create Your Salon"
-          message="Set up your salon profile to start accepting bookings and tracking your business."
+          message="Set up your salon profile, then add services so customers can book you."
           action={{ label: 'Create Salon', onPress: () => navigation.navigate('ManageSalon') }}
         />
       </ScreenWrapper>

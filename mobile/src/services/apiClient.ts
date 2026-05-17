@@ -1,9 +1,13 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import NetInfo from '@react-native-community/netinfo';
 import { handleApiError } from '../lib/errorHandler';
 import { buildConfig } from '../lib/buildConfig';
 import { createIdempotencyKey, pathRequiresIdempotencyKey } from '../lib/idempotency';
+import { showToast } from '../store/toastStore';
+
+let lastOfflineToastAt = 0;
 
 const LOCAL_PORT = '8000';
 
@@ -58,6 +62,21 @@ function getRequestUrl(config: InternalAxiosRequestConfig): string {
 
 apiClient.interceptors.request.use(
   async (config) => {
+    const net = await NetInfo.fetch();
+    const offline = !(net.isConnected && net.isInternetReachable !== false);
+    if (offline) {
+      const now = Date.now();
+      if (now - lastOfflineToastAt > 4000) {
+        lastOfflineToastAt = now;
+        showToast('No internet connection. Please check your network and try again.', 'warning');
+      }
+      return Promise.reject({
+        kind: 'network' as const,
+        message: 'No internet connection. Please check your network and try again.',
+        code: 'OFFLINE',
+      });
+    }
+
     const method = (config.method || 'get').toLowerCase();
     if (method === 'post' && pathRequiresIdempotencyKey(config.url)) {
       const headers = config.headers ?? {};
@@ -122,7 +141,8 @@ apiClient.interceptors.response.use(
 
     const normalizedError = handleApiError(error);
     if (__DEV__) {
-      const log = normalizedError.kind === 'server' || normalizedError.kind === 'network' ? console.error : console.warn;
+      const log =
+        normalizedError.kind === 'server' ? console.error : console.warn;
       log('❌ [API][ERR]', {
         kind: normalizedError.kind,
         message: normalizedError.message,
