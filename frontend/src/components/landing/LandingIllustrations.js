@@ -1,6 +1,6 @@
 import React from 'react';
 
-/** Abstract salon / booking motif for hero panel */
+/** Salon booking confirmed — upbeat motif (no face-like shapes) */
 export function HeroAccentIllustration({ className = '' }) {
   return (
     <svg
@@ -12,16 +12,50 @@ export function HeroAccentIllustration({ className = '' }) {
     >
       <circle cx="200" cy="200" r="160" stroke="rgba(251,146,60,0.35)" strokeWidth="1.5" />
       <circle cx="200" cy="200" r="120" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+
+      {/* Calendar — booking at a glance */}
+      <rect x="118" y="118" width="164" height="148" rx="20" fill="rgba(255,247,237,0.95)" />
+      <rect x="118" y="118" width="164" height="40" rx="20" fill="rgba(234,88,12,0.9)" />
+      <circle cx="148" cy="138" r="6" fill="rgba(255,237,213,0.9)" />
+      <circle cx="252" cy="138" r="6" fill="rgba(255,237,213,0.9)" />
+      <path d="M148 178h32M148 206h48M148 234h40" stroke="rgba(120,53,15,0.35)" strokeWidth="3" strokeLinecap="round" />
+      <path d="M212 178h48M212 206h32" stroke="rgba(120,53,15,0.25)" strokeWidth="3" strokeLinecap="round" />
+
+      {/* Confirmed check — positive completion */}
+      <circle cx="268" cy="248" r="36" fill="rgba(22,163,74,0.92)" />
       <path
-        d="M120 240c40-60 120-60 160 0M140 160h120M160 140v40M240 140v40"
-        stroke="rgba(255,237,213,0.9)"
-        strokeWidth="3"
+        d="M252 248l12 12 24-28"
+        stroke="#fff"
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* Scissors — salon cue */}
+      <g transform="translate(88 92) rotate(-18)">
+        <circle cx="18" cy="18" r="14" stroke="rgba(255,237,213,0.95)" strokeWidth="3" fill="none" />
+        <circle cx="42" cy="42" r="14" stroke="rgba(255,237,213,0.95)" strokeWidth="3" fill="none" />
+        <path d="M28 28 L52 52" stroke="rgba(251,146,60,0.95)" strokeWidth="3" strokeLinecap="round" />
+      </g>
+
+      {/* Upward celebration arc */}
+      <path
+        d="M96 292 Q200 340 304 292"
+        stroke="rgba(251,146,60,0.55)"
+        strokeWidth="2.5"
+        fill="none"
         strokeLinecap="round"
       />
-      <rect x="155" y="250" width="90" height="56" rx="12" fill="rgba(154,52,18,0.85)" />
-      <path d="M175 278h50M175 292h35" stroke="rgba(255,237,213,0.7)" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="290" cy="130" r="8" fill="#fb923c" opacity="0.9" />
-      <circle cx="110" cy="280" r="6" fill="#fdba74" opacity="0.8" />
+
+      <circle cx="300" cy="118" r="9" fill="#fb923c" opacity="0.95" />
+      <circle cx="92" cy="268" r="7" fill="#fdba74" opacity="0.85" />
+      <path
+        d="M318 168l6 12 14-18"
+        stroke="#fde68a"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
