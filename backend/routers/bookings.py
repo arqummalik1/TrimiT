@@ -541,7 +541,7 @@ async def get_booking(booking_id: str, current_user: dict = Depends(get_current_
 
 
 @router.post("/reserve")
-@limiter.limit("5/minute")
+@limiter.limit("30/minute")
 async def reserve_slot(request: Request, data: SlotReserve, current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id")
     token = current_user.get("access_token")
@@ -656,34 +656,9 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
                 detail={"code": "PROMO_ERROR", "message": "Failed to validate promo code"}
             )
     
-    # 2. Check if user has an active hold for this slot
-    # This prevents users from skipping the reservation step or someone stealing it during payment
-    holds_query = (
-        f"rest/v1/slot_holds?salon_id=eq.{data.salon_id}"
-        f"&booking_date=eq.{data.booking_date}"
-        f"&user_id=eq.{user_id}"
-        f"&expires_at=gt.{datetime.now(timezone.utc).isoformat()}"
-    )
-    # Service role: user JWT + RLS can hide the caller's own holds from this pre-check.
-    hold_resp = await supabase.request("GET", holds_query, service_role=True)
-    hold_rows = hold_resp.json() if hold_resp.status_code == 200 else []
-    norm_slot = _slot_time_key(data.time_slot)
-    if not norm_slot or not _has_active_hold(hold_rows, str(user_id), norm_slot):
-        logger.warning(
-            "[CREATE_BOOKING] HOLD_REQUIRED user=%s salon=%s date=%s slot=%s holds_found=%s",
-            user_id,
-            data.salon_id,
-            data.booking_date,
-            norm_slot,
-            len(hold_rows),
-        )
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "code": "HOLD_REQUIRED",
-                "message": "Reserve this slot before confirming your booking.",
-            },
-        )
+    # Hold enforcement is handled atomically inside create_atomic_booking RPC
+    # (migration 29 line 183: requires v_has_own_hold for single-booking salons).
+    # Keep this layer thin — let the DB be the single source of truth.
 
     # 3. Create booking via RPC (Atomic)
     rpc_payload = {
@@ -721,11 +696,19 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
     result = response.json()
     if not result.get("success"):
         error_msg = result.get("error", "Slot unavailable")
-        # Map specific Supabase RPC errors to codes
-        code = "SLOT_OCCUPIED" if "taken" in error_msg.lower() or "occupied" in error_msg.lower() else "BOOKING_FAILED"
+        lower = error_msg.lower()
+        if "reservation" in lower or "hold" in lower:
+            code = "HOLD_REQUIRED"
+            user_msg = "Please tap your time slot again — your hold expired."
+        elif "taken" in lower or "occupied" in lower or "booked" in lower or "capacity" in lower:
+            code = "SLOT_OCCUPIED"
+            user_msg = "This slot was just taken. Please pick another time."
+        else:
+            code = "BOOKING_FAILED"
+            user_msg = error_msg
         raise HTTPException(
-            status_code=409, 
-            detail={"code": code, "message": error_msg}
+            status_code=409,
+            detail={"code": code, "message": user_msg}
         )
 
     booking_id = result.get("booking_id")

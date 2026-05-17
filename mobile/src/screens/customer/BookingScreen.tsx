@@ -579,7 +579,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
         setBookingComplete(true);
       }
     },
-    onError: async (error: unknown) => {
+    onError: (error: unknown) => {
       logger.debug('[BookingFlow] booking.create.error', { error: String(error) });
       const appErr = isAppError(error) ? error : handleApiError(error);
       const errorDetail = appErr.message || 'Failed to create booking';
@@ -588,30 +588,14 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       queryClient.invalidateQueries({ queryKey: ['slots', salonId, serviceId, selectedDate] });
       refetchSlots();
 
-      const isHoldRequired = appErr.code === 'HOLD_REQUIRED';
-      const isSlotGone =
-        (appErr.kind === 'conflict' || statusCode === 409) && !isHoldRequired;
+      const isConflict = appErr.kind === 'conflict' || statusCode === 409;
       const isHoldExpired =
         statusCode === 400 &&
         (errorDetail.toLowerCase().includes('hold') ||
           errorDetail.toLowerCase().includes('expired') ||
           errorDetail.toLowerCase().includes('unavailable'));
 
-      if (isHoldRequired && selectedSlot) {
-        try {
-          await reserveMutation.mutateAsync(selectedSlot);
-          bookingMutation.mutate();
-          return;
-        } catch {
-          Alert.alert(
-            'Could not reserve slot',
-            'Please tap your time slot again, wait a moment, then confirm.'
-          );
-          return;
-        }
-      }
-
-      if (isSlotGone || isHoldExpired) {
+      if (isConflict || isHoldExpired) {
         resetBookingAttempt();
         setSelectedSlot(null);
         setHoldId(null);
@@ -620,12 +604,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
-        Alert.alert(
-          isHoldRequired ? 'Booking Conflict' : 'Slot Unavailable',
-          isHoldExpired
-            ? 'Your hold expired or this slot was taken. Please pick a time again.'
-            : errorDetail
-        );
+        Alert.alert('Slot Unavailable', errorDetail || 'Please pick a time slot again.');
         setSlotConflictError(errorDetail);
         return;
       }
