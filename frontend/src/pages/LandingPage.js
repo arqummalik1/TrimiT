@@ -114,7 +114,7 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-stone-50">
       {/* Hero */}
-      <section className="relative min-h-[92vh] flex items-center overflow-hidden">
+      <section className="relative min-h-[85vh] sm:min-h-[92vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
           <LazyImage
             src={LANDING_HERO.src}
@@ -135,7 +135,7 @@ const LandingPage = () => {
           />
         </div>
 
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <motion.div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, y: 24 }}
@@ -148,11 +148,11 @@ const LandingPage = () => {
                   Premium salon booking
                 </span>
               </div>
-              <h1 className="font-heading text-4xl sm:text-5xl md:text-6xl font-extrabold text-white leading-[1.05] tracking-tight mb-6">
+              <h1 className="font-heading text-3xl sm:text-5xl md:text-6xl font-extrabold text-white leading-[1.05] tracking-tight mb-6">
                 Book your perfect
                 <span className="block text-orange-400 mt-1">salon experience</span>
               </h1>
-              <p className="text-lg text-stone-200/95 max-w-xl leading-relaxed mb-8">
+              <p className="text-base sm:text-lg text-stone-200/95 max-w-xl leading-relaxed mb-8">
                 Discover salons, reserve your slot, and manage appointments — one elegant app for
                 customers and owners across India.
               </p>
@@ -160,7 +160,7 @@ const LandingPage = () => {
                 <Link
                   to={getStartedLink()}
                   data-testid="hero-get-started"
-                  className="btn-primary inline-flex items-center justify-center gap-2 text-base sm:text-lg px-8 py-4 shadow-lg shadow-orange-900/30"
+                  className="btn-primary w-full sm:w-auto inline-flex items-center justify-center gap-2 text-base sm:text-lg px-8 py-4 shadow-lg shadow-orange-900/30"
                 >
                   <Users size={22} weight="bold" />
                   Find salons
@@ -169,11 +169,14 @@ const LandingPage = () => {
                 <Link
                   to="/signup?role=owner"
                   data-testid="hero-list-salon"
-                  className="inline-flex items-center justify-center gap-2 text-base sm:text-lg px-8 py-4 rounded-full font-semibold text-white bg-white/10 border border-white/25 backdrop-blur-md hover:bg-white/20 transition-all"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-base sm:text-lg px-8 py-4 rounded-full font-semibold text-white bg-white/10 border border-white/25 backdrop-blur-md hover:bg-white/20 transition-all"
                 >
                   <Storefront size={22} weight="duotone" />
                   List your salon
                 </Link>
+              </div>
+              <div className="lg:hidden flex justify-center mt-10">
+                <HeroAccentIllustration className="w-56 sm:w-64 h-auto drop-shadow-xl opacity-95" />
               </div>
             </motion.div>
 
@@ -189,10 +192,10 @@ const LandingPage = () => {
               </div>
             </motion.div>
           </div>
-        </div>
+        </motion.div>
 
         <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
+          className="hidden sm:block absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
           animate={{ y: [0, 8, 0] }}
           transition={{ repeat: Infinity, duration: 2.2 }}
         >
@@ -246,16 +249,16 @@ const LandingPage = () => {
       </section>
 
       {/* What we offer — local service photos with SVG fallback */}
-      <section className="py-24 px-4 bg-stone-50">
+      <section className="py-16 sm:py-24 px-4 bg-stone-50">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
+          <div className="text-center mb-10 sm:mb-14">
             <span className="text-xs font-bold tracking-[0.2em] uppercase text-orange-800">Services</span>
-            <h2 className="font-heading text-4xl md:text-5xl font-bold text-stone-900 mt-3">What we offer</h2>
+            <h2 className="font-heading text-3xl sm:text-4xl md:text-5xl font-bold text-stone-900 mt-3">What we offer</h2>
             <p className="text-stone-500 mt-3 max-w-xl mx-auto">
               From quick trims to full spa days — book the experience that fits you.
             </p>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {services.map((s, i) => (
               <motion.div
                 key={s.name}
@@ -270,7 +273,7 @@ const LandingPage = () => {
                 <div className="absolute top-3 left-3 sm:top-4 sm:left-4 w-10 h-10 rounded-xl bg-white/95 shadow-md flex items-center justify-center ring-1 ring-white/80">
                   <s.icon size={20} weight="duotone" className="text-orange-800" />
                 </div>
-                <h3 className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 font-heading text-base sm:text-lg font-bold text-white leading-snug">
+                <h3 className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 font-heading text-sm sm:text-lg font-bold text-white leading-snug">
                   {s.name}
                 </h3>
               </motion.div>
@@ -280,10 +283,10 @@ const LandingPage = () => {
       </section>
 
       {/* Mobile app */}
-      <section className="py-20 px-4 bg-white border-y border-stone-100">
-        <div className="max-w-3xl mx-auto text-center">
+      <section className="py-16 sm:py-20 px-4 bg-white border-y border-stone-100">
+        <div className="max-w-3xl mx-auto text-center px-2">
           <DeviceMobile size={36} weight="duotone" className="text-orange-800 mx-auto mb-4" />
-          <h2 className="font-heading text-3xl sm:text-4xl font-bold text-stone-900 mb-4">
+          <h2 className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold text-stone-900 mb-4">
             Get the best TrimiT experience on Android
           </h2>
           <p className="text-stone-600 leading-relaxed mb-8">
@@ -294,7 +297,7 @@ const LandingPage = () => {
             href={DOWNLOAD_APP_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-orange-800 text-white font-semibold hover:bg-orange-900 transition-colors shadow-md"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-orange-800 text-white font-semibold hover:bg-orange-900 transition-colors shadow-md"
             data-testid="landing-download-android"
           >
             <GooglePlayLogo size={24} weight="fill" />
@@ -343,7 +346,7 @@ const LandingPage = () => {
           </div>
           <Link
             to="/signup?role=owner"
-            className="shrink-0 inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-900 rounded-full font-bold hover:bg-orange-50 transition-colors"
+            className="w-full md:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-orange-900 rounded-full font-bold hover:bg-orange-50 transition-colors"
           >
             Partner with us
             <ArrowRight size={20} weight="bold" />
