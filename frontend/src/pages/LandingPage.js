@@ -19,6 +19,7 @@ import TrimitLogo from '../components/brand/TrimitLogo';
 import { LazyImage } from '../components/ui/LazyImage';
 import { LANDING_HERO } from '../lib/landingAssets';
 import { HeroAccentIllustration, StepIllustration } from '../components/landing/LandingIllustrations';
+import { ServiceIllustration } from '../components/landing/ServiceIllustrations';
 
 const features = [
   {
@@ -51,24 +52,28 @@ const services = [
   {
     name: 'Haircut & styling',
     icon: Sparkle,
+    illustration: 'haircut',
     gradient: 'from-amber-100 via-orange-50 to-stone-100',
     ring: 'ring-orange-200/60',
   },
   {
     name: 'Spa & wellness',
     icon: Clock,
+    illustration: 'spa',
     gradient: 'from-stone-100 via-rose-50 to-orange-50',
     ring: 'ring-stone-200/80',
   },
   {
     name: 'Beard grooming',
     icon: ShieldCheck,
+    illustration: 'beard',
     gradient: 'from-orange-100 via-amber-50 to-stone-50',
     ring: 'ring-amber-200/60',
   },
   {
     name: 'Skin & facial',
     icon: Star,
+    illustration: 'facial',
     gradient: 'from-rose-50 via-orange-50 to-amber-50',
     ring: 'ring-rose-200/50',
   },
@@ -241,7 +246,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* What we offer — illustrated (no slow external photos) */}
+      {/* What we offer — premium inline illustrations (fast, no external images) */}
       <section className="py-24 px-4 bg-stone-50">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
@@ -261,14 +266,25 @@ const LandingPage = () => {
                 transition={{ delay: i * 0.06 }}
                 className={`relative aspect-[4/5] rounded-3xl overflow-hidden bg-gradient-to-br ${s.gradient} ring-1 ${s.ring} group hover:shadow-xl hover:-translate-y-1 transition-all duration-300`}
               >
-                <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/40 blur-2xl group-hover:scale-125 transition-transform" />
-                <div className="relative h-full flex flex-col justify-between p-5 sm:p-6">
-                  <div className="w-12 h-12 rounded-xl bg-white/90 shadow-sm flex items-center justify-center">
-                    <s.icon size={26} weight="duotone" className="text-orange-800" />
+                <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/50 blur-2xl group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute -left-4 bottom-20 w-20 h-20 rounded-full bg-orange-200/30 blur-xl" />
+                <motion.div className="relative h-full flex flex-col">
+                  <div className="flex items-center p-4 sm:p-5 pb-0">
+                    <div className="w-11 h-11 rounded-xl bg-white/95 shadow-md flex items-center justify-center ring-1 ring-white/80">
+                      <s.icon size={22} weight="duotone" className="text-orange-800" />
+                    </div>
                   </div>
-                  <h3 className="font-heading text-base sm:text-lg font-bold text-stone-900 leading-snug">
-                    {s.name}
-                  </h3>
+                  <div className="flex-1 flex items-center justify-center px-3 py-2 min-h-[120px]">
+                    <ServiceIllustration
+                      type={s.illustration}
+                      className="w-full h-full max-h-[min(52vw,200px)] drop-shadow-sm group-hover:scale-[1.03] transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="p-4 sm:p-5 pt-2 bg-gradient-to-t from-white/80 via-white/50 to-transparent">
+                    <h3 className="font-heading text-base sm:text-lg font-bold text-stone-900 leading-snug">
+                      {s.name}
+                    </h3>
+                  </div>
                 </div>
               </motion.div>
             ))}
