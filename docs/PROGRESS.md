@@ -3,8 +3,8 @@
 > **Purpose:** Single source of truth for humans and AI tools on where TrimiT stands.  
 > **Update rule:** Append a session entry and refresh status tables after every meaningful prompt or deploy.
 
-**Last updated:** 2026-05-17 (trimit.online + web polish + auth email)  
-**Overall readiness:** **8.4 / 10** — Mobile launch path clear; **web marketing + auth email** production-ready after Vercel/Render deploy verify  
+**Last updated:** 2026-05-17 (landing v2 + AAB build in flight)  
+**Overall readiness:** **8.5 / 10** — Web marketing polished; **mobile AAB + device QA** are the critical path to Play production  
 **Latest audit:** [PRODUCTION_AUDIT_REPORT.md](./PRODUCTION_AUDIT_REPORT.md)  
 **Launch checklist:** [PRODUCTION_LAUNCH_CHECKLIST.md](./PRODUCTION_LAUNCH_CHECKLIST.md)
 
@@ -43,7 +43,8 @@ See [PRODUCTION_LAUNCH_CHECKLIST.md](./PRODUCTION_LAUNCH_CHECKLIST.md).
 
 | Date | Summary | Next |
 |------|---------|------|
-| 2026-05-17 (night) | **Production domain & web:** `trimit.online` everywhere (code, legal, Render `PUBLIC_SITE_URL`, Vercel). **Auth email:** Resend SMTP + Supabase custom SMTP (user configured); friendly rate-limit copy; `hello@trimit.online` support. **Web UX:** premium landing (optimized hero, illustrated “What we offer”, stats, how-it-works), TrimiT logo PNG sitewide, header **Download App** (animated border) + footer badges → **Google Drive APK** until Play listing. Guides: `TRIMIT_ONLINE_SETUP.md`, `REMAINING_STEPS_TRIMIT_ONLINE.md`, `AUTH_SMTP_AND_PHONE_OTP_GUIDE.md`. Pushed: `0ba9f645` (domain/auth), `84fc83b3` (download CTA). | E2E signup email test → push landing/logo if local → Play AAB. |
+| 2026-05-17 (late) | **Landing page v2:** Service card illustrations (`frontend/public/images/services/`), upbeat hero graphic + horizontal logo white-box fix, **Get the Android app** section, Vercel JSX build fix, mobile-responsive layout. Pushed through `5f0962b7`. **Mobile:** `npm run verify:env && npm run build:aab:local` started (Play Store AAB). | Confirm Vercel deploy live → auth signup E2E → finish AAB → install on Android 13+ → QA matrix. |
+| 2026-05-17 (night) | **Production domain & web:** `trimit.online` everywhere (code, legal, Render `PUBLIC_SITE_URL`, Vercel). **Auth email:** Resend SMTP + Supabase custom SMTP (user configured); friendly rate-limit copy; `hello@trimit.online` support. **Web UX:** premium landing (hero, illustrated “What we offer”, stats, how-it-works), TrimiT logo PNG sitewide, header **Download App** + footer badges → **Google Drive APK** until Play listing. Guides: `TRIMIT_ONLINE_SETUP.md`, `REMAINING_STEPS_TRIMIT_ONLINE.md`, `AUTH_SMTP_AND_PHONE_OTP_GUIDE.md`. Pushed: `0ba9f645`, `84fc83b3`, `b1bc5669`. | (superseded by late session) |
 | 2026-05-17 (eve) | **MVP launch remediation** implemented: hold required, slots auth, duration overlap, idempotency INSERT-first, Write Review CTA, booking UX, Discover map pause. See audit §19. | Deploy → QA → production AAB. |
 | 2026-05-17 (pm) | User **applied Supabase migrations 29–35** in SQL editor. Re-audit completed. Critical DB blockers **resolved**. | — |
 | 2026-05-17 (am) | Production audit + phases 0–6 **code** remediation. Created `PROGRESS.md`, `V1_FEATURE_FLAGS.md`. | Migrations (done by user). |
@@ -55,10 +56,10 @@ See [PRODUCTION_LAUNCH_CHECKLIST.md](./PRODUCTION_LAUNCH_CHECKLIST.md).
 
 | Area | Stack | Status |
 |------|--------|--------|
-| Mobile | Expo SDK 54, RN 0.81, React 19 | MVP remediation in repo; **build + device QA pending** |
+| Mobile | Expo SDK 54, RN 0.81, React 19 | MVP remediation in repo; **AAB build in progress**; device QA pending |
 | Backend | FastAPI `/api/v1` | **Must deploy** to Render if not already |
 | Database | Supabase | **Migrations 01–35 applied** (user confirmed 2026-05-17) |
-| Web | CRA `frontend/` at **https://trimit.online** | **CODE_DONE** — premium landing, logo, APK download CTA; Vercel deploy verify |
+| Web | CRA `frontend/` at **https://trimit.online** | **CODE_DONE** — landing v2 (hero, service art, Android section); **verify Vercel** after `5f0962b7` |
 
 **Launch scope:** Narrow v1 — cash-only, staff UI off, single-booking salons preferred.
 
@@ -126,7 +127,7 @@ Full detail: [PRODUCTION_AUDIT_REPORT.md](./PRODUCTION_AUDIT_REPORT.md).
 | 4 | Owner foreground → one in-app alert | **PENDING** |
 | 5 | Cancel on A → B slots refresh | **PENDING** |
 | 6 | Cash booking E2E → Bookings tab | **PENDING** |
-| 7 | Release AAB + `npm run verify:env` | **PENDING** |
+| 7 | Release AAB + `npm run verify:env` | **IN_PROGRESS** (local `build:aab:local` 2026-05-17) |
 | 8 | Supabase: anon cannot execute `create_atomic_booking` | **PENDING** |
 
 ---
@@ -140,6 +141,7 @@ Full detail: [PRODUCTION_AUDIT_REPORT.md](./PRODUCTION_AUDIT_REPORT.md).
 | Render `PUBLIC_SITE_URL` | **DONE** (user) | `https://trimit.online` |
 | Signup / reset email E2E test | **PENDING** | New Gmail, check spam |
 | APK distribution | **CODE_DONE** | Drive folder via header/footer until Play Store |
+| Landing v2 on production | **PENDING** | Redeploy/confirm Vercel after `5f0962b7` |
 | Phone OTP login | **DEFERRED** | See `AUTH_SMTP_AND_PHONE_OTP_GUIDE.md` |
 | Compress `logo-horizontal.png` (~500KB) | **OPTIONAL** | Faster hero load |
 
@@ -152,8 +154,8 @@ Full detail: [PRODUCTION_AUDIT_REPORT.md](./PRODUCTION_AUDIT_REPORT.md).
 | ~~1~~ | Apply SQL 29–35 | **DONE** |
 | ~~2~~ | Render `PUBLIC_SITE_URL` + deploy | **DONE** (user) — verify live `/health` |
 | ~~3~~ | Supabase SMTP + Resend domain | **DONE** (user) — verify signup email |
-| 4 | Device QA matrix | **PENDING** |
-| 5 | Play Console production listing + AAB upload | **PENDING** |
+| 4 | Device QA matrix | **PENDING** (blocked on AAB install) |
+| 5 | Play Console production listing + AAB upload | **PENDING** (AAB build in progress) |
 | 6 | Auth signup E2E (email → trimit.online confirm page) | **PENDING** |
 
 ---
