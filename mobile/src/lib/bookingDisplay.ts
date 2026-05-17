@@ -31,7 +31,9 @@ export function getBookingServiceImageUri(booking: Booking): string {
   if (service) {
     return resolveServiceImage(service);
   }
-  const salonFirst = booking.salons?.images?.[0];
+  const salonFirst =
+    booking.salons?.images?.[0] ||
+    (typeof booking.salons?.image_url === 'string' ? booking.salons.image_url : undefined);
   if (salonFirst) {
     return salonFirst;
   }

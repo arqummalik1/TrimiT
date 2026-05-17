@@ -38,6 +38,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDiscoverLocation } from '../../hooks/useDiscoverLocation';
 import { showToast } from '../../store/toastStore';
 import { Salon } from '../../types';
+import { normalizeSalon } from '../../lib/salonImage';
 import { spacing, borderRadius, typography, fonts } from '../../lib/utils';
 import { PermissionPrimer } from '../../components/PermissionPrimer';
 import { useTheme } from '../../theme/ThemeContext';
@@ -163,7 +164,9 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   const allSalons = useMemo(() => {
     const pages = salonPages?.pages;
     if (!pages) return [];
-    const flat = pages.flatMap((page) => page.data ?? []);
+    const flat = pages.flatMap((page) =>
+      ((page.data ?? []) as Salon[]).map((row: Salon) => normalizeSalon(row))
+    );
     logger.debug(`${LOG} flattened salons`, { total: flat.length, pages: pages.length });
     return flat;
   }, [salonPages]);

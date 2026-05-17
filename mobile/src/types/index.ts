@@ -33,6 +33,8 @@ export interface Salon {
   phone: string;
   opening_time: string;
   closing_time: string;
+  /** Primary thumbnail (synced with images[0] on save). */
+  image_url?: string | null;
   images: string[];
   allow_multiple_bookings_per_slot?: boolean;
   max_bookings_per_slot?: number;

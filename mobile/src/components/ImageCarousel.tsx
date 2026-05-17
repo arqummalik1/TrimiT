@@ -7,23 +7,39 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
-import { Image } from 'expo-image';
-import { borderRadius, DEFAULT_SALON_IMAGE } from '../lib/utils';
+import { Image, ImageSource } from 'expo-image';
 import { useTheme } from '../theme/ThemeContext';
+import { resolveSalonCarouselSources } from '../lib/salonImage';
+import type { Salon } from '../types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface ImageCarouselProps {
-  images: string[];
+  /** Remote URLs (legacy) — prefer `sources` or `salon`. */
+  images?: string[];
+  /** Full expo-image sources (remote URI or local require). */
+  sources?: ImageSource[];
+  /** Salon hero — resolves images + TrimiT logo fallback. */
+  salon?: Partial<Salon>;
   height?: number;
 }
 
-export default function ImageCarousel({ images, height = 280 }: ImageCarouselProps) {
+export default function ImageCarousel({
+  images,
+  sources,
+  salon,
+  height = 280,
+}: ImageCarouselProps) {
   const { theme } = useTheme();
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
-  const displayImages = images.length > 0 ? images : [DEFAULT_SALON_IMAGE];
+  const displaySources: ImageSource[] = React.useMemo(() => {
+    if (sources && sources.length > 0) return sources;
+    if (salon) return resolveSalonCarouselSources(salon);
+    if (images && images.length > 0) return images.map((uri) => ({ uri }));
+    return resolveSalonCarouselSources({});
+  }, [sources, salon, images]);
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
@@ -34,25 +50,28 @@ export default function ImageCarousel({ images, height = 280 }: ImageCarouselPro
     <View style={[styles.container, { height }]}>
       <FlatList
         ref={flatListRef}
-        data={displayImages}
+        data={displaySources}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        keyExtractor={(item) => item}
+        keyExtractor={(_, index) => String(index)}
         renderItem={({ item }) => (
           <Image
-            source={{ uri: item }}
-            style={[styles.image, { height, width: SCREEN_WIDTH, backgroundColor: theme.colors.shimmer }]}
+            source={item}
+            style={[
+              styles.image,
+              { height, width: SCREEN_WIDTH, backgroundColor: theme.colors.shimmer },
+            ]}
             contentFit="cover"
             transition={300}
           />
         )}
       />
-      {displayImages.length > 1 && (
+      {displaySources.length > 1 && (
         <View style={styles.pagination}>
-          {displayImages.map((_, index) => (
+          {displaySources.map((_, index) => (
             <View
               key={index}
               style={[
@@ -73,9 +92,7 @@ const styles = StyleSheet.create({
   container: {
     position: 'relative',
   },
-  image: {
-    // backgroundColor applied inline from theme
-  },
+  image: {},
   pagination: {
     position: 'absolute',
     bottom: 16,
@@ -93,5 +110,4 @@ const styles = StyleSheet.create({
   dotActive: {
     width: 24,
   },
-  dotInactive: {},
 });

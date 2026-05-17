@@ -27,6 +27,7 @@ import { queryKeys } from '../../lib/queryKeys';
 import { navigateOwnerToServices } from '../../lib/ownerNavigation';
 import { useOwnerOnboardingStore } from '../../store/ownerOnboardingStore';
 import { uploadServiceImage } from '../../services/uploadService';
+import { normalizeSalon } from '../../lib/salonImage';
 import { OwnerDashboardScreenProps, OwnerSettingsScreenProps } from '../../navigation/types';
 import { LocationPickerModal } from '../../components/LocationPickerModal';
 import { SalonMapMarker } from '../../components/SalonMapMarker';
@@ -91,17 +92,18 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
 
   useEffect(() => {
     if (salon) {
+      const normalized = normalizeSalon(salon);
       setFormData({
-        name: salon.name || '',
-        description: salon.description || '',
-        address: salon.address || '',
-        city: salon.city || '',
-        latitude: String(salon.latitude || 28.6139),
-        longitude: String(salon.longitude || 77.2090),
-        phone: salon.phone || '',
-        opening_time: salon.opening_time || '09:00',
-        closing_time: salon.closing_time || '21:00',
-        images: salon.images || [],
+        name: normalized.name || '',
+        description: normalized.description || '',
+        address: normalized.address || '',
+        city: normalized.city || '',
+        latitude: String(normalized.latitude || 28.6139),
+        longitude: String(normalized.longitude || 77.2090),
+        phone: normalized.phone || '',
+        opening_time: normalized.opening_time || '09:00',
+        closing_time: normalized.closing_time || '21:00',
+        images: normalized.images,
       });
     }
   }, [salon]);
@@ -153,6 +155,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       ...formData,
       latitude: parseFloat(formData.latitude),
       longitude: parseFloat(formData.longitude),
+      image_url: formData.images[0] || null,
     };
 
     if (salon) {

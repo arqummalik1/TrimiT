@@ -30,6 +30,7 @@ import { handleApiError } from '../../lib/errorHandler';
 import { isAppError } from '../../types/error';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
 import { SalonDetailParamsSchema } from '../../navigation/params';
+import { normalizeSalon } from '../../lib/salonImage';
 
 type Props = CustomerDiscoverScreenProps<'SalonDetail'>;
 
@@ -65,7 +66,7 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           salon_name: response.data?.name
         });
         
-        return response.data;
+        return normalizeSalon(response.data as Salon);
       } catch (err) {
         const appErr = isAppError(err) ? err : handleApiError(err);
         throw err;
@@ -122,7 +123,7 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero Image Carousel */}
         <View style={styles.heroContainer}>
-          <ImageCarousel images={salon.images || []} height={320} />
+          <ImageCarousel salon={salon} height={320} />
           <View style={styles.heroOverlay} pointerEvents="box-none" />
           
           {/* Back Button */}

@@ -15,6 +15,17 @@ logger = logging.getLogger("trimit")
 
 router = APIRouter(prefix="/salons", tags=["Salons"])
 
+
+def _sync_salon_image_fields(data: dict) -> dict:
+    """Keep images[] and image_url aligned for list cards and RPC consumers."""
+    images = data.get("images")
+    if isinstance(images, list) and images:
+        if not data.get("image_url"):
+            data["image_url"] = images[0]
+    elif data.get("image_url") and (not images or images == []):
+        data["images"] = [data["image_url"]]
+    return data
+
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371  # Earth's radius in km
     dlat = radians(lat2 - lat1)
@@ -116,6 +127,7 @@ async def get_salons(
         salons = response.json()
 
     for s in salons:
+        _sync_salon_image_fields(s)
         d = s.get("distance")
         if isinstance(d, (int, float)) and d is not None:
             s["distance"] = round(float(d), 1)
@@ -138,7 +150,7 @@ async def get_salon(salon_id: str):
     if not response.json():
         raise HTTPException(status_code=404, detail="Salon not found")
     
-    salon = response.json()[0]
+    salon = _sync_salon_image_fields(response.json()[0])
     reviews = salon.get("reviews", [])
     if reviews:
         salon["avg_rating"] = round(sum(r["rating"] for r in reviews) / len(reviews), 1)
@@ -171,10 +183,13 @@ async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_curr
             detail="You already have a salon registered. Please update the existing one."
         )
 
+    payload = salon.model_dump()
+    payload = _sync_salon_image_fields(payload)
+
     salon_data = {
         "id": str(uuid.uuid4()),
         "owner_id": current_user.get("id"),
-        **salon.model_dump(),
+        **payload,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     
@@ -215,8 +230,25 @@ async def update_salon(salon_id: str, data: SalonUpdate, current_user: dict = De
     await assert_salon_owner(salon_id, current_user.get("id"))
 
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
-    response = await supabase.request("PATCH", f"rest/v1/salons?id=eq.{salon_id}", json=update_data, token=current_user.get("access_token"))
-    return {"message": "Updated"}
+    update_data = _sync_salon_image_fields(update_data)
+    response = await supabase.request(
+        "PATCH",
+        f"rest/v1/salons?id=eq.{salon_id}",
+        json=update_data,
+        token=current_user.get("access_token"),
+    )
+    if response.status_code not in (200, 204):
+        logger.error("[update_salon] patch failed: %s %s", response.status_code, response.text)
+        raise HTTPException(status_code=400, detail="Failed to update salon")
+
+    fetch = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{salon_id}&select=*",
+        token=current_user.get("access_token"),
+    )
+    if fetch.status_code != 200 or not fetch.json():
+        raise HTTPException(status_code=500, detail="Salon updated but could not reload")
+    return fetch.json()[0]
 
 @router.post("/{salon_id}/services")
 async def create_service(salon_id: str, service: ServiceCreate, current_user: dict = Depends(get_current_user)):

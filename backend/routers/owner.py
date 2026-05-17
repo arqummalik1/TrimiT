@@ -43,6 +43,13 @@ async def get_owner_salon(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="No salon found for this owner")
     
     salon = salons[0]
+    # Align thumbnail fields for mobile (images[] + image_url)
+    images = salon.get("images") or []
+    if isinstance(images, list) and images and not salon.get("image_url"):
+        salon["image_url"] = images[0]
+    elif salon.get("image_url") and (not images or images == []):
+        salon["images"] = [salon["image_url"]]
+
     salon_id = salon.get('id')
     logger.info(f"[GET_OWNER_SALON] Salon found: {salon_id}")
     

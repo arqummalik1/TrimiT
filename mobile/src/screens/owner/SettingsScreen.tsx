@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -27,6 +28,7 @@ import {
   ACCOUNT_DELETION_WEB_URL,
 } from '../../lib/accountDeletion';
 import { NotificationSettingsSection } from '../../components/NotificationSettingsSection';
+import { normalizeSalon, resolveSalonImageSource } from '../../lib/salonImage';
 
 import { OwnerSettingsScreenProps } from '../../navigation/types';
 
@@ -350,7 +352,10 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Salon Info Card */}
         <View style={styles.infoCard}>
-          <Ionicons name="storefront" size={32} color={theme.colors.primary} />
+          <Image
+            source={resolveSalonImageSource(normalizeSalon(salon))}
+            style={styles.salonThumb}
+          />
           <View style={styles.infoTextContainer}>
             <Text style={styles.salonName}>{salon.name}</Text>
             <Text style={styles.salonAddress}>{salon.address}</Text>
@@ -735,6 +740,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
+  },
+  salonThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surfaceSecondary,
   },
   infoTextContainer: {
     flex: 1,

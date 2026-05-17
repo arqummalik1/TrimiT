@@ -6,17 +6,18 @@ import { Salon } from '../types';
 import { fonts, borderRadius, spacing, formatPrice, formatDistanceKm } from '../lib/utils';
 import { useTheme } from '../theme/ThemeContext';
 import { Theme } from '../theme/tokens';
+import { normalizeSalon, resolveSalonImageSource } from '../lib/salonImage';
 
 interface SalonCardProps {
   salon: Salon;
   onPress: () => void;
 }
 
-const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1626383137804-ff908d2753a2?w=400';
-
-export const SalonCard: React.FC<SalonCardProps> = ({ salon, onPress }) => {
+export const SalonCard: React.FC<SalonCardProps> = ({ salon: rawSalon, onPress }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const salon = useMemo(() => normalizeSalon(rawSalon), [rawSalon]);
+  const imageSource = useMemo(() => resolveSalonImageSource(salon), [salon]);
 
   const lowestPrice = salon.services?.length
     ? Math.min(...salon.services.map((s) => s.price))
@@ -26,7 +27,7 @@ export const SalonCard: React.FC<SalonCardProps> = ({ salon, onPress }) => {
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.9}>
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: salon.images?.[0] || DEFAULT_IMAGE }}
+          source={imageSource}
           style={styles.image}
           contentFit="cover"
           transition={300}
