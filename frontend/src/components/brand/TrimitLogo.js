@@ -8,6 +8,9 @@ const HORIZONTAL_SRC = `${process.env.PUBLIC_URL || ''}/branding/logo-horizontal
  * TrimiT brand mark (transparent PNG from mobile assets).
  * @param {'icon' | 'horizontal' | 'icon-text'} variant
  * @param {'light' | 'dark'} tone — light = dark text beside icon; dark = on hero/footer
+ *
+ * Prefer `icon-text` on dark backgrounds. `logo-horizontal.png` has an opaque black
+ * canvas — do not use CSS invert on it (creates a white rectangle).
  */
 export function TrimitLogo({
   variant = 'icon-text',
@@ -30,7 +33,9 @@ export function TrimitLogo({
         <img
           src={HORIZONTAL_SRC}
           alt="TrimiT"
-          className={`object-contain object-left ${horizontalClassName}`}
+          className={`object-contain object-left ${horizontalClassName}${
+            tone === 'dark' ? ' mix-blend-screen' : ''
+          }`}
           width={180}
           height={36}
           decoding="async"

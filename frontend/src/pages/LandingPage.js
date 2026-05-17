@@ -140,10 +140,11 @@ const LandingPage = () => {
               transition={{ duration: 0.7 }}
             >
               <TrimitLogo
-                variant="horizontal"
+                variant="icon-text"
                 tone="dark"
                 asLink={false}
-                horizontalClassName="h-10 sm:h-12 w-auto max-w-[200px] sm:max-w-[240px] brightness-0 invert opacity-95 mb-8"
+                iconClassName="h-11 w-11 sm:h-12 sm:w-12"
+                className="mb-6"
               />
               <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-orange-200 text-xs font-semibold tracking-widest uppercase mb-5">
                 <Sparkle size={14} weight="fill" />
@@ -368,10 +369,11 @@ const LandingPage = () => {
       <footer className="py-12 px-4 bg-stone-900 text-stone-400">
         <div className="max-w-6xl mx-auto text-center">
           <TrimitLogo
-            variant="horizontal"
+            variant="icon-text"
             tone="dark"
             asLink
-            horizontalClassName="h-9 w-auto max-w-[160px] mx-auto brightness-0 invert opacity-90 mb-6"
+            iconClassName="h-9 w-9"
+            className="justify-center mb-6"
           />
           <p className="text-sm font-medium text-stone-300 mb-4">Get the app</p>
           <StoreDownloadLinks variant="dark" />
