@@ -65,8 +65,8 @@
 Confirm these work in a browser before building the app:
 
 - Backend health: `https://trimit-az5h.onrender.com/health` (or your Render URL)
-- Privacy policy: https://trimi-t.vercel.app/privacy
-- Terms: https://trimi-t.vercel.app/terms
+- Privacy policy: https://trimit.online/privacy
+- Terms: https://trimit.online/terms
 
 ### Gather these secret values (not committed to git)
 
@@ -78,7 +78,7 @@ Write them in a password manager — you will paste them into Expo EAS:
 | `EXPO_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Same page — **anon public** key only |
 | `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` | Google Cloud Console → Credentials |
-| `EXPO_PUBLIC_PUBLIC_SITE_URL` | `https://trimi-t.vercel.app` |
+| `EXPO_PUBLIC_PUBLIC_SITE_URL` | `https://trimit.online` |
 | `EXPO_PUBLIC_SENTRY_DSN` | Sentry project (optional but recommended) |
 
 `EXPO_PUBLIC_ENABLE_ONLINE_PAY` is already `false` in `eas.json` for v1 (cash at salon only).
@@ -297,13 +297,13 @@ Play blocks publishing until these are done. Use [`PLAY_CONSOLE_CHECKLIST.md`](.
 
 | Section | What to enter | Outcome |
 |---------|---------------|---------|
-| **Privacy policy** | `https://trimi-t.vercel.app/privacy` | Policy URL accepted |
+| **Privacy policy** | `https://trimit.online/privacy` | Policy URL accepted |
 | **App access** | Test login for reviewers (see checklist) | Google can review login |
 | **Ads** | No | Declared |
 | **Content rating** | Questionnaire (IARC) | Rating certificate |
 | **Target audience** | 18+ | Age declared |
 | **Data safety** | Match checklist table | Data disclosure complete |
-| **Account deletion** | `https://trimi-t.vercel.app/contact` + in-app delete | Policy compliant |
+| **Account deletion** | `https://trimit.online/contact` + in-app delete | Policy compliant |
 
 ### Step 5.3 — Store listing + ASO (minimum for internal test)
 

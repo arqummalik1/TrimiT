@@ -4,6 +4,7 @@ import { SUPPORT_EMAIL } from '../lib/contactInfo';
 import { isAppError } from '../types/error';
 import { User } from '../types';
 import { normalizeAuthUser } from '../lib/authUser';
+import { getAuthRateLimitMessage, isAuthEmailRateLimited } from '../lib/authRateLimitMessages';
 
 type ProfileLike = Parameters<typeof normalizeAuthUser>[0];
 import axios from 'axios';
@@ -164,7 +165,10 @@ export const authRepository = {
       response = await authService.signup(data);
     } catch (err: unknown) {
       const { message, code } = parseAuthFailure(err);
-      return { user: null, token: null, error: message, errorCode: code as AuthErrorCode };
+      const friendly = isAuthEmailRateLimited(code)
+        ? getAuthRateLimitMessage(code, 'signup')
+        : message;
+      return { user: null, token: null, error: friendly, errorCode: code as AuthErrorCode };
     }
 
     const responseData = response.data as {
@@ -245,6 +249,7 @@ export const authRepository = {
   async resendConfirmation(email: string): Promise<{
     success: boolean;
     error?: string;
+    errorCode?: AuthErrorCode | string;
     accountReadyForLogin?: boolean;
   }> {
     try {
@@ -258,7 +263,15 @@ export const authRepository = {
       };
     } catch (err: unknown) {
       const { message, code } = parseAuthFailure(err);
-      return { success: false, error: message, accountReadyForLogin: code === 'SIGNUP_READY_SIGN_IN' };
+      const friendly = isAuthEmailRateLimited(code)
+        ? getAuthRateLimitMessage(code, 'resend')
+        : message;
+      return {
+        success: false,
+        error: friendly,
+        errorCode: code,
+        accountReadyForLogin: code === 'SIGNUP_READY_SIGN_IN',
+      };
     }
   },
 

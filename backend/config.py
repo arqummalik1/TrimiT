@@ -33,11 +33,11 @@ class Settings(BaseSettings):
     # App Settings
     PORT: int = 8000
     DEBUG: bool = False
-    ALLOWED_ORIGINS: str = "https://trimi-t.vercel.app,https://trimit.app,https://www.trimit.app,http://localhost:3000,http://localhost:8081"
+    ALLOWED_ORIGINS: str = "https://trimit.online,https://www.trimit.online,http://localhost:3000,http://localhost:8081"
     # Web base URL for auth email links (allowlist in Supabase Auth → URL configuration):
     # - {PUBLIC_SITE_URL}/reset-password
     # - {PUBLIC_SITE_URL}/auth/email-confirmed
-    PUBLIC_SITE_URL: str = "https://trimi-t.vercel.app"
+    PUBLIC_SITE_URL: str = "https://trimit.online"
     # Staging only: create pre-confirmed users (no Supabase confirmation email).
     # Production must use Custom SMTP in Supabase for scalable signups.
     AUTH_AUTO_CONFIRM_SIGNUP: bool = False

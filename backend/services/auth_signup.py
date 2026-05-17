@@ -368,8 +368,9 @@ async def resend_confirmation_email(email: str) -> Tuple[int, Dict[str, Any]]:
             {
                 "code": "AUTH_PROVIDER_EMAIL_QUOTA",
                 "message": (
-                    "Email sending is temporarily paused for this app (Supabase project limit). "
-                    "Wait about an hour, configure Custom SMTP in Supabase, or contact support."
+                    "You've made several email requests. New messages are paused for about an hour. "
+                    "Check spam for an earlier confirmation link, then try again later with a single "
+                    "request — repeated sign-ups won't send more emails until then."
                 ),
             },
         )

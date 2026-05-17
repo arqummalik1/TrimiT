@@ -12,6 +12,7 @@ import {
   Users
 } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
+import StoreDownloadLinks from '../components/StoreDownloadLinks';
 
 const LandingPage = () => {
   const { isAuthenticated, profile } = useAuthStore();
@@ -240,14 +241,16 @@ const LandingPage = () => {
       {/* Footer */}
       <footer className="py-12 px-4 bg-stone-900 text-stone-400">
         <div className="max-w-6xl mx-auto text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
+          <div className="flex items-center justify-center gap-2 mb-6">
             <div className="w-8 h-8 bg-orange-800 rounded-lg flex items-center justify-center">
               <Scissors size={18} weight="bold" className="text-white" />
             </div>
             <span className="font-heading text-lg font-bold text-white">TrimiT</span>
           </div>
-          <p className="text-sm">
-            &copy; 2025 TrimiT. All rights reserved.
+          <p className="text-sm font-medium text-stone-300 mb-4">Get the app</p>
+          <StoreDownloadLinks variant="dark" />
+          <p className="text-sm mt-8">
+            &copy; {new Date().getFullYear()} TrimiT. All rights reserved.
           </p>
         </div>
       </footer>

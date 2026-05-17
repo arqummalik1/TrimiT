@@ -457,7 +457,11 @@ async def forgot_password(request: Request, data: ForgotPasswordRequest):
             status_code=429,
             detail={
                 "code": "RATE_LIMIT_EXCEEDED",
-                "message": "Too many reset attempts. Wait about an hour and try again, or check your spam folder for an earlier email.",
+                "message": (
+                    "You've requested several password-reset emails. For security, new messages "
+                    "are paused for about an hour. Check spam for an earlier email, then try once "
+                    "more after an hour — repeated requests won't send more emails until then."
+                ),
             },
         )
     if response.status_code >= 400:
@@ -515,7 +519,7 @@ async def delete_account(request: Request, current_user: dict = Depends(get_curr
             status_code=500,
             detail={
                 "code": "ACCOUNT_DELETION_FAILED",
-                "message": "Could not delete your account. Please try again or contact admin@audentix.com.",
+                "message": "Could not delete your account. Please try again or contact hello@trimit.online.",
             },
         )
 

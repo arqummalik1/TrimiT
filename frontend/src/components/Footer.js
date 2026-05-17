@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Scissors } from '@phosphor-icons/react';
+import StoreDownloadLinks from './StoreDownloadLinks';
 
 const Footer = () => {
   const year = new Date().getFullYear();
@@ -31,7 +32,16 @@ const Footer = () => {
           </nav>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-stone-200 text-sm text-stone-500">
+        <div className="mt-8 pt-8 border-t border-stone-200">
+          <p className="text-sm font-medium text-stone-700 mb-4 text-center md:text-left">
+            Get the app
+          </p>
+          <div className="flex justify-center md:justify-start">
+            <StoreDownloadLinks variant="light" />
+          </div>
+        </div>
+
+        <div className="mt-8 text-sm text-stone-500 text-center md:text-left">
           © {year} TrimiT. All rights reserved.
         </div>
       </div>

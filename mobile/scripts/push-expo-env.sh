@@ -45,7 +45,7 @@ create_var EXPO_PUBLIC_SUPABASE_URL "${EXPO_PUBLIC_SUPABASE_URL}" plaintext
 create_var EXPO_PUBLIC_SUPABASE_ANON_KEY "${EXPO_PUBLIC_SUPABASE_ANON_KEY}" sensitive
 create_var EXPO_PUBLIC_GOOGLE_MAPS_API_KEY "${EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}" sensitive
 create_var EXPO_PUBLIC_SENTRY_DSN "${EXPO_PUBLIC_SENTRY_DSN:-}" sensitive
-create_var EXPO_PUBLIC_PUBLIC_SITE_URL "${EXPO_PUBLIC_PUBLIC_SITE_URL:-https://trimi-t.vercel.app}" plaintext
+create_var EXPO_PUBLIC_PUBLIC_SITE_URL "${EXPO_PUBLIC_PUBLIC_SITE_URL:-https://trimit.online}" plaintext
 
 if [[ -n "${SENTRY_AUTH_TOKEN:-}" ]]; then
   echo "Creating SENTRY_AUTH_TOKEN (sensitive)..."

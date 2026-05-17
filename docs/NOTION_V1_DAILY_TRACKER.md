@@ -71,7 +71,7 @@ gantt
 
 ### M5 — Production Play launch
 - [ ] Promote internal → production (or closed → open)
-- [ ] Privacy URL stable: https://trimi-t.vercel.app/privacy
+- [ ] Privacy URL stable: https://trimit.online/privacy
 - [ ] Account deletion verified in-app + web
 
 ### M6 — v1.1 (post-launch app update)

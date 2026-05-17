@@ -4,15 +4,15 @@ Use this when completing **App content** before production release.
 
 ## URLs (Vercel or custom domain)
 
-Live site: **https://trimi-t.vercel.app**
+Live site: **https://trimit.online**
 
 | Field | URL |
 |-------|-----|
-| Privacy policy | https://trimi-t.vercel.app/privacy |
-| Terms | https://trimi-t.vercel.app/terms |
-| Account deletion | https://trimi-t.vercel.app/contact |
+| Privacy policy | https://trimit.online/privacy |
+| Terms | https://trimit.online/terms |
+| Account deletion | https://trimit.online/contact |
 
-Support: **admin@audentix.com** · **+91 70060 82958**
+Support: **hello@trimit.online** · **+91 70060 82958**
 
 Set `REACT_APP_PUBLIC_SITE_URL` on Vercel to that base URL (no trailing slash), then redeploy.
 
@@ -28,7 +28,7 @@ For mobile in-app web link, set `EXPO_PUBLIC_PUBLIC_SITE_URL` on Expo (see [EXPO
    - `REACT_APP_SUPABASE_URL` = (your Supabase URL)
    - `REACT_APP_SUPABASE_ANON_KEY` = (your anon key)
 5. Deploy → open `/privacy` and `/contact` on the assigned `*.vercel.app` URL
-6. Render backend → `ALLOWED_ORIGINS` includes `https://trimi-t.vercel.app` (in `render.yaml`; redeploy backend if needed)
+6. Render backend → `ALLOWED_ORIGINS` includes `https://trimit.online` (in `render.yaml`; redeploy backend if needed)
 
 ## Data safety (summary)
 
@@ -54,7 +54,7 @@ For mobile in-app web link, set `EXPO_PUBLIC_PUBLIC_SITE_URL` on Expo (see [EXPO
 - **Target audience:** 18+; not designed for children
 - **Ads:** No (unless you add ads later)
 - **Financial features:** Yes — payments for physical salon services via Razorpay (not Play Billing)
-- **UGC:** Yes — reviews; moderated via admin@audentix.com
+- **UGC:** Yes — reviews; moderated via hello@trimit.online
 - **Sensitive permissions:** Location (while in use), Camera/Photos (owners), Notifications
 
 ## Permissions (Android)
@@ -69,10 +69,10 @@ For mobile in-app web link, set `EXPO_PUBLIC_PUBLIC_SITE_URL` on Expo (see [EXPO
 
 In **Supabase → Authentication → URL Configuration**, add:
 
-- **Site URL:** `https://trimi-t.vercel.app`
-- **Redirect URLs:** `https://trimi-t.vercel.app/reset-password`, `http://localhost:3000/reset-password`
+- **Site URL:** `https://trimit.online`
+- **Redirect URLs:** `https://trimit.online/reset-password`, `http://localhost:3000/reset-password`
 
-Set Render env **`PUBLIC_SITE_URL`** = `https://trimi-t.vercel.app` (in `render.yaml`).
+Set Render env **`PUBLIC_SITE_URL`** = `https://trimit.online` (in `render.yaml`).
 
 ## Play reviewer test accounts (App access)
 
@@ -93,9 +93,9 @@ Paste the same credentials into Play Console → **App content** → **App acces
 - [ ] Delete account (customer Profile, owner Settings)
 - [ ] Legal URLs load on device browser
 
-## Optional: custom domain (`trimit.app`)
+## Custom domain (`trimit.online`)
 
-Later: Vercel → Project → **Domains** → add `trimit.app` → DNS at your registrar. Do **not** use `trimit.com` (different company).
+Production site: **https://trimit.online** — see `docs/TRIMIT_ONLINE_SETUP.md` for DNS, Resend SMTP, and Supabase steps.
 
 ## Store listing ASO
 

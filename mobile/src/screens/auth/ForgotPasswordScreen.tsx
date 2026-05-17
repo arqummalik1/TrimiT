@@ -20,6 +20,12 @@ import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
 
 import { handleApiError } from '../../lib/errorHandler';
+import { getUserFacingMessage } from '../../lib/userFacingError';
+import {
+  AUTH_EMAIL_COOLDOWN_TITLE,
+  isAuthEmailRateLimited,
+} from '../../lib/authRateLimitMessages';
+import { ErrorState } from '../../components/ErrorState';
 import { AuthScreenProps } from '../../navigation/types';
 
 type ForgotPasswordProps = AuthScreenProps<'ForgotPassword'>;
@@ -30,6 +36,7 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordProps
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
+  const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     if (!email) {
@@ -38,6 +45,7 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordProps
     }
 
     setIsLoading(true);
+    setRateLimitMessage(null);
     try {
       await api.post('/auth/forgot-password', { email });
       setIsSent(true);
@@ -46,10 +54,9 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordProps
       if (
         appErr.kind === 'network' ||
         appErr.kind === 'rate_limit' ||
-        appErr.code === 'RATE_LIMIT_EXCEEDED' ||
-        appErr.code === 'AUTH_PROVIDER_EMAIL_QUOTA'
+        isAuthEmailRateLimited(appErr.code)
       ) {
-        showToast(appErr.message, 'error');
+        setRateLimitMessage(getUserFacingMessage(error, { authContext: 'forgot' }));
       } else {
         // Avoid revealing whether the email exists
         setIsSent(true);
@@ -119,6 +126,18 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordProps
           </View>
 
           <View style={styles.form}>
+            {rateLimitMessage ? (
+              <View style={styles.rateLimitBox}>
+                <Text style={styles.rateLimitTitle}>{AUTH_EMAIL_COOLDOWN_TITLE}</Text>
+                <ErrorState
+                  variant="inline"
+                  message={rateLimitMessage}
+                  kind="validation"
+                  style={{ marginBottom: 0 }}
+                />
+              </View>
+            ) : null}
+
             <Input
               label="Email Address"
               placeholder="you@example.com"
@@ -182,6 +201,20 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   form: {
     gap: spacing.sm,
+  },
+  rateLimitBox: {
+    marginBottom: spacing.md,
+    padding: spacing.lg,
+    borderRadius: borderRadius.md,
+    backgroundColor: theme.colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  rateLimitTitle: {
+    ...typography.bodySmallMedium,
+    color: theme.colors.text,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
   },
   sentContainer: {
     flex: 1,

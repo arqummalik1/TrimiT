@@ -2,7 +2,7 @@ import { SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from './contact';
 
 const raw = (process.env.REACT_APP_PUBLIC_SITE_URL || '').trim().replace(/\/$/, '');
 
-export const PUBLIC_SITE_URL = raw || 'https://trimi-t.vercel.app';
+export const PUBLIC_SITE_URL = raw || 'https://trimit.online';
 
 /** Supabase signup confirmation emails redirect here (allowlist in Supabase Auth → URL config). */
 export const EMAIL_CONFIRMED_PATH = '/auth/email-confirmed';

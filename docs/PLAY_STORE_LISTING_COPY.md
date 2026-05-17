@@ -76,7 +76,7 @@ Download TrimiT today:
 • Customers — book your next salon visit
 • Salon owners — grow bookings and organize your schedule
 
-Questions? Visit https://trimi-t.vercel.app/contact or email admin@audentix.com
+Questions? Visit https://trimit.online/contact or email hello@trimit.online
 ```
 
 Character count: ~1,450 — room to add city lines (see ASO doc) without hitting 4,000.
@@ -119,8 +119,8 @@ If Tags are not available in your region yet, category + description carry disco
 
 | Field | Value |
 |-------|--------|
-| Website | https://trimi-t.vercel.app |
-| Email | admin@audentix.com |
+| Website | https://trimit.online |
+| Email | hello@trimit.online |
 | Phone | +91 70060 82958 |
 
 ---

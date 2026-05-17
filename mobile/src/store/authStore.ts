@@ -33,7 +33,12 @@ interface AuthState {
   dismissSessionExpired: () => void;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; requiresEmailConfirmation?: boolean }>;
   signup: (email: string, password: string, name: string, phone: string, role: 'customer' | 'owner') => Promise<{ success: boolean; error?: string; errorCode?: string; requiresEmailConfirmation?: boolean; accountReadyForLogin?: boolean }>;
-  resendConfirmation: (email: string) => Promise<{ success: boolean; error?: string; accountReadyForLogin?: boolean }>;
+  resendConfirmation: (email: string) => Promise<{
+    success: boolean;
+    error?: string;
+    errorCode?: string;
+    accountReadyForLogin?: boolean;
+  }>;
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (data: { name?: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
@@ -198,8 +203,15 @@ export const useAuthStore = create<AuthState>()(
         } catch (err) {
           set({ isLoading: false });
           const { parseAuthFailure } = require('../repositories/authRepository');
-          const { message } = parseAuthFailure(err);
-          return { success: false, error: message };
+          const {
+            getAuthRateLimitMessage,
+            isAuthEmailRateLimited,
+          } = require('../lib/authRateLimitMessages');
+          const { message, code } = parseAuthFailure(err);
+          const friendly = isAuthEmailRateLimited(code)
+            ? getAuthRateLimitMessage(code, 'forgot')
+            : message;
+          return { success: false, error: friendly, errorCode: code };
         }
       },
 

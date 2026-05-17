@@ -76,7 +76,7 @@ Mobile has richer components (skeletons, error states, offline banner). Web is f
 
 ## Consistency issues
 
-1. **Domain branding:** `trimi-t.vercel.app` vs `trimit.app` in legal links.
+1. **Domain branding:** `trimit.online` vs `trimit.app` in legal links.
 2. **Payment UX:** Mobile offers Razorpay + cash; web cash only — confusing if users switch devices.
 3. **Terminology:** "Complete" vs "Completed" — verify copy alignment.
 4. **Date/time format:** Ensure timezone labels shown (salon timezone).

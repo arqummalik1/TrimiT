@@ -16,7 +16,7 @@ set +a
 
 # Defaults for public endpoints (match apiClient production fallback)
 export EXPO_PUBLIC_API_URL="${EXPO_PUBLIC_API_URL:-https://trimit-az5h.onrender.com}"
-export EXPO_PUBLIC_PUBLIC_SITE_URL="${EXPO_PUBLIC_PUBLIC_SITE_URL:-https://trimi-t.vercel.app}"
+export EXPO_PUBLIC_PUBLIC_SITE_URL="${EXPO_PUBLIC_PUBLIC_SITE_URL:-https://trimit.online}"
 export EXPO_PUBLIC_ENABLE_ONLINE_PAY="${EXPO_PUBLIC_ENABLE_ONLINE_PAY:-false}"
 export SENTRY_DISABLE_AUTO_UPLOAD="${SENTRY_DISABLE_AUTO_UPLOAD:-true}"
 

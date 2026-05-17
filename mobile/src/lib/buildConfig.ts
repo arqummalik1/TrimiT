@@ -29,7 +29,7 @@ export const buildConfig = {
   supabaseUrl: pick('supabaseUrl', 'EXPO_PUBLIC_SUPABASE_URL', ''),
   supabaseAnonKey: pick('supabaseAnonKey', 'EXPO_PUBLIC_SUPABASE_ANON_KEY', ''),
   googleMapsApiKey: pick('googleMapsApiKey', 'EXPO_PUBLIC_GOOGLE_MAPS_API_KEY', ''),
-  publicSiteUrl: pick('publicSiteUrl', 'EXPO_PUBLIC_PUBLIC_SITE_URL', 'https://trimi-t.vercel.app'),
+  publicSiteUrl: pick('publicSiteUrl', 'EXPO_PUBLIC_PUBLIC_SITE_URL', 'https://trimit.online'),
   sentryDsn: pick('sentryDsn', 'EXPO_PUBLIC_SENTRY_DSN', ''),
   enableOnlinePay:
     pick('enableOnlinePay', 'EXPO_PUBLIC_ENABLE_ONLINE_PAY', 'false') === 'true' ||

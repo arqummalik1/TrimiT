@@ -33,7 +33,7 @@ After clearing the dashboard, re-add variables — see **[EXPO_ENV_SETUP.md](./E
 | `EXPO_PUBLIC_SUPABASE_URL` | Plain text | Your Supabase URL |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Sensitive | Anon key only |
 | `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` | Sensitive | Maps key |
-| `EXPO_PUBLIC_PUBLIC_SITE_URL` | Plain text | `https://trimi-t.vercel.app` |
+| `EXPO_PUBLIC_PUBLIC_SITE_URL` | Plain text | `https://trimit.online` |
 | `EXPO_PUBLIC_SENTRY_DSN` | Sensitive | Optional |
 
 `EXPO_PUBLIC_ENABLE_ONLINE_PAY=false` is in `eas.json` for production builds.
@@ -58,8 +58,8 @@ Follow [`PLAY_CONSOLE_CHECKLIST.md`](./PLAY_CONSOLE_CHECKLIST.md):
 
 - Data Safety form
 - Content rating (IARC)
-- Privacy URL: https://trimi-t.vercel.app/privacy
-- Account deletion URL: https://trimi-t.vercel.app/contact
+- Privacy URL: https://trimit.online/privacy
+- Account deletion URL: https://trimit.online/contact
 - Reviewer credentials (customer + owner with salon)
 - Upload AAB to **internal testing**
 - Review pre-launch report

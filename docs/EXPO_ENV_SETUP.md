@@ -23,7 +23,7 @@ You cleared all variables in the Expo dashboard. Add back **only** these (v1 cas
 | `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` | **Sensitive** | Google Maps API key |
 | `EXPO_PUBLIC_SENTRY_DSN` | **Sensitive** | Sentry DSN (crash reporting in production) |
 | `SENTRY_AUTH_TOKEN` | **Sensitive** | Sentry API token for EAS source map uploads ([create token](https://sentry.io/settings/account/api/auth-tokens/) — scopes: `project:releases`, `org:read`) |
-| `EXPO_PUBLIC_PUBLIC_SITE_URL` | **Plain text** | `https://trimi-t.vercel.app` |
+| `EXPO_PUBLIC_PUBLIC_SITE_URL` | **Plain text** | `https://trimit.online` |
 
 **Never use “Secret”** for names starting with `EXPO_PUBLIC_` — Expo will warn you, and those values are still embedded in the app.
 

@@ -94,7 +94,7 @@ app.add_middleware(RequestIDMiddleware)
 # CORSMiddleware must be added LAST to be the outermost layer (executes first on request)
 ALLOWED_ORIGINS_STR = os.environ.get(
     "ALLOWED_ORIGINS",
-    "https://trimi-t.vercel.app,https://trimit.app,https://www.trimit.app",
+    "https://trimit.online,https://www.trimit.online",
 )
 ALLOWED_ORIGINS_LIST = [o.strip() for o in ALLOWED_ORIGINS_STR.split(",") if o.strip()]
 

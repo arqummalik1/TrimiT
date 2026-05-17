@@ -48,7 +48,7 @@ You agree not to:
 
 You retain ownership of content you submit (profile photos, salon images, reviews). You grant TrimiT a worldwide, non-exclusive, royalty-free license to host, display, and distribute that content solely for operating and promoting the Service.
 
-Reviews and other user-generated content must be honest and based on your genuine experience. You must not post content that is false, defamatory, harassing, hateful, or infringes others' rights. We may remove or restrict content that violates these Terms or applicable law. To report inappropriate reviews or other content, contact us at **admin@audentix.com**, **+91 70060 82958**, or via https://trimi-t.vercel.app/contact.
+Reviews and other user-generated content must be honest and based on your genuine experience. You must not post content that is false, defamatory, harassing, hateful, or infringes others' rights. We may remove or restrict content that violates these Terms or applicable law. To report inappropriate reviews or other content, contact us at **hello@trimit.online**, **+91 70060 82958**, or via https://trimit.online/contact.
 
 ## 8. Intellectual Property
 
@@ -80,4 +80,4 @@ These Terms are governed by the laws of India. Disputes will be resolved in the 
 
 ## 15. Contact
 
-For questions about these Terms, contact us at **admin@audentix.com** or **+91 70060 82958**.
+For questions about these Terms, contact us at **hello@trimit.online** or **+91 70060 82958**.

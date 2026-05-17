@@ -30,6 +30,7 @@ const SignupPage = () => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [emailConfirmationSent, setEmailConfirmationSent] = useState(false);
   const [confirmedEmail, setConfirmedEmail] = useState('');
+  const [rateLimitTitle, setRateLimitTitle] = useState(null);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -42,6 +43,7 @@ const SignupPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
+    setRateLimitTitle(null);
     
     if (!formData.role) {
       return;
@@ -70,6 +72,8 @@ const SignupPage = () => {
       } else {
         navigate('/discover');
       }
+    } else if (result.rateLimitTitle) {
+      setRateLimitTitle(result.rateLimitTitle);
     }
   };
 
@@ -190,10 +194,18 @@ const SignupPage = () => {
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm"
+                  className={`p-4 rounded-xl text-sm ${
+                    rateLimitTitle
+                      ? 'bg-amber-50 border border-amber-200 text-amber-950'
+                      : 'bg-red-50 border border-red-200 text-red-700'
+                  }`}
                   data-testid="signup-error"
+                  role="alert"
                 >
-                  {error}
+                  {rateLimitTitle ? (
+                    <p className="font-semibold text-amber-900 mb-2">{rateLimitTitle}</p>
+                  ) : null}
+                  <p className="whitespace-pre-line leading-relaxed">{error}</p>
                 </motion.div>
               )}
 

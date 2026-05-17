@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '../lib/api';
+import { mapAuthApiError } from '../lib/authRateLimitMessages';
 import { SUPPORT_EMAIL } from '../config/contact';
 
 export const useAuthStore = create(
@@ -116,12 +117,19 @@ export const useAuthStore = create(
           };
         } catch (error) {
           const detail = error.response?.data?.detail;
+          const mapped = mapAuthApiError(detail, 'signup');
           const message =
+            mapped.message ||
             (typeof detail === 'object' && detail?.message) ||
             (typeof detail === 'string' && detail) ||
             'Signup failed';
           set({ isLoading: false, error: message });
-          return { success: false, error: message };
+          return {
+            success: false,
+            error: message,
+            errorCode: mapped.code,
+            rateLimitTitle: mapped.title,
+          };
         }
       },
 
@@ -198,8 +206,19 @@ export const useAuthStore = create(
           const response = await api.post('/auth/forgot-password', { email });
           return { success: true, data: response.data };
         } catch (error) {
-          const message = error.response?.data?.detail || 'Failed to send reset email';
-          return { success: false, error: message };
+          const detail = error.response?.data?.detail;
+          const mapped = mapAuthApiError(detail, 'forgot');
+          const message =
+            mapped.message ||
+            (typeof detail === 'object' && detail?.message) ||
+            (typeof detail === 'string' && detail) ||
+            'Failed to send reset email';
+          return {
+            success: false,
+            error: message,
+            errorCode: mapped.code,
+            rateLimitTitle: mapped.title,
+          };
         }
       },
 

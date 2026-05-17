@@ -37,7 +37,7 @@ const releaseProguardRules = fs.readFileSync(
 );
 
 const DEFAULT_API_URL = 'https://trimit-az5h.onrender.com';
-const DEFAULT_SITE_URL = 'https://trimi-t.vercel.app';
+const DEFAULT_SITE_URL = 'https://trimit.online';
 
 function env(name, fallback = '') {
   const v = process.env[name];

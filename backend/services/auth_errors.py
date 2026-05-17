@@ -48,14 +48,15 @@ def map_supabase_signup_error(response) -> tuple[str, str]:
     ):
         return (
             "EMAIL_RATE_LIMIT",
-            "Email delivery is temporarily limited for this app (Supabase project quota). "
-            "We will try to activate your account automatically when possible.",
+            "You've made several email requests. New messages are paused for about an hour — "
+            "please check spam for an earlier link, then try again later with a single request.",
         )
 
     if "rate limit" in combined or "too many requests" in combined or status == 429:
         return (
             "RATE_LIMITED",
-            "Too many signup attempts. Please wait a minute and try again.",
+            "You've made several requests in a short time. Please wait about an hour before "
+            "trying again, and avoid repeated sign-up attempts.",
         )
 
     if "signup" in combined and "disabled" in combined:

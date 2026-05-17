@@ -28,6 +28,7 @@ import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { ErrorState } from '../../components/ErrorState';
 import { showToast } from '../../store/toastStore';
+import { getAuthRateLimitMessage } from '../../lib/authRateLimitMessages';
 import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
@@ -160,7 +161,12 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
                       'success'
                     );
                   } else {
-                    showToast(result.error ?? 'Could not resend confirmation email', 'error');
+                    showToast(
+                      getAuthRateLimitMessage(result.errorCode, 'resend') ||
+                        result.error ||
+                        'Could not resend confirmation email',
+                      'error'
+                    );
                   }
                 }}
               >

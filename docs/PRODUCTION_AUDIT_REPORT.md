@@ -348,7 +348,7 @@ sequenceDiagram
 
 | Risk | Likelihood | Mitigation |
 |------|------------|------------|
-| Missing privacy policy URL | High if incomplete listing | Host on `trimi-t.vercel.app` / legal |
+| Missing privacy policy URL | High if incomplete listing | Host on `trimit.online` / legal |
 | Data safety form inaccurate | Medium | Declare location, bookings, phone |
 | Notification permission denial | Medium | Graceful degrade; in-app booking still works |
 | Maps SDK key restriction | Medium | Restrict key to package + SHA-1; geocode on backend |

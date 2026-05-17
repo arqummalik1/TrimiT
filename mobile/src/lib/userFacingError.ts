@@ -1,6 +1,11 @@
 import { isAppError } from '../types/error';
 import { handleApiError } from './errorHandler';
 import { ImageTooLargeError, IMAGE_TOO_LARGE_MESSAGE } from './imageUploadPrep';
+import {
+  getAuthRateLimitMessage,
+  isAuthEmailRateLimited,
+  type AuthRateLimitContext,
+} from './authRateLimitMessages';
 
 const MESSAGES: Record<string, string> = {
   network:
@@ -10,7 +15,7 @@ const MESSAGES: Record<string, string> = {
   server:
     'Something went wrong on our side. Please try again in a moment.',
   rate_limit:
-    'Too many attempts. Please wait a minute and try again.',
+    "You've made several requests in a short time. Please wait about an hour before trying again, and avoid repeated taps.",
   unauthorized:
     'Your session expired. Please sign in again.',
   validation: 'Please check your input and try again.',
@@ -21,12 +26,23 @@ const MESSAGES: Record<string, string> = {
 /**
  * Normalize any thrown value into a user-safe message (never raw axios/console text).
  */
-export function getUserFacingMessage(error: unknown): string {
+export function getUserFacingMessage(
+  error: unknown,
+  options?: { authContext?: AuthRateLimitContext }
+): string {
   if (error instanceof ImageTooLargeError) {
     return error.message;
   }
 
   const appErr = isAppError(error) ? error : handleApiError(error);
+
+  if (isAuthEmailRateLimited(appErr.code)) {
+    return getAuthRateLimitMessage(appErr.code, options?.authContext ?? 'generic');
+  }
+
+  if (appErr.kind === 'rate_limit') {
+    return getAuthRateLimitMessage(appErr.code, options?.authContext ?? 'generic');
+  }
 
   if (appErr.code === 'FILE_TOO_LARGE') {
     return IMAGE_TOO_LARGE_MESSAGE;

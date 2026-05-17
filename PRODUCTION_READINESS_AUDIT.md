@@ -16,7 +16,7 @@
 | Backend (FastAPI) | ❌ No | n/a | Razorpay order creation is mocked; rate limiter wired but inert; payment flow exploitable |
 | Web (CRA) | ⚠️ Partial | n/a | CRA (`react-scripts 5`) is EOL; Supabase anon URL/key in `env.example` is a placeholder |
 | Database (Supabase) | ⚠️ Partial | n/a | Migration numbering collisions (two `03_`, `15_`, `16_`); no enforcing UNIQUE on `(salon_id, booking_date, time_slot)` |
-| Legal (Privacy/Terms/Contact) | ✅ Substantively complete | ✅ Acceptable | Hosted under `trimi-t.vercel.app`, not `trimit.app` referenced in commits — pick one and lock it before Data Safety form |
+| Legal (Privacy/Terms/Contact) | ✅ Substantively complete | ✅ Acceptable | Hosted under `trimit.online`, not `trimit.app` referenced in commits — pick one and lock it before Data Safety form |
 
 ---
 
@@ -45,7 +45,7 @@
 
 - **H1.** 77 `console.log` calls remaining in production source (including in payment/booking paths). Babel-strip in production: add `react-native-clean-console` or a `transform-remove-console` Babel plugin to `babel.config.js` under the `production` env.
 - **H2.** Analytics module (`mobile/src/lib/analytics.ts`) is a stub — no events recorded. Either implement (Amplitude, PostHog) or remove from Data Safety form to avoid misrepresentation.
-- **H3.** Legal/help URLs in `mobile/src/legal/content.ts` and `app.config.js` point at `trimi-t.vercel.app`, but `EXPO_PUBLIC_PUBLIC_SITE_URL` is unset. Resolve the final domain (`trimit.app` per recent commit vs current Vercel URL) and pin it in EAS production env. Play Console privacy URL must be reachable and stable.
+- **H3.** Legal/help URLs in `mobile/src/legal/content.ts` and `app.config.js` point at `trimit.online`, but `EXPO_PUBLIC_PUBLIC_SITE_URL` is unset. Resolve the final domain (`trimit.app` per recent commit vs current Vercel URL) and pin it in EAS production env. Play Console privacy URL must be reachable and stable.
 - **H4.** `android:enableOnBackInvokedCallback` not set — predictive back UX disabled. Set `true` in manifest.
 - **H5.** Razorpay WebView lacks origin allow-list — the WebView allows arbitrary navigation. Add `originWhitelist={['https://api.razorpay.com', 'https://checkout.razorpay.com']}`.
 - **H6.** `RECORD_AUDIO` permission is pulled in transitively by `expo-av` which appears unused. Remove `expo-av` from `package.json`.
@@ -127,7 +127,7 @@
 
 ### 🟠 HIGH
 
-- **WH1.** Domain inconsistency: `env.example` uses `trimi-t.vercel.app`; recent commits reference `trimit.app`. Pick one before submitting Data Safety (privacy URL must be stable). Update `mobile/app.config.js`, `shared/legal/contact.md`, `backend/.env PUBLIC_SITE_URL`.
+- **WH1.** Domain inconsistency: `env.example` uses `trimit.online`; recent commits reference `trimit.app`. Pick one before submitting Data Safety (privacy URL must be stable). Update `mobile/app.config.js`, `shared/legal/contact.md`, `backend/.env PUBLIC_SITE_URL`.
 - **WH2.** `vercel.json` rewrites everything to `/index.html`. Make sure `/privacy`, `/terms`, `/contact` are crawlable (set explicit routes or sitemap.xml; Play Console's privacy URL verifier should get a 200).
 - **WH3.** Source maps published in production (CRA default). Run `GENERATE_SOURCEMAP=false npm run build` for prod or upload them to Sentry only.
 
@@ -179,7 +179,7 @@ Mapped to the questions Play Console actually asks you.
 
 | Item | Status | Notes |
 |---|---|---|
-| Privacy policy URL | ⚠️ Pick a domain | Currently both `trimi-t.vercel.app/privacy` and `trimit.app` referenced. Choose one, ensure HTTPS, ensure 200. |
+| Privacy policy URL | ⚠️ Pick a domain | Currently both `trimit.online/privacy` and `trimit.app` referenced. Choose one, ensure HTTPS, ensure 200. |
 | App access (test credentials) | ❌ TODO | Provide a customer + owner login for Play reviewer. Use throwaway emails. |
 | Ads | ✅ "No ads" | Confirm no AdMob initialized. |
 | Content rating (IARC) | ❌ TODO | Re-fill; expect PEGI 3 / Everyone given content. |

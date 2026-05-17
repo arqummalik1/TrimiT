@@ -5,10 +5,10 @@ Complete these **before** promoting the production AAB on Play Console.
 ## Supabase Auth (email links)
 
 - [ ] **Authentication → URL configuration → Redirect URLs** (all required):
-  - `https://trimi-t.vercel.app/auth/email-confirmed`
-  - `https://trimi-t.vercel.app/reset-password`
+  - `https://trimit.online/auth/email-confirmed`
+  - `https://trimit.online/reset-password`
   - (production domain equivalents if different)
-- [ ] **Site URL**: `https://trimi-t.vercel.app` (or production web URL)
+- [ ] **Site URL**: `https://trimit.online` (or production web URL)
 - [ ] **Custom SMTP** recommended (Supabase default mailer ~2–4 emails/hour per project — causes missing reset/confirm emails)
 - [ ] Redeploy **backend** + **frontend (Vercel)** after auth changes
 - [ ] `PUBLIC_SITE_URL` / `REACT_APP_SUPABASE_*` env vars match the live project

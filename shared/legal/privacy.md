@@ -45,7 +45,7 @@ You may:
 
 - Access and update your profile from **Profile** (customers) or **Settings** (salon owners).
 - **Delete your account** in-app from Profile → Account → Delete account, or Settings → Account → Delete account.
-- Request export or deletion of your data on the web at https://trimi-t.vercel.app/contact or by emailing admin@audentix.com.
+- Request export or deletion of your data on the web at https://trimit.online/contact or by emailing hello@trimit.online.
 - Opt out of non-essential notifications.
 
 ## 6. Data Retention
@@ -62,4 +62,4 @@ We may update this Privacy Policy from time to time. Material changes will be co
 
 ## 9. Contact
 
-For privacy questions or requests, contact us at **admin@audentix.com** or **+91 70060 82958**.
+For privacy questions or requests, contact us at **hello@trimit.online** or **+91 70060 82958**.

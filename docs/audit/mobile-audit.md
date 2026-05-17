@@ -93,7 +93,7 @@
 | R8 / ProGuard | ❌ Disabled |
 | Permission strip | ❌ Extra permissions in manifest |
 | App icons in git | ❌ Only `sounds/notification.mp3` tracked — **verify assets locally** |
-| Privacy URL | ⚠️ `trimi-t.vercel.app` vs `trimit.app` |
+| Privacy URL | ⚠️ `trimit.online` vs `trimit.app` |
 | Sentry DSN in EAS prod | ⚠️ Verify set |
 | Data Safety form | ❌ Not in repo |
 | Account deletion in-app | ✅ Profile + Settings |

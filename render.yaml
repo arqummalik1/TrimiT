@@ -31,9 +31,9 @@ services:
       - key: SENTRY_DSN
         sync: false
       - key: ALLOWED_ORIGINS
-        value: https://trimi-t.vercel.app,https://trimit.app,https://www.trimit.app
+        value: https://trimit.online,https://www.trimit.online
       - key: PUBLIC_SITE_URL
-        value: https://trimi-t.vercel.app
+        value: https://trimit.online
 
   - type: web
     name: trimit-frontend
@@ -55,3 +55,5 @@ services:
         sync: false
       - key: REACT_APP_SUPABASE_ANON_KEY
         sync: false
+      - key: REACT_APP_PUBLIC_SITE_URL
+        value: https://trimit.online

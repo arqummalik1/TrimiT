@@ -30,6 +30,11 @@ import { ErrorState } from '../../components/ErrorState';
 import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
+import {
+  AUTH_EMAIL_COOLDOWN_TITLE,
+  getAuthRateLimitMessage,
+  isAuthEmailRateLimited,
+} from '../../lib/authRateLimitMessages';
 
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -119,14 +124,29 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
         result.accountReadyForLogin ? 'Account activated — you can sign in' : 'Confirmation email sent',
         'success'
       );
+    } else {
+      const code = result.errorCode ?? lastSignupErrorCode;
+      if (code) setLastSignupErrorCode(String(code));
+      showToast(
+        getAuthRateLimitMessage(code, 'resend') ||
+          result.error ||
+          'Could not resend confirmation email',
+        'error'
+      );
     }
   };
 
+  const isEmailCooldown = isAuthEmailRateLimited(lastSignupErrorCode);
   const showSignupRecovery =
-    lastSignupErrorCode === 'EMAIL_RATE_LIMIT' ||
-    lastSignupErrorCode === 'AUTH_PROVIDER_EMAIL_QUOTA' ||
+    isEmailCooldown ||
     lastSignupErrorCode === 'ALREADY_REGISTERED' ||
     lastSignupErrorCode === 'RATE_LIMITED';
+
+  const inlineAuthMessage = authError
+    ? isAuthEmailRateLimited(lastSignupErrorCode)
+      ? getAuthRateLimitMessage(lastSignupErrorCode, 'signup')
+      : authError
+    : null;
 
   return (
     <ScreenWrapper style={styles.container}>
@@ -204,37 +224,56 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
           {/* Form */}
           <View style={styles.form}>
             {/* API error banner */}
-            {authError && (
+            {inlineAuthMessage ? (
               <ErrorState
                 variant="inline"
-                message={authError}
+                message={inlineAuthMessage}
                 kind="validation"
                 style={{ marginBottom: spacing.md }}
               />
-            )}
+            ) : null}
 
             {showSignupRecovery && (
               <View style={styles.recoveryBox}>
-                <Text style={styles.recoveryHint}>
-                  Already started signup? Check your email for the confirmation link instead of signing up again.
-                </Text>
-                <TouchableOpacity
-                  style={styles.recoveryBtn}
-                  onPress={() => void handleResendConfirmation()}
-                  disabled={isLoading}
-                >
-                  <Text style={styles.recoveryBtnText}>Resend confirmation email</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.recoveryBtnSecondary}
-                  onPress={() => {
-                    setEmailConfirmationSent(true);
-                    navigation.replace('Login');
-                  }}
-                  disabled={isLoading}
-                >
-                  <Text style={styles.recoveryBtnSecondaryText}>Go to sign in</Text>
-                </TouchableOpacity>
+                {isEmailCooldown ? (
+                  <>
+                    <Text style={styles.recoveryTitle}>{AUTH_EMAIL_COOLDOWN_TITLE}</Text>
+                    <Text style={styles.recoveryHint}>
+                      {getAuthRateLimitMessage(lastSignupErrorCode, 'signup')}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.recoveryBtnSecondary}
+                      onPress={() => navigation.replace('Login')}
+                      disabled={isLoading}
+                    >
+                      <Text style={styles.recoveryBtnSecondaryText}>Go to sign in</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.recoveryHint}>
+                      Already started signup? Check your email for the confirmation link instead of
+                      signing up again.
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.recoveryBtn}
+                      onPress={() => void handleResendConfirmation()}
+                      disabled={isLoading}
+                    >
+                      <Text style={styles.recoveryBtnText}>Resend confirmation email</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.recoveryBtnSecondary}
+                      onPress={() => {
+                        setEmailConfirmationSent(true);
+                        navigation.replace('Login');
+                      }}
+                      disabled={isLoading}
+                    >
+                      <Text style={styles.recoveryBtnSecondaryText}>Go to sign in</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
             )}
 
@@ -467,6 +506,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '600',
   },
   submitButton: { marginTop: spacing.sm },
+  recoveryTitle: {
+    ...typography.bodySmallMedium,
+    color: theme.colors.text,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
   recoveryBox: {
     backgroundColor: theme.colors.surfaceSecondary,
     borderRadius: borderRadius.md,

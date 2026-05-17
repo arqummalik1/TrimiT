@@ -9,11 +9,13 @@ const ForgotPasswordPage = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [errorTitle, setErrorTitle] = useState(null);
   const { forgotPassword } = useAuthStore();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setErrorTitle(null);
     setIsLoading(true);
 
     try {
@@ -21,6 +23,7 @@ const ForgotPasswordPage = () => {
       if (result.success) {
         setIsSubmitted(true);
       } else {
+        setErrorTitle(result.rateLimitTitle || null);
         setError(result.error || 'Failed to send reset email. Please try again.');
       }
     } catch (err) {
@@ -58,9 +61,13 @@ const ForgotPasswordPage = () => {
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm"
+                  className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-950 text-sm"
+                  role="alert"
                 >
-                  {error}
+                  {errorTitle ? (
+                    <p className="font-semibold text-amber-900 mb-2">{errorTitle}</p>
+                  ) : null}
+                  <p className="whitespace-pre-line leading-relaxed">{error}</p>
                 </motion.div>
               )}
 
