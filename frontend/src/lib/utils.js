@@ -49,3 +49,13 @@ export function getPaymentStatusColor(status) {
   };
   return colors[status] || 'bg-gray-100 text-gray-800';
 }
+
+/** Allow only same-origin relative paths for post-login redirects. */
+export function safeInternalPath(path) {
+  if (!path || typeof path !== 'string') return null;
+  const trimmed = path.trim();
+  if (!trimmed.startsWith('/') || trimmed.startsWith('//') || trimmed.includes('://')) {
+    return null;
+  }
+  return trimmed;
+}

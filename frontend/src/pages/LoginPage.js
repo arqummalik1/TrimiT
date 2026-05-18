@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { EnvelopeSimple, Lock, Eye, EyeSlash } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
+import { safeInternalPath } from '../lib/utils';
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login, isLoading, error, clearError } = useAuthStore();
+  const redirectAfterLogin = safeInternalPath(searchParams.get('redirect'));
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,9 +44,11 @@ const LoginPage = () => {
       }
       
       if (result.profile?.role === 'owner') {
-        navigate('/owner/dashboard');
+        navigate(result.hasSalon ? '/owner/dashboard' : '/owner/salon', { replace: true });
+      } else if (redirectAfterLogin) {
+        navigate(redirectAfterLogin, { replace: true });
       } else {
-        navigate('/discover');
+        navigate('/explore', { replace: true });
       }
     }
   };
