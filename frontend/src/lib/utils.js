@@ -30,6 +30,25 @@ export function formatTime(timeString) {
   return `${hour12}:${minutes} ${ampm}`;
 }
 
+/** Normalize slot / booking time to HH:MM (handles HH:MM:SS from DB). */
+export function normalizeSlotTimeToHHMM(t) {
+  if (t == null) return '';
+  const s = String(t).trim();
+  return s.length >= 5 ? s.slice(0, 5) : s;
+}
+
+/** Human-readable message from FastAPI / axios error payloads. */
+export function getApiErrorMessage(err, fallback = 'Something went wrong. Please try again.') {
+  const detail = err?.response?.data?.detail;
+  if (typeof detail === 'string') return detail;
+  if (detail && typeof detail === 'object' && detail.message) return detail.message;
+  if (Array.isArray(detail)) {
+    const parts = detail.map((d) => d?.msg || d?.message).filter(Boolean);
+    if (parts.length) return parts.join(', ');
+  }
+  return fallback;
+}
+
 export function getStatusColor(status) {
   const colors = {
     pending: 'bg-yellow-100 text-yellow-800',

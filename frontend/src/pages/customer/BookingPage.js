@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -14,19 +14,70 @@ import {
   CreditCard
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
-import { formatPrice, formatTime } from '../../lib/utils';
+import { formatPrice, formatTime, normalizeSlotTimeToHHMM, getApiErrorMessage } from '../../lib/utils';
+import { createIdempotencyKey } from '../../lib/idempotency';
 import { useToastStore } from '../../store/toastStore';
+
+const HOLD_SECONDS = 90;
+const RESERVE_TIMEOUT_MS = 28000;
 
 const BookingPage = () => {
   const { salonId, serviceId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { success, error } = useToastStore();
+  const { success, error: showError } = useToastStore();
 
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [holdId, setHoldId] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(null);
   const [bookingComplete, setBookingComplete] = useState(false);
   const [bookingData, setBookingData] = useState(null);
+
+  const idempotencyKeyRef = useRef(null);
+  const timerRef = useRef(null);
+
+  const clearHoldTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setTimeLeft(null);
+    setHoldId(null);
+  }, []);
+
+  const resetBookingAttempt = useCallback(() => {
+    idempotencyKeyRef.current = null;
+    clearHoldTimer();
+  }, [clearHoldTimer]);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (timeLeft !== 0) return;
+    setSelectedSlot(null);
+    resetBookingAttempt();
+    showError('Your temporary reservation expired. Please select your time slot again.', {
+      title: 'Hold expired',
+      duration: 6000,
+    });
+  }, [timeLeft, resetBookingAttempt, showError]);
+
+  const startHoldCountdown = useCallback(() => {
+    setTimeLeft(HOLD_SECONDS);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev === null || prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
 
   // Fetch salon details
   const { data: salon } = useQuery({
@@ -38,7 +89,7 @@ const BookingPage = () => {
   });
 
   // Fetch available slots
-  const { data: slotsData, isLoading: slotsLoading } = useQuery({
+  const { data: slotsData, isLoading: slotsLoading, refetch: refetchSlots } = useQuery({
     queryKey: ['slots', salonId, serviceId, selectedDate],
     queryFn: async () => {
       const currentTime = format(new Date(), 'HH:mm');
@@ -77,47 +128,102 @@ const BookingPage = () => {
 
   });
 
-  // Create booking mutation
-  const bookingMutation = useMutation({
-    mutationFn: async () => {
-      const response = await api.post('/bookings/', {
-        salon_id: salonId,
-        service_id: serviceId,
-        booking_date: selectedDate,
-        time_slot: selectedSlot,
-        payment_method: 'salon_cash',
-      });
+  const reserveMutation = useMutation({
+    mutationFn: async (slot) => {
+      const slotKey = normalizeSlotTimeToHHMM(slot) || slot;
+      const response = await api.post(
+        '/bookings/reserve',
+        {
+          salon_id: salonId,
+          service_id: serviceId,
+          booking_date: selectedDate,
+          time_slot: slotKey,
+        },
+        { timeout: RESERVE_TIMEOUT_MS }
+      );
       return response.data;
     },
     onSuccess: (data) => {
+      setHoldId(data.hold_id ?? null);
+      startHoldCountdown();
+    },
+    onError: (err) => {
+      setHoldId(null);
+      setTimeLeft(null);
+      const msg = getApiErrorMessage(err, 'This slot is currently unavailable.');
+      if (err?.response?.status === 409) {
+        setSelectedSlot(null);
+        showError(msg, { title: 'Slot unavailable', duration: 6000 });
+        refetchSlots();
+        return;
+      }
+      showError(
+        'We could not reserve this slot yet. You can still tap Confirm booking to try again.',
+        { title: 'Reservation pending', duration: 5000 }
+      );
+    },
+  });
+
+  const bookingMutation = useMutation({
+    mutationFn: async () => {
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = createIdempotencyKey();
+      }
+      const slotKey = normalizeSlotTimeToHHMM(selectedSlot) || selectedSlot;
+      const response = await api.post(
+        '/bookings/',
+        {
+          salon_id: salonId,
+          service_id: serviceId,
+          booking_date: selectedDate,
+          time_slot: slotKey,
+          payment_method: 'salon_cash',
+        },
+        {
+          headers: { 'Idempotency-Key': idempotencyKeyRef.current },
+          timeout: RESERVE_TIMEOUT_MS,
+        }
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      idempotencyKeyRef.current = null;
+      clearHoldTimer();
       setBookingData(data);
       setBookingComplete(true);
-      queryClient.invalidateQueries(['bookings']);
-      
-      // Show success toast
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['slots', salonId, serviceId, selectedDate] });
       success('Your appointment has been successfully booked!', {
         title: 'Booking Confirmed',
-        duration: 5000
+        duration: 5000,
       });
     },
     onError: (err) => {
-      // Re-fetch slots immediately so user sees updated availability
-      queryClient.invalidateQueries(['slots', salonId, serviceId, selectedDate]);
-      setSelectedSlot(null);
+      queryClient.invalidateQueries({ queryKey: ['slots', salonId, serviceId, selectedDate] });
+      const status = err?.response?.status;
+      const errorMessage = getApiErrorMessage(
+        err,
+        'Failed to create booking. Please try again.'
+      );
 
-      const errorMessage = err?.response?.data?.detail || 'Failed to create booking. Please try again.';
-      error(errorMessage, {
+      if (status === 409) {
+        setSelectedSlot(null);
+        resetBookingAttempt();
+        refetchSlots();
+      }
+
+      showError(errorMessage, {
         title: 'Booking Failed',
         duration: 0,
         actions: [
           {
             label: 'Pick Another Slot',
             primary: true,
-            onClick: () => {}
-          }
-        ]
+            onClick: () => {},
+          },
+        ],
       });
-    }
+    },
   });
 
   const service = salon?.services?.find(s => s.id === serviceId);
@@ -134,20 +240,73 @@ const BookingPage = () => {
     };
   });
 
-  const handleBooking = () => {
-    if (!selectedSlot) return;
-    
-    // Show processing toast
+  const handleSelectSlot = (slotTime) => {
+    idempotencyKeyRef.current = null;
+    setSelectedSlot(slotTime);
+    setHoldId(null);
+    setTimeLeft(null);
+    reserveMutation.mutate(slotTime);
+  };
+
+  const handleSelectDate = (dateValue) => {
+    setSelectedDate(dateValue);
+    setSelectedSlot(null);
+    resetBookingAttempt();
+  };
+
+  const handleBooking = async () => {
+    if (!selectedSlot || bookingMutation.isPending || reserveMutation.isPending) return;
+
+    let activeHoldId = holdId;
+
+    if (!activeHoldId) {
+      try {
+        const reserveData = await reserveMutation.mutateAsync(selectedSlot);
+        activeHoldId = reserveData?.hold_id ?? null;
+      } catch (reserveErr) {
+        showError(
+          getApiErrorMessage(
+            reserveErr,
+            'Please tap your time slot again, then confirm booking.'
+          ),
+          { title: 'Could not reserve slot', duration: 6000 }
+        );
+        return;
+      }
+    }
+
+    if (!activeHoldId) {
+      showError('Please tap your time slot again, then confirm booking.', {
+        title: 'Slot not held',
+        duration: 6000,
+      });
+      return;
+    }
+
+    if (timeLeft !== null && timeLeft <= 0) {
+      try {
+        const reserveData = await reserveMutation.mutateAsync(selectedSlot);
+        activeHoldId = reserveData?.hold_id ?? activeHoldId;
+      } catch {
+        setSelectedSlot(null);
+        resetBookingAttempt();
+        showError('Your temporary reservation expired. Please select your time slot again.', {
+          title: 'Hold expired',
+          duration: 6000,
+        });
+        return;
+      }
+    }
+
     const processingToast = useToastStore.getState().info('Processing your booking...', {
       title: 'Please Wait',
-      duration: 30000 // Will be replaced by success/error
+      duration: 30000,
     });
-    
+
     bookingMutation.mutate(undefined, {
       onSettled: () => {
-        // Remove processing toast
         useToastStore.getState().removeToast(processingToast);
-      }
+      },
     });
   };
 
@@ -291,10 +450,7 @@ const BookingPage = () => {
             {dates.map((date) => (
               <button
                 key={date.value}
-                onClick={() => {
-                  setSelectedDate(date.value);
-                  setSelectedSlot(null);
-                }}
+                onClick={() => handleSelectDate(date.value)}
                 data-testid={`date-${date.value}`}
                 className={`flex-shrink-0 w-16 py-3 rounded-xl text-center transition-all ${
                   selectedDate === date.value
@@ -360,8 +516,8 @@ const BookingPage = () => {
                   return (
                     <button
                       key={slot.time}
-                      onClick={() => slot.available && setSelectedSlot(slot.time)}
-                      disabled={!slot.available}
+                      onClick={() => slot.available && handleSelectSlot(slot.time)}
+                      disabled={!slot.available || (reserveMutation.isPending && selectedSlot === slot.time)}
                       data-testid={`slot-${slot.time}`}
                       className={`relative py-3 px-2 rounded-xl text-sm font-medium transition-all ${
                         isFull
@@ -419,6 +575,11 @@ const BookingPage = () => {
             <h3 className="font-heading text-lg font-bold text-stone-900 mb-4">
               Booking Summary
             </h3>
+            {timeLeft != null && timeLeft > 0 && (
+              <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
+                Slot held for {timeLeft}s — confirm before it expires.
+              </p>
+            )}
             <div className="space-y-3 mb-6">
               <div className="flex justify-between text-sm">
                 <span className="text-stone-500">Date</span>
@@ -456,11 +617,11 @@ const BookingPage = () => {
 
             <button
               onClick={handleBooking}
-              disabled={bookingMutation.isPending}
+              disabled={bookingMutation.isPending || reserveMutation.isPending}
               data-testid="confirm-booking-btn"
               className="w-full btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {bookingMutation.isPending ? (
+              {bookingMutation.isPending || reserveMutation.isPending ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
@@ -472,7 +633,7 @@ const BookingPage = () => {
 
             {bookingMutation.isError && (
               <p className="mt-3 text-sm text-red-600 text-center">
-                {bookingMutation.error?.response?.data?.detail || 'Failed to create booking'}
+                {getApiErrorMessage(bookingMutation.error, 'Failed to create booking')}
               </p>
             )}
           </motion.div>
