@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
+    "prestart": "node scripts/sync-app-version.cjs",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -12,7 +13,7 @@
     "sync-legal": "node ../scripts/sync-legal.cjs",
     "verify:env": "node scripts/verify-build-env.js",
     "eas:sync-env": "node scripts/sync-env-to-dotenv.js",
-    "eas-build-post-install": "node scripts/sync-env-to-dotenv.js",
+    "eas-build-post-install": "node scripts/sync-app-version.cjs && node scripts/sync-env-to-dotenv.js",
     "build:aab:local": "bash scripts/build-aab-local.sh",
     "build:apk:local": "bash scripts/build-apk-local.sh"
   },

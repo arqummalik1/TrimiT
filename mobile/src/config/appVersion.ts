@@ -1,4 +1,5 @@
-import versionMeta from '../../../shared/app-version.json';
+// Synced from shared/app-version.json via scripts/sync-app-version.cjs (npm prestart)
+import versionMeta from './app-version.json';
 
 export const PRODUCT_NAME = versionMeta.productName;
 export const APP_VERSION = versionMeta.version;
