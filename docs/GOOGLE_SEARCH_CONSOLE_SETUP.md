@@ -22,7 +22,9 @@ Do these in order after ownership shows **Verified**:
 2. Enter: `sitemap.xml` (or full URL `https://trimit.online/sitemap.xml`)
 3. Click **Submit**
 
-Status may show **Success** within minutes or **Couldn't fetch** until Vercel redeploys (see below).
+Status should become **Success** after Vercel redeploys (see below).
+
+**If you see “URL not allowed” with `trimi-t.vercel.app` links:** the live build used the wrong `REACT_APP_PUBLIC_SITE_URL`. Redeploy after the latest `main` branch — `sitemap.xml` is always generated with `https://trimit.online` URLs only. Then in Search Console → Sitemaps → open the sitemap → **Resubmit** or remove and re-add `sitemap.xml`.
 
 ### 2. Confirm robots.txt (optional check)
 

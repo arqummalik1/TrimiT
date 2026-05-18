@@ -15,6 +15,9 @@
   ],
   "rewrites": [
     { "handle": "filesystem" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/((?!robots\\.txt|sitemap\\.xml|manifest\\.json|favicon\\.png|branding/.*|images/.*).*)",
+      "destination": "/index.html"
+    }
   ]
 }
