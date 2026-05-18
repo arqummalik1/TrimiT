@@ -13,7 +13,8 @@ import {
   X
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
-import { formatPrice } from '../../lib/utils';
+import { formatPrice, getApiErrorMessage } from '../../lib/utils';
+import { buildServicePayload } from '../../lib/servicePayload';
 
 const ManageServices = () => {
   const queryClient = useQueryClient();
@@ -36,11 +37,11 @@ const ManageServices = () => {
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const response = await api.post(`/salons/${salon.id}/services`, {
-        ...data,
-        price: parseFloat(data.price),
-        duration: parseInt(data.duration),
-      });
+      const payload = buildServicePayload(data);
+      if (!payload) {
+        throw new Error('Please fill in name, price, and duration.');
+      }
+      const response = await api.post(`/salons/${salon.id}/services`, payload);
       return response.data;
     },
     onSuccess: () => {
@@ -51,11 +52,11 @@ const ManageServices = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      const response = await api.patch(`/salons/${salon.id}/services/${id}`, {
-        ...data,
-        price: parseFloat(data.price),
-        duration: parseInt(data.duration),
-      });
+      const payload = buildServicePayload(data);
+      if (!payload) {
+        throw new Error('Please fill in name, price, and duration.');
+      }
+      const response = await api.patch(`/salons/${salon.id}/services/${id}`, payload);
       return response.data;
     },
     onSuccess: () => {
@@ -120,6 +121,10 @@ const ManageServices = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!buildServicePayload(formData)) {
+      window.alert('Please fill in name, price, and duration. For offers, set a discount between 1–99%.');
+      return;
+    }
     if (editingService) {
       updateMutation.mutate({ id: editingService.id, data: formData });
     } else {
@@ -523,9 +528,10 @@ const ManageServices = () => {
 
               {(createMutation.isError || updateMutation.isError) && (
                 <p className="text-sm text-red-600 text-center">
-                  {createMutation.error?.response?.data?.detail || 
-                   updateMutation.error?.response?.data?.detail || 
-                   'Failed to save service'}
+                  {getApiErrorMessage(
+                    createMutation.error || updateMutation.error,
+                    createMutation.error?.message || updateMutation.error?.message || 'Failed to save service'
+                  )}
                 </p>
               )}
             </form>

@@ -46,6 +46,8 @@ class ServiceCreate(BaseModel):
     is_on_offer: bool = False
     discount_percentage: Optional[int] = None
     original_price: Optional[int] = None
+    offer_end_date: Optional[str] = None  # YYYY-MM-DD
+    offer_tagline: Optional[str] = None
 
 class ServiceUpdate(BaseModel):
     name: Optional[str] = None
@@ -57,3 +59,5 @@ class ServiceUpdate(BaseModel):
     is_on_offer: Optional[bool] = None
     discount_percentage: Optional[int] = None
     original_price: Optional[int] = None
+    offer_end_date: Optional[str] = None
+    offer_tagline: Optional[str] = None
