@@ -2,9 +2,9 @@ name: Mobile CI
 
 on:
   push:
-    branches: [ main, zero-point-one ]
+    branches: [ main, zero-point-one, zero-point-two ]
   pull_request:
-    branches: [ main, zero-point-one ]
+    branches: [ main, zero-point-one, zero-point-two ]
 
 jobs:
   build:

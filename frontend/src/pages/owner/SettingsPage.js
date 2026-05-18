@@ -16,6 +16,7 @@ import {
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import AccountDeletionSection from '../../components/AccountDeletionSection';
+import AppVersionNote from '../../components/AppVersionNote';
 
 const SettingsPage = () => {
   const queryClient = useQueryClient();
@@ -283,6 +284,8 @@ const SettingsPage = () => {
         </motion.div>
 
         <AccountDeletionSection />
+
+        <AppVersionNote className="mt-10" />
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { User, Trash, Warning } from '@phosphor-icons/react';
 import { useAuthStore } from '../../store/authStore';
 import { SUPPORT_EMAIL } from '../../config/contact';
+import AppVersionNote from '../../components/AppVersionNote';
 
 const AccountPage = () => {
   const navigate = useNavigate();
@@ -90,6 +91,8 @@ const AccountPage = () => {
             Account deletion help on Contact page
           </Link>
         </p>
+
+        <AppVersionNote className="mt-8 pb-4" />
       </div>
     </motion.div>
   );

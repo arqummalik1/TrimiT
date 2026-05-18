@@ -1,6 +1,7 @@
 {
   "short_name": "TrimiT",
   "name": "TrimiT — Salon Booking",
+  "version": "1.0.0",
   "icons": [
     {
       "src": "branding/logo.png",

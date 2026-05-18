@@ -29,6 +29,8 @@ function loadDotEnv() {
 
 loadDotEnv();
 
+const appVersion = require('../shared/app-version.json');
+
 const withAndroidPermissions = require('./plugins/withAndroidPermissions');
 
 const releaseProguardRules = fs.readFileSync(
@@ -121,9 +123,9 @@ module.exports = ({ config }) => {
       name: 'TrimiT',
       slug: 'trimit',
       scheme: 'trimit',
-      version: '1.0.0',
+      version: appVersion.version,
       // Plain string avoids expo-updates appVersion policy warning (OTA not used in v1).
-      runtimeVersion: '1.0.0',
+      runtimeVersion: appVersion.version,
       orientation: 'portrait',
       icon: './assets/SquareLogo.png',
       userInterfaceStyle: 'automatic',
@@ -135,6 +137,7 @@ module.exports = ({ config }) => {
         backgroundColor: '#000000',
       },
       ios: {
+        buildNumber: appVersion.iosBuildNumber,
         supportsTablet: true,
         bundleIdentifier: 'com.trimit.app',
         infoPlist: {
@@ -148,6 +151,7 @@ module.exports = ({ config }) => {
         },
       },
       android: {
+        versionCode: appVersion.androidVersionCode,
         package: 'com.trimit.app',
         notification: {
           icon: './assets/adaptive-icon.png',

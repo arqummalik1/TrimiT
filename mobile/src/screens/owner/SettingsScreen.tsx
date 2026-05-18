@@ -23,6 +23,7 @@ import { Theme } from '../../theme/tokens';
 import { handleApiError } from '../../lib/errorHandler';
 import { salonRepository } from '../../repositories/salonRepository';
 import { showToast } from '../../store/toastStore';
+import { formatCopyright, formatVersionLine } from '../../config/appVersion';
 import {
   ACCOUNT_DELETION_SUPPORT_EMAIL,
   ACCOUNT_DELETION_WEB_URL,
@@ -310,7 +311,8 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
               textStyle={styles.signOutText}
               confirmDetail="Your local cache will be cleared."
             />
-            <Text style={styles.versionText}>Version 1.0.0 (Production)</Text>
+            <Text style={styles.versionText}>{formatVersionLine()}</Text>
+            <Text style={styles.copyrightText}>{formatCopyright()}</Text>
           </View>
         </ScrollView>
       </ScreenWrapper>
@@ -615,7 +617,8 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
             textStyle={styles.signOutText}
             confirmDetail="Your local cache will be cleared."
           />
-          <Text style={styles.versionText}>Version 1.0.0 (Production)</Text>
+          <Text style={styles.versionText}>{formatVersionLine()}</Text>
+          <Text style={styles.copyrightText}>{formatCopyright()}</Text>
         </View>
       </ScrollView>
 
@@ -932,6 +935,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 12,
     color: theme.colors.textSecondary,
     marginTop: 16,
+  },
+  copyrightText: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: theme.colors.textSecondary,
+    marginTop: 4,
+    marginBottom: 8,
   },
 });
 

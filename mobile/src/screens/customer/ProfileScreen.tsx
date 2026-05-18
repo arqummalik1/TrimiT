@@ -21,6 +21,7 @@ import { showToast } from '../../store/toastStore';
 import { useTheme, ThemeMode } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { handleApiError } from '../../lib/errorHandler';
+import { formatCopyright, formatVersionLine } from '../../config/appVersion';
 import { ProfileStackScreenProps } from '../../navigation/types';
 import {
   ACCOUNT_DELETION_SUPPORT_EMAIL,
@@ -273,7 +274,8 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
 
         <SignOutButton style={styles.signOutButton} textStyle={styles.signOutText} />
 
-        <Text style={styles.version}>TrimiT v1.0.0</Text>
+        <Text style={styles.version}>{formatVersionLine()}</Text>
+        <Text style={styles.copyright}>{formatCopyright()}</Text>
       </ScrollView>
     </ScreenWrapper>
   );
@@ -476,6 +478,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.textTertiary,
     textAlign: 'center',
     marginTop: spacing.xxl,
+  },
+  copyright: {
+    ...typography.caption,
+    color: theme.colors.textTertiary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
   },
   linksCard: {
     paddingVertical: spacing.md,

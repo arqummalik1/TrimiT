@@ -3,6 +3,14 @@ import { Link } from 'react-router-dom';
 import StoreDownloadLinks from './StoreDownloadLinks';
 import TrimitLogo from './brand/TrimitLogo';
 import { LOCAL_SEO_SECTIONS } from '../config/localSeoSections';
+import {
+  APP_VERSION,
+  APP_RELEASE_CHANNEL,
+  COPYRIGHT_YEAR,
+  PRODUCT_NAME,
+  formatCopyright,
+  formatVersionLine,
+} from '../config/appVersion';
 
 const MARKETING_ROUTES = [
   { to: '/explore', label: 'Explore salons' },
@@ -11,9 +19,13 @@ const MARKETING_ROUTES = [
   { to: '/salons-in-jammu', label: 'Salons in Jammu' },
 ];
 
-const Footer = () => {
-  const year = new Date().getFullYear();
+const LEGAL_LINKS = [
+  { to: '/terms', label: 'Terms & Conditions' },
+  { to: '/privacy', label: 'Privacy Policy' },
+  { to: '/contact', label: 'Contact' },
+];
 
+const Footer = () => {
   return (
     <footer className="bg-stone-900 text-stone-400 border-t border-stone-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -29,11 +41,12 @@ const Footer = () => {
               Premium salon booking in Jammu & Kashmir. Discover, book, and manage appointments
               online.
             </p>
+            <p className="mt-4 text-xs text-stone-500">{formatVersionLine()}</p>
           </div>
 
           <div>
             <p className="text-sm font-semibold text-stone-200 mb-4">Discover</p>
-            <nav className="flex flex-col gap-2 text-sm">
+            <nav className="flex flex-col gap-2 text-sm" aria-label="Discover">
               {MARKETING_ROUTES.map(({ to, label }) => (
                 <Link key={to} to={to} className="hover:text-orange-300 transition-colors">
                   {label}
@@ -44,7 +57,7 @@ const Footer = () => {
 
           <div>
             <p className="text-sm font-semibold text-stone-200 mb-4">Services in Jammu</p>
-            <nav className="flex flex-col gap-2 text-sm">
+            <nav className="flex flex-col gap-2 text-sm" aria-label="Services">
               {LOCAL_SEO_SECTIONS.map((s) => (
                 <Link
                   key={s.id}
@@ -59,24 +72,45 @@ const Footer = () => {
 
           <div>
             <p className="text-sm font-semibold text-stone-200 mb-4">Legal & app</p>
-            <nav className="flex flex-col gap-2 text-sm mb-6">
-              <Link to="/privacy" className="hover:text-orange-300 transition-colors">
-                Privacy
-              </Link>
-              <Link to="/terms" className="hover:text-orange-300 transition-colors">
-                Terms
-              </Link>
-              <Link to="/contact" className="hover:text-orange-300 transition-colors">
-                Contact
-              </Link>
+            <nav className="flex flex-col gap-2 text-sm mb-6" aria-label="Legal">
+              {LEGAL_LINKS.map(({ to, label }) => (
+                <Link key={to} to={to} className="hover:text-orange-300 transition-colors">
+                  {label}
+                </Link>
+              ))}
             </nav>
             <StoreDownloadLinks variant="dark" />
           </div>
         </div>
 
-        <div className="mt-10 pt-8 border-t border-stone-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-sm">
-          <p>&copy; {year} TrimiT. All rights reserved.</p>
-          <p className="text-stone-500">Salon booking Jammu · trimit.online</p>
+        <div className="mt-10 pt-8 border-t border-stone-800 space-y-4">
+          <nav
+            className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm text-stone-400"
+            aria-label="Legal footer"
+          >
+            {LEGAL_LINKS.map(({ to, label }, i) => (
+              <React.Fragment key={to}>
+                {i > 0 && <span className="text-stone-600 hidden sm:inline" aria-hidden>|</span>}
+                <Link to={to} className="hover:text-orange-300 transition-colors">
+                  {label}
+                </Link>
+              </React.Fragment>
+            ))}
+          </nav>
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-center sm:text-left">
+            <p>{formatCopyright()}</p>
+            <p className="text-stone-500">
+              {PRODUCT_NAME} v{APP_VERSION} · {APP_RELEASE_CHANNEL} · {COPYRIGHT_YEAR} ·{' '}
+              <a
+                href="https://trimit.online"
+                className="hover:text-orange-300 transition-colors"
+                rel="noopener noreferrer"
+              >
+                trimit.online
+              </a>
+            </p>
+          </div>
         </div>
       </div>
     </footer>
