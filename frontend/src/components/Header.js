@@ -30,6 +30,11 @@ const Header = () => {
   const isOwner = profile?.role === 'owner';
   const isCustomer = profile?.role === 'customer';
 
+  // Signed-in salon owners see Explore only; guests and customers keep both links.
+  const marketingLinks = MARKETING_LINKS.filter(
+    (link) => !(isAuthenticated && isOwner && link.to === '/for-salons')
+  );
+
   const isActive = (path) => location.pathname === path;
   const isExploreActive =
     location.pathname === '/explore' || location.pathname === '/discover';
@@ -47,7 +52,7 @@ const Header = () => {
             className="flex items-center gap-0.5 sm:gap-1 min-w-0 flex-1 justify-center"
             aria-label="Main"
           >
-            {MARKETING_LINKS.map(({ to, label }) => (
+            {marketingLinks.map(({ to, label }) => (
               <Link
                 key={to}
                 to={to}
