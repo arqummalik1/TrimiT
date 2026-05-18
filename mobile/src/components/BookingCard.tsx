@@ -8,6 +8,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { getLightStatusColors, getDarkStatusColors, getLightPaymentColors, getDarkPaymentColors, Theme } from '../theme/tokens';
 import { openNativeDirections } from '../lib/maps';
 import { getBookingServiceImageUri, getServiceDisplayName } from '../lib/bookingDisplay';
+import { LocationLedIcon } from './LocationLedIcon';
 
 interface BookingCardProps {
   booking: Booking;
@@ -174,7 +175,7 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
                   accessibilityRole="button"
                   accessibilityLabel="Get directions to salon"
                 >
-                  <Ionicons name="navigate" size={20} color="#FFFFFF" />
+                  <LocationLedIcon name="navigate" size={20} />
                 </TouchableOpacity>
               )}
 
@@ -386,10 +387,12 @@ const createStyles = (theme: Theme) =>
     directionsIconButton: {
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.isDark ? 'rgba(18, 20, 17, 0.95)' : 'rgba(28, 25, 23, 0.92)',
       width: 40,
       height: 40,
       borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.colors.locationLedGlow,
     },
     confirmButton: {
       flexDirection: 'row',

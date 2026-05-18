@@ -7,6 +7,7 @@ import { fonts, borderRadius, spacing, formatPrice, formatDistanceKm } from '../
 import { useTheme } from '../theme/ThemeContext';
 import { Theme } from '../theme/tokens';
 import { normalizeSalon, resolveSalonImageSource } from '../lib/salonImage';
+import { LocationLedIcon } from './LocationLedIcon';
 
 interface SalonCardProps {
   salon: Salon;
@@ -35,7 +36,7 @@ const SalonCardComponent: React.FC<SalonCardProps> = ({ salon: rawSalon, onPress
         />
         {typeof salon.distance === 'number' && !Number.isNaN(salon.distance) && (
           <View style={styles.distanceBadge}>
-            <Ionicons name="navigate" size={12} color={theme.colors.primary} />
+            <LocationLedIcon name="navigate" size={13} />
             <Text style={styles.distanceText}>{formatDistanceKm(salon.distance)}</Text>
           </View>
         )}
@@ -55,7 +56,7 @@ const SalonCardComponent: React.FC<SalonCardProps> = ({ salon: rawSalon, onPress
         </View>
 
         <View style={styles.locationRow}>
-          <Ionicons name="location" size={14} color={theme.colors.textSecondary} />
+          <LocationLedIcon name="location" size={15} />
           <Text style={styles.locationText} numberOfLines={1}>
             {salon.address}, {salon.city}
           </Text>
@@ -102,12 +103,14 @@ const createStyles = (theme: Theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: theme.isDark
-        ? 'rgba(18, 20, 17, 0.85)'
-        : 'rgba(28, 25, 23, 0.75)',
+        ? 'rgba(18, 20, 17, 0.88)'
+        : 'rgba(28, 25, 23, 0.78)',
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: borderRadius.pill,
-      gap: 4,
+      gap: 5,
+      borderWidth: 1,
+      borderColor: theme.colors.locationLedGlow,
     },
     distanceText: {
       fontFamily: fonts.bodyMedium,
