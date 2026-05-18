@@ -13,5 +13,8 @@
       "headers": [{ "key": "Content-Type", "value": "application/xml; charset=utf-8" }]
     }
   ],
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "handle": "filesystem" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

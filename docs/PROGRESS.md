@@ -43,8 +43,9 @@ See [PRODUCTION_LAUNCH_CHECKLIST.md](./PRODUCTION_LAUNCH_CHECKLIST.md).
 
 | Date | Summary | Next |
 |------|---------|------|
+| 2026-05-18 | **GSC:** User verified via **Hostinger DNS TXT** (not HTML tag). Fixed `vercel.json` filesystem routing for `robots.txt`/`sitemap.xml`; SEO generator ignores `*.vercel.app` base URL. Docs updated with post-verify steps. | Submit sitemap in Search Console; set `REACT_APP_PUBLIC_SITE_URL=https://trimit.online` on Vercel → redeploy. |
 | 2026-05-18 | **Play guide:** `PLAY_STORE_DEPLOYMENT_GUIDE.md` rewritten for **local-only** APK/AAB (`npm run build:aab:local` / `build:apk:local`); EAS cloud moved to optional appendix (quota exhausted). | Upload `build-*.aab` → internal testing → QA. |
-| 2026-05-18 | **SEO / Search Console:** `robots.txt`, `sitemap.xml` (build-time generator), per-route `SeoHead` (meta, OG, JSON-LD), optional GA4 + GSC verification env vars, Play Store ASO copy in deployment guide. Docs: `GOOGLE_SEARCH_CONSOLE_SETUP.md`. | Add `REACT_APP_GOOGLE_SITE_VERIFICATION` in Vercel → redeploy → verify in Search Console → submit sitemap. |
+| 2026-05-18 | **SEO / Search Console:** `robots.txt`, `sitemap.xml` (build-time generator), per-route `SeoHead` (meta, OG, JSON-LD), optional GA4, Play Store ASO copy. Docs: `GOOGLE_SEARCH_CONSOLE_SETUP.md`. | (superseded by GSC DNS row) |
 | 2026-05-17 (late) | **Landing page v2:** Service card illustrations (`frontend/public/images/services/`), upbeat hero graphic + horizontal logo white-box fix, **Get the Android app** section, Vercel JSX build fix, mobile-responsive layout. Pushed through `5f0962b7`. **Mobile:** `npm run verify:env && npm run build:aab:local` started (Play Store AAB). | Confirm Vercel deploy live → auth signup E2E → finish AAB → install on Android 13+ → QA matrix. |
 | 2026-05-17 (night) | **Production domain & web:** `trimit.online` everywhere (code, legal, Render `PUBLIC_SITE_URL`, Vercel). **Auth email:** Resend SMTP + Supabase custom SMTP (user configured); friendly rate-limit copy; `hello@trimit.online` support. **Web UX:** premium landing (hero, illustrated “What we offer”, stats, how-it-works), TrimiT logo PNG sitewide, header **Download App** + footer badges → **Google Drive APK** until Play listing. Guides: `TRIMIT_ONLINE_SETUP.md`, `REMAINING_STEPS_TRIMIT_ONLINE.md`, `AUTH_SMTP_AND_PHONE_OTP_GUIDE.md`. Pushed: `0ba9f645`, `84fc83b3`, `b1bc5669`. | (superseded by late session) |
 | 2026-05-17 (eve) | **MVP launch remediation** implemented: hold required, slots auth, duration overlap, idempotency INSERT-first, Write Review CTA, booking UX, Discover map pause. See audit §19. | Deploy → QA → production AAB. |
@@ -144,8 +145,8 @@ Full detail: [PRODUCTION_AUDIT_REPORT.md](./PRODUCTION_AUDIT_REPORT.md).
 | Signup / reset email E2E test | **PENDING** | New Gmail, check spam |
 | APK distribution | **CODE_DONE** | Drive folder via header/footer until Play Store |
 | Landing v2 on production | **DONE** | — |
-| Search Console sitemap + robots | **CODE_DONE** | Submit `https://trimit.online/sitemap.xml` after deploy |
-| GSC ownership verification | **PENDING** | Set `REACT_APP_GOOGLE_SITE_VERIFICATION` in Vercel |
+| Search Console sitemap + robots | **CODE_DONE** | Submit `sitemap.xml` in GSC; confirm live URLs after Vercel redeploy |
+| GSC ownership verification | **DONE** (user) | DNS TXT on Hostinger — no Vercel meta tag needed |
 | Phone OTP login | **DEFERRED** | See `AUTH_SMTP_AND_PHONE_OTP_GUIDE.md` |
 | Compress `logo-horizontal.png` (~500KB) | **OPTIONAL** | Faster hero load |
 

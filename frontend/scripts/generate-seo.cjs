@@ -5,9 +5,17 @@
 const fs = require('fs');
 const path = require('path');
 
-const siteUrl = (process.env.REACT_APP_PUBLIC_SITE_URL || 'https://trimit.online')
+let siteUrl = (process.env.REACT_APP_PUBLIC_SITE_URL || 'https://trimit.online')
   .trim()
   .replace(/\/$/, '');
+
+// Production SEO must use the public domain, not a *.vercel.app preview URL.
+if (/\.vercel\.app$/i.test(siteUrl) && !/trimit\.online/i.test(siteUrl)) {
+  console.warn(
+    `[generate-seo] REACT_APP_PUBLIC_SITE_URL is "${siteUrl}" — using https://trimit.online for robots/sitemap.`
+  );
+  siteUrl = 'https://trimit.online';
+}
 
 const publicDir = path.join(__dirname, '..', 'public');
 const lastmod = new Date().toISOString().split('T')[0];
