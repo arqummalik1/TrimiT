@@ -49,10 +49,6 @@ export type ThemeColors = {
   infoLight:    string;
   star:         string;
 
-  /** Android-style illuminated LED green for map / direction icons */
-  locationLed:     string;
-  locationLedGlow: string;
-
   // Misc
   overlay:     string;
   shimmer:     string;

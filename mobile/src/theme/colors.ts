@@ -47,8 +47,6 @@ export const lightPalette = {
   info:         '#2563EB', // blue-600
   infoLight:    '#EFF6FF', // blue-50
   star:         '#F59E0B', // amber-400
-  locationLed:     '#39FF14', // illuminated LED green
-  locationLedGlow: 'rgba(57, 255, 20, 0.55)',
 
   // Misc
   overlay:     'rgba(0,0,0,0.45)',
@@ -103,8 +101,6 @@ export const darkPalette = {
   info:         '#85C1E9',
   infoLight:    '#1A242D',
   star:         '#f1d18d',
-  locationLed:     '#5CFF7A', // slightly softer on dark backgrounds
-  locationLedGlow: 'rgba(92, 255, 122, 0.5)',
 
   // Misc
   overlay:     'rgba(0,0,0,0.85)',

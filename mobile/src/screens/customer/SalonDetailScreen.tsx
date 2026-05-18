@@ -31,7 +31,6 @@ import { isAppError } from '../../types/error';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
 import { SalonDetailParamsSchema } from '../../navigation/params';
 import { normalizeSalon } from '../../lib/salonImage';
-import { LocationLedIcon } from '../../components/LocationLedIcon';
 
 type Props = CustomerDiscoverScreenProps<'SalonDetail'>;
 
@@ -148,7 +147,7 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             )}
             <Text style={styles.salonName}>{salon.name}</Text>
             <View style={styles.infoRow}>
-              <LocationLedIcon name="location" size={17} />
+              <Ionicons name="location" size={16} color="#E7E5E4" />
               <Text style={styles.infoText}>{salon.address}, {salon.city}</Text>
             </View>
             <View style={styles.infoRow}>
@@ -168,7 +167,7 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             </TouchableOpacity>
             {salon.latitude && salon.longitude ? (
               <TouchableOpacity style={styles.directionsButton} onPress={handleDirections}>
-                <LocationLedIcon name="navigate" size={20} />
+                <Ionicons name="navigate" size={20} color={theme.colors.secondary} />
                 <Text style={styles.directionsText}>Directions</Text>
               </TouchableOpacity>
             ) : null}
@@ -209,7 +208,7 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               {/* Get Directions overlay */}
               <View style={styles.directionsOverlay}>
                 <View style={styles.directionsOverlayPill}>
-                  <LocationLedIcon name="navigate" size={15} />
+                  <Ionicons name="navigate" size={14} color={theme.colors.primary} />
                   <Text style={styles.directionsOverlayText}>Get Directions</Text>
                 </View>
               </View>
@@ -458,7 +457,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   directionsOverlayText: {
     fontFamily: fonts.bodyBold,
-    color: theme.colors.text,
+    color: theme.colors.primary,
     fontSize: 12,
     letterSpacing: 0.5,
   },
