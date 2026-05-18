@@ -15,6 +15,7 @@ import {
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import { formatPrice, formatTime, normalizeSlotTimeToHHMM, getApiErrorMessage } from '../../lib/utils';
+import { ENABLE_MULTI_BOOKING_PER_SLOT } from '../../lib/featureFlags';
 import { createIdempotencyKey } from '../../lib/idempotency';
 import { useToastStore } from '../../store/toastStore';
 
@@ -491,7 +492,7 @@ const BookingPage = () => {
           ) : filteredSlots?.length > 0 ? (
             <>
               {/* Show legend when multi-booking is enabled */}
-              {slotsData?.allow_multiple_bookings_per_slot && (
+              {ENABLE_MULTI_BOOKING_PER_SLOT && slotsData?.allow_multiple_bookings_per_slot && (
                 <div className="flex items-center gap-4 mb-3 text-xs text-stone-500">
                   <span className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" /> Available
@@ -506,7 +507,7 @@ const BookingPage = () => {
               )}
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                 {filteredSlots.map((slot) => {
-                  const isMulti = slot.allow_multiple;
+                  const isMulti = ENABLE_MULTI_BOOKING_PER_SLOT && slot.allow_multiple;
                   const count = slot.booking_count || 0;
                   const max = slot.max_bookings || 1;
                   const fillRatio = isMulti ? count / max : count;

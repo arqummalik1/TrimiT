@@ -33,7 +33,11 @@ import { CustomerDiscoverScreenProps } from '../../navigation/types';
 import { BookingParamsSchema } from '../../navigation/params';
 
 import { analytics } from '../../lib/analytics';
-import { ENABLE_ONLINE_PAY, ENABLE_STAFF_SELECTION } from '../../lib/featureFlags';
+import {
+  ENABLE_ONLINE_PAY,
+  ENABLE_STAFF_SELECTION,
+  ENABLE_MULTI_BOOKING_PER_SLOT,
+} from '../../lib/featureFlags';
 import { createIdempotencyKey } from '../../lib/idempotency';
 import { isTransientNetworkError, withTransientNetworkRetry } from '../../lib/networkRetry';
 
@@ -200,7 +204,9 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     });
   }, [displaySlots, selectedDate]);
 
-  const effectiveAllowMultiple = slotsData?.allow_multiple_bookings_per_slot ?? allowMultipleBookings;
+  const effectiveAllowMultiple =
+    ENABLE_MULTI_BOOKING_PER_SLOT &&
+    (slotsData?.allow_multiple_bookings_per_slot ?? allowMultipleBookings);
 
   // Get available staff for selected date/time/service
   const { data: availableStaffData, isLoading: staffLoading } = useQuery<AvailableStaffResponse>({
@@ -1004,7 +1010,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
               {visibleSlots.map((slot) => {
                 const scopedKey = `${selectedDate}::${slot.time}`;
                 const isJustBooked = justBookedSlots.has(scopedKey);
-                const isMulti = slot.allow_multiple;
+                const isMulti = ENABLE_MULTI_BOOKING_PER_SLOT && slot.allow_multiple;
                 const count = slot.booking_count || 0;
                 const max = slot.max_bookings || 1;
                 const isFillingUp = isMulti && count > 0 && count < max;

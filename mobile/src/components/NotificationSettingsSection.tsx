@@ -10,6 +10,7 @@ import { logger } from '../lib/logger';
 import { useNotificationPrefsStore } from '../store/notificationPrefsStore';
 import { useNotificationStore } from '../store/notificationStore';
 import type { NotificationPreferences } from '../types';
+import { ENABLE_OWNER_PROMO_MANAGEMENT } from '../lib/featureFlags';
 
 const DEFAULT_PREFS: NotificationPreferences = {
   push_enabled: true,
@@ -127,13 +128,15 @@ export function NotificationSettingsSection() {
         theme={theme}
         disabled={disabled}
       />
-      <Row
-        label="Offers and promotions"
-        value={prefs.notify_promotional}
-        onToggle={() => toggle('notify_promotional')}
-        theme={theme}
-        disabled={disabled}
-      />
+      {ENABLE_OWNER_PROMO_MANAGEMENT ? (
+        <Row
+          label="Offers and promotions"
+          value={prefs.notify_promotional}
+          onToggle={() => toggle('notify_promotional')}
+          theme={theme}
+          disabled={disabled}
+        />
+      ) : null}
       <Row
         label="Notification sound"
         subtitle="In-app alert and Android channel"

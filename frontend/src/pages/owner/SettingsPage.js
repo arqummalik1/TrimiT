@@ -17,6 +17,7 @@ import {
 import api from '../../lib/api';
 import AccountDeletionSection from '../../components/AccountDeletionSection';
 import AppVersionNote from '../../components/AppVersionNote';
+import { ENABLE_MULTI_BOOKING_PER_SLOT } from '../../lib/featureFlags';
 
 const SettingsPage = () => {
   const queryClient = useQueryClient();
@@ -141,7 +142,8 @@ const SettingsPage = () => {
           </motion.div>
         )}
 
-        {/* Booking Settings */}
+        {ENABLE_MULTI_BOOKING_PER_SLOT ? (
+        <>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -252,12 +254,11 @@ const SettingsPage = () => {
           </div>
         </motion.div>
 
-        {/* Current Status */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white rounded-2xl border border-stone-200 p-6"
+          className="bg-white rounded-2xl border border-stone-200 p-6 mb-6"
         >
           <h3 className="font-semibold text-stone-900 mb-4">Current Status</h3>
           <div className="flex items-center gap-3">
@@ -282,6 +283,22 @@ const SettingsPage = () => {
             )}
           </div>
         </motion.div>
+        </>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl border border-stone-200 p-6 mb-6"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <Scissors size={22} className="text-orange-800" />
+              <h2 className="font-heading text-lg font-bold text-stone-900">Booking</h2>
+            </div>
+            <p className="text-sm text-stone-600">
+              One customer per time slot. Multi-booking controls are hidden until enabled in a future release.
+            </p>
+          </motion.div>
+        )}
 
         <AccountDeletionSection />
 

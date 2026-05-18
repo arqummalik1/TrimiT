@@ -11,3 +11,13 @@ export const ENABLE_ONLINE_PAY =
 export const ENABLE_STAFF_SELECTION =
   process.env.EXPO_PUBLIC_ENABLE_STAFF_SELECTION === 'true' ||
   process.env.EXPO_PUBLIC_ENABLE_STAFF_SELECTION === '1';
+
+/** Multiple customers per time slot (owner settings + slot UI). v1 uses one booking per slot. */
+export const ENABLE_MULTI_BOOKING_PER_SLOT =
+  process.env.EXPO_PUBLIC_ENABLE_MULTI_BOOKING === 'true' ||
+  process.env.EXPO_PUBLIC_ENABLE_MULTI_BOOKING === '1';
+
+/** Owner promo codes screen + promotional notification preference. */
+export const ENABLE_OWNER_PROMO_MANAGEMENT =
+  process.env.EXPO_PUBLIC_ENABLE_PROMO_MANAGEMENT === 'true' ||
+  process.env.EXPO_PUBLIC_ENABLE_PROMO_MANAGEMENT === '1';
