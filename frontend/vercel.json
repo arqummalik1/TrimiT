@@ -13,9 +13,8 @@
     }
   ],
   "rewrites": [
-    { "handle": "filesystem" },
     {
-      "source": "/((?!robots\\.txt|sitemap\\.xml|manifest\\.json|favicon\\.png|branding/.*|images/.*).*)",
+      "source": "/((?!robots\\.txt|sitemap\\.xml|manifest\\.json|favicon\\.png|branding/|images/|assets/).*)",
       "destination": "/index.html"
     }
   ]
