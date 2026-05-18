@@ -1,7 +1,7 @@
 import { Alert } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 /** Must match backend `MAX_UPLOAD_BYTES` in uploads.py */
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -20,7 +20,7 @@ export class ImageTooLargeError extends Error {
 
 export async function getLocalFileSizeBytes(uri: string): Promise<number | null> {
   try {
-    const info = await FileSystem.getInfoAsync(uri, { size: true });
+    const info = await FileSystem.getInfoAsync(uri);
     if (info.exists && typeof info.size === 'number') {
       return info.size;
     }

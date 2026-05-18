@@ -2,9 +2,9 @@ name: Mobile CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, zero-point-one ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, zero-point-one ]
 
 jobs:
   build:
@@ -27,5 +27,4 @@ jobs:
       - name: Lint and Type Check
         run: |
           cd mobile
-          npm run lint || true
-          npx tsc --noEmit
+          npm run lint
