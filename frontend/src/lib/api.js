@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { getEnv } from '../config/env';
 import { clearPersistedAuth } from './session';
+import { createIdempotencyKey, pathRequiresIdempotencyKey } from './idempotency';
 
 /**
  * Single API surface: all requests go to …/api/v1 (same contract as mobile).
@@ -37,11 +38,22 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     if (isPublicSalonRead(config)) {
       const headers = { ...config.headers };
       delete headers.Authorization;
       delete headers.authorization;
+      config.headers = headers;
+    }
+
+    const method = (config.method || 'get').toLowerCase();
+    if (method === 'post' && pathRequiresIdempotencyKey(config.url)) {
+      const headers = { ...config.headers };
+      const existing =
+        headers['Idempotency-Key'] ?? headers['idempotency-key'];
+      if (!existing) {
+        headers['Idempotency-Key'] = createIdempotencyKey();
+      }
       config.headers = headers;
     }
     if (import.meta.env.DEV) {
