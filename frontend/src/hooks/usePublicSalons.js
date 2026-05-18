@@ -27,6 +27,7 @@ export function usePublicSalons({
     queryFn: () => fetchSalons({ search, lat, lng, radius, limit }),
     enabled,
     staleTime: 1000 * 60 * 3,
+    retry: 2,
   });
 }
 

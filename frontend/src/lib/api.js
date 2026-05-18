@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getEnv } from '../config/env';
+import { clearPersistedAuth } from './session';
 
 /**
  * Single API surface: all requests go to …/api/v1 (same contract as mobile).
@@ -19,6 +20,14 @@ function resolveApiBaseUrl() {
   return `${raw}/api/v1`;
 }
 
+/** Public salon discovery — must work without login (no stale Bearer token). */
+export function isPublicSalonRead(config) {
+  const method = (config?.method || 'get').toLowerCase();
+  if (method !== 'get') return false;
+  const path = (config?.url || '').split('?')[0].replace(/\/$/, '') || '/';
+  return path === '/salons' || path.startsWith('/salons/');
+}
+
 const api = axios.create({
   baseURL: resolveApiBaseUrl(),
   timeout: 15000,
@@ -29,11 +38,18 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
+    if (isPublicSalonRead(config)) {
+      const headers = { ...config.headers };
+      delete headers.Authorization;
+      delete headers.authorization;
+      config.headers = headers;
+    }
     if (import.meta.env.DEV) {
       console.log('🚀 [WEB_API][REQ]', {
         method: (config.method || 'GET').toUpperCase(),
         url: `${(config.baseURL || '').replace(/\/$/, '')}${(config.url || '').startsWith('/') ? config.url : `/${config.url || ''}`}`,
         params: config.params,
+        public: isPublicSalonRead(config),
       });
     }
     return config;
@@ -53,15 +69,36 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    const status = error.response?.status;
+    const config = error.config;
     console.error('❌ [WEB_API][ERR]', {
-      status: error.response?.status,
-      method: error.config?.method?.toUpperCase(),
-      url: `${(error.config?.baseURL || '').replace(/\/$/, '')}${(error.config?.url || '').startsWith('/') ? error.config?.url : `/${error.config?.url || ''}`}`,
+      status,
+      method: config?.method?.toUpperCase(),
+      url: `${(config?.baseURL || '').replace(/\/$/, '')}${(config?.url || '').startsWith('/') ? config.url : `/${config?.url || ''}`}`,
       detail: error.response?.data?.detail || error.message,
     });
-    if (error.response?.status === 401) {
-      localStorage.removeItem('trimit-auth');
-      window.location.href = '/login';
+
+    if (status === 401) {
+      const hadAuth = Boolean(
+        config?.headers?.Authorization ||
+          config?.headers?.authorization ||
+          api.defaults.headers.common?.Authorization
+      );
+      clearPersistedAuth();
+      delete api.defaults.headers.common.Authorization;
+
+      // Never kick guests off public browse; only redirect when a protected call fails auth.
+      if (hadAuth && !isPublicSalonRead(config)) {
+        const path = window.location.pathname;
+        const isAuthPage =
+          path.startsWith('/login') ||
+          path.startsWith('/signup') ||
+          path.startsWith('/forgot-password') ||
+          path.startsWith('/reset-password');
+        if (!isAuthPage) {
+          window.location.href = '/login';
+        }
+      }
     }
     return Promise.reject(error);
   }

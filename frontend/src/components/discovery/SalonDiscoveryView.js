@@ -24,7 +24,7 @@ export default function SalonDiscoveryView({
     setSearchQuery(initialQ);
   }, [initialQ]);
 
-  const { data: salons, isLoading, error } = usePublicSalons({
+  const { data: salons, isLoading, error, refetch, isFetching } = usePublicSalons({
     search: searchQuery,
     lat: coords.lat,
     lng: coords.lng,
@@ -107,7 +107,20 @@ export default function SalonDiscoveryView({
 
       <div className="max-w-6xl mx-auto px-4 py-8">
         {error && (
-          <p className="text-red-600 text-center py-8">Could not load salons. Please try again.</p>
+          <div className="text-center py-12 px-4">
+            <p className="text-stone-700 font-medium mb-1">Could not load salons</p>
+            <p className="text-stone-500 text-sm mb-4 max-w-md mx-auto">
+              Check your connection, or try again. Browsing salons does not require signing in.
+            </p>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="btn-primary text-sm disabled:opacity-60"
+            >
+              {isFetching ? 'Loading…' : 'Try again'}
+            </button>
+          </div>
         )}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
