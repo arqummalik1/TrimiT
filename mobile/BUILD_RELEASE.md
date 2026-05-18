@@ -1,6 +1,8 @@
 # TrimiT — Permanent release build guide (Android)
 
-**Verified working:** `build-1778950057693.apk` (May 2026) — app opens, no white-screen crash.
+**Verified working:** `build-1778950057693.apk`, `build-1779034030001.aab` (May 2026).
+
+**Default path:** local builds only (Expo EAS **cloud** free quota exhausted). Play Store steps: [docs/PLAY_STORE_DEPLOYMENT_GUIDE.md](../docs/PLAY_STORE_DEPLOYMENT_GUIDE.md).
 
 Always use these commands. Do **not** run raw `eas build --local` without the scripts.
 

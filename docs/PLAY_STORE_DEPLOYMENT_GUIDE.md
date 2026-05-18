@@ -1,10 +1,12 @@
 # TrimiT — Play Store deployment guide (beginner-friendly)
 
-**Goal:** Build a signed **AAB** file and upload it to Google Play for your **v1 MVP** (cash-only bookings). You can ship updates later without redoing this whole guide.
+**Goal:** Build a signed **AAB** on your Mac, upload it to Google Play for your **v1 MVP** (cash-only bookings), and test with a local **APK** before you publish.
 
-**Time:** First time: about **2–4 hours** (mostly waiting for cloud builds + filling Play forms).  
+**Build approach (2026):** **Local builds only** — Expo’s free **EAS cloud build quota is used up**, so we compile on your machine with `npm run build:aab:local` / `npm run build:apk:local`. These scripts load `mobile/.env`, verify keys, and run `eas build --local` (no cloud minutes).
+
+**Time:** First time: about **2–4 hours** (one local AAB compile ~15–45 min + Play Console forms).  
 **App ID (package name):** `com.trimit.app`  
-**Build tool:** [Expo Application Services (EAS)](https://docs.expo.dev/build/introduction/) — builds in the cloud; you do **not** need Android Studio on your Mac for the AAB.
+**Canonical build doc:** [mobile/BUILD_RELEASE.md](../mobile/BUILD_RELEASE.md)
 
 ---
 
@@ -12,15 +14,15 @@
 
 | Step | Outcome |
 |------|---------|
-| Accounts ready | Google Play Developer + Expo accounts |
-| EAS secrets set | Production API keys baked into the app |
-| Upload keystore created | Google-trusted signing identity for your app |
-| `eas build` completes | **`.aab` file** (Android App Bundle) — this is what Play Store accepts |
-| Play Console app created | Empty app listing ready for uploads |
-| Internal testing release | Testers (including you) can install from Play |
-| Production release (later) | Public listing on Play Store |
+| Accounts ready | Google Play Developer account ($25 one-time) |
+| `mobile/.env` filled | Production API keys baked into every local build |
+| Upload keystore ready | Signs your AAB/APK (via EAS credentials on disk) |
+| `npm run build:aab:local` | **`.aab` file** in `mobile/` (e.g. `build-1779034030001.aab`) — Play upload |
+| `npm run build:apk:local` | **`.apk` file** for phone testing (push, booking smoke test) |
+| Play Console app created | Listing + internal testing release |
+| Production release (later) | Public listing on Google Play |
 
-**Important:** Play Store does **not** accept APK for new apps in most cases — it wants **AAB**. Your `eas.json` is already set to `app-bundle` for production.
+**Important:** Play Store wants an **AAB** for publishing. Use **APK** only for sideload testing on your phone before or between Play uploads.
 
 ---
 
@@ -28,422 +30,319 @@
 
 | Term | Meaning |
 |------|---------|
-| **AAB** | Android App Bundle — the zip-like file Google Play installs from. Smaller and required for publishing. |
-| **APK** | Old install file. Fine for testing on your phone manually; Play prefers AAB. |
-| **Keystore** | A password-protected file that proves *you* built the app. Like a digital passport for updates. |
-| **Upload key** | The keystore **you** (or EAS) use to sign the AAB before sending it to Google. |
-| **App signing key** | Google’s key that actually signs what users download (Play App Signing). You enroll on first upload. |
-| **EAS** | Expo’s cloud build service — compiles your React Native app into AAB on their servers. |
-| **Production profile** | Build settings in `mobile/eas.json` named `production` (AAB + auto version code). |
+| **AAB** | Android App Bundle — what Google Play installs from. |
+| **APK** | Direct install file for testing on your device (USB / Drive). |
+| **Local build** | `eas build --local` runs Gradle on **your Mac**; does **not** use Expo cloud quota. |
+| **Keystore** | Password-protected file that signs releases. **Back it up** — same file for all future updates. |
+| **Upload key** | Your keystore signs the AAB you upload; Google re-signs for users (Play App Signing). |
+| **EAS CLI** | Expo tool that orchestrates local or cloud builds; we use **`npx eas-cli@18.13.0`** via npm scripts. |
 | **Internal testing** | Play track for you and testers only — safest first upload. |
-| **versionCode** | Integer that must go **up** every Play upload (EAS `autoIncrement` handles this). |
-| **versionName** | User-visible version, e.g. `1.0.0` in `mobile/app.config.js`. |
+| **versionCode** | Integer that must **increase** every Play upload (`autoIncrement` in `eas.json` on local builds). |
+| **versionName** | User-visible version in `mobile/app.config.js` (e.g. `1.0.0`). |
 
 ---
 
 ## Before you start (checklist)
 
-### Accounts (one-time fees)
+### Accounts
 
 | Account | Why | Cost |
 |---------|-----|------|
 | [Google Play Console](https://play.google.com/console) | Publish Android apps | **$25 one-time** |
-| [Expo](https://expo.dev) | EAS builds | Free tier works; paid if you hit limits |
-| GitHub (you have TrimiT repo) | Code source | Free |
+| [Expo](https://expo.dev) | Optional — credentials / project link only (no cloud builds required) | Free |
+| GitHub | TrimiT source | Free |
 
-### On your computer
+### On your Mac (required for local builds)
 
 | Tool | Install | Check |
 |------|---------|-------|
-| **Node.js** 18+ | [nodejs.org](https://nodejs.org) | `node -v` |
-| **npm** | Comes with Node | `npm -v` |
-| **EAS CLI** | `npm install -g eas-cli` | `eas --version` |
+| **Node.js 22** | `fnm` / `nvm` — see `mobile/.nvmrc` | `node -v` → v22.x |
+| **npm** | With Node | `npm -v` |
+| **Android Studio** | [developer.android.com/studio](https://developer.android.com/studio) | SDK + platform tools installed |
+| **ANDROID_HOME** | Set in `~/.zshrc` after Studio install | `echo $ANDROID_HOME` |
+| **Java 17+** | Bundled with Android Studio | `java -version` |
 | **Git** | [git-scm.com](https://git-scm.com) | `git --version` |
 
-### Services already running (TrimiT)
+EAS CLI is invoked by npm scripts (`npx eas-cli@18.13.0`); a global `eas` install is optional.
 
-Confirm these work in a browser before building the app:
+### Services (verify in browser)
 
-- Backend health: `https://trimit-az5h.onrender.com/health` (or your Render URL)
-- Privacy policy: https://trimit.online/privacy
+- Backend: `https://trimit-az5h.onrender.com/health`
+- Privacy: https://trimit.online/privacy
 - Terms: https://trimit.online/terms
 
-### Gather these secret values (not committed to git)
+### `mobile/.env` (required — not in git)
 
-Write them in a password manager — you will paste them into Expo EAS:
+```bash
+cd mobile
+cp env.example .env
+# Edit .env — fill Supabase + Google Maps keys
+npm run verify:env
+```
 
-| Secret name | Where to find it |
-|-------------|------------------|
-| `EXPO_PUBLIC_API_URL` | Render backend URL, e.g. `https://trimit-az5h.onrender.com` |
-| `EXPO_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Same page — **anon public** key only |
-| `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` | Google Cloud Console → Credentials |
+| Variable | Purpose |
+|----------|---------|
+| `EXPO_PUBLIC_API_URL` | Render backend, e.g. `https://trimit-az5h.onrender.com` |
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase **anon** key only |
+| `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` | Maps (Android-restricted key recommended) |
 | `EXPO_PUBLIC_PUBLIC_SITE_URL` | `https://trimit.online` |
-| `EXPO_PUBLIC_SENTRY_DSN` | Sentry project (optional but recommended) |
+| `EXPO_PUBLIC_ENABLE_ONLINE_PAY` | `false` for v1 (cash at salon) |
+| `EXPO_PUBLIC_SENTRY_DSN` | Optional |
 
-`EXPO_PUBLIC_ENABLE_ONLINE_PAY` is already `false` in `eas.json` for v1 (cash at salon only).
+**Why `.env` matters:** Local EAS builds **do not** read a gitignored `.env` automatically. Our scripts (`load-env-for-build.sh`) export these into the shell **before** `eas build --local`, so the APK/AAB is not empty/crash on launch. See [BUILD_RELEASE.md](../mobile/BUILD_RELEASE.md).
 
 ---
 
-## Phase 1 — Log in to Expo and link the project
+## Phase 1 — One-time project setup
 
-### Step 1.1 — Open the mobile app folder
+### Step 1.1 — Install dependencies
 
 ```bash
 cd "/path/to/TrimiT/mobile"
 npm install
 ```
 
-**Outcome:** Dependencies installed; `node_modules` ready.
-
-### Step 1.2 — Log in to Expo
+### Step 1.2 — Verify environment
 
 ```bash
-eas login
+npm run verify:env
 ```
 
-Follow the browser prompt with your Expo account.
+**Outcome:** Script confirms Supabase, Maps, and API URL are set.
 
-**Outcome:** Terminal shows you are logged in.
+### Step 1.3 — Expo login (credentials only)
 
-### Step 1.3 — Link project to EAS (first time only)
+Needed once for keystore management; **not** for cloud builds.
 
 ```bash
-eas init
+npx eas-cli@18.13.0 login
 ```
 
-If asked, confirm the existing project / create one named **trimit**.
-
-**Outcome:** `mobile/app.json` or Expo dashboard shows project ID; builds can run.
-
----
-
-## Phase 2 — Set environment variables on Expo
-
-Values live on Expo’s servers and are injected at build time (not in GitHub).
-
-**Full table (visibility, no warnings):** [EXPO_ENV_SETUP.md](./EXPO_ENV_SETUP.md)
-
-### Step 2.1 — Add variables in the dashboard
-
-1. [expo.dev](https://expo.dev) → project **trimit** → **Environment variables**
-2. Create each variable for **development**, **preview**, and **production**
-3. Use **Plain text** for URLs, **Sensitive** for keys — **never “Secret”** on `EXPO_PUBLIC_*` names
-
-### Step 2.2 — Or push from `mobile/.env` (CLI)
+If the project is not linked:
 
 ```bash
-cd mobile
-./scripts/push-expo-env.sh
+npx eas-cli@18.13.0 init
 ```
 
-**Outcome:** Production build uses your Render API, Supabase, and Maps — not localhost.
-
-### Step 2.3 — Verify assets exist
+### Step 1.4 — Confirm assets
 
 ```bash
 ls assets/SquareLogo.png assets/adaptive-icon.png
 ```
 
-**Outcome:** Build won’t fail for missing icon/splash. (See `mobile/assets/README.md`.)
-
 ---
 
-## Phase 3 — Create the upload keystore (signing)
+## Phase 2 — Upload keystore (signing)
 
-Google Play requires every release to be signed. **Do not lose this keystore** — you need the same one for all future updates.
+Google Play requires every release to be signed with the **same upload key**.
 
-### Recommended: Let EAS create and store the keystore
-
-This is the easiest path for beginners.
+### Create or use existing keystore
 
 ```bash
 cd mobile
-eas credentials -p android
+npx eas-cli@18.13.0 credentials -p android
 ```
 
-Follow the prompts:
-
-1. Select build profile: **`production`**
-2. Choose: **Set up a new keystore** (or “Generate new keystore”)
-3. Let EAS manage credentials (recommended)
-
-When finished, choose option to **download credentials** or view **Keystore** details.
-
-**Outcome:**
-
-- EAS stores your **upload keystore** securely
-- You get a **SHA-1 fingerprint** (needed for Google Maps restriction later)
-- Future `eas build` commands sign the AAB automatically
+1. Profile: **`production`**
+2. **Set up / use existing keystore** (EAS can generate one)
+3. For local builds, credentials are read from `mobile/credentials/` (or EAS-stored credentials on disk after download)
 
 ### Backup (critical)
 
-From the credentials screen or email/download:
+Save to encrypted storage + password manager:
 
-1. Save the **keystore file** (`.jks` or `.keystore`) to a safe place (encrypted drive + backup)
-2. Save **keystore password**, **key alias**, and **key password** in your password manager
+- Keystore file (`.jks`)
+- Keystore password, key alias, key password
+- SHA-1 fingerprint (for Google Maps restriction)
 
-If you lose the upload key and Google Play App Signing is enabled, you may need Google support to reset — avoid that pain by backing up now.
-
-### What is *not* the debug keystore?
-
-Android debug builds use a known debug key. **Play rejects debug-signed releases.** Production profile must use the upload keystore above.
+**Do not** ship debug-signed builds to Play.
 
 ---
 
-## Phase 4 — Build the AAB file
+## Phase 3 — Build locally (primary path)
 
-### Option A — Local build (when EAS cloud quota is used up)
+Always use the npm scripts — they load `.env`, enforce Node 22, and call EAS with `--local`.
 
-Runs on your Mac; does **not** use Expo’s monthly cloud build count.
-
-**Prerequisites:** Android Studio installed, `ANDROID_HOME` set, Java 17+, `eas` CLI logged in, keystore at `mobile/credentials/android/keystore.jks`.
+### Production AAB (Play Store upload)
 
 ```bash
 cd mobile
-eas build --profile production --platform android --local
+npm run verify:env
+npm run build:aab:local
 ```
 
-Output: a signed `.aab` in the terminal path shown at the end (e.g. `mobile/build-1778928994395.aab`).
+**Wait time:** Often **15–45 minutes** (first run longer while Gradle caches).
 
-**Preview APK (device testing — push notifications, real FCM):**
+**Output:** `mobile/build-<timestamp>.aab` (example: `build-1779034030001.aab`)
+
+**Upload this file** to Play Console → Internal testing or Production.
+
+### Preview APK (device testing)
 
 ```bash
 cd mobile
+npm run verify:env
 npm run build:apk:local
-# same as: eas build --profile preview --platform android --local
 ```
 
-Install the `.apk` on your phone (USB or `adb install build-*.apk`). This is a **standalone release** build — not Expo Go — so push tokens work.
+**Output:** `mobile/build-<timestamp>.apk`
 
-> Push notifications do **not** work in Expo Go (SDK 53+). Use preview or production builds on a physical device.
-
-**Alternative (Gradle only):**
+Install on a physical Android 13+ phone:
 
 ```bash
-cd mobile
-npx expo prebuild --platform android --clean
-# Copy signing into android/ (or use credentials.json with eas credentials)
-cd android && ./gradlew bundleRelease
-# AAB: android/app/build/outputs/bundle/release/app-release.aab
+adb uninstall com.trimit.app   # optional clean install
+adb install build-*.apk
 ```
 
-### Option B — EAS cloud build
+Or copy the APK to Google Drive (website download link) for testers.
 
-### Step 4.1 — Start the production build
+> Push notifications **do not** work in Expo Go. Use **preview APK** or **internal testing** from Play for real FCM.
 
-```bash
-cd mobile
-eas build --profile production --platform android
-```
+### After each new build
 
-EAS will:
+1. Note the `build-*.aab` filename and `versionCode` (terminal / Play upload screen).
+2. Run [CASH_E2E_V1.md](./qa/CASH_E2E_V1.md) on device before promoting to production.
 
-- Upload your project
-- Install dependencies
-- Compile native Android code
-- Sign with your upload keystore
-- Produce an **AAB**
+### What the scripts do (reference)
 
-**Outcome (while running):** Terminal shows a build URL like `https://expo.dev/accounts/.../builds/...`
+| Script | EAS profile | Output |
+|--------|-------------|--------|
+| `npm run build:aab:local` | `production` | Signed **AAB** |
+| `npm run build:apk:local` | `preview` | Signed **APK** |
 
-**Wait time:** Often **15–30 minutes** (queue + compile).
-
-### Step 4.2 — Build succeeds
-
-When status is **Finished**:
-
-1. Open the build page in the browser
-2. Click **Download** → you get a file like `build-xxxxxxxx.aab`
-
-**Outcome:** `build-xxxxxxxx.aab` on your computer — **this is your Play Store upload file.**
-
-### Step 4.3 — Optional: install on your phone before Play
-
-For quick testing without Play Console, use a **preview APK** build (separate from production AAB):
-
-```bash
-eas build --profile preview --platform android
-```
-
-Download the APK, install on device (enable “Install unknown apps” if sideloading).
-
-**Outcome:** APK on phone for smoke test. Still upload the **production AAB** to Play, not this APK.
-
-### Step 4.4 — Test the production build on a real device
-
-Best path: upload AAB to **Internal testing** (Phase 6) and install from Play Store link.
-
-Run through: [`docs/qa/CASH_E2E_V1.md`](./qa/CASH_E2E_V1.md) (signup → book cash → owner complete → push).
-
-**Outcome:** Confidence the AAB works before wider release.
+Implementation: `mobile/scripts/build-aab-local.sh`, `build-apk-local.sh` → `eas build --local --non-interactive`.
 
 ---
 
-## Phase 5 — Google Play Console setup (first time)
+## Phase 4 — Google Play Console setup (first time)
 
-### Step 5.1 — Create the app
+### Step 4.1 — Create the app
 
 1. [Play Console](https://play.google.com/console) → **Create app**
-2. App name: **TrimiT**
-3. Default language, App / Game, Free
-4. Accept policies
+2. Name: **TrimiT**, Free app, accept policies
 
-**Outcome:** Empty app dashboard for TrimiT.
+### Step 4.2 — App content (required before publish)
 
-### Step 5.2 — Complete required “App content”
+Use [`PLAY_CONSOLE_CHECKLIST.md`](./PLAY_CONSOLE_CHECKLIST.md).
 
-Play blocks publishing until these are done. Use [`PLAY_CONSOLE_CHECKLIST.md`](./PLAY_CONSOLE_CHECKLIST.md).
+| Section | What to enter |
+|---------|---------------|
+| **Privacy policy** | `https://trimit.online/privacy` |
+| **App access** | Test login for reviewers |
+| **Content rating** | IARC questionnaire |
+| **Data safety** | Match checklist |
+| **Account deletion** | `https://trimit.online/contact` + in-app delete |
 
-| Section | What to enter | Outcome |
-|---------|---------------|---------|
-| **Privacy policy** | `https://trimit.online/privacy` | Policy URL accepted |
-| **App access** | Test login for reviewers (see checklist) | Google can review login |
-| **Ads** | No | Declared |
-| **Content rating** | Questionnaire (IARC) | Rating certificate |
-| **Target audience** | 18+ | Age declared |
-| **Data safety** | Match checklist table | Data disclosure complete |
-| **Account deletion** | `https://trimit.online/contact` + in-app delete | Policy compliant |
-
-### Step 5.3 — Store listing + ASO (minimum for internal test)
+### Step 4.3 — Store listing + ASO
 
 | Asset | Spec |
 |-------|------|
 | App icon | 512×512 PNG |
 | Feature graphic | 1024×500 PNG |
-| Phone screenshots | At least 2 (portrait); 6 recommended with keyword headlines |
-| App name | ≤ 30 characters — see [PLAY_STORE_LISTING_COPY.md](./PLAY_STORE_LISTING_COPY.md) |
-| Short description | ≤ 80 characters — keyword-optimized copy in same file |
-| Full description | Salon booking + salon management keywords — [PLAY_STORE_ASO.md](./PLAY_STORE_ASO.md) |
-| Category | **Beauty**; add Tags (Salon, Beauty, …) if shown in Console |
-| Hindi (hi-IN) | Strongly recommended for India searches — ASO doc §4 |
-
-**Outcome:** Store page ready for discovery; internal testers see final listing text.
+| Screenshots | ≥2 portrait; 6 recommended |
+| Title / descriptions | See [Play Store ASO](#play-store-aso-keywords--listing-copy) below |
 
 ---
 
-## Phase 6 — Upload the AAB to Internal testing
+## Phase 5 — Upload AAB to Internal testing
 
-### Step 6.1 — Create internal testing release
+1. Play Console → **Testing** → **Internal testing** → **Create new release**
+2. **Upload** your `build-*.aab` from `mobile/`
+3. Enroll in **Play App Signing** (recommended: Google-managed app signing key)
+4. Release notes → **Start rollout to Internal testing**
+5. Add testers → open opt-in link on Android → install from Play
 
-1. Play Console → **TrimiT** → **Testing** → **Internal testing**
-2. **Create new release**
-3. **Upload** your `.aab` file (drag and drop)
-4. Wait for processing (minutes)
+### Pre-launch report
 
-**Outcome:** Release draft with your AAB attached.
-
-### Step 6.2 — Play App Signing (first upload)
-
-Google will ask to enroll in **Play App Signing**.
-
-- Choose **Use Google-generated app signing key** (recommended for new apps)
-- Your **upload key** (from EAS) signs what you upload; Google re-signs for users
-
-**Outcome:** App signing enabled; future updates use same flow.
-
-### Step 6.3 — Release notes and roll out
-
-1. Add release notes, e.g. “v1.0.0 — Initial MVP, book salons, pay at salon.”
-2. **Review release** → **Start rollout to Internal testing**
-
-**Outcome:** Release live on internal track.
-
-### Step 6.4 — Add yourself as tester
-
-1. **Internal testing** → **Testers** tab
-2. Create email list → add your Gmail
-3. Open the **opt-in link** on your Android phone (same Google account)
-4. Install **TrimiT** from Play Store (test link)
-
-**Outcome:** Production-signed app installed from Play — closest to real users.
-
-### Step 6.5 — Pre-launch report
-
-After upload, Play runs automated tests (hours).
-
-- Play Console → **Release** → **Testing** → **Pre-launch report**
-- Fix crashes or permission issues if any
-
-**Outcome:** List of devices/issues to fix before production.
+After upload, check **Pre-launch report** for crashes; fix and upload a new AAB if needed.
 
 ---
 
-## Phase 7 — Promote to Production (when ready)
+## Phase 6 — Promote to Production
 
-Only after internal testing looks good (3–7 days suggested).
+After internal testing passes (suggested 3–7 days):
 
 1. **Production** → **Create new release**
-2. You can **promote** the tested release from internal testing or upload a newer AAB
-3. Complete **Countries**, **Pricing** (free)
-4. **Review and roll out** → **Production**
+2. Promote tested release or upload a newer AAB
+3. Countries, pricing (free) → **Roll out**
 
-**Outcome:** TrimiT visible on Google Play in selected countries.
-
-**Review time:** From hours to several days for first app.
+First app review: hours to several days.
 
 ---
 
-## Phase 8 — After v1 ships (updates)
+## Phase 7 — Ship updates (v1.0.1, v1.1, …)
 
-You do **not** recreate the keystore for each update.
+Same keystore. **Do not** create a new one.
 
-| Task | Command / action |
-|------|------------------|
-| Bump user-visible version | Edit `version` in `mobile/app.config.js` (e.g. `1.0.1`) |
-| Build new AAB | `eas build --profile production --platform android` |
-| Upload to Play | New release in Production (or internal first) |
-| versionCode | Handled by `autoIncrement: true` in `eas.json` |
+| Task | Action |
+|------|--------|
+| Bump user-visible version | `version` in `mobile/app.config.js` (e.g. `1.0.1`) |
+| Build new AAB | `cd mobile && npm run verify:env && npm run build:aab:local` |
+| Upload to Play | New release (internal first, then production) |
+| `versionCode` | `autoIncrement: true` in `eas.json` bumps on each local production build |
 
-For **v1.1** (Razorpay, etc.), see [`POST_V1_BACKLOG.md`](./POST_V1_BACKLOG.md).
+For Razorpay / v1.1 features: [`POST_V1_BACKLOG.md`](./POST_V1_BACKLOG.md).
 
 ---
 
-## Restrict Google Maps API key (recommended after first upload)
+## Restrict Google Maps API key (after first upload)
 
-1. [Google Cloud Console](https://console.cloud.google.com) → **APIs & Services** → **Credentials**
-2. Edit your Maps API key → **Application restrictions** → **Android apps**
-3. Add:
+1. [Google Cloud Console](https://console.cloud.google.com) → Credentials → your Maps key
+2. **Android apps** restriction:
    - Package: `com.trimit.app`
-   - SHA-1: from `eas credentials -p android` → production → fingerprints
-   - SHA-1: from Play Console → **Setup** → **App signing** → **App signing key certificate** (after first upload)
-
-**Outcome:** Your Maps key can’t be abused from other apps.
+   - SHA-1: from `eas credentials -p android` (upload key)
+   - SHA-1: Play Console → **Setup** → **App signing** → app signing certificate (after first upload)
 
 ---
 
-## Troubleshooting
+## Troubleshooting (local builds)
 
 | Problem | Likely cause | Fix |
 |---------|--------------|-----|
-| Build fails “credentials” | No production keystore | Run `eas credentials -p android` |
-| Build fails missing icon | Assets not in repo | Add `assets/SquareLogo.png`, etc. |
-| App can’t login / API errors | Wrong EAS secrets | Check `EXPO_PUBLIC_API_URL` and Supabase keys |
-| Play rejects upload | Wrong file type | Use **AAB** from production profile, not debug APK |
-| “Version code already used” | Reused versionCode | Run build again (`autoIncrement` should bump); or bump manually in Play |
-| Maps blank on device | Maps key unrestricted / wrong SHA-1 | Restrict key with package + SHA-1 |
-| Online payment shown in app | Wrong build profile | Confirm production uses `EXPO_PUBLIC_ENABLE_ONLINE_PAY=false` |
+| White screen / instant crash on APK | Empty env in bundle | `npm run verify:env` then rebuild with `build:apk:local` |
+| `mobile/.env not found` | No `.env` file | `cp env.example .env` and fill keys |
+| Build fails “credentials” | No production keystore | `npx eas-cli@18.13.0 credentials -p android` |
+| `ANDROID_HOME` not set | Android Studio SDK | Install Studio; export `ANDROID_HOME` in `~/.zshrc` |
+| Wrong Node version | EAS expects Node 22 | `fnm use 22` or run script (uses `ensure-node-22.sh`) |
+| Play rejects upload | Debug APK uploaded | Use **AAB** from `build:aab:local`, not preview APK |
+| Version code already used | Re-uploaded same build | Run `build:aab:local` again (`autoIncrement`) |
+| Maps blank | Key not restricted / wrong SHA-1 | Add package + SHA-1 in Cloud Console |
+| Online pay shown | Wrong env | `EXPO_PUBLIC_ENABLE_ONLINE_PAY=false` in `.env` |
+
+More detail: [BUILD_RELEASE.md](../mobile/BUILD_RELEASE.md), [APK_CRASH_DEBUG.md](../APK_CRASH_DEBUG.md).
 
 ---
 
-## Quick command reference
+## Quick command reference (local)
 
 ```bash
-# One-time setup
 cd mobile
 npm install
-eas login
-eas init
+cp env.example .env          # once — fill keys
+npm run verify:env             # before every release build
 
-# Keystore (one-time, or to view fingerprints)
-eas credentials -p android
+npm run build:apk:local        # test APK → mobile/build-*.apk
+npm run build:aab:local        # Play AAB → mobile/build-*.aab
 
-# Production AAB (every release)
-eas build --profile production --platform android
+adb install build-*.apk        # install latest APK
 
-# List recent builds
-eas build:list --platform android
+npx eas-cli@18.13.0 credentials -p android   # keystore / SHA-1
 ```
+
+---
+
+## Optional — EAS cloud build (when quota is available)
+
+Expo free tier has a **monthly limit** on **cloud** builds (`eas build` without `--local`). When quota resets or you upgrade:
+
+```bash
+cd mobile
+./scripts/push-expo-env.sh    # sync .env to expo.dev (cloud only)
+eas build --profile production --platform android
+```
+
+**Until then, use local commands only** — they do not consume cloud build quota.
 
 ---
 
@@ -451,34 +350,29 @@ eas build:list --platform android
 
 | Document | Purpose |
 |----------|---------|
-| [PLAY_STORE_V1_OPS.md](./PLAY_STORE_V1_OPS.md) | Short ops checklist |
-| [PLAY_CONSOLE_CHECKLIST.md](./PLAY_CONSOLE_CHECKLIST.md) | Data safety, legal URLs, reviewer accounts |
-| [CASH_E2E_V1.md](./qa/CASH_E2E_V1.md) | Test script on device |
-| [NOTION_V1_DAILY_TRACKER.md](./NOTION_V1_DAILY_TRACKER.md) | Daily progress / milestones |
+| [../mobile/BUILD_RELEASE.md](../mobile/BUILD_RELEASE.md) | **Local build bible** — env, scripts, crash fixes |
+| [PLAY_CONSOLE_CHECKLIST.md](./PLAY_CONSOLE_CHECKLIST.md) | Data safety, legal URLs |
+| [CASH_E2E_V1.md](./qa/CASH_E2E_V1.md) | Device test script |
 | [EAS_PLAY_STORE_OPS.md](./EAS_PLAY_STORE_OPS.md) | Maps key + keystore notes |
+| [GOOGLE_SEARCH_CONSOLE_SETUP.md](./GOOGLE_SEARCH_CONSOLE_SETUP.md) | Website SEO (separate from Play) |
 
 ---
 
 ## MVP v1 scope reminder
 
-What you are shipping now:
+Shipping now:
 
-- Android app, **cash at salon** payments only (no in-app Razorpay yet)
-- Customer + owner flows, push notifications
-- Backend on Render, database on Supabase
+- Android app, **cash at salon** only
+- Customer + owner flows, push on release builds
+- Backend on Render, Supabase DB
 
-What comes in a later app update (v1.1+):
-
-- Online payments (Razorpay)
-- Staff management API, security hardening, polish
-
-Ship the MVP first, iterate with new AAB uploads — that is the normal Play Store workflow.
+Later (v1.1+): Razorpay, staff UI, polish — new AAB via same local commands.
 
 ---
 
 ## Play Store ASO (keywords & listing copy)
 
-**Note:** This affects **Google Play search**, not Google Search Console (website). Paste into Play Console → **Main store listing**.
+**Note:** Play ranking uses the **store listing**, not your website sitemap.
 
 ### App title (max 30 characters)
 
@@ -492,7 +386,7 @@ TrimiT - Salon Booking App
 Book haircuts, beard trims & spa slots at salons near you. Fast, easy booking.
 ```
 
-### Full description (suggested — edit city/region as you expand)
+### Full description (suggested)
 
 ```text
 TrimiT is the easy way to book salon appointments on your phone.
@@ -510,14 +404,12 @@ Download TrimiT, create a free account, and book your next visit today.
 Keywords: salon booking, barber app, haircut appointment, beard trim, facial booking, spa appointment, salon near me, book salon online, India salon app
 ```
 
-### Keyword ideas (for description / promotional text — do not spam)
+### Keyword ideas (natural use in description)
 
 `salon booking app`, `book haircut`, `barber near me`, `beard trim appointment`, `facial spa booking`, `salon appointment India`, `TrimiT`
 
 ### Graphic assets checklist
 
 - [ ] Feature graphic 1024×500
-- [ ] Phone screenshots (6–8) showing Discover → Salon → Book → My Bookings
+- [ ] Phone screenshots (6–8): Discover → Salon → Book → My Bookings
 - [ ] App icon 512×512 (matches `mobile` adaptive icon)
-
-Website SEO (sitemap, Search Console): [GOOGLE_SEARCH_CONSOLE_SETUP.md](./GOOGLE_SEARCH_CONSOLE_SETUP.md)
