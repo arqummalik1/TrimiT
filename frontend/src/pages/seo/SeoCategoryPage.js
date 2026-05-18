@@ -25,7 +25,10 @@ export default function SeoCategoryPage() {
     <>
       <section className="bg-gradient-to-b from-orange-50 to-stone-50 border-b border-stone-200">
         <motion.div className="max-w-6xl mx-auto px-4 py-10 sm:py-14">
-          <nav className="flex items-center gap-1 text-sm text-stone-500 mb-6" aria-label="Breadcrumb">
+          <nav
+            className="hidden lg:flex items-center gap-1 text-sm text-stone-500 mb-6"
+            aria-label="Breadcrumb"
+          >
             <Link to="/" className="hover:text-orange-800">
               Home
             </Link>

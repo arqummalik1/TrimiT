@@ -32,6 +32,7 @@ import { SEO_PAGE_PATHS } from './config/seoPages';
 
 // Components
 import Header from './components/Header';
+import MobileBreadcrumbs from './components/MobileBreadcrumbs';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
 import SeoHead from './components/SeoHead';
@@ -110,6 +111,7 @@ function App() {
       <SeoHead />
       <GoogleAnalytics />
       {!isAuthCallbackPage && <Header />}
+      {!isAuthCallbackPage && <MobileBreadcrumbs />}
       <main>
         <Routes>
           {/* Public Routes */}
