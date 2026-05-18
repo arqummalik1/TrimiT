@@ -92,6 +92,6 @@ async function prerender() {
 }
 
 prerender().catch((err) => {
-  console.error('[prerender]', err);
-  process.exit(1);
+  console.warn('[prerender] Skipped — deploy continues as SPA:', err.message || err);
+  process.exit(0);
 });

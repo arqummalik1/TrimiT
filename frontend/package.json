@@ -2,6 +2,9 @@
   "name": "trimit-frontend",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-dialog": "^1.1.4",
