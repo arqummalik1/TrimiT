@@ -1,0 +1,17 @@
+# dependencies
+node_modules
+
+# production
+dist
+build
+
+# env
+.env
+.env.local
+.env.*.local
+
+# logs
+npm-debug.log*
+
+# editor
+.DS_Store

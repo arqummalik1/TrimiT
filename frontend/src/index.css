@@ -61,6 +61,128 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
+.glass-dark {
+  backdrop-filter: blur(20px);
+  background: rgba(28, 25, 23, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Apple-style liquid glass — site header */
+.liquid-glass-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  isolation: isolate;
+  background: rgba(255, 255, 255, 0.04);
+  -webkit-backdrop-filter: blur(48px) saturate(190%) brightness(1.08);
+  backdrop-filter: blur(48px) saturate(190%) brightness(1.08);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 4px 24px rgba(28, 25, 23, 0.04),
+    0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.liquid-glass-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.38) 0%,
+    rgba(255, 255, 255, 0.12) 38%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+}
+
+.liquid-glass-header::after {
+  content: '';
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.85) 20%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0.85) 80%,
+    transparent
+  );
+  opacity: 0.9;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .liquid-glass-header {
+    background: rgba(255, 255, 255, 0.92);
+  }
+}
+
+.nav-glass-pill {
+  @apply px-4 py-2 rounded-full text-sm font-medium transition-all duration-200;
+}
+
+.nav-glass-pill--active {
+  color: #9a3412;
+  background: rgba(255, 255, 255, 0.52);
+  border: 0.5px solid rgba(255, 255, 255, 0.75);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 2px 8px rgba(154, 52, 18, 0.08);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+}
+
+.nav-glass-pill--idle {
+  @apply text-stone-600;
+}
+
+.nav-glass-pill--idle:hover {
+  color: #1c1917;
+  background: rgba(255, 255, 255, 0.28);
+  border: 0.5px solid rgba(255, 255, 255, 0.45);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.glass-chip {
+  background: rgba(255, 255, 255, 0.35);
+  border: 0.5px solid rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+@keyframes gradient-shift {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.92; }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-gradient-shift {
+  animation: gradient-shift 12s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-gradient-shift,
+  .animate-float-slow,
+  .animate-stagger > * {
+    animation: none !important;
+  }
+}
+
 /* Button hover states */
 .btn-primary {
   @apply bg-orange-800 text-white px-6 py-3 rounded-full font-semibold transition-all duration-200;

@@ -1,16 +1,20 @@
 /**
- * Writes robots.txt and sitemap.xml into public/ before CRA build.
- * Uses REACT_APP_PUBLIC_SITE_URL (same as frontend/src/config/site.js).
+ * Writes robots.txt and sitemap.xml into public/ before build.
+ * Uses REACT_APP_PUBLIC_SITE_URL or VITE_PUBLIC_SITE_URL.
  */
 const fs = require('fs');
 const path = require('path');
 
-const siteUrl = (process.env.REACT_APP_PUBLIC_SITE_URL || 'https://trimit.online')
+const siteUrl = (
+  process.env.REACT_APP_PUBLIC_SITE_URL ||
+  process.env.VITE_PUBLIC_SITE_URL ||
+  'https://trimit.online'
+)
   .trim()
   .replace(/\/$/, '');
 
 if (!siteUrl) {
-  console.error('[generate-seo] REACT_APP_PUBLIC_SITE_URL is empty. Set it in Vercel or mobile/.env.');
+  console.error('[generate-seo] PUBLIC_SITE_URL is empty.');
   process.exit(1);
 }
 
@@ -19,6 +23,19 @@ const lastmod = new Date().toISOString().split('T')[0];
 
 const routes = [
   { path: '/', changefreq: 'weekly', priority: '1.0' },
+  { path: '/explore', changefreq: 'daily', priority: '0.95' },
+  { path: '/for-salons', changefreq: 'weekly', priority: '0.9' },
+  { path: '/blog', changefreq: 'weekly', priority: '0.7' },
+  { path: '/salons-in-jammu', changefreq: 'weekly', priority: '0.85' },
+  { path: '/best-haircut-in-jammu', changefreq: 'weekly', priority: '0.85' },
+  { path: '/beard-trimming-jammu', changefreq: 'weekly', priority: '0.85' },
+  { path: '/spa-services-jammu', changefreq: 'weekly', priority: '0.85' },
+  { path: '/beauty-parlours-jammu', changefreq: 'weekly', priority: '0.85' },
+  { path: '/mens-salon-jammu', changefreq: 'weekly', priority: '0.85' },
+  { path: '/bridal-makeup-jammu', changefreq: 'weekly', priority: '0.85' },
+  { path: '/blog/best-salon-booking-tips-jammu', changefreq: 'monthly', priority: '0.6' },
+  { path: '/blog/mens-grooming-guide-jammu', changefreq: 'monthly', priority: '0.6' },
+  { path: '/blog/spa-wellness-jammu', changefreq: 'monthly', priority: '0.6' },
   { path: '/signup', changefreq: 'monthly', priority: '0.8' },
   { path: '/login', changefreq: 'monthly', priority: '0.6' },
   { path: '/contact', changefreq: 'monthly', priority: '0.6' },
@@ -48,6 +65,16 @@ ${routes
 const robots = `# TrimiT (${siteUrl})
 User-agent: *
 Allow: /
+Allow: /explore
+Allow: /for-salons
+Allow: /blog
+Allow: /salons-in-jammu
+Allow: /best-haircut-in-jammu
+Allow: /beard-trimming-jammu
+Allow: /spa-services-jammu
+Allow: /beauty-parlours-jammu
+Allow: /mens-salon-jammu
+Allow: /bridal-makeup-jammu
 Disallow: /discover
 Disallow: /salon/
 Disallow: /booking/

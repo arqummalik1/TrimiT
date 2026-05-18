@@ -56,6 +56,8 @@ module.exports = {
         "fade-in": "fadeIn 0.5s ease-out",
         "slide-up": "slideUp 0.4s ease-out",
         "slide-down": "slideDown 0.3s ease-out",
+        "gradient-shift": "gradient-shift 12s ease-in-out infinite",
+        "float-slow": "float-slow 5s ease-in-out infinite",
       },
       keyframes: {
         fadeIn: {
@@ -69,6 +71,14 @@ module.exports = {
         slideDown: {
           "0%": { opacity: "0", transform: "translateY(-10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "gradient-shift": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.88" },
+        },
+        "float-slow": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-8px)" },
         },
       },
     },

@@ -27,9 +27,13 @@ const Header = () => {
   const isCustomer = profile?.role === 'customer';
 
   const isActive = (path) => location.pathname === path;
+  const isExploreActive = location.pathname === '/explore' || location.pathname === '/discover';
+
+  const navClass = (active) =>
+    `nav-glass-pill ${active ? 'nav-glass-pill--active' : 'nav-glass-pill--idle'}`;
 
   return (
-    <header className="sticky top-0 z-50 glass border-b border-stone-200/50">
+    <header className="liquid-glass-header">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -37,30 +41,35 @@ const Header = () => {
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center gap-1">
+            {!isAuthenticated && (
+              <>
+                <Link to="/explore" className={navClass(isExploreActive)}>
+                  Explore
+                </Link>
+                <Link
+                  to="/for-salons"
+                  className={navClass(isActive('/for-salons'))}
+                >
+                  For Salons
+                </Link>
+              </>
+            )}
             {isAuthenticated && isCustomer && (
               <>
                 <Link
-                  to="/discover"
+                  to="/explore"
                   data-testid="nav-discover"
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    isActive('/discover')
-                      ? 'bg-orange-100 text-orange-800'
-                      : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
-                  }`}
+                  className={navClass(isExploreActive)}
                 >
                   <span className="flex items-center gap-2">
-                    <House size={18} weight={isActive('/discover') ? 'fill' : 'regular'} />
+                    <House size={18} weight={isExploreActive ? 'fill' : 'regular'} />
                     Discover
                   </span>
                 </Link>
                 <Link
                   to="/account"
                   data-testid="nav-account"
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    isActive('/account')
-                      ? 'bg-orange-100 text-orange-800'
-                      : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
-                  }`}
+                  className={navClass(isActive('/account'))}
                 >
                   <span className="flex items-center gap-2">
                     <User size={18} weight={isActive('/account') ? 'fill' : 'regular'} />
@@ -70,11 +79,7 @@ const Header = () => {
                 <Link
                   to="/my-bookings"
                   data-testid="nav-my-bookings"
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    isActive('/my-bookings')
-                      ? 'bg-orange-100 text-orange-800'
-                      : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
-                  }`}
+                  className={navClass(isActive('/my-bookings'))}
                 >
                   <span className="flex items-center gap-2">
                     <CalendarCheck size={18} weight={isActive('/my-bookings') ? 'fill' : 'regular'} />
@@ -89,11 +94,7 @@ const Header = () => {
                 <Link
                   to="/owner/dashboard"
                   data-testid="nav-dashboard"
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    isActive('/owner/dashboard')
-                      ? 'bg-orange-100 text-orange-800'
-                      : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
-                  }`}
+                  className={navClass(isActive('/owner/dashboard'))}
                 >
                   <span className="flex items-center gap-2">
                     <ChartBar size={18} weight={isActive('/owner/dashboard') ? 'fill' : 'regular'} />
@@ -103,11 +104,7 @@ const Header = () => {
                 <Link
                   to="/owner/salon"
                   data-testid="nav-salon"
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    isActive('/owner/salon')
-                      ? 'bg-orange-100 text-orange-800'
-                      : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
-                  }`}
+                  className={navClass(isActive('/owner/salon'))}
                 >
                   <span className="flex items-center gap-2">
                     <Storefront size={18} weight={isActive('/owner/salon') ? 'fill' : 'regular'} />
@@ -117,11 +114,7 @@ const Header = () => {
                 <Link
                   to="/owner/services"
                   data-testid="nav-services"
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    isActive('/owner/services')
-                      ? 'bg-orange-100 text-orange-800'
-                      : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
-                  }`}
+                  className={navClass(isActive('/owner/services'))}
                 >
                   <span className="flex items-center gap-2">
                     <List size={18} weight={isActive('/owner/services') ? 'fill' : 'regular'} />
@@ -131,11 +124,7 @@ const Header = () => {
                 <Link
                   to="/owner/settings"
                   data-testid="nav-settings"
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    isActive('/owner/settings')
-                      ? 'bg-orange-100 text-orange-800'
-                      : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
-                  }`}
+                  className={navClass(isActive('/owner/settings'))}
                 >
                   <span className="flex items-center gap-2">
                     <User size={18} weight={isActive('/owner/settings') ? 'fill' : 'regular'} />
@@ -145,11 +134,7 @@ const Header = () => {
                 <Link
                   to="/owner/bookings"
                   data-testid="nav-bookings"
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    isActive('/owner/bookings')
-                      ? 'bg-orange-100 text-orange-800'
-                      : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
-                  }`}
+                  className={navClass(isActive('/owner/bookings'))}
                 >
                   <span className="flex items-center gap-2">
                     <CalendarCheck size={18} weight={isActive('/owner/bookings') ? 'fill' : 'regular'} />
@@ -165,19 +150,19 @@ const Header = () => {
             <DownloadAppButton />
             {isAuthenticated ? (
               <div className="flex items-center gap-3">
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-stone-100 rounded-full">
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full glass-chip">
                   <User size={18} className="text-stone-600" />
                   <span className="text-sm font-medium text-stone-700">
                     {profile?.name || 'User'}
                   </span>
-                  <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-800 rounded-full capitalize">
+                  <span className="text-xs px-2 py-0.5 bg-orange-800/15 text-orange-900 border border-orange-800/20 rounded-full capitalize backdrop-blur-sm">
                     {profile?.role}
                   </span>
                 </div>
                 <button
                   onClick={handleLogout}
                   data-testid="logout-btn"
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-full transition-colors"
+                  className="nav-glass-pill nav-glass-pill--idle flex items-center gap-2"
                 >
                   <SignOut size={18} />
                   <span className="hidden sm:inline">Logout</span>
@@ -188,7 +173,7 @@ const Header = () => {
                 <Link
                   to="/login"
                   data-testid="login-btn"
-                  className="px-4 py-2 text-sm font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-full transition-colors"
+                  className="nav-glass-pill nav-glass-pill--idle"
                 >
                   Login
                 </Link>

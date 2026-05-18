@@ -12,7 +12,7 @@ export const useAuthStore = create(
       token: null,
       isAuthenticated: false,
       isLoading: false,
-      isInitializing: true,
+      isInitializing: false,
       hasSalon: false,
       error: null,
 
@@ -153,13 +153,13 @@ export const useAuthStore = create(
 
       initializeAuth: async () => {
         const state = get();
-        
+
         if (!state.token) {
           set({ isInitializing: false });
           return;
         }
 
-        // Set auth header
+        set({ isInitializing: true });
         api.defaults.headers.common['Authorization'] = `Bearer ${state.token}`;
 
         try {

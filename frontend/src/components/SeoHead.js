@@ -5,8 +5,13 @@ import {
   buildCanonicalUrl,
   getSeoForPath,
 } from '../config/seo';
+import { getEnv } from '../config/env';
+import { HOMEPAGE_FAQ } from '../config/faq';
+import { getSeoPageByPath } from '../config/seoPages';
+import { getPostBySlug } from '../content/blog/posts';
+import { JAMMU_CITY } from '../config/jammu';
 
-const OG_IMAGE = `${PUBLIC_SITE_URL}/branding/logo-horizontal.png`;
+const OG_IMAGE = `${PUBLIC_SITE_URL}/branding/og-image.png`;
 
 function upsertMeta(attr, key, content) {
   if (!content) return;
@@ -44,9 +49,20 @@ function injectJsonLd(id, data) {
   document.head.appendChild(script);
 }
 
+function faqSchema(items) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map(({ q, a }) => ({
+      '@type': 'Question',
+      name: q,
+      acceptedAnswer: { '@type': 'Answer', text: a },
+    })),
+  };
+}
+
 /**
- * Updates document title, meta tags, canonical URL, and optional JSON-LD per route.
- * Safe for SPA — does not affect routing or auth.
+ * Updates document title, meta tags, canonical URL, and JSON-LD per route.
  */
 export default function SeoHead() {
   const { pathname } = useLocation();
@@ -62,7 +78,7 @@ export default function SeoHead() {
       upsertMeta('name', 'keywords', seo.keywords);
     }
 
-    const verification = (process.env.REACT_APP_GOOGLE_SITE_VERIFICATION || '').trim();
+    const verification = getEnv('GOOGLE_SITE_VERIFICATION').trim();
     if (verification) {
       upsertMeta('name', 'google-site-verification', verification);
     }
@@ -82,7 +98,26 @@ export default function SeoHead() {
 
     upsertLink('canonical', canonical);
 
-    if (pathname === '/') {
+    const jsonLdIds = [
+      'trimit-jsonld-website',
+      'trimit-jsonld-org',
+      'trimit-jsonld-app',
+      'trimit-jsonld-local',
+      'trimit-jsonld-faq',
+      'trimit-jsonld-breadcrumb',
+    ];
+    jsonLdIds.forEach(removeJsonLd);
+
+    injectJsonLd('trimit-jsonld-org', {
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: 'TrimiT',
+      url: `${PUBLIC_SITE_URL}/`,
+      logo: `${PUBLIC_SITE_URL}/branding/logo-horizontal.png`,
+      areaServed: { '@type': 'City', name: JAMMU_CITY.label },
+    });
+
+    if (pathname === '/' || pathname === '/explore') {
       injectJsonLd('trimit-jsonld-website', {
         '@context': 'https://schema.org',
         '@type': 'WebSite',
@@ -90,14 +125,15 @@ export default function SeoHead() {
         url: `${PUBLIC_SITE_URL}/`,
         description: seo.description,
         inLanguage: 'en-IN',
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: `${PUBLIC_SITE_URL}/explore?q={search_term_string}`,
+          'query-input': 'required name=search_term_string',
+        },
       });
-      injectJsonLd('trimit-jsonld-org', {
-        '@context': 'https://schema.org',
-        '@type': 'Organization',
-        name: 'TrimiT',
-        url: `${PUBLIC_SITE_URL}/`,
-        logo: OG_IMAGE,
-      });
+    }
+
+    if (pathname === '/') {
       injectJsonLd('trimit-jsonld-app', {
         '@context': 'https://schema.org',
         '@type': 'MobileApplication',
@@ -106,23 +142,56 @@ export default function SeoHead() {
         applicationCategory: 'LifestyleApplication',
         description: seo.description,
         url: `${PUBLIC_SITE_URL}/`,
-        offers: {
-          '@type': 'Offer',
-          price: '0',
-          priceCurrency: 'INR',
-        },
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'INR' },
       });
-    } else {
-      removeJsonLd('trimit-jsonld-website');
-      removeJsonLd('trimit-jsonld-org');
-      removeJsonLd('trimit-jsonld-app');
+      injectJsonLd('trimit-jsonld-local', {
+        '@context': 'https://schema.org',
+        '@type': 'Service',
+        name: 'TrimiT Salon Booking',
+        provider: { '@type': 'Organization', name: 'TrimiT' },
+        areaServed: {
+          '@type': 'AdministrativeArea',
+          name: JAMMU_CITY.region,
+        },
+        serviceType: 'Salon appointment booking',
+      });
+      injectJsonLd('trimit-jsonld-faq', faqSchema(HOMEPAGE_FAQ));
     }
 
-    return () => {
-      removeJsonLd('trimit-jsonld-website');
-      removeJsonLd('trimit-jsonld-org');
-      removeJsonLd('trimit-jsonld-app');
-    };
+    const seoPage = getSeoPageByPath(pathname);
+    if (seoPage?.faq?.length) {
+      injectJsonLd('trimit-jsonld-faq', faqSchema(seoPage.faq));
+    }
+
+    const blogSlug = pathname.startsWith('/blog/') ? pathname.replace('/blog/', '') : null;
+    const blogPost = blogSlug ? getPostBySlug(blogSlug) : null;
+    if (blogPost) {
+      injectJsonLd('trimit-jsonld-breadcrumb', {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: `${PUBLIC_SITE_URL}/` },
+          { '@type': 'ListItem', position: 2, name: 'Blog', item: `${PUBLIC_SITE_URL}/blog` },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: blogPost.title,
+            item: canonical,
+          },
+        ],
+      });
+    } else if (seoPage) {
+      injectJsonLd('trimit-jsonld-breadcrumb', {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: `${PUBLIC_SITE_URL}/` },
+          { '@type': 'ListItem', position: 2, name: seoPage.h1, item: canonical },
+        ],
+      });
+    }
+
+    return () => jsonLdIds.forEach(removeJsonLd);
   }, [pathname]);
 
   return null;

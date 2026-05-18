@@ -1,18 +1,43 @@
 import { createClient } from '@supabase/supabase-js';
+import { getEnv } from '../config/env';
 
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+let supabaseClient = null;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY must be set. Check your .env file.'
-  );
+function requireSupabaseConfig() {
+  const supabaseUrl = getEnv('SUPABASE_URL');
+  const supabaseAnonKey = getEnv('SUPABASE_ANON_KEY');
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      'SUPABASE_URL and SUPABASE_ANON_KEY must be set (REACT_APP_* or VITE_*). Copy frontend/env.example to .env.local.'
+    );
+  }
+  return { supabaseUrl, supabaseAnonKey };
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+/** Lazy client so marketing routes load even when env is missing until Supabase is used. */
+export function getSupabase() {
+  if (!supabaseClient) {
+    const { supabaseUrl, supabaseAnonKey } = requireSupabaseConfig();
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  return supabaseClient;
+}
+
+/** @deprecated Prefer getSupabase() — kept for existing imports. */
+export const supabase = new Proxy(
+  {},
+  {
+    get(_target, prop) {
+      const client = getSupabase();
+      const value = client[prop];
+      return typeof value === 'function' ? value.bind(client) : value;
+    },
+  }
+);
 
 // Create authenticated client for realtime subscriptions
 export const createAuthenticatedClient = (token) => {
+  const { supabaseUrl, supabaseAnonKey } = requireSupabaseConfig();
   const client = createClient(supabaseUrl, supabaseAnonKey);
   if (token) {
     client.realtime.setAuth(token);

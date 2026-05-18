@@ -71,7 +71,7 @@ Must match your live marketing domain and Search Console property (not a `*.verc
 
 Then **Redeploy** production (Deployments → … → Redeploy).
 
-`vercel.json` uses `"handle": "filesystem"` so `/robots.txt` and `/sitemap.xml` are served as static files, not the React app.
+`vercel.json` SPA rewrite sends unknown paths to `/index.html`; Vercel serves existing files in `build/` (e.g. `/robots.txt`, `/sitemap.xml`) before applying rewrites.
 
 ---
 

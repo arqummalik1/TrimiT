@@ -1,8 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-const ICON_SRC = `${process.env.PUBLIC_URL || ''}/branding/logo.png`;
-const HORIZONTAL_SRC = `${process.env.PUBLIC_URL || ''}/branding/logo-horizontal.png`;
+const assetBase =
+  (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
+const ICON_SRC = `${assetBase}branding/logo.png`;
+const HORIZONTAL_SRC = `${assetBase}branding/logo-horizontal.png`;
 
 /**
  * TrimiT brand mark (transparent PNG from mobile assets).

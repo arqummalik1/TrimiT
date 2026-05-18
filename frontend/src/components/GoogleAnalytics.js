@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 
-const GA_ID = (process.env.REACT_APP_GA_MEASUREMENT_ID || '').trim();
+import { getEnv } from '../config/env';
+
+const GA_ID = getEnv('GA_MEASUREMENT_ID').trim();
 
 /**
  * Optional GA4 page views. Set REACT_APP_GA_MEASUREMENT_ID in Vercel (e.g. G-XXXXXXXX).

@@ -1,12 +1,12 @@
 import axios from 'axios';
+import { getEnv } from '../config/env';
 
 /**
  * Single API surface: all requests go to …/api/v1 (same contract as mobile).
- * REACT_APP_BACKEND_URL = origin only, e.g. http://localhost:8001 or https://trimit-….onrender.com
- * (no path, or already …/api/v1 — both normalized).
+ * REACT_APP_BACKEND_URL / VITE_BACKEND_URL = origin only.
  */
 function resolveApiBaseUrl() {
-  const raw = (process.env.REACT_APP_BACKEND_URL || '').trim().replace(/\/$/, '');
+  const raw = getEnv('BACKEND_URL').trim().replace(/\/$/, '');
   if (!raw) {
     return 'https://trimit-az5h.onrender.com/api/v1';
   }
@@ -29,7 +29,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    if (process.env.NODE_ENV !== 'production') {
+    if (import.meta.env.DEV) {
       console.log('🚀 [WEB_API][REQ]', {
         method: (config.method || 'GET').toUpperCase(),
         url: `${(config.baseURL || '').replace(/\/$/, '')}${(config.url || '').startsWith('/') ? config.url : `/${config.url || ''}`}`,
@@ -43,7 +43,7 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => {
-    if (process.env.NODE_ENV !== 'production') {
+    if (import.meta.env.DEV) {
       console.log('✅ [WEB_API][RES]', {
         status: response.status,
         method: (response.config.method || 'GET').toUpperCase(),

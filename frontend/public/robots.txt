@@ -1,6 +1,16 @@
 # TrimiT (https://trimit.online)
 User-agent: *
 Allow: /
+Allow: /explore
+Allow: /for-salons
+Allow: /blog
+Allow: /salons-in-jammu
+Allow: /best-haircut-in-jammu
+Allow: /beard-trimming-jammu
+Allow: /spa-services-jammu
+Allow: /beauty-parlours-jammu
+Allow: /mens-salon-jammu
+Allow: /bridal-makeup-jammu
 Disallow: /discover
 Disallow: /salon/
 Disallow: /booking/

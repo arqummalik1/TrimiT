@@ -1,6 +1,7 @@
 import { SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from './contact';
+import { getEnv } from './env';
 
-const raw = (process.env.REACT_APP_PUBLIC_SITE_URL || '').trim().replace(/\/$/, '');
+const raw = getEnv('PUBLIC_SITE_URL').trim().replace(/\/$/, '');
 
 export const PUBLIC_SITE_URL = raw || 'https://trimit.online';
 

@@ -1,15 +1,27 @@
 import { PUBLIC_SITE_URL } from './site';
+import { SEO_PAGES } from './seoPages';
+import { BLOG_POSTS } from '../content/blog/posts';
 
 export { PUBLIC_SITE_URL };
 
-/** Default site-wide SEO (landing + fallback). */
 export const DEFAULT_SEO = {
-  title: 'TrimiT — Book Salon Appointments Online | Hair, Beard & Spa',
+  title: 'TrimiT — Book Salons in Jammu | Haircut, Beard, Spa & Bridal',
   description:
-    'TrimiT helps you discover nearby salons and book haircuts, beard trims, facials, and spa appointments in minutes. Download the Android app or sign up on the web.',
+    'Book premium salons in Jammu online. Haircuts, beard grooming, spa, and beauty parlour appointments with live slots and instant confirmation. List your salon free on TrimiT.',
   keywords:
-    'salon booking app, book haircut online, barber appointment, beard trim booking, facial spa booking, salon near me, TrimiT, trimit.online',
+    'salon booking Jammu, best salons in Jammu, haircut Jammu, beard grooming Jammu, spa Jammu, salon near me Jammu, beauty parlour Jammu, TrimiT',
 };
+
+const SEO_PAGE_MAP = Object.fromEntries(
+  SEO_PAGES.map((p) => [
+    p.path,
+    {
+      title: p.title,
+      description: p.description,
+      keywords: p.keywords,
+    },
+  ])
+);
 
 /** Per-path overrides for public marketing & auth pages. */
 export const SEO_BY_PATH = {
@@ -18,6 +30,24 @@ export const SEO_BY_PATH = {
     description: DEFAULT_SEO.description,
     keywords: DEFAULT_SEO.keywords,
   },
+  '/explore': {
+    title: 'Explore Salons in Jammu | TrimiT',
+    description:
+      'Search and book salons in Jammu. Compare ratings, services, and live appointment slots on TrimiT.',
+    keywords: 'explore salons Jammu, salon near me Jammu, book salon Jammu',
+  },
+  '/for-salons': {
+    title: 'List Your Salon Free | TrimiT for Owners',
+    description:
+      'Take your salon online with TrimiT. Get more bookings, manage your calendar, and grow your salon business in Jammu.',
+    keywords: 'salon software India, list salon online, salon booking system Jammu',
+  },
+  '/blog': {
+    title: 'Salon Booking Guides Jammu | TrimiT Blog',
+    description: 'Tips for booking salons, grooming, and spa services in Jammu.',
+    keywords: 'salon tips Jammu, grooming guide, TrimiT blog',
+  },
+  ...SEO_PAGE_MAP,
   '/login': {
     title: 'Sign In | TrimiT Salon Booking',
     description: 'Sign in to your TrimiT account to manage salon bookings and appointments.',
@@ -60,9 +90,26 @@ export const SEO_BY_PATH = {
   },
 };
 
-/** Paths included in sitemap.xml (indexable marketing & legal pages only). */
+BLOG_POSTS.forEach((post) => {
+  SEO_BY_PATH[`/blog/${post.slug}`] = {
+    title: `${post.title} | TrimiT Blog`,
+    description: post.excerpt,
+    keywords: 'salon booking Jammu, TrimiT blog',
+  };
+});
+
+/** Paths included in sitemap.xml */
 export const SITEMAP_ROUTES = [
   { path: '/', changefreq: 'weekly', priority: '1.0' },
+  { path: '/explore', changefreq: 'daily', priority: '0.95' },
+  { path: '/for-salons', changefreq: 'weekly', priority: '0.9' },
+  { path: '/blog', changefreq: 'weekly', priority: '0.7' },
+  ...SEO_PAGES.map((p) => ({ path: p.path, changefreq: 'weekly', priority: '0.85' })),
+  ...BLOG_POSTS.map((p) => ({
+    path: `/blog/${p.slug}`,
+    changefreq: 'monthly',
+    priority: '0.6',
+  })),
   { path: '/signup', changefreq: 'monthly', priority: '0.8' },
   { path: '/login', changefreq: 'monthly', priority: '0.6' },
   { path: '/contact', changefreq: 'monthly', priority: '0.6' },
