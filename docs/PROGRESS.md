@@ -43,7 +43,7 @@ See [PRODUCTION_LAUNCH_CHECKLIST.md](./PRODUCTION_LAUNCH_CHECKLIST.md).
 
 | Date | Summary | Next |
 |------|---------|------|
-| 2026-05-18 | **GSC:** User verified via **Hostinger DNS TXT** (not HTML tag). Fixed `vercel.json` filesystem routing for `robots.txt`/`sitemap.xml`; SEO generator ignores `*.vercel.app` base URL. Docs updated with post-verify steps. | Submit sitemap in Search Console; set `REACT_APP_PUBLIC_SITE_URL=https://trimit.online` on Vercel → redeploy. |
+| 2026-05-18 | **GSC:** DNS TXT verify on Hostinger; `vercel.json` serves static `robots.txt`/`sitemap.xml`; SEO files use **`REACT_APP_PUBLIC_SITE_URL`** (user set `https://trimit.online` on Vercel). | Resubmit sitemap in Search Console after redeploy. |
 | 2026-05-18 | **Play guide:** `PLAY_STORE_DEPLOYMENT_GUIDE.md` rewritten for **local-only** APK/AAB (`npm run build:aab:local` / `build:apk:local`); EAS cloud moved to optional appendix (quota exhausted). | Upload `build-*.aab` → internal testing → QA. |
 | 2026-05-18 | **SEO / Search Console:** `robots.txt`, `sitemap.xml` (build-time generator), per-route `SeoHead` (meta, OG, JSON-LD), optional GA4, Play Store ASO copy. Docs: `GOOGLE_SEARCH_CONSOLE_SETUP.md`. | (superseded by GSC DNS row) |
 | 2026-05-17 (late) | **Landing page v2:** Service card illustrations (`frontend/public/images/services/`), upbeat hero graphic + horizontal logo white-box fix, **Get the Android app** section, Vercel JSX build fix, mobile-responsive layout. Pushed through `5f0962b7`. **Mobile:** `npm run verify:env && npm run build:aab:local` started (Play Store AAB). | Confirm Vercel deploy live → auth signup E2E → finish AAB → install on Android 13+ → QA matrix. |

@@ -24,7 +24,7 @@ Do these in order after ownership shows **Verified**:
 
 Status should become **Success** after Vercel redeploys (see below).
 
-**If you see “URL not allowed” with `trimi-t.vercel.app` links:** the live build used the wrong `REACT_APP_PUBLIC_SITE_URL`. Redeploy after the latest `main` branch — `sitemap.xml` is always generated with `https://trimit.online` URLs only. Then in Search Console → Sitemaps → open the sitemap → **Resubmit** or remove and re-add `sitemap.xml`.
+**If you see “URL not allowed” with a different domain** (e.g. `*.vercel.app`): Production `REACT_APP_PUBLIC_SITE_URL` must match your Search Console property (e.g. `https://trimit.online`). Redeploy, then **Resubmit** the sitemap in Search Console.
 
 ### 2. Confirm robots.txt (optional check)
 
@@ -67,7 +67,7 @@ In **Vercel** → Project → **Settings** → **Environment Variables** (Produc
 |----------|----------------|
 | `REACT_APP_PUBLIC_SITE_URL` | `https://trimit.online` |
 
-Remove or fix any value like `https://trimi-t.vercel.app` — that breaks `robots.txt` and `sitemap.xml` URLs.
+Must match your live marketing domain and Search Console property (not a `*.vercel.app` preview URL unless that is what you verified).
 
 Then **Redeploy** production (Deployments → … → Redeploy).
 
