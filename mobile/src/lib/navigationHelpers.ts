@@ -1,4 +1,8 @@
-import type { NavigationProp, ParamListBase } from '@react-navigation/native';
+import {
+  CommonActions,
+  type NavigationProp,
+  type ParamListBase,
+} from '@react-navigation/native';
 
 /** Navigate to customer Bookings tab from a nested discover stack screen. */
 export function navigateToCustomerBookings(
@@ -9,7 +13,12 @@ export function navigateToCustomerBookings(
     parent.navigate('Bookings' as never);
     return;
   }
-  navigation.navigate('CustomerTabs' as never, { screen: 'Bookings' } as never);
+  navigation.dispatch(
+    CommonActions.navigate({
+      name: 'CustomerTabs',
+      params: { screen: 'Bookings' },
+    })
+  );
 }
 
 /** Navigate to owner Bookings tab from dashboard or nested stacks. */
@@ -21,5 +30,10 @@ export function navigateToOwnerBookings(
     parent.navigate('Bookings' as never);
     return;
   }
-  navigation.navigate('OwnerTabs' as never, { screen: 'Bookings' } as never);
+  navigation.dispatch(
+    CommonActions.navigate({
+      name: 'OwnerTabs',
+      params: { screen: 'Bookings' },
+    })
+  );
 }

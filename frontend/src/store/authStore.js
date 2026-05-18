@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '../lib/api';
+import { clearPersistedAuth, AUTH_STORAGE_KEY } from '../lib/session';
 import { mapAuthApiError } from '../lib/authRateLimitMessages';
 import { SUPPORT_EMAIL } from '../config/contact';
 
@@ -12,7 +13,7 @@ export const useAuthStore = create(
       token: null,
       isAuthenticated: false,
       isLoading: false,
-      isInitializing: true,
+      isInitializing: false,
       hasSalon: false,
       error: null,
 
@@ -134,8 +135,8 @@ export const useAuthStore = create(
       },
 
       logout: () => {
-        delete api.defaults.headers.common['Authorization'];
-        localStorage.removeItem('trimit-auth');
+        delete api.defaults.headers.common.Authorization;
+        clearPersistedAuth();
         set({ 
           user: null, 
           profile: null,
@@ -153,13 +154,13 @@ export const useAuthStore = create(
 
       initializeAuth: async () => {
         const state = get();
-        
+
         if (!state.token) {
           set({ isInitializing: false });
           return;
         }
 
-        // Set auth header
+        set({ isInitializing: true });
         api.defaults.headers.common['Authorization'] = `Bearer ${state.token}`;
 
         try {
@@ -187,15 +188,15 @@ export const useAuthStore = create(
           });
         } catch (error) {
           // Token invalid or expired - clear auth
-          localStorage.removeItem('trimit-auth');
-          delete api.defaults.headers.common['Authorization'];
-          set({ 
-            user: null, 
-            profile: null, 
-            token: null, 
+          clearPersistedAuth();
+          delete api.defaults.headers.common.Authorization;
+          set({
+            user: null,
+            profile: null,
+            token: null,
             isAuthenticated: false,
             isInitializing: false,
-            hasSalon: false
+            hasSalon: false,
           });
         }
       },
@@ -266,7 +267,7 @@ export const useAuthStore = create(
       },
     }),
     {
-      name: 'trimit-auth',
+      name: AUTH_STORAGE_KEY,
       partialize: (state) => ({ 
         user: state.user, 
         profile: state.profile,

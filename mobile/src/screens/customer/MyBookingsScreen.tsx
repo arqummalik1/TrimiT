@@ -71,11 +71,11 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
     mutationFn: async (bookingId: string) => {
       await api.patch(`/bookings/${bookingId}/status`, { status: 'cancelled' });
     },
-    onSuccess: () => {
+    onSuccess: (_data, cancelledBookingId) => {
       queryClient.invalidateQueries({ queryKey: ['myBookings'] });
       queryClient.invalidateQueries({ queryKey: ['slots'] });
       void import('../../lib/notifications').then(({ cancelBookingReminder }) =>
-        cancelBookingReminder(bookingId)
+        cancelBookingReminder(cancelledBookingId)
       );
       showToast('Booking cancelled successfully.', 'success');
     },

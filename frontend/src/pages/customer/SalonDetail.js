@@ -16,10 +16,12 @@ import {
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import { formatPrice, formatDate } from '../../lib/utils';
+import { useAuthStore } from '../../store/authStore';
 
 const SalonDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
 
   const { data: salon, isLoading, error } = useQuery({
     queryKey: ['salon', id],
@@ -59,8 +61,8 @@ const SalonDetail = () => {
           <p className="text-stone-500 mb-6">
             The salon you're looking for doesn't exist or has been removed.
           </p>
-          <Link to="/discover" className="btn-primary">
-            Back to Discover
+          <Link to="/explore" className="btn-primary">
+            Back to Explore
           </Link>
         </div>
       </div>
@@ -69,8 +71,21 @@ const SalonDetail = () => {
 
   const defaultImage = 'https://images.unsplash.com/photo-1626383137804-ff908d2753a2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHw0fHxzYWxvbiUyMGludGVyaW9yJTIwd2FybSUyMGxpZ2h0aW5nfGVufDB8fHx8MTc3NTY3NzQzNnww&ixlib=rb-4.1.0&q=85';
 
+  const bookTarget = (serviceId) =>
+    isAuthenticated
+      ? `/booking/${salon.id}/${serviceId}`
+      : `/login?redirect=${encodeURIComponent(`/booking/${salon.id}/${serviceId}`)}`;
+
   return (
-    <div className="min-h-screen bg-stone-50 pb-12" data-testid="salon-detail">
+    <div className="min-h-screen bg-stone-50 pb-24" data-testid="salon-detail">
+      {!isAuthenticated && (
+        <motion.div className="sticky top-16 z-30 bg-orange-800 text-white px-4 py-3 text-center text-sm">
+          <Link to="/signup" className="font-bold underline underline-offset-2">
+            Sign up free
+          </Link>{' '}
+          to book at {salon.name}
+        </motion.div>
+      )}
       {/* Hero Image */}
       <div className="relative h-[40vh] min-h-[300px]">
         <img
@@ -227,7 +242,7 @@ const SalonDetail = () => {
                       </div>
                     </div>
                     <Link
-                      to={`/booking/${salon.id}/${service.id}`}
+                      to={bookTarget(service.id)}
                       data-testid={`book-service-${service.id}`}
                       className={`text-sm px-5 py-2.5 flex items-center gap-2 rounded-full font-semibold transition-all ${
                         service.is_on_offer
@@ -236,7 +251,7 @@ const SalonDetail = () => {
                       }`}
                     >
                       <CalendarCheck size={18} />
-                      Book Now
+                      {isAuthenticated ? 'Book now' : 'Sign in to book'}
                     </Link>
                   </div>
                 </motion.div>

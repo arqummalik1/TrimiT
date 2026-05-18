@@ -11,7 +11,6 @@ import SignupPage from './pages/SignupPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import EmailConfirmedPage from './pages/EmailConfirmedPage';
-import CustomerHome from './pages/customer/CustomerHome';
 import SalonDetail from './pages/customer/SalonDetail';
 import BookingPage from './pages/customer/BookingPage';
 import MyBookings from './pages/customer/MyBookings';
@@ -24,6 +23,12 @@ import PrivacyPage from './pages/legal/PrivacyPage';
 import TermsPage from './pages/legal/TermsPage';
 import ContactPage from './pages/legal/ContactPage';
 import AccountPage from './pages/customer/AccountPage';
+import ExplorePage from './pages/ExplorePage';
+import ForSalonsPage from './pages/ForSalonsPage';
+import SeoCategoryPage from './pages/seo/SeoCategoryPage';
+import BlogIndexPage from './pages/blog/BlogIndexPage';
+import BlogPostPage from './pages/blog/BlogPostPage';
+import { SEO_PAGE_PATHS } from './config/seoPages';
 
 // Components
 import Header from './components/Header';
@@ -97,7 +102,7 @@ function App() {
       // If owner has no salon, redirect to create salon page
       return hasSalon ? '/owner/dashboard' : '/owner/salon';
     }
-    return '/discover';
+    return '/explore';
   };
 
   return (
@@ -117,24 +122,20 @@ function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/contact" element={<ContactPage />} />
-          
+          <Route path="/explore" element={<ExplorePage />} />
+          <Route path="/for-salons" element={<ForSalonsPage />} />
+          <Route path="/blog" element={<BlogIndexPage />} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
+          {SEO_PAGE_PATHS.map((path) => (
+            <Route key={path} path={path} element={<SeoCategoryPage />} />
+          ))}
+
+          <Route path="/discover" element={<Navigate to="/explore" replace />} />
+
+          {/* Public salon browse; booking requires auth */}
+          <Route path="/salon/:id" element={<SalonDetail />} />
+
           {/* Customer Routes */}
-          <Route 
-            path="/discover" 
-            element={
-              <ProtectedRoute allowedRoles={['customer']}>
-                <CustomerHome />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/salon/:id" 
-            element={
-              <ProtectedRoute allowedRoles={['customer']}>
-                <SalonDetail />
-              </ProtectedRoute>
-            } 
-          />
           <Route 
             path="/booking/:salonId/:serviceId" 
             element={

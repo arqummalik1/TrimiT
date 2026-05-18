@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # App Settings
     PORT: int = 8000
     DEBUG: bool = False
-    ALLOWED_ORIGINS: str = "https://trimit.online,https://www.trimit.online,http://localhost:3000,http://localhost:8081"
+    ALLOWED_ORIGINS: str = "https://trimit.online,https://www.trimit.online,http://localhost:3000,http://localhost:4173,http://localhost:8081"
     # Web base URL for auth email links (allowlist in Supabase Auth → URL configuration):
     # - {PUBLIC_SITE_URL}/reset-password
     # - {PUBLIC_SITE_URL}/auth/email-confirmed
