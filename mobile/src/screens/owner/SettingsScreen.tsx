@@ -33,6 +33,11 @@ import { SignOutButton } from '../../components/SignOutButton';
 import { normalizeSalon, resolveSalonImageSource } from '../../lib/salonImage';
 
 import { OwnerSettingsScreenProps } from '../../navigation/types';
+import {
+  ENABLE_MULTI_BOOKING_PER_SLOT,
+  ENABLE_OWNER_PROMO_MANAGEMENT,
+  ENABLE_STAFF_SELECTION,
+} from '../../lib/featureFlags';
 
 type SettingsProps = OwnerSettingsScreenProps<'SettingsMain'>;
 
@@ -80,9 +85,14 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
       if (!salon?.id) throw new Error('No salon found');
       
       const response = await api.patch(`/salons/${salon.id}`, {
-        allow_multiple_bookings_per_slot: allowMultipleBookings,
         auto_accept: autoAccept,
         show_offers: enableOffers,
+        ...(ENABLE_MULTI_BOOKING_PER_SLOT
+          ? { allow_multiple_bookings_per_slot: allowMultipleBookings }
+          : {
+              allow_multiple_bookings_per_slot: false,
+              max_bookings_per_slot: 1,
+            }),
       });
       return response.data;
     },
@@ -414,37 +424,40 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
             </View>
           </View>
 
-          <View style={[styles.settingCard, { marginTop: 12 }]}>
-            <View style={styles.settingHeader}>
-              <View style={styles.settingIconContainer}>
-                <Ionicons name="people" size={24} color={theme.colors.primary} />
+          {ENABLE_MULTI_BOOKING_PER_SLOT ? (
+            <>
+              <View style={[styles.settingCard, { marginTop: 12 }]}>
+                <View style={styles.settingHeader}>
+                  <View style={styles.settingIconContainer}>
+                    <Ionicons name="people" size={24} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.settingTextContainer}>
+                    <Text style={styles.settingTitle}>
+                      Allow Multiple Bookings Per Slot
+                    </Text>
+                    <Text style={styles.settingDescription}>
+                      When enabled, multiple customers can book the same time slot
+                    </Text>
+                  </View>
+                  <Switch
+                    value={allowMultipleBookings}
+                    onValueChange={handleToggleChange}
+                    trackColor={{ false: theme.colors.border, true: theme.colors.primary + '80' }}
+                    thumbColor={allowMultipleBookings ? theme.colors.primary : '#f4f3f4'}
+                  />
+                </View>
               </View>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>
-                  Allow Multiple Bookings Per Slot
-                </Text>
-                <Text style={styles.settingDescription}>
-                  When enabled, multiple customers can book the same time slot
-                </Text>
-              </View>
-              <Switch
-                value={allowMultipleBookings}
-                onValueChange={handleToggleChange}
-                trackColor={{ false: theme.colors.border, true: theme.colors.primary + '80' }}
-                thumbColor={allowMultipleBookings ? theme.colors.primary : '#f4f3f4'}
-              />
-            </View>
-          </View>
 
-          {/* Info Card */}
-          <View style={styles.infoBox}>
-            <Ionicons name="information-circle" size={20} color={theme.colors.primary} />
-            <Text style={styles.infoBoxText}>
-              {allowMultipleBookings 
-                ? "Multiple customers can now book the same time slot. This is useful for salons with multiple staff members or chairs."
-                : "Only one customer can book each time slot. New bookings will be blocked for already-booked slots."}
-            </Text>
-          </View>
+              <View style={styles.infoBox}>
+                <Ionicons name="information-circle" size={20} color={theme.colors.primary} />
+                <Text style={styles.infoBoxText}>
+                  {allowMultipleBookings
+                    ? 'Multiple customers can now book the same time slot. This is useful for salons with multiple staff members or chairs.'
+                    : 'Only one customer can book each time slot. New bookings will be blocked for already-booked slots.'}
+                </Text>
+              </View>
+            </>
+          ) : null}
         </View>
 
         {/* Service Offers Section */}
@@ -501,32 +514,35 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
             <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('StaffManagement')}
-            disabled={!salon}
-          >
-            <View style={[styles.actionIconContainer, !salon && { opacity: 0.5 }]}>
-              <Ionicons name="people" size={24} color={theme.colors.primary} />
-            </View>
-            <View style={styles.actionTextContainer}>
-              <Text style={[styles.actionTitle, !salon && { color: theme.colors.textSecondary }]}>
-                Manage Staff
-              </Text>
-              <Text style={styles.actionDescription}>
-                Add, edit, and assign staff members
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
+          {ENABLE_STAFF_SELECTION ? (
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('StaffManagement')}
+              disabled={!salon}
+            >
+              <View style={[styles.actionIconContainer, !salon && { opacity: 0.5 }]}>
+                <Ionicons name="people" size={24} color={theme.colors.primary} />
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={[styles.actionTitle, !salon && { color: theme.colors.textSecondary }]}>
+                  Manage Staff
+                </Text>
+                <Text style={styles.actionDescription}>
+                  Add, edit, and assign staff members
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          ) : null}
 
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('PromoManagement')}
-            disabled={!salon}
-          >
-            <View style={[styles.actionIconContainer, !salon && { opacity: 0.5 }]}>
-              <Ionicons name="ticket" size={24} color={theme.colors.primary} />
+          {ENABLE_OWNER_PROMO_MANAGEMENT ? (
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('PromoManagement')}
+              disabled={!salon}
+            >
+              <View style={[styles.actionIconContainer, !salon && { opacity: 0.5 }]}>
+                <Ionicons name="ticket" size={24} color={theme.colors.primary} />
             </View>
             <View style={styles.actionTextContainer}>
               <Text style={[styles.actionTitle, !salon && { color: theme.colors.textSecondary }]}>
@@ -538,6 +554,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
+          ) : null}
         </View>
 
         {/* Quick Actions Section */}
