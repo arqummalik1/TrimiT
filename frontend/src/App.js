@@ -29,6 +29,8 @@ import AccountPage from './pages/customer/AccountPage';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
+import SeoHead from './components/SeoHead';
+import GoogleAnalytics from './components/GoogleAnalytics';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -100,6 +102,8 @@ function App() {
 
   return (
     <div className="min-h-screen bg-stone-50">
+      <SeoHead />
+      <GoogleAnalytics />
       {!isAuthCallbackPage && <Header />}
       <main>
         <Routes>

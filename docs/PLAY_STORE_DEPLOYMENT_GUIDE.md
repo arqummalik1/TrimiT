@@ -473,3 +473,51 @@ What comes in a later app update (v1.1+):
 - Staff management API, security hardening, polish
 
 Ship the MVP first, iterate with new AAB uploads — that is the normal Play Store workflow.
+
+---
+
+## Play Store ASO (keywords & listing copy)
+
+**Note:** This affects **Google Play search**, not Google Search Console (website). Paste into Play Console → **Main store listing**.
+
+### App title (max 30 characters)
+
+```text
+TrimiT - Salon Booking App
+```
+
+### Short description (max 80 characters)
+
+```text
+Book haircuts, beard trims & spa slots at salons near you. Fast, easy booking.
+```
+
+### Full description (suggested — edit city/region as you expand)
+
+```text
+TrimiT is the easy way to book salon appointments on your phone.
+
+• Discover salons near you
+• See live available time slots
+• Book haircut, beard trim, facial, and spa services in minutes
+• Manage your upcoming appointments
+• Salon owners: accept bookings and run your schedule from one app
+
+Whether you need a quick haircut, beard grooming, facial, or spa treatment, TrimiT connects you with local salons so you can skip the phone calls and book online.
+
+Download TrimiT, create a free account, and book your next visit today.
+
+Keywords: salon booking, barber app, haircut appointment, beard trim, facial booking, spa appointment, salon near me, book salon online, India salon app
+```
+
+### Keyword ideas (for description / promotional text — do not spam)
+
+`salon booking app`, `book haircut`, `barber near me`, `beard trim appointment`, `facial spa booking`, `salon appointment India`, `TrimiT`
+
+### Graphic assets checklist
+
+- [ ] Feature graphic 1024×500
+- [ ] Phone screenshots (6–8) showing Discover → Salon → Book → My Bookings
+- [ ] App icon 512×512 (matches `mobile` adaptive icon)
+
+Website SEO (sitemap, Search Console): [GOOGLE_SEARCH_CONSOLE_SETUP.md](./GOOGLE_SEARCH_CONSOLE_SETUP.md)

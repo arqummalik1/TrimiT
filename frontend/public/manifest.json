@@ -1,0 +1,16 @@
+{
+  "short_name": "TrimiT",
+  "name": "TrimiT — Salon Booking",
+  "icons": [
+    {
+      "src": "branding/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#9a3412",
+  "background_color": "#fafaf9",
+  "description": "Book salon appointments — haircuts, beard, facial, and spa."
+}

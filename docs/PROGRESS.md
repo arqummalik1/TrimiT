@@ -3,7 +3,7 @@
 > **Purpose:** Single source of truth for humans and AI tools on where TrimiT stands.  
 > **Update rule:** Append a session entry and refresh status tables after every meaningful prompt or deploy.
 
-**Last updated:** 2026-05-17 (landing v2 + AAB build in flight)  
+**Last updated:** 2026-05-18 (Google Search Console SEO)  
 **Overall readiness:** **8.5 / 10** — Web marketing polished; **mobile AAB + device QA** are the critical path to Play production  
 **Latest audit:** [PRODUCTION_AUDIT_REPORT.md](./PRODUCTION_AUDIT_REPORT.md)  
 **Launch checklist:** [PRODUCTION_LAUNCH_CHECKLIST.md](./PRODUCTION_LAUNCH_CHECKLIST.md)
@@ -43,6 +43,7 @@ See [PRODUCTION_LAUNCH_CHECKLIST.md](./PRODUCTION_LAUNCH_CHECKLIST.md).
 
 | Date | Summary | Next |
 |------|---------|------|
+| 2026-05-18 | **SEO / Search Console:** `robots.txt`, `sitemap.xml` (build-time generator), per-route `SeoHead` (meta, OG, JSON-LD), optional GA4 + GSC verification env vars, Play Store ASO copy in deployment guide. Docs: `GOOGLE_SEARCH_CONSOLE_SETUP.md`. | Add `REACT_APP_GOOGLE_SITE_VERIFICATION` in Vercel → redeploy → verify in Search Console → submit sitemap. |
 | 2026-05-17 (late) | **Landing page v2:** Service card illustrations (`frontend/public/images/services/`), upbeat hero graphic + horizontal logo white-box fix, **Get the Android app** section, Vercel JSX build fix, mobile-responsive layout. Pushed through `5f0962b7`. **Mobile:** `npm run verify:env && npm run build:aab:local` started (Play Store AAB). | Confirm Vercel deploy live → auth signup E2E → finish AAB → install on Android 13+ → QA matrix. |
 | 2026-05-17 (night) | **Production domain & web:** `trimit.online` everywhere (code, legal, Render `PUBLIC_SITE_URL`, Vercel). **Auth email:** Resend SMTP + Supabase custom SMTP (user configured); friendly rate-limit copy; `hello@trimit.online` support. **Web UX:** premium landing (hero, illustrated “What we offer”, stats, how-it-works), TrimiT logo PNG sitewide, header **Download App** + footer badges → **Google Drive APK** until Play listing. Guides: `TRIMIT_ONLINE_SETUP.md`, `REMAINING_STEPS_TRIMIT_ONLINE.md`, `AUTH_SMTP_AND_PHONE_OTP_GUIDE.md`. Pushed: `0ba9f645`, `84fc83b3`, `b1bc5669`. | (superseded by late session) |
 | 2026-05-17 (eve) | **MVP launch remediation** implemented: hold required, slots auth, duration overlap, idempotency INSERT-first, Write Review CTA, booking UX, Discover map pause. See audit §19. | Deploy → QA → production AAB. |
@@ -141,7 +142,9 @@ Full detail: [PRODUCTION_AUDIT_REPORT.md](./PRODUCTION_AUDIT_REPORT.md).
 | Render `PUBLIC_SITE_URL` | **DONE** (user) | `https://trimit.online` |
 | Signup / reset email E2E test | **PENDING** | New Gmail, check spam |
 | APK distribution | **CODE_DONE** | Drive folder via header/footer until Play Store |
-| Landing v2 on production | **PENDING** | Redeploy/confirm Vercel after `5f0962b7` |
+| Landing v2 on production | **DONE** | — |
+| Search Console sitemap + robots | **CODE_DONE** | Submit `https://trimit.online/sitemap.xml` after deploy |
+| GSC ownership verification | **PENDING** | Set `REACT_APP_GOOGLE_SITE_VERIFICATION` in Vercel |
 | Phone OTP login | **DEFERRED** | See `AUTH_SMTP_AND_PHONE_OTP_GUIDE.md` |
 | Compress `logo-horizontal.png` (~500KB) | **OPTIONAL** | Faster hero load |
 
@@ -180,6 +183,7 @@ See [V1_FEATURE_FLAGS.md](./V1_FEATURE_FLAGS.md).
 | [TRIMIT_ONLINE_SETUP.md](./TRIMIT_ONLINE_SETUP.md) | Domain, Resend, Vercel, Supabase, Render |
 | [REMAINING_STEPS_TRIMIT_ONLINE.md](./REMAINING_STEPS_TRIMIT_ONLINE.md) | What’s left after SMTP setup |
 | [AUTH_SMTP_AND_PHONE_OTP_GUIDE.md](./AUTH_SMTP_AND_PHONE_OTP_GUIDE.md) | Email limits, OTP roadmap |
+| [GOOGLE_SEARCH_CONSOLE_SETUP.md](./GOOGLE_SEARCH_CONSOLE_SETUP.md) | Verify site, submit sitemap, optional GA4 |
 | [database/MIGRATION_ORDER.md](./database/MIGRATION_ORDER.md) | SQL order |
 | [PROJECT_MASTER_CONTEXT_FOR_AI.md](./PROJECT_MASTER_CONTEXT_FOR_AI.md) | Architecture |
 | [../mobile/BUILD_RELEASE.md](../mobile/BUILD_RELEASE.md) | AAB/APK |

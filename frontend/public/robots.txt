@@ -1,0 +1,13 @@
+# TrimiT (https://trimit.online)
+User-agent: *
+Allow: /
+Disallow: /discover
+Disallow: /salon/
+Disallow: /booking/
+Disallow: /my-bookings
+Disallow: /account
+Disallow: /owner/
+Disallow: /auth/
+Disallow: /reset-password
+
+Sitemap: https://trimit.online/sitemap.xml
