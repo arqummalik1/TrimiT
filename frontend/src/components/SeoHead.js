@@ -89,12 +89,24 @@ export default function SeoHead() {
     upsertMeta('property', 'og:type', 'website');
     upsertMeta('property', 'og:site_name', 'TrimiT');
     upsertMeta('property', 'og:image', OG_IMAGE);
+    upsertMeta('property', 'og:image:width', '1252');
+    upsertMeta('property', 'og:image:height', '527');
+    upsertMeta(
+      'property',
+      'og:image:alt',
+      'TrimiT — salon, spa, barber and beauty booking for Jammu and India'
+    );
     upsertMeta('property', 'og:locale', 'en_IN');
 
     upsertMeta('name', 'twitter:card', 'summary_large_image');
     upsertMeta('name', 'twitter:title', seo.title);
     upsertMeta('name', 'twitter:description', seo.description);
     upsertMeta('name', 'twitter:image', OG_IMAGE);
+    upsertMeta(
+      'name',
+      'twitter:image:alt',
+      'TrimiT — salon, spa, barber and beauty booking for Jammu and India'
+    );
 
     upsertLink('canonical', canonical);
 
