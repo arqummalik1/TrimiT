@@ -10,6 +10,7 @@ export type AuthStackParamList = {
   RoleSelect: undefined;
   Signup: { role: 'customer' | 'owner' };
   ForgotPassword: undefined;
+  ResetPassword: { token: string };
   PrivacyPolicy: undefined;
   Terms: undefined;
 };

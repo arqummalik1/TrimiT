@@ -18,6 +18,7 @@ import { Theme } from '../../theme/tokens';
 
 import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
+import { buildConfig } from '../../lib/buildConfig';
 
 import { handleApiError } from '../../lib/errorHandler';
 import { getUserFacingMessage } from '../../lib/userFacingError';
@@ -47,7 +48,10 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordProps
     setIsLoading(true);
     setRateLimitMessage(null);
     try {
-      await api.post('/auth/forgot-password', { email });
+      await api.post('/auth/forgot-password', {
+        email,
+        redirect_to: buildConfig.resetPasswordDeepLink,
+      });
       setIsSent(true);
     } catch (error) {
       const appErr = handleApiError(error);

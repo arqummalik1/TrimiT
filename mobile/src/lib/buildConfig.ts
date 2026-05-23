@@ -8,6 +8,7 @@ type Extra = {
   publicSiteUrl?: string;
   sentryDsn?: string | null;
   enableOnlinePay?: string;
+  resetPasswordDeepLink?: string;
 };
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Extra;
@@ -34,6 +35,7 @@ export const buildConfig = {
   enableOnlinePay:
     pick('enableOnlinePay', 'EXPO_PUBLIC_ENABLE_ONLINE_PAY', 'false') === 'true' ||
     pick('enableOnlinePay', 'EXPO_PUBLIC_ENABLE_ONLINE_PAY', 'false') === '1',
+  resetPasswordDeepLink: pick('resetPasswordDeepLink', 'EXPO_PUBLIC_RESET_PASSWORD_DEEP_LINK', 'trimit://reset-password'),
 };
 
 export type BuildConfigIssue = {

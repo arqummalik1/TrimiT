@@ -41,6 +41,7 @@ class ResendConfirmationRequest(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+    redirect_to: Optional[str] = None
 
 
 class ConfirmEmailCallbackRequest(BaseModel):

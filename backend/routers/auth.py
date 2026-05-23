@@ -442,7 +442,7 @@ async def resend_confirmation(request: Request, data: ResendConfirmationRequest)
 @limiter.limit("10/hour")
 async def forgot_password(request: Request, data: ForgotPasswordRequest):
     site_base = settings.PUBLIC_SITE_URL.rstrip("/")
-    redirect_to = f"{site_base}/reset-password"
+    redirect_to = data.redirect_to or f"{site_base}/reset-password"
     response = await supabase.request(
         "POST",
         "auth/v1/recover",
