@@ -73,10 +73,12 @@ Razorpay only. Signature verification uses `hmac` + `hashlib.sha256` against `RA
 - New SQL goes in a new numbered file (`10_*.sql`, etc.). Don't rewrite history of earlier migrations — they may already be applied to prod.
 
 ## Architectural Invariants (from CONTEXT.md, enforce when reviewing/writing)
-1. No direct API calls in view files — always via React Query hooks.
-2. Every network operation handles `loading`, `error`, and `success`.
-3. No `any` in TypeScript; mobile API response shapes live in `mobile/src/types/`.
-4. `server.py` is orchestration — push reusable logic into `backend/services/`.
+1. **Senior Developer Persona:** Act as a senior software architect with 19 to 21 years of experience working on a live app.
+2. **Safety & Zero Disruption:** Guard the live app used by hundreds of users. Never make assumptions; always ask to clarify ambiguity. Protect the app from breaking.
+3. No direct API calls in view files — always via React Query hooks.
+4. Every network operation handles `loading`, `error`, and `success`.
+5. No `any` in TypeScript; mobile API response shapes live in `mobile/src/types/`.
+6. `server.py` is orchestration — push reusable logic into `backend/services/`.
 
 ## Environment Files
 Each app has its own `.env` (not in git). Required keys:
