@@ -190,6 +190,7 @@ module.exports = ({ config }) => {
         publicSiteUrl: env('EXPO_PUBLIC_PUBLIC_SITE_URL', DEFAULT_SITE_URL),
         sentryDsn: sentryDsn || null,
         enableOnlinePay: env('EXPO_PUBLIC_ENABLE_ONLINE_PAY', 'false'),
+        resetPasswordDeepLink: env('EXPO_PUBLIC_RESET_PASSWORD_DEEP_LINK', 'trimit://reset-password'),
       },
       owner: 'arqummalik1',
     },
