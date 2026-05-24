@@ -494,10 +494,22 @@ async def send_otp(request: Request, data: SendOtpRequest):
     """Trigger email OTP delivery (password-less login or signup verification retry)"""
     email = _normalize_email(data.email)
     _enforce_otp_email_throttle(email)
+    
+    # Try with create_user=False first (login flow for existing users)
     response = await supabase.request("POST", "auth/v1/otp", json={
         "email": email,
         "create_user": False
     })
+    
+    # If Supabase returns 400 with "User not found" (or similar), try with create_user=True
+    # This allows the OTP flow to work for both new signups and existing logins.
+    if response.status_code == 400:
+        logger.info("send_otp: user not found with create_user=False, retrying with create_user=True for %s", email)
+        response = await supabase.request("POST", "auth/v1/otp", json={
+            "email": email,
+            "create_user": True
+        })
+
     if response.status_code in (200, 201):
         return {"message": "If the address is eligible, an OTP code has been sent"}
 
@@ -516,12 +528,8 @@ async def send_otp(request: Request, data: SendOtpRequest):
             },
         )
 
-    logger.info(
-        "send_otp generic success fallback status=%s email=%s",
-        response.status_code,
-        email,
-    )
-    return {"message": "If the address is eligible, an OTP code has been sent"}
+    # Always return success to avoid email enumeration (Supabase may return 200 even if email unknown)
+    return {"message": "An OTP code has been sent if the email is valid"}
 
 @router.post("/verify-otp")
 @limiter.limit("10/minute")
