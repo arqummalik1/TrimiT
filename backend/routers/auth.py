@@ -109,20 +109,37 @@ async def signup(request: Request, user: UserCreate):
         return token_resp.json()
 
     # Production: Supabase Auth
-    status_code, body = await perform_supabase_signup(user)
-    if status_code == 200:
+    status_code_resp, body = await perform_supabase_signup(user)
+    
+    if status_code_resp == 200:
         return body
-    if status_code == 202:
+    if status_code_resp == 202:
         return JSONResponse(status_code=202, content=body)
 
-    # If already exists but unconfirmed, resend and return 202
-    if status_code == 400 and body.get("code") == "USER_ALREADY_EXISTS":
-        # Check if actually confirmed
+    # Hybrid Fix: If user exists but is unconfirmed, resend and act like it's a new signup
+    if status_code_resp == 400 and body.get("code") == "USER_ALREADY_EXISTS":
         if not await _is_email_confirmed(user.email):
+            logger.info("signup: user %s already exists but unconfirmed, resending code", user.email)
             resend_body = await resend_confirmation_email(user.email)
-            return JSONResponse(status_code=202, content=resend_body)
+            # Return 202 (Accepted) so frontend moves to OTP screen
+            return JSONResponse(
+                status_code=202, 
+                content={
+                    "code": "EMAIL_CONFIRMATION_REQUIRED",
+                    "message": "You have a pending registration. A new verification code has been sent to your email."
+                }
+            )
+        else:
+            # User is already confirmed, tell them to sign in
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "USER_ALREADY_EXISTS",
+                    "message": "An account with this email already exists. Please try signing in instead."
+                }
+            )
 
-    raise HTTPException(status_code=status_code, detail=body)
+    raise HTTPException(status_code=status_code_resp, detail=body)
 
 
 @router.post("/login")
