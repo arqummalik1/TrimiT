@@ -12,6 +12,22 @@ logger = logging.getLogger("trimit")
 user_profile_cache = TTLCache(maxsize=1000, ttl=300)
 
 
+def _build_cached_user_data(
+    user_id: str,
+    email: Optional[str],
+    profile_row: dict,
+    access_token: str,
+) -> dict:
+    return {
+        "id": user_id,
+        "email": email,
+        "profile": profile_row,
+        # Always use the token from the current request so cache hits never
+        # replay a stale pre-refresh access token.
+        "access_token": access_token,
+    }
+
+
 def try_get_user_id_from_authorization(authorization: Optional[str]) -> Optional[str]:
     if not authorization or not authorization.startswith("Bearer "):
         return None
@@ -29,7 +45,10 @@ def try_get_user_id_from_authorization(authorization: Optional[str]) -> Optional
             )
             sub = payload.get("sub")
             return str(sub) if sub else None
-        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, Exception):
+        except jwt.PyJWTError:
+            # Narrowed from a bare-except. PyJWTError is the documented base for
+            # every PyJWT exception (Expired, InvalidAudience, DecodeError, …);
+            # truly unexpected errors should surface, not be silently None'd.
             return None
 
     if settings.ENVIRONMENT != "production":
@@ -69,7 +88,13 @@ async def get_current_user(authorization: str = Header(None)):
                 raise HTTPException(status_code=401, detail="Invalid token payload")
 
             if user_id in user_profile_cache:
-                return user_profile_cache[user_id]
+                cached = user_profile_cache[user_id]
+                return _build_cached_user_data(
+                    user_id,
+                    cached.get("email"),
+                    cached.get("profile"),
+                    token,
+                )
 
             profile_row = await resolve_profile_for_user(
                 user_id,
@@ -78,12 +103,12 @@ async def get_current_user(authorization: str = Header(None)):
                 user_jwt=token,
             )
 
-            user_data = {
-                "id": user_id,
-                "email": payload.get("email"),
-                "profile": profile_row,
-                "access_token": token,
-            }
+            user_data = _build_cached_user_data(
+                user_id,
+                payload.get("email"),
+                profile_row,
+                token,
+            )
             user_profile_cache[user_id] = user_data
             return user_data
 
@@ -109,12 +134,12 @@ async def get_current_user(authorization: str = Header(None)):
                 user_jwt=token,
             )
 
-            user_data = {
-                "id": user_id,
-                "email": user_info.get("email"),
-                "profile": profile_row,
-                "access_token": token,
-            }
+            user_data = _build_cached_user_data(
+                user_id,
+                user_info.get("email"),
+                profile_row,
+                token,
+            )
             user_profile_cache[user_id] = user_data
             return user_data
 

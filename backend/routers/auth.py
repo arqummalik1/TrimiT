@@ -4,6 +4,7 @@ from typing import Dict, Any
 from datetime import datetime, timezone
 import httpx
 import logging
+from cachetools import TTLCache
 
 from config import settings
 from core.supabase import supabase
@@ -40,6 +41,25 @@ from services.auth_signup import (
 logger = logging.getLogger("trimit")
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+OTP_EMAIL_THROTTLE_SECONDS = 60
+otp_email_throttle = TTLCache(maxsize=5000, ttl=OTP_EMAIL_THROTTLE_SECONDS)
+
+
+def _normalize_email(value: str) -> str:
+    return value.strip().lower()
+
+
+def _enforce_otp_email_throttle(email: str) -> None:
+    if email in otp_email_throttle:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "OTP_EMAIL_RATE_LIMIT",
+                "message": "Please wait a minute before requesting another code for this email.",
+            },
+        )
+    otp_email_throttle[email] = True
 
 
 @router.post("/signup")
@@ -258,27 +278,19 @@ async def login(request: Request, user: UserLogin):
     Login and return a session.
     Always includes a flat `profile` object with `role` for mobile navigation.
     """
+    normalized_email = _normalize_email(user.email)
     response = await supabase.request("POST", "auth/v1/token?grant_type=password", json={
-        "email": user.email,
+        "email": normalized_email,
         "password": user.password,
     })
 
     if response.status_code != 200:
-        error_data = response.json()
-        error_msg = (
-            error_data.get("error_description")
-            or error_data.get("message")
-            or "Invalid email or password"
+        error_msg = "Invalid email or password"
+        logger.info(
+            "Login rejected status=%s email=%s",
+            response.status_code,
+            normalized_email,
         )
-        # Surface email-not-confirmed specifically
-        if "email not confirmed" in str(error_msg).lower():
-            raise HTTPException(
-                status_code=401,
-                detail={
-                    "code": "EMAIL_NOT_CONFIRMED",
-                    "message": "Please confirm your email address before logging in.",
-                },
-            )
         raise HTTPException(
             status_code=401,
             detail={"code": "LOGIN_FAILED", "message": error_msg},
@@ -295,7 +307,7 @@ async def login(request: Request, user: UserLogin):
         try:
             profile = await resolve_profile_for_user(
                 user_id,
-                supabase_user.get("email", user.email),
+                supabase_user.get("email", normalized_email),
                 supabase_user.get("user_metadata"),
                 user_jwt=access_token,
             )
@@ -480,19 +492,36 @@ async def forgot_password(request: Request, data: ForgotPasswordRequest):
 @limiter.limit("5/minute")
 async def send_otp(request: Request, data: SendOtpRequest):
     """Trigger email OTP delivery (password-less login or signup verification retry)"""
+    email = _normalize_email(data.email)
+    _enforce_otp_email_throttle(email)
     response = await supabase.request("POST", "auth/v1/otp", json={
-        "email": data.email.strip().lower(),
-        "create_user": True
+        "email": email,
+        "create_user": False
     })
-    if response.status_code != 200:
+    if response.status_code in (200, 201):
+        return {"message": "If the address is eligible, an OTP code has been sent"}
+
+    if response.status_code == 429:
         logger.warning(
             "send_otp supabase status=%s email=%s body=%s",
             response.status_code,
-            data.email,
+            email,
             response.text[:200] if response.text else ""
         )
-        raise HTTPException(status_code=400, detail="Failed to send OTP code")
-    return {"message": "OTP code sent successfully"}
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "OTP_RATE_LIMITED",
+                "message": "Too many OTP requests. Please wait a minute and try again.",
+            },
+        )
+
+    logger.info(
+        "send_otp generic success fallback status=%s email=%s",
+        response.status_code,
+        email,
+    )
+    return {"message": "If the address is eligible, an OTP code has been sent"}
 
 @router.post("/verify-otp")
 @limiter.limit("10/minute")

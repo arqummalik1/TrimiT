@@ -64,6 +64,29 @@ except Exception as e:
     sys.exit(1)
 
 # Initialize Sentry
+def _scrub_sentry_event(event, hint):
+    """Strip Authorization headers and obvious JWT/secret-looking values from
+    Sentry payloads before they leave the server. Defensive; not a substitute
+    for not logging the values in the first place."""
+    try:
+        req = event.get("request") or {}
+        headers = req.get("headers") or {}
+        if isinstance(headers, dict):
+            for key in list(headers.keys()):
+                if key.lower() in {"authorization", "cookie", "x-trimit-signature"}:
+                    headers[key] = "[Filtered]"
+        # Strip access_token / refresh_token / password from request data
+        data = req.get("data")
+        if isinstance(data, dict):
+            for key in list(data.keys()):
+                if key.lower() in {"password", "access_token", "refresh_token", "token"}:
+                    data[key] = "[Filtered]"
+    except Exception:
+        # Never let scrubbing failures kill error reporting
+        pass
+    return event
+
+
 if settings.SENTRY_DSN:
     sentry_sdk.init(
         dsn=settings.SENTRY_DSN,
@@ -71,6 +94,8 @@ if settings.SENTRY_DSN:
         environment=settings.ENVIRONMENT,
         traces_sample_rate=0.2,
         profiles_sample_rate=0.2,
+        send_default_pii=False,
+        before_send=_scrub_sentry_event,
     )
 
 # Configure Logging

@@ -12,24 +12,33 @@ from config import settings
 logger = logging.getLogger("trimit")
 request_id_var = contextvars.ContextVar("request_id", default=None)
 
+# Emit the "signing disabled" notice once at import time instead of once per
+# request — repeating it on every call drowns the log stream and made the
+# real warnings harder to spot in Render.
+if not settings.API_SIGNING_SECRET:
+    logger.warning(
+        "API_SIGNING_SECRET not configured — signature validation disabled "
+        "for the lifetime of this process."
+    )
+
 class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
         request_id_var.set(request_id)
-        
+
         start_time = time.time()
         response = await call_next(request)
         process_time = time.time() - start_time
-        
+
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Process-Time"] = str(process_time)
         return response
 
 class SignatureMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # Skip signature validation if API_SIGNING_SECRET is not configured
+        # Skip signature validation if API_SIGNING_SECRET is not configured.
+        # Startup-time warning above replaces the per-request log.
         if not settings.API_SIGNING_SECRET:
-            logger.warning("API_SIGNING_SECRET not configured - signature validation disabled")
             return await call_next(request)
         
         # Exclude specific routes and non-mutating methods

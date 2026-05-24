@@ -187,6 +187,17 @@ def _time_ranges_overlap(start_a: int, duration_a: int, start_b: int, duration_b
     return start_a < start_b + duration_b and start_b < start_a + duration_a
 
 
+def _get_allowed_payment_methods(salon: dict) -> set[str]:
+    methods = salon.get("payment_methods")
+    if isinstance(methods, list):
+        normalized = {str(method).strip() for method in methods if str(method).strip()}
+        if normalized:
+            return normalized
+    # Legacy salons may not have the new column yet; preserve current behaviour
+    # until the migration is applied and payment methods are explicitly configured.
+    return {"salon_cash", "online"}
+
+
 def _has_active_hold(hold_rows: list, user_id: str, normalized_slot: str) -> bool:
     now_iso = datetime.now(timezone.utc).isoformat()
     for row in hold_rows or []:
@@ -364,7 +375,11 @@ async def get_available_slots(
     
     salon = salon_resp.json()[0]
     service = service_resp.json()[0]
-    
+
+    # Resolve the queried service's duration up-front; holds for other services
+    # below need a duration value before the per-service map is built.
+    duration = int(service.get("duration") or 30)
+
     # 2. Fetch existing bookings and active holds for the day
     now_utc = datetime.now(timezone.utc)
     bookings_resp = await supabase.request(
@@ -374,7 +389,7 @@ async def get_available_slots(
     )
     holds_resp = await supabase.request(
         "GET",
-        f"rest/v1/slot_holds?salon_id=eq.{salon_id}&booking_date=eq.{effective_date}&expires_at=gt.{now_utc.isoformat()}&select=time_slot,user_id",
+        f"rest/v1/slot_holds?salon_id=eq.{salon_id}&booking_date=eq.{effective_date}&expires_at=gt.{now_utc.isoformat()}&select=time_slot,user_id,service_id",
         service_role=True,
     )
     services_resp = await supabase.request(
@@ -416,7 +431,16 @@ async def get_available_slots(
         occupancy_counts[slot] = occupancy_counts.get(slot, 0) + 1
         hold_start = _parse_hh_mm_minutes(slot)
         if hold_start is not None:
-            booking_blocked_ranges.append((hold_start, duration))
+            # Prefer the actual duration of the held service when known;
+            # fall back to the requested service's duration so we never
+            # under-block. (Previously this used an unbound `duration`.)
+            hold_service_id = h.get("service_id")
+            hold_dur = (
+                duration_by_service.get(str(hold_service_id))
+                if hold_service_id
+                else None
+            ) or duration
+            booking_blocked_ranges.append((hold_start, hold_dur))
 
     # 3. Generate slots
     try:
@@ -425,8 +449,8 @@ async def get_available_slots(
     except ValueError:
         opening = datetime.strptime("09:00", "%H:%M")
         closing = datetime.strptime("21:00", "%H:%M")
-        
-    duration = service.get("duration", 30)
+
+    # `duration` was already resolved above the holds loop so it's safe here.
     allow_multiple = salon.get("allow_multiple_bookings_per_slot", False)
     max_bookings = salon.get("max_bookings_per_slot", 1)
     
@@ -571,24 +595,6 @@ async def reserve_slot(request: Request, data: SlotReserve, current_user: dict =
         }
 
     logger.error("[RESERVE] reserve_slot_v1 HTTP error: %s %s", response.status_code, response.text)
-    if settings.ENVIRONMENT != "production":
-        fb_status, fb_payload = await _reserve_slot_service_role_fallback(
-            data.salon_id,
-            data.service_id,
-            data.booking_date,
-            data.time_slot,
-            str(user_id),
-        )
-        if fb_status == "ok" and fb_payload:
-            return {**fb_payload, "fallback": True}
-        if fb_status == "conflict":
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "code": "SLOT_TAKEN",
-                    "message": "This slot is already booked or held by another user",
-                },
-            )
     raise HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail={
@@ -616,6 +622,16 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
         
     salon = salon_resp.json()[0]
     service = service_resp.json()[0]
+
+    allowed_payment_methods = _get_allowed_payment_methods(salon)
+    if data.payment_method not in allowed_payment_methods:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "PAYMENT_METHOD_UNAVAILABLE",
+                "message": "This salon does not accept the selected payment method.",
+            },
+        )
     
     # Calculate amount (with promo if provided)
     original_amount = float(service.get("price", 0))

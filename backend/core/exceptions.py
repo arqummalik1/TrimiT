@@ -4,10 +4,13 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 import logging
-import contextvars
+
+# Import the canonical ContextVar from the middleware so the request ID set in
+# RequestIDMiddleware is visible to these exception handlers. Declaring a second
+# ContextVar here previously caused all error responses to carry request_id: null.
+from core.middleware import request_id_var
 
 logger = logging.getLogger("trimit")
-request_id_var = contextvars.ContextVar("request_id", default=None)
 
 def setup_exception_handlers(app):
     @app.exception_handler(StarletteHTTPException)

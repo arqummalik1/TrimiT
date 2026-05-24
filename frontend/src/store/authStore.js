@@ -4,6 +4,7 @@ import api from '../lib/api';
 import { clearPersistedAuth, AUTH_STORAGE_KEY } from '../lib/session';
 import { mapAuthApiError } from '../lib/authRateLimitMessages';
 import { SUPPORT_EMAIL } from '../config/contact';
+import { supabase } from '../lib/supabase';
 
 const translateAuthError = (error, context = 'generic') => {
   const detail = error.response?.data?.detail;
@@ -53,17 +54,19 @@ export const useAuthStore = create(
       user: null,
       profile: null,
       token: null,
+      refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
       isInitializing: false,
       hasSalon: false,
       error: null,
 
-      setUser: (user, profile, token) => {
+      setUser: (user, profile, token, refreshToken = null) => {
         set({ 
           user, 
           profile, 
           token, 
+          refreshToken,
           isAuthenticated: !!user,
           error: null 
         });
@@ -76,9 +79,15 @@ export const useAuthStore = create(
         set({ isLoading: true, error: null });
         try {
           const response = await api.post('/auth/login', { email, password });
-          const { user, access_token, profile } = response.data;
+          const { user, access_token, refresh_token, profile } = response.data;
           
           api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+          if (refresh_token) {
+            await supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            });
+          }
           
           // Check if owner has a salon
           let hasSalon = false;
@@ -95,6 +104,7 @@ export const useAuthStore = create(
             user, 
             profile: profile || null,
             token: access_token, 
+            refreshToken: refresh_token ?? null,
             isAuthenticated: true,
             isLoading: false,
             hasSalon,
@@ -136,11 +146,18 @@ export const useAuthStore = create(
 
           if (session?.access_token) {
             api.defaults.headers.common['Authorization'] = `Bearer ${session.access_token}`;
+            if (session.refresh_token) {
+              await supabase.auth.setSession({
+                access_token: session.access_token,
+                refresh_token: session.refresh_token,
+              });
+            }
 
             set({
               user,
               profile: { name, phone, role, email },
               token: session.access_token,
+              refreshToken: session.refresh_token ?? null,
               isAuthenticated: true,
               isLoading: false,
               hasSalon: false,
@@ -167,10 +184,12 @@ export const useAuthStore = create(
       logout: () => {
         delete api.defaults.headers.common.Authorization;
         clearPersistedAuth();
+        void supabase.auth.signOut();
         set({ 
           user: null, 
           profile: null,
           token: null, 
+          refreshToken: null,
           isAuthenticated: false,
           isInitializing: false,
           hasSalon: false,
@@ -194,6 +213,12 @@ export const useAuthStore = create(
         api.defaults.headers.common['Authorization'] = `Bearer ${state.token}`;
 
         try {
+          if (state.refreshToken) {
+            await supabase.auth.setSession({
+              access_token: state.token,
+              refresh_token: state.refreshToken,
+            });
+          }
           // Validate token by fetching current user
           const response = await api.get('/auth/me');
           const userData = response.data;
@@ -224,6 +249,7 @@ export const useAuthStore = create(
             user: null,
             profile: null,
             token: null,
+            refreshToken: null,
             isAuthenticated: false,
             isInitializing: false,
             hasSalon: false,
@@ -313,9 +339,15 @@ export const useAuthStore = create(
         set({ isLoading: true, error: null });
         try {
           const response = await api.post('/auth/verify-otp', { email, token, type });
-          const { user, access_token, profile } = response.data;
+          const { user, access_token, refresh_token, profile } = response.data;
 
           api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+          if (refresh_token) {
+            await supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            });
+          }
 
           let hasSalon = false;
           if (profile?.role === 'owner') {
@@ -331,6 +363,7 @@ export const useAuthStore = create(
             user,
             profile: profile || null,
             token: access_token,
+            refreshToken: refresh_token ?? null,
             isAuthenticated: true,
             isLoading: false,
             hasSalon,
@@ -351,6 +384,7 @@ export const useAuthStore = create(
         user: state.user, 
         profile: state.profile,
         token: state.token,
+        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
         hasSalon: state.hasSalon
       }),

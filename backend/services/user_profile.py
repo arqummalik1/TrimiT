@@ -77,9 +77,13 @@ async def upsert_user_profile(
     profile_data: Dict[str, Any],
     *,
     prefer_incoming_role: bool = False,
+    _retry_count: int = 0,
 ) -> Dict[str, Any]:
     """
     Insert or update public.users. Returns the canonical profile row.
+
+    `_retry_count` is internal; it caps the recursive 409 retry at one extra
+    attempt so a persistent constraint mismatch cannot infinite-loop.
     """
     existing = await fetch_profile_service_role(user_id)
     if existing:
@@ -119,15 +123,20 @@ async def upsert_user_profile(
         fetched = await fetch_profile_service_role(user_id)
         return fetched or profile_data
 
-    if insert_resp.status_code == 409:
+    if insert_resp.status_code == 409 and _retry_count < 1:
+        # Concurrent insert won the race — re-read and PATCH on the next pass.
         return await upsert_user_profile(
-            user_id, profile_data, prefer_incoming_role=prefer_incoming_role
+            user_id,
+            profile_data,
+            prefer_incoming_role=prefer_incoming_role,
+            _retry_count=_retry_count + 1,
         )
 
     logger.error(
-        "Profile INSERT failed user=%s status=%s body=%s",
+        "Profile INSERT failed user=%s status=%s retries=%s body=%s",
         user_id,
         insert_resp.status_code,
+        _retry_count,
         insert_resp.text,
     )
     raise RuntimeError(f"Profile insert failed: {insert_resp.status_code}")
