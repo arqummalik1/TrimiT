@@ -80,8 +80,8 @@ async def signup(request: Request, user: UserCreate):
     existing = await try_idempotent_signup(user)
     if existing:
         status_code, body = existing
-        if status_code == 202:
-            return JSONResponse(status_code=202, content=body)
+        if status_code in (200, 201, 202):
+            return JSONResponse(status_code=status_code, content=body)
         raise HTTPException(status_code=status_code, detail=body)
 
     # Staging/dev: pre-confirmed admin user — no Supabase email (avoids project email quota)
