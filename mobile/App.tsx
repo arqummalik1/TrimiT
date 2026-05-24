@@ -82,6 +82,20 @@ const CUSTOM_FONTS = {
 
 const configIssues = getReleaseConfigIssues();
 
+const linking = {
+  prefixes: ['trimit://', 'https://trimit.online'],
+  config: {
+    screens: {
+      Auth: {
+        path: '',
+        screens: {
+          ResetPassword: 'reset-password',
+        },
+      },
+    },
+  },
+};
+
 function AppContent() {
   const { isDark } = useTheme();
   const { isAuthenticated, isHydrated, authBootstrapComplete, setQueryClient, user } =
@@ -250,7 +264,7 @@ function AppContent() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       <RootNavigator />
       <SigningOutOverlay />
       <SessionExpiredModal />

@@ -81,7 +81,7 @@ class TrimiTAPITester:
         success, response = self.run_test(
             "Health Check",
             "GET",
-            "api/health",
+            "health",
             200
         )
         return success
@@ -105,7 +105,7 @@ class TrimiTAPITester:
         signup_success, signup_response = self.run_test(
             "User Signup",
             "POST",
-            "api/auth/signup",
+            "api/v1/auth/signup",
             400,  # Expecting 400 due to rate limiting
             data=test_user_data
         )
@@ -119,7 +119,7 @@ class TrimiTAPITester:
         login_success, login_response = self.run_test(
             "User Login",
             "POST",
-            "api/auth/login",
+            "api/v1/auth/login",
             401,  # Expecting 401 for invalid credentials
             data=login_data
         )
@@ -136,7 +136,7 @@ class TrimiTAPITester:
         salons_success, salons_response = self.run_test(
             "Get Salons",
             "GET",
-            "api/salons",
+            "api/v1/salons",
             200
         )
         
@@ -144,7 +144,7 @@ class TrimiTAPITester:
         salons_query_success, _ = self.run_test(
             "Get Salons with City Filter",
             "GET",
-            "api/salons?city=Mumbai",
+            "api/v1/salons?city=Mumbai",
             200
         )
         
@@ -152,7 +152,7 @@ class TrimiTAPITester:
         salon_detail_success, _ = self.run_test(
             "Get Salon Detail",
             "GET",
-            "api/salons/non-existent-id",
+            "api/v1/salons/non-existent-id",
             404
         )
         
@@ -168,7 +168,7 @@ class TrimiTAPITester:
         slots_success, _ = self.run_test(
             "Get Available Slots",
             "GET",
-            "api/salons/non-existent-salon/slots?date=2025-01-10&service_id=non-existent-service",
+            "api/v1/salons/non-existent-salon/slots?date=2025-01-10&service_id=non-existent-service",
             404
         )
         
@@ -176,7 +176,7 @@ class TrimiTAPITester:
         bookings_success, _ = self.run_test(
             "Get My Bookings (No Auth)",
             "GET",
-            "api/bookings",
+            "api/v1/bookings",
             401
         )
         
@@ -192,7 +192,7 @@ class TrimiTAPITester:
         me_success, _ = self.run_test(
             "Get Current User (No Auth)",
             "GET",
-            "api/auth/me",
+            "api/v1/auth/me",
             401
         )
         
@@ -209,7 +209,7 @@ class TrimiTAPITester:
         create_salon_success, _ = self.run_test(
             "Create Salon (No Auth)",
             "POST",
-            "api/salons",
+            "api/v1/salons",
             401,
             data=salon_data
         )
@@ -230,7 +230,7 @@ class TrimiTAPITester:
         payment_success, _ = self.run_test(
             "Create Payment Order (No Auth)",
             "POST",
-            "api/payments/create-order",
+            "api/v1/payments/create-order",
             401,
             data=payment_data
         )

@@ -51,7 +51,7 @@ try:
     from routers import payments
     from routers import promotions
     from routers import staff_availability
-    # staff CRUD router disabled until rewritten for httpx supabase wrapper (BC2)
+    from routers import staff
     from routers import owner
     from routers import reviews
     from routers import uploads
@@ -130,7 +130,7 @@ v1_router.include_router(bookings.router)
 v1_router.include_router(payments.router)
 v1_router.include_router(promotions.router)
 v1_router.include_router(staff_availability.router)
-# v1_router.include_router(staff.router)  # BC2: full CRUD after staff.py rewrite
+v1_router.include_router(staff.router)
 v1_router.include_router(owner.router)
 v1_router.include_router(reviews.router)
 v1_router.include_router(uploads.router)
