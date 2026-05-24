@@ -181,9 +181,12 @@ async def try_idempotent_signup(user: UserCreate) -> Optional[Tuple[int, Dict[st
     if user_id:
         await _ensure_profile(user_id, user)
         # Force a fresh confirmation email/OTP send for the pending user
-        resend_resp = await resend_confirmation_email(user.email)
-        resend_status, resend_body = resend_resp
+        resend_status, resend_body = await resend_confirmation_email(user.email)
         
+        # If the user was successfully auto-confirmed via admin_confirm_user
+        if resend_status == 200 and resend_body.get("code") == "SIGNUP_READY_SIGN_IN":
+            return 202, resend_body
+            
         return await pending_confirmation_response(
             email=_normalize_email(user.email),
             user_id=user_id,
@@ -192,6 +195,11 @@ async def try_idempotent_signup(user: UserCreate) -> Optional[Tuple[int, Dict[st
         )
 
     return await pending_confirmation_response(
+        email=_normalize_email(user.email),
+        user_id=None,
+        message="This email already has a pending account. Check your inbox (and spam), or sign in if we already activated your account.",
+        resent=False,
+    )
 
 
 async def salvage_rate_limited_signup(
