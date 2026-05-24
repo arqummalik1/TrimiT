@@ -129,7 +129,7 @@ This pass is focused on the selected P1 items:
 - Booking creation now validates payment method against salon-configured methods when that config exists
 - Added DB migration to store explicit salon payment methods
 - Added DB migration to schedule the pending-online-booking expiry cron
-- Web security headers: Added CSP, HSTS, and XSS protection to `vercel.json`
+- Web security headers: Added CSP, HSTS, and XSS protection to `vercel.json` (fixed CSP to allow Render backend)
 - Web realtime slot invalidation: Added Supabase Realtime subscription to `BookingPage.js` for instant slot invalidation
 
 ### Still Pending
