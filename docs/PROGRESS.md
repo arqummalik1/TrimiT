@@ -1,195 +1,236 @@
-# TrimiT — Project Progress (living document)
+# TrimiT — Project Progress
 
-> **Purpose:** Single source of truth for humans and AI tools on where TrimiT stands.  
-> **Update rule:** Append a session entry and refresh status tables after every meaningful prompt or deploy.
+> Living handoff file for humans and AI tools.  
+> Update this file after every meaningful prompt, code change, migration, deploy, or QA pass.
 
-**Last updated:** 2026-05-18 (Google Search Console SEO)  
-**Overall readiness:** **8.5 / 10** — Web marketing polished; **mobile AAB + device QA** are the critical path to Play production  
-**Latest audit:** [PRODUCTION_AUDIT_REPORT.md](./PRODUCTION_AUDIT_REPORT.md)  
-**Launch checklist:** [PRODUCTION_LAUNCH_CHECKLIST.md](./PRODUCTION_LAUNCH_CHECKLIST.md)
+## Current State
 
----
+**Last updated:** 2026-05-24  
+**Project type:** Live production monorepo  
+**Primary surfaces:** Backend API, Web app, Mobile app  
+**Deployments:** Backend on Render, Web on Vercel, Database/Auth on Supabase, Mobile on Play Store testing  
+**Main audit baseline:** `docs/audit/PRODUCTION_AUDIT_2026_05_24.md` and `docs/audit/PRODUCTION_AUDIT_2026_05_24_REV2.md`
 
-## Play Store status (quick answer)
+## Product Context
 
-| Track | Verdict | Why |
-|-------|---------|-----|
-| **Production (all users)** | **GO after checklist** | MVP remediation code merged; QA + deploy required |
-| **Internal / closed testing** | **GO** | Same build; optional stepping stone |
-| **Open beta / nationwide** | **NO** | Enable online pay + staff after v1.1 QA |
+TrimiT is a salon marketplace and booking platform with:
 
-### Do these next (in order)
+- Customer discovery and booking
+- Salon owner management flows
+- Email/password auth and email OTP verification
+- Cash and online booking flows
+- Real-time booking invalidation on mobile
+- FastAPI backend in front of Supabase
 
-See [PRODUCTION_LAUNCH_CHECKLIST.md](./PRODUCTION_LAUNCH_CHECKLIST.md).
+## Architecture Snapshot
 
-1. **Deploy backend** to Render (hold enforcement, slots auth, duration slots, INSERT-first idempotency).  
-2. **Re-run** `database/07_check_rls_policies.sql`.  
-3. **Run QA matrix** (below) on physical Android 13+.  
-4. **Build AAB:** `cd mobile && npm run verify:env && npm run build:aab:local`.  
-5. **Play Console production** track: listing + upload AAB.  
-6. Salons: `allow_multiple_bookings_per_slot = false` for v1.
+### Backend
 
----
+- Stack: FastAPI, PostgREST/Supabase, PL/pgSQL RPCs
+- Entry point: `backend/server.py`
+- Routers: `backend/routers/`
+- Core concerns:
+  - Auth via Supabase JWT
+  - Booking creation via atomic RPCs
+  - Payments via Razorpay
+  - Rate limiting via `slowapi`
+  - Idempotency via `idempotency_keys`
 
-## How to use this file (AI tools)
+### Web
 
-1. Read **Session log** (latest first).  
-2. Check **Blockers** — only QA + deploy remain for closed testing.  
-3. Status: `COMPLETE` | `CODE_DONE` | `PENDING` | `DEFERRED`
+- Stack: React 19, Vite 6, React Router, TanStack Query
+- Path: `frontend/`
+- Production site: `https://trimit.online`
+- Current role:
+  - Marketing pages
+  - Customer auth
+  - Customer booking flow
+  - Owner dashboard
 
----
+### Mobile
 
-## Session log (newest first)
+- Stack: Expo SDK 54, React Native 0.81, React 19, Zustand, TanStack Query
+- Path: `mobile/`
+- Current role:
+  - Customer app
+  - Owner app
+  - Realtime booking sync
+  - Push notifications
 
-| Date | Summary | Next |
-|------|---------|------|
-| 2026-05-18 | **GSC:** DNS TXT verify on Hostinger; `vercel.json` serves static `robots.txt`/`sitemap.xml`; SEO files use **`REACT_APP_PUBLIC_SITE_URL`** (user set `https://trimit.online` on Vercel). | Resubmit sitemap in Search Console after redeploy. |
-| 2026-05-18 | **Play guide:** `PLAY_STORE_DEPLOYMENT_GUIDE.md` rewritten for **local-only** APK/AAB (`npm run build:aab:local` / `build:apk:local`); EAS cloud moved to optional appendix (quota exhausted). | Upload `build-*.aab` → internal testing → QA. |
-| 2026-05-18 | **SEO / Search Console:** `robots.txt`, `sitemap.xml` (build-time generator), per-route `SeoHead` (meta, OG, JSON-LD), optional GA4, Play Store ASO copy. Docs: `GOOGLE_SEARCH_CONSOLE_SETUP.md`. | (superseded by GSC DNS row) |
-| 2026-05-17 (late) | **Landing page v2:** Service card illustrations (`frontend/public/images/services/`), upbeat hero graphic + horizontal logo white-box fix, **Get the Android app** section, Vercel JSX build fix, mobile-responsive layout. Pushed through `5f0962b7`. **Mobile:** `npm run verify:env && npm run build:aab:local` started (Play Store AAB). | Confirm Vercel deploy live → auth signup E2E → finish AAB → install on Android 13+ → QA matrix. |
-| 2026-05-17 (night) | **Production domain & web:** `trimit.online` everywhere (code, legal, Render `PUBLIC_SITE_URL`, Vercel). **Auth email:** Resend SMTP + Supabase custom SMTP (user configured); friendly rate-limit copy; `hello@trimit.online` support. **Web UX:** premium landing (hero, illustrated “What we offer”, stats, how-it-works), TrimiT logo PNG sitewide, header **Download App** + footer badges → **Google Drive APK** until Play listing. Guides: `TRIMIT_ONLINE_SETUP.md`, `REMAINING_STEPS_TRIMIT_ONLINE.md`, `AUTH_SMTP_AND_PHONE_OTP_GUIDE.md`. Pushed: `0ba9f645`, `84fc83b3`, `b1bc5669`. | (superseded by late session) |
-| 2026-05-17 (eve) | **MVP launch remediation** implemented: hold required, slots auth, duration overlap, idempotency INSERT-first, Write Review CTA, booking UX, Discover map pause. See audit §19. | Deploy → QA → production AAB. |
-| 2026-05-17 (pm) | User **applied Supabase migrations 29–35** in SQL editor. Re-audit completed. Critical DB blockers **resolved**. | — |
-| 2026-05-17 (am) | Production audit + phases 0–6 **code** remediation. Created `PROGRESS.md`, `V1_FEATURE_FLAGS.md`. | Migrations (done by user). |
-| (earlier) | Stitch UI specs, salon images, owner onboarding. | — |
+### Database
 
----
+- Stack: Supabase Postgres
+- Path: `database/`
+- Core design:
+  - RLS enabled
+  - Business-critical booking logic in SQL RPCs
+  - Slot holds
+  - Idempotency table
+  - Realtime-enabled `bookings`
 
-## Project snapshot
+## Operating Rules
 
-| Area | Stack | Status |
-|------|--------|--------|
-| Mobile | Expo SDK 54, RN 0.81, React 19 | MVP remediation in repo; **AAB build in progress**; device QA pending |
-| Backend | FastAPI `/api/v1` | **Must deploy** to Render if not already |
-| Database | Supabase | **Migrations 01–35 applied** (user confirmed 2026-05-17) |
-| Web | CRA `frontend/` at **https://trimit.online** | **CODE_DONE** — landing v2 (hero, service art, Android section); **verify Vercel** after `5f0962b7` |
+- This is a live app. Prefer safe, additive changes.
+- Do not assume a migration is applied until explicitly confirmed.
+- Backend, web, mobile, and DB changes must stay in sync.
+- Use this file as the first read for future sessions.
 
-**Launch scope:** Narrow v1 — cash-only, staff UI off, single-booking salons preferred.
+## Audit Tracking
 
----
+### Intentionally Excluded From This Pass
 
-## Phase status (audit remediation)
+These are known issues and are intentionally not being implemented in the current pass:
 
-| Phase | Code | DB (Supabase) | QA | Overall |
-|-------|------|---------------|-----|---------|
-| **0** Prep | COMPLETE | — | — | **COMPLETE** |
-| **1** Booking + security | COMPLETE | **COMPLETE** (29–32) | PENDING | **COMPLETE** *pending QA* |
-| **2** Mobile core | COMPLETE | — | PENDING | **COMPLETE** *pending QA* |
-| **3** UX + security | COMPLETE | 33 applied | PENDING | **COMPLETE** *pending QA* |
-| **4** Staff + multi | COMPLETE | **COMPLETE** (34–35) | PENDING | **COMPLETE** *flag off* |
-| **5** Payments | COMPLETE | 33 function | PENDING | **DEFERRED** *pay flag off* |
-| **6** Polish | COMPLETE | — | PENDING | **COMPLETE** *pending QA* |
+- Razorpay webhook
+- Refund pathway
+- Owner booking UPDATE policy tightening
+- Reschedule staff-conflict and duration-overlap hardening
+- Web Sentry
 
----
+### Current Fix Pass Scope
 
-## Database migrations
+This pass is focused on the selected P1 items:
 
-| Migration | Applied | Notes |
-|-----------|---------|--------|
-| 01–27 | Yes | Per prior checklist |
-| **29** RPC hardening | **Yes** (2026-05-17) | auth.uid, holds, amount |
-| **30** unique index fix | **Yes** | Dropped `uq_bookings_active_slot` |
-| **31** reschedule IDOR | **Yes** | |
-| **32** idempotency path | **Yes** | |
-| **33** expire pending | **Yes** | Cron still optional |
-| **34** staff RPC | **Yes** | UI flag still off |
-| **35** reschedule holds | **Yes** | |
-| `07_check_rls_policies.sql` | **PENDING** | Re-run recommended |
+- Login email enumeration
+- OTP implicit account creation
+- Rate limiter dead per-user branch
+- 401 refresh-and-retry on mobile
+- 401 refresh-and-retry on web
+- Profile cache token staleness
+- Slot expiry cron not enabled
+- `salon_cash` validation against salon configuration
+- Non-production service-role reservation fallback
+- Idempotency processing row TTL
+- Idempotency fail-open behavior
 
----
+## Status Board
 
-## Resolved vs original audit (summary)
+### Done Earlier
 
-| Original ID | Issue | Status after migrations + code |
-|-------------|--------|--------------------------------|
-| CRIT-01 | Holds not enforced at commit | **RESOLVED** (migration 29) |
-| CRIT-02 | Unique index vs multi-booking | **RESOLVED** (migration 30) |
-| CRIT-03 | Staff dropped | **RESOLVED** in DB (34); UI gated off v1 |
-| CRIT-04 | RPC no auth.uid | **RESOLVED** (29, 34) |
-| CRIT-05 | Idempotency cache | **RESOLVED** (code + 32) |
-| CRIT-06 | Reschedule IDOR | **RESOLVED** (31) |
-| HIGH-02 | Multi-booking hold | **RESOLVED** (API 409 + mobile always reserves) |
-| HIGH-03 | Slots anon scrape | **RESOLVED** (auth required) |
-| HIGH-05 | Write Review dead | **RESOLVED** (Rate visit CTA) |
-| MED-01 | Duration overlap | **RESOLVED** (slots API) |
-| MED-02 | Idempotency race | **RESOLVED** (INSERT-first) |
-| MED-04/05/08 | Discover stale, success UX, map | **RESOLVED** |
-| Remaining | HIGH-04 MVVM, MED-03 `any`, MED-06 cron, MED-07 staff router | **DEFERRED** post-launch |
+- Slot generator unbound duration bug fixed
+- Request ID propagation fixed between middleware and exception handlers
+- Profile upsert recursion bounded
+- JWT helper bare-except narrowed
 
-Full detail: [PRODUCTION_AUDIT_REPORT.md](./PRODUCTION_AUDIT_REPORT.md).
+### Fixed In This Pass
 
----
+- `/auth/login` now returns a generic invalid-credentials response instead of leaking email-confirmation state
+- `/auth/send-otp` no longer uses implicit account creation
+- `/auth/send-otp` now has a per-email throttle in addition to the route limiter
+- Rate limiting now keys by authenticated user ID when a valid bearer token exists, otherwise by forwarded IP / remote IP
+- Backend auth cache now rebuilds the response with the current request token, so refreshes do not keep serving stale access tokens
+- Mobile API client now attempts silent Supabase session refresh and retries the failed request once before clearing the session
+- Web API client now attempts silent Supabase session refresh and retries the failed request once before redirecting to login
+- Web auth store now persists refresh tokens and syncs Supabase session state
+- Reservation fallback that could use service role outside production has been removed from the live reserve path
+- Idempotency processing rows now use TTL through `expires_at`
+- Stale idempotency sentinels are now cleared and reclaimable
+- Idempotency now fails closed instead of falling back to unsafe non-idempotent execution
+- Booking creation now validates payment method against salon-configured methods when that config exists
+- Added DB migration to store explicit salon payment methods
+- Added DB migration to schedule the pending-online-booking expiry cron
+- Web security headers: Added CSP, HSTS, and XSS protection to `vercel.json` (fixed CSP to allow Render backend)
+- Web realtime slot invalidation: Added Supabase Realtime subscription to `BookingPage.js` for instant slot invalidation
 
-## QA matrix
+### Still Pending
 
-| # | Test | Status |
-|---|------|--------|
-| 1 | Concurrent reserve + book (single-booking salon) | **PENDING** |
-| 2 | Idempotency retry on `POST /bookings/` | **PENDING** |
-| 3 | Cold start ×20, no login flash | **PENDING** |
-| 4 | Owner foreground → one in-app alert | **PENDING** |
-| 5 | Cancel on A → B slots refresh | **PENDING** |
-| 6 | Cash booking E2E → Bookings tab | **PENDING** |
-| 7 | Release AAB + `npm run verify:env` | **IN_PROGRESS** (local `build:aab:local` 2026-05-17) |
-| 8 | Supabase: anon cannot execute `create_atomic_booking` | **PENDING** |
+- Razorpay webhook
+- Refund pathway
+- Owner booking UPDATE policy hardening
+- Reschedule staff-conflict and duration-overlap validation
+- Web Sentry
+- Web push notifications
+- CLAUDE.md cleanup for Vite/Cra drift
 
----
+## Database Migration State
 
-## Web & auth launch (2026-05-17)
+### Already In Repo Before This Pass
 
-| Item | Status | Notes |
-|------|--------|--------|
-| Domain **trimit.online** on Vercel | **CODE_DONE** | User configured DNS + Vercel |
-| Resend + Supabase **custom SMTP** | **DONE** (user) | `noreply@trimit.online` for auth mail |
-| Render `PUBLIC_SITE_URL` | **DONE** (user) | `https://trimit.online` |
-| Signup / reset email E2E test | **PENDING** | New Gmail, check spam |
-| APK distribution | **CODE_DONE** | Drive folder via header/footer until Play Store |
-| Landing v2 on production | **DONE** | — |
-| Search Console sitemap + robots | **CODE_DONE** | Submit `sitemap.xml` in GSC; confirm live URLs after Vercel redeploy |
-| GSC ownership verification | **DONE** (user) | DNS TXT on Hostinger — no Vercel meta tag needed |
-| Phone OTP login | **DEFERRED** | See `AUTH_SMTP_AND_PHONE_OTP_GUIDE.md` |
-| Compress `logo-horizontal.png` (~500KB) | **OPTIONAL** | Faster hero load |
+- `01` to `35` exist in the repository
 
----
+### Applied In This Pass
 
-## Blockers (updated)
+- `database/36_salon_payment_methods.sql`
+  - Status: **Applied Successfully** on Supabase SQL Editor.
+  - Adds `salons.payment_methods` and backfills legacy salons.
 
-| # | Blocker | Status |
-|---|---------|--------|
-| ~~1~~ | Apply SQL 29–35 | **DONE** |
-| ~~2~~ | Render `PUBLIC_SITE_URL` + deploy | **DONE** (user) — verify live `/health` |
-| ~~3~~ | Supabase SMTP + Resend domain | **DONE** (user) — verify signup email |
-| 4 | Device QA matrix | **PENDING** (blocked on AAB install) |
-| 5 | Play Console production listing + AAB upload | **PENDING** (AAB build in progress) |
-| 6 | Auth signup E2E (email → trimit.online confirm page) | **PENDING** |
+- `database/37_enable_expire_pending_online_bookings_cron.sql`
+  - Status: **Applied Successfully** on Supabase SQL Editor.
+  - Schedules the abandoned online booking expiry job via `pg_cron`.
 
----
+- [x] **Verified Mobile Implementation**: Silent refresh and retry logic is correctly implemented in `apiClient.ts` and `authStore.ts`.
+- [x] **Mobile Build**: Local assembleRelease build completed. APK generated at `mobile/android/app/build/outputs/apk/release/app-release.apk`.
 
-## Feature flags (v1 build)
+## Practical Outcome Of Current Fixes
 
-| Flag | Value for first Play upload |
-|------|----------------------------|
-| `EXPO_PUBLIC_ENABLE_ONLINE_PAY` | `false` |
-| `EXPO_PUBLIC_ENABLE_STAFF_SELECTION` | unset / `false` |
+### Authentication
 
-See [V1_FEATURE_FLAGS.md](./V1_FEATURE_FLAGS.md).
+- Before: `/login` could tell an attacker whether an email existed but was unconfirmed
+- Now: login failures are generalized, reducing enumeration risk
 
----
+- Before: `/send-otp` could silently create accounts for arbitrary emails
+- Now: OTP sending only targets existing eligible accounts and is throttled per email
 
-## Key docs
+- Before: both clients logged users out immediately on the first 401
+- Now: both clients attempt silent refresh first, reducing surprise logouts
 
-| Doc | Purpose |
-|-----|---------|
-| [PRODUCTION_AUDIT_REPORT.md](./PRODUCTION_AUDIT_REPORT.md) | Full audit + §19 launch remediation |
-| [PRODUCTION_LAUNCH_CHECKLIST.md](./PRODUCTION_LAUNCH_CHECKLIST.md) | Pre-upload ops checklist |
-| [TRIMIT_ONLINE_SETUP.md](./TRIMIT_ONLINE_SETUP.md) | Domain, Resend, Vercel, Supabase, Render |
-| [REMAINING_STEPS_TRIMIT_ONLINE.md](./REMAINING_STEPS_TRIMIT_ONLINE.md) | What’s left after SMTP setup |
-| [AUTH_SMTP_AND_PHONE_OTP_GUIDE.md](./AUTH_SMTP_AND_PHONE_OTP_GUIDE.md) | Email limits, OTP roadmap |
-| [GOOGLE_SEARCH_CONSOLE_SETUP.md](./GOOGLE_SEARCH_CONSOLE_SETUP.md) | Verify site, submit sitemap, optional GA4 |
-| [database/MIGRATION_ORDER.md](./database/MIGRATION_ORDER.md) | SQL order |
-| [PROJECT_MASTER_CONTEXT_FOR_AI.md](./PROJECT_MASTER_CONTEXT_FOR_AI.md) | Architecture |
-| [../mobile/BUILD_RELEASE.md](../mobile/BUILD_RELEASE.md) | AAB/APK |
+### Backend Safety
 
----
+- Before: rate limiting was effectively per-IP only
+- Now: authenticated traffic can be bucketed per user
 
-*Update this file after deploy, QA, or each Play Console submission.*
+- Before: cached auth responses could carry stale access tokens after refresh
+- Now: the access token returned by auth dependency always comes from the current request
+
+- Before: reserve fallback could use service-role logic if environment config drifted
+- Now: the live reservation path fails safely instead of bypassing booking protections
+
+### Idempotency
+
+- Before: a stuck processing row could block retries indefinitely
+- Now: processing rows expire and can be reclaimed
+
+- Before: an internal idempotency-layer error could execute the handler without protection
+- Now: the request fails safely instead of risking duplicates
+
+### Booking / Payments Config
+
+- Before: salon payment-method acceptance had no explicit configuration contract
+- Now: the schema supports explicit payment methods and booking creation validates against them when configured
+
+- Before: abandoned online pending bookings relied on a commented-out cron instruction
+- Now: there is a concrete migration that schedules the job
+
+## Known Risks After This Pass
+
+- Money reconciliation is still incomplete until the Razorpay webhook exists
+- Refunds are still manual
+- Owners can still update overly broad booking columns until the RLS policy is tightened
+- Reschedule correctness still has a staff/duration gap
+- Web observability is still incomplete without Sentry
+
+## Session Log
+
+| Date | Summary | Result |
+|------|---------|--------|
+| 2026-05-24 | Rewrote `docs/PROGRESS.md` into a full project handoff file with architecture, scope, active fixes, done items, remaining items, and migration instructions. | DONE |
+| 2026-05-24 | Applied P1 hardening and verified SQL migrations. | DONE |
+
+## Next Recommended Steps
+
+1. Deploy backend to Render.
+2. Deploy web to Vercel.
+3. QA login refresh on web and mobile.
+4. QA OTP send and verify flows.
+5. QA booking with `salon_cash`.
+6. Re-audit the remaining excluded items (Razorpay Webhook, Refund pathway, etc.).
+
+## Update Protocol
+
+Every future session should do these things:
+
+1. Read this file first
+2. Update the `Current Fix Pass Scope` if the task changes
+3. Update `Fixed In This Pass` and `Still Pending`
+4. Add a new `Session Log` row
+5. Keep `Database Migration State` accurate

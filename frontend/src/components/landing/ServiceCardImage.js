@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ServiceIllustration } from './ServiceIllustrations';
 
 const PUBLIC =
-  (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
+  ((typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/').replace(/\/$/, '');
 
 /** Local service photos — stable paths for production builds */
 export const SERVICE_IMAGE_PATHS = {

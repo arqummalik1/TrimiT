@@ -144,6 +144,11 @@ async def get_salons(
 
 @router.get("/{salon_id}")
 async def get_salon(salon_id: str):
+    try:
+        uuid.UUID(salon_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Salon not found")
+        
     response = await supabase.request("GET", f"rest/v1/salons?id=eq.{salon_id}&select=*,services(*),reviews(*)")
     if response.status_code != 200:
         raise HTTPException(status_code=500, detail={"code": "DETAIL_QUERY_FAILED", "message": "Failed to fetch salon detail"})

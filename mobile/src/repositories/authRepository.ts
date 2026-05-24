@@ -26,12 +26,35 @@ export type AuthErrorCode =
   | 'NETWORK_ERROR'
   | 'UNKNOWN';
 
+function translateMobileAuthError(message: string): string {
+  const lowerMessage = message.toLowerCase();
+
+  if (lowerMessage.includes('too many') || lowerMessage.includes('rate limit') || lowerMessage.includes('quota') || lowerMessage.includes('exceeded')) {
+    return 'You have made too many requests in a short time. Please wait a moment before trying again.';
+  }
+
+  if (lowerMessage.includes('invalid or expired otp') || lowerMessage.includes('invalid otp') || lowerMessage.includes('expired otp') || (lowerMessage.includes('token') && lowerMessage.includes('invalid'))) {
+    return 'The verification code you entered is invalid or has expired. Please check the code or request a new one.';
+  }
+
+  if (lowerMessage.includes('invalid login credentials') || (lowerMessage.includes('credentials') && lowerMessage.includes('invalid')) || lowerMessage.includes('incorrect') || lowerMessage.includes('not found')) {
+    return 'The email address or password you entered is incorrect. Please verify and try again.';
+  }
+
+  if (lowerMessage.includes('network error') || lowerMessage.includes('timeout') || lowerMessage.includes('connecting') || lowerMessage.includes('failed to fetch')) {
+    return 'We are having trouble connecting to our servers. Please check your internet connection and try again.';
+  }
+
+  return message;
+}
+
 export function parseAuthFailure(err: unknown): { message: string; code: AuthErrorCode } {
   if (isAppError(err)) {
     const nested = err.details as { code?: string; message?: string } | undefined;
     const code = (nested?.code || err.code || 'UNKNOWN') as AuthErrorCode;
+    const rawMessage = err.message || nested?.message || 'Something went wrong. Please try again.';
     return {
-      message: err.message || nested?.message || 'Something went wrong. Please try again.',
+      message: translateMobileAuthError(rawMessage),
       code,
     };
   }
@@ -42,14 +65,14 @@ export function parseAuthFailure(err: unknown): { message: string; code: AuthErr
       (typeof nested === 'object' && nested?.code) ||
       (typeof detail === 'object' && detail?.code) ||
       'UNKNOWN';
-    const message =
+    const rawMessage =
       (typeof nested === 'object' && nested?.message) ||
       (typeof detail === 'object' && detail?.message) ||
       (typeof detail === 'string' && detail) ||
       'Something went wrong. Please try again.';
-    return { message, code: code as AuthErrorCode };
+    return { message: translateMobileAuthError(rawMessage), code: code as AuthErrorCode };
   }
-  return { message: 'Network error. Please check your connection and try again.', code: 'NETWORK_ERROR' };
+  return { message: 'We are having trouble connecting to our servers. Please check your internet connection and try again.', code: 'NETWORK_ERROR' };
 }
 
 export interface AuthResult {

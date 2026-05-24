@@ -45,6 +45,10 @@ interface AuthState {
   deleteAccount: () => Promise<{ success: boolean; error?: string }>;
   clearError: () => void;
   initializeAuth: () => Promise<void>;
+  verifyOtp: (email: string, token: string, type: 'signup' | 'recovery' | 'magiclink') => Promise<{ success: boolean; error?: string; session?: any }>;
+  sendOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
+  isOnboardingCompleted: boolean;
+  completeOnboarding: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -60,6 +64,8 @@ export const useAuthStore = create<AuthState>()(
       authBootstrapComplete: false,
       sessionExpired: false,
       error: null,
+      isOnboardingCompleted: false,
+      completeOnboarding: () => set({ isOnboardingCompleted: true }),
       requiresEmailConfirmation: false,
       queryClient: null,
 
@@ -311,6 +317,56 @@ export const useAuthStore = create<AuthState>()(
           set({ authBootstrapComplete: true });
         }
       },
+
+      verifyOtp: async (email, token, type) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { authService } = require('../services/authService');
+          const response = await authService.verifyOtp(email, token, type);
+          const data = response.data;
+          
+          if (!data || !data.access_token) {
+            throw new Error('Invalid verification response');
+          }
+
+          set({
+            user: data.user,
+            token: data.access_token,
+            refreshToken: data.refresh_token ?? null,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+            authBootstrapComplete: true,
+          });
+          setAuthToken(data.access_token);
+          const { syncSupabaseAuthSession } = require('../lib/supabase');
+          void syncSupabaseAuthSession(data.access_token, data.refresh_token ?? null);
+          
+          return { success: true, session: data };
+        } catch (err) {
+          set({ isLoading: false });
+          const { parseAuthFailure } = require('../repositories/authRepository');
+          const { message } = parseAuthFailure(err);
+          set({ error: message });
+          return { success: false, error: message };
+        }
+      },
+
+      sendOtp: async (email) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { authService } = require('../services/authService');
+          await authService.sendOtp(email);
+          set({ isLoading: false });
+          return { success: true };
+        } catch (err) {
+          set({ isLoading: false });
+          const { parseAuthFailure } = require('../repositories/authRepository');
+          const { message } = parseAuthFailure(err);
+          set({ error: message });
+          return { success: false, error: message };
+        }
+      },
     }),
     {
       name: 'trimit-auth-storage',
@@ -338,6 +394,7 @@ export const useAuthStore = create<AuthState>()(
         token: state.token,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
+        isOnboardingCompleted: state.isOnboardingCompleted,
       }),
     }
   )

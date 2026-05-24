@@ -17,7 +17,14 @@ type ResetPasswordProps = AuthScreenProps<'ResetPassword'>;
 export default function ResetPasswordScreen({ navigation, route }: ResetPasswordProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { token } = route.params;
+  const token = route.params?.token;
+
+  React.useEffect(() => {
+    if (!token) {
+      showToast('Invalid or expired reset link', 'error');
+      navigation.navigate('Login');
+    }
+  }, [token, navigation]);
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

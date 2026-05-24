@@ -42,4 +42,12 @@ export const authService = {
   deleteAccount: async () => {
     return apiClient.delete('/auth/account');
   },
+
+  sendOtp: async (email: string) => {
+    return apiClient.post('/auth/send-otp', { email });
+  },
+
+  verifyOtp: async (email: string, token: string, type: 'signup' | 'recovery' | 'magiclink') => {
+    return apiClient.post('/auth/verify-otp', { email, token, type });
+  },
 };

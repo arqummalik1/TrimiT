@@ -18,6 +18,7 @@ import { formatPrice, formatTime, normalizeSlotTimeToHHMM, getApiErrorMessage } 
 import { ENABLE_MULTI_BOOKING_PER_SLOT } from '../../lib/featureFlags';
 import { createIdempotencyKey } from '../../lib/idempotency';
 import { useToastStore } from '../../store/toastStore';
+import { supabase } from '../../lib/supabase';
 
 const HOLD_SECONDS = 90;
 const RESERVE_TIMEOUT_MS = 28000;
@@ -65,6 +66,45 @@ const BookingPage = () => {
       duration: 6000,
     });
   }, [timeLeft, resetBookingAttempt, showError]);
+
+  // Real-time slot invalidation
+  useEffect(() => {
+    if (!salonId) return;
+
+    const channel = supabase
+      .channel('booking-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+          filter: `salon_id=eq.${salonId}`,
+        },
+        () => {
+          // Invalidate slots when any booking changes in this salon
+          queryClient.invalidateQueries({ queryKey: ['slots', salonId, serviceId, selectedDate] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'slot_holds',
+          filter: `salon_id=eq.${salonId}`,
+        },
+        () => {
+          // Invalidate slots when any hold changes in this salon
+          queryClient.invalidateQueries({ queryKey: ['slots', salonId, serviceId, selectedDate] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [salonId, serviceId, selectedDate, queryClient]);
 
   const startHoldCountdown = useCallback(() => {
     setTimeLeft(HOLD_SECONDS);

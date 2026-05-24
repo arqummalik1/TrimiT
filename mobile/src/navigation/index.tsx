@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createNavigationContainerRef } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { RootStackParamList } from './types';
+import OnboardingScreen from '../screens/auth/OnboardingScreen';
 import AuthStack from './AuthStack';
 import CustomerTabs from './CustomerTabs';
 import OwnerTabs from './OwnerTabs';
@@ -13,12 +14,19 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 export default function RootNavigator() {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, isOnboardingCompleted, isHydrated } = useAuthStore();
   const role = user?.role;
+
+  // Wait until rehydration completes to prevent a flash of the onboarding screen on launch
+  if (!isHydrated) {
+    return null;
+  }
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
-      {!isAuthenticated ? (
+      {!isOnboardingCompleted ? (
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+      ) : !isAuthenticated ? (
         <Stack.Screen name="Auth" component={AuthStack} />
       ) : role === 'owner' ? (
         <Stack.Screen name="OwnerTabs" component={OwnerTabs} />

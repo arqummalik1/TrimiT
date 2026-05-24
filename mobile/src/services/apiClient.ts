@@ -6,6 +6,7 @@ import { handleApiError } from '../lib/errorHandler';
 import { buildConfig } from '../lib/buildConfig';
 import { createIdempotencyKey, pathRequiresIdempotencyKey } from '../lib/idempotency';
 import { showToast } from '../store/toastStore';
+import { supabase } from '../lib/supabase';
 
 let lastOfflineToastAt = 0;
 
@@ -58,6 +59,23 @@ function getRequestUrl(config: InternalAxiosRequestConfig): string {
   const base = (config.baseURL || API_BASE_URL).replace(/\/$/, '');
   const path = (config.url || '').startsWith('/') ? (config.url || '') : `/${config.url || ''}`;
   return `${base}${path}`;
+}
+
+type RetriableRequestConfig = InternalAxiosRequestConfig & {
+  _retryAfterRefresh?: boolean;
+};
+
+function isProtectedAuthFailure(status: number | undefined, reqUrl: string): boolean {
+  return (
+    status === 401 &&
+    !!reqUrl &&
+    !reqUrl.includes('/auth/login') &&
+    !reqUrl.includes('/auth/signup') &&
+    !reqUrl.includes('/auth/forgot-password') &&
+    !reqUrl.includes('/auth/reset-password') &&
+    !reqUrl.includes('/auth/send-otp') &&
+    !reqUrl.includes('/auth/verify-otp')
+  );
 }
 
 apiClient.interceptors.request.use(
@@ -119,17 +137,44 @@ apiClient.interceptors.response.use(
   },
   async (error) => {
     const status = (error as { response?: { status?: number } })?.response?.status;
-    const reqUrl = (error as { config?: InternalAxiosRequestConfig })?.config
-      ? getRequestUrl((error as { config: InternalAxiosRequestConfig }).config)
+    const config = (error as { config?: RetriableRequestConfig })?.config;
+    const reqUrl = config
+      ? getRequestUrl(config)
       : '';
-    if (
-      status === 401 &&
-      reqUrl &&
-      !reqUrl.includes('/auth/login') &&
-      !reqUrl.includes('/auth/signup') &&
-      !reqUrl.includes('/auth/forgot-password') &&
-      !reqUrl.includes('/auth/reset-password')
-    ) {
+    if (isProtectedAuthFailure(status, reqUrl) && config && !config._retryAfterRefresh) {
+      try {
+        const { useAuthStore } = await import('../store/authStore');
+        const authState = useAuthStore.getState();
+        if (authState.refreshToken) {
+          const { data, error: refreshError } = await supabase.auth.setSession({
+            access_token: authState.token ?? '',
+            refresh_token: authState.refreshToken,
+          });
+
+          const nextAccessToken = data.session?.access_token ?? null;
+          const nextRefreshToken = data.session?.refresh_token ?? authState.refreshToken;
+
+          if (!refreshError && nextAccessToken) {
+            useAuthStore.setState({
+              token: nextAccessToken,
+              refreshToken: nextRefreshToken,
+              isAuthenticated: true,
+              sessionExpired: false,
+              error: null,
+            });
+            setAuthToken(nextAccessToken);
+            config._retryAfterRefresh = true;
+            config.headers = config.headers ?? {};
+            config.headers.Authorization = `Bearer ${nextAccessToken}`;
+            return apiClient.request(config);
+          }
+        }
+      } catch {
+        // fall through to session clear below
+      }
+    }
+
+    if (isProtectedAuthFailure(status, reqUrl)) {
       try {
         const { useAuthStore } = await import('../store/authStore');
         await useAuthStore.getState().clearSession({

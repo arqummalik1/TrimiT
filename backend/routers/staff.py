@@ -3,24 +3,21 @@ Staff Management Router
 Handles staff CRUD, service assignments, and availability checks
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from typing import List
 from uuid import UUID
 from datetime import date, time
 from decimal import Decimal
-from datetime import datetime, timezone
 
 from dependencies.auth import get_current_user
 from models.staff import (
     StaffCreate, StaffUpdate, StaffResponse, StaffWithServices,
     StaffServiceAssignment, StaffServiceResponse, BulkStaffServiceAssignment,
     StaffAvailabilityCheck, AvailableStaffResponse, AvailableStaffMember,
-    StaffPerformance, StaffStats, StaffScheduleWeek
+    StaffPerformance, StaffStats
 )
-from core.supabase import get_supabase_client
 from core.supabase import supabase
 from core.limiter import limiter
-from fastapi import Request
 
 router = APIRouter(prefix="/staff", tags=["staff"])
 
@@ -43,12 +40,16 @@ async def create_staff(
     - Creates staff profile with working hours
     - Returns created staff data
     """
-    supabase = get_supabase_client()
+    token = current_user.get("access_token")
     
     # Verify user owns the salon
-    salon_check = supabase.table("salons").select("id").eq("id", str(staff_data.salon_id)).eq("owner_id", current_user["id"]).execute()
+    salon_check = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{staff_data.salon_id}&owner_id=eq.{current_user['id']}&select=id",
+        token=token
+    )
     
-    if not salon_check.data:
+    if salon_check.status_code != 200 or not salon_check.json():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to add staff to this salon"
@@ -58,15 +59,20 @@ async def create_staff(
     staff_dict = staff_data.model_dump()
     staff_dict["salon_id"] = str(staff_data.salon_id)
     
-    result = supabase.table("staff").insert(staff_dict).execute()
+    result = await supabase.request(
+        "POST",
+        "rest/v1/staff",
+        json=staff_dict,
+        token=token
+    )
     
-    if not result.data:
+    if result.status_code not in (200, 201, 204) or not result.json():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to create staff member"
         )
     
-    return result.data[0]
+    return result.json()[0]
 
 
 @router.get("/salon/{salon_id}", response_model=List[StaffWithServices])
@@ -83,44 +89,34 @@ async def get_salon_staff(
     - Optionally include inactive staff
     - Sorted by rating (highest first)
     """
-    supabase = get_supabase_client()
-    
-    # Build query
-    query = supabase.table("staff").select("""
-        *,
-        staff_services (
-            id,
-            service_id,
-            custom_price,
-            custom_duration,
-            services (
-                id,
-                name,
-                price,
-                duration,
-                description
-            )
-        )
-    """).eq("salon_id", str(salon_id))
+    select_query = "*,staff_services(*,services(*))"
+    query_url = f"rest/v1/staff?salon_id=eq.{salon_id}&select={select_query}&order=average_rating.desc"
     
     if not include_inactive:
-        query = query.eq("is_active", True)
+        query_url += "&is_active=eq.true"
+        
+    response = await supabase.request("GET", query_url)
     
-    result = query.order("average_rating", desc=True).execute()
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch staff"
+        )
     
     # Transform data to include services array
     staff_list = []
-    for staff in result.data:
+    for staff in response.json() or []:
         staff_dict = {**staff}
-        staff_dict["services"] = [
-            {
-                **ss["services"],
-                "custom_price": ss.get("custom_price"),
-                "custom_duration": ss.get("custom_duration")
-            }
-            for ss in staff.get("staff_services", [])
-        ]
-        del staff_dict["staff_services"]
+        staff_dict["services"] = []
+        for ss in staff.get("staff_services", []):
+            if ss.get("services"):
+                staff_dict["services"].append({
+                    **ss["services"],
+                    "custom_price": ss.get("custom_price"),
+                    "custom_duration": ss.get("custom_duration")
+                })
+        if "staff_services" in staff_dict:
+            del staff_dict["staff_services"]
         staff_list.append(staff_dict)
     
     return staff_list
@@ -133,43 +129,32 @@ async def get_staff(
     staff_id: UUID
 ):
     """Get single staff member with their services"""
-    supabase = get_supabase_client()
+    select_query = "*,staff_services(*,services(*))"
+    response = await supabase.request(
+        "GET",
+        f"rest/v1/staff?id=eq.{staff_id}&select={select_query}"
+    )
     
-    result = supabase.table("staff").select("""
-        *,
-        staff_services (
-            id,
-            service_id,
-            custom_price,
-            custom_duration,
-            services (
-                id,
-                name,
-                price,
-                duration,
-                description
-            )
-        )
-    """).eq("id", str(staff_id)).execute()
-    
-    if not result.data:
+    if response.status_code != 200 or not response.json():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Staff member not found"
         )
     
-    staff = result.data[0]
-    staff["services"] = [
-        {
-            **ss["services"],
-            "custom_price": ss.get("custom_price"),
-            "custom_duration": ss.get("custom_duration")
-        }
-        for ss in staff.get("staff_services", [])
-    ]
-    del staff["staff_services"]
+    staff = response.json()[0]
+    staff_dict = {**staff}
+    staff_dict["services"] = []
+    for ss in staff.get("staff_services", []):
+        if ss.get("services"):
+            staff_dict["services"].append({
+                **ss["services"],
+                "custom_price": ss.get("custom_price"),
+                "custom_duration": ss.get("custom_duration")
+            })
+    if "staff_services" in staff_dict:
+        del staff_dict["staff_services"]
     
-    return staff
+    return staff_dict
 
 
 @router.patch("/{staff_id}", response_model=StaffResponse)
@@ -187,21 +172,29 @@ async def update_staff(
     - Updates only provided fields
     - Returns updated staff data
     """
-    supabase = get_supabase_client()
+    token = current_user.get("access_token")
     
     # Verify ownership
-    staff_check = supabase.table("staff").select("salon_id").eq("id", str(staff_id)).execute()
+    staff_check = await supabase.request(
+        "GET",
+        f"rest/v1/staff?id=eq.{staff_id}&select=salon_id",
+        token=token
+    )
     
-    if not staff_check.data:
+    if staff_check.status_code != 200 or not staff_check.json():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Staff member not found"
         )
     
-    salon_id = staff_check.data[0]["salon_id"]
-    salon_check = supabase.table("salons").select("id").eq("id", salon_id).eq("owner_id", current_user["id"]).execute()
+    salon_id = staff_check.json()[0]["salon_id"]
+    salon_check = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{salon_id}&owner_id=eq.{current_user['id']}&select=id",
+        token=token
+    )
     
-    if not salon_check.data:
+    if salon_check.status_code != 200 or not salon_check.json():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to update this staff member"
@@ -216,15 +209,20 @@ async def update_staff(
             detail="No fields to update"
         )
     
-    result = supabase.table("staff").update(update_dict).eq("id", str(staff_id)).execute()
+    result = await supabase.request(
+        "PATCH",
+        f"rest/v1/staff?id=eq.{staff_id}",
+        json=update_dict,
+        token=token
+    )
     
-    if not result.data:
+    if result.status_code not in (200, 201, 204) or not result.json():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to update staff member"
         )
     
-    return result.data[0]
+    return result.json()[0]
 
 
 @router.delete("/{staff_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -240,28 +238,47 @@ async def delete_staff(
     - Sets is_active to false
     - Preserves historical data
     """
-    supabase = get_supabase_client()
+    token = current_user.get("access_token")
     
     # Verify ownership
-    staff_check = supabase.table("staff").select("salon_id").eq("id", str(staff_id)).execute()
+    staff_check = await supabase.request(
+        "GET",
+        f"rest/v1/staff?id=eq.{staff_id}&select=salon_id",
+        token=token
+    )
     
-    if not staff_check.data:
+    if staff_check.status_code != 200 or not staff_check.json():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Staff member not found"
         )
     
-    salon_id = staff_check.data[0]["salon_id"]
-    salon_check = supabase.table("salons").select("id").eq("id", salon_id).eq("owner_id", current_user["id"]).execute()
+    salon_id = staff_check.json()[0]["salon_id"]
+    salon_check = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{salon_id}&owner_id=eq.{current_user['id']}&select=id",
+        token=token
+    )
     
-    if not salon_check.data:
+    if salon_check.status_code != 200 or not salon_check.json():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to delete this staff member"
         )
     
     # Soft delete
-    supabase.table("staff").update({"is_active": False}).eq("id", str(staff_id)).execute()
+    result = await supabase.request(
+        "PATCH",
+        f"rest/v1/staff?id=eq.{staff_id}",
+        json={"is_active": False},
+        token=token
+    )
+    
+    if result.status_code not in (200, 201, 204):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to delete staff member"
+        )
     
     return None
 
@@ -283,30 +300,42 @@ async def assign_service_to_staff(
     - Validates ownership
     - Allows custom pricing and duration
     """
-    supabase = get_supabase_client()
+    token = current_user.get("access_token")
     
     # Verify ownership
-    staff_check = supabase.table("staff").select("salon_id").eq("id", str(assignment.staff_id)).execute()
+    staff_check = await supabase.request(
+        "GET",
+        f"rest/v1/staff?id=eq.{assignment.staff_id}&select=salon_id",
+        token=token
+    )
     
-    if not staff_check.data:
+    if staff_check.status_code != 200 or not staff_check.json():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Staff member not found"
         )
     
-    salon_id = staff_check.data[0]["salon_id"]
-    salon_check = supabase.table("salons").select("id").eq("id", salon_id).eq("owner_id", current_user["id"]).execute()
+    salon_id = staff_check.json()[0]["salon_id"]
+    salon_check = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{salon_id}&owner_id=eq.{current_user['id']}&select=id",
+        token=token
+    )
     
-    if not salon_check.data:
+    if salon_check.status_code != 200 or not salon_check.json():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to manage this staff member"
         )
     
     # Verify service belongs to same salon
-    service_check = supabase.table("services").select("id").eq("id", str(assignment.service_id)).eq("salon_id", salon_id).execute()
+    service_check = await supabase.request(
+        "GET",
+        f"rest/v1/services?id=eq.{assignment.service_id}&salon_id=eq.{salon_id}&select=id",
+        token=token
+    )
     
-    if not service_check.data:
+    if service_check.status_code != 200 or not service_check.json():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Service not found or doesn't belong to this salon"
@@ -317,15 +346,20 @@ async def assign_service_to_staff(
     assignment_dict["staff_id"] = str(assignment.staff_id)
     assignment_dict["service_id"] = str(assignment.service_id)
     
-    result = supabase.table("staff_services").insert(assignment_dict).execute()
+    result = await supabase.request(
+        "POST",
+        "rest/v1/staff_services",
+        json=assignment_dict,
+        token=token
+    )
     
-    if not result.data:
+    if result.status_code not in (200, 201, 204) or not result.json():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to assign service (may already be assigned)"
         )
     
-    return result.data[0]
+    return result.json()[0]
 
 
 @router.post("/services/assign-bulk", status_code=status.HTTP_201_CREATED)
@@ -338,21 +372,29 @@ async def bulk_assign_services(
     """
     Assign multiple services to a staff member at once (Owner only)
     """
-    supabase = get_supabase_client()
+    token = current_user.get("access_token")
     
     # Verify ownership
-    staff_check = supabase.table("staff").select("salon_id").eq("id", str(assignment.staff_id)).execute()
+    staff_check = await supabase.request(
+        "GET",
+        f"rest/v1/staff?id=eq.{assignment.staff_id}&select=salon_id",
+        token=token
+    )
     
-    if not staff_check.data:
+    if staff_check.status_code != 200 or not staff_check.json():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Staff member not found"
         )
     
-    salon_id = staff_check.data[0]["salon_id"]
-    salon_check = supabase.table("salons").select("id").eq("id", salon_id).eq("owner_id", current_user["id"]).execute()
+    salon_id = staff_check.json()[0]["salon_id"]
+    salon_check = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{salon_id}&owner_id=eq.{current_user['id']}&select=id",
+        token=token
+    )
     
-    if not salon_check.data:
+    if salon_check.status_code != 200 or not salon_check.json():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to manage this staff member"
@@ -367,11 +409,17 @@ async def bulk_assign_services(
         for service_id in assignment.service_ids
     ]
     
-    result = supabase.table("staff_services").insert(assignments).execute()
+    result = await supabase.request(
+        "POST",
+        "rest/v1/staff_services",
+        json=assignments,
+        token=token
+    )
     
+    count = len(result.json()) if result.status_code in (200, 201, 204) and result.json() else 0
     return {
-        "message": f"Successfully assigned {len(result.data)} services",
-        "assigned_count": len(result.data)
+        "message": f"Successfully assigned {count} services",
+        "assigned_count": count
     }
 
 
@@ -383,31 +431,53 @@ async def remove_service_from_staff(
     current_user: dict = Depends(get_current_user)
 ):
     """Remove a service assignment from a staff member (Owner only)"""
-    supabase = get_supabase_client()
+    token = current_user.get("access_token")
     
     # Verify ownership through staff -> salon
-    assignment_check = supabase.table("staff_services").select("staff_id").eq("id", str(staff_service_id)).execute()
+    assignment_check = await supabase.request(
+        "GET",
+        f"rest/v1/staff_services?id=eq.{staff_service_id}&select=staff_id",
+        token=token
+    )
     
-    if not assignment_check.data:
+    if assignment_check.status_code != 200 or not assignment_check.json():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Service assignment not found"
         )
     
-    staff_id = assignment_check.data[0]["staff_id"]
-    staff_check = supabase.table("staff").select("salon_id").eq("id", staff_id).execute()
-    salon_id = staff_check.data[0]["salon_id"]
+    staff_id = assignment_check.json()[0]["staff_id"]
+    staff_check = await supabase.request(
+        "GET",
+        f"rest/v1/staff?id=eq.{staff_id}&select=salon_id",
+        token=token
+    )
+    salon_id = staff_check.json()[0]["salon_id"]
     
-    salon_check = supabase.table("salons").select("id").eq("id", salon_id).eq("owner_id", current_user["id"]).execute()
+    salon_check = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{salon_id}&owner_id=eq.{current_user['id']}&select=id",
+        token=token
+    )
     
-    if not salon_check.data:
+    if salon_check.status_code != 200 or not salon_check.json():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to manage this staff member"
         )
     
     # Delete assignment
-    supabase.table("staff_services").delete().eq("id", str(staff_service_id)).execute()
+    result = await supabase.request(
+        "DELETE",
+        f"rest/v1/staff_services?id=eq.{staff_service_id}",
+        token=token
+    )
+    
+    if result.status_code not in (200, 201, 204):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to delete service assignment"
+        )
     
     return None
 
@@ -488,20 +558,16 @@ async def check_staff_availability(
     - Returns boolean availability status
     - Includes reason if not available
     """
-    supabase = get_supabase_client()
+    payload = {
+        "p_staff_id": str(check.staff_id),
+        "p_service_id": str(check.service_id),
+        "p_booking_date": check.booking_date.isoformat(),
+        "p_time_slot": check.time_slot.strftime("%H:%M:%S"),
+        "p_duration": check.duration
+    }
+    response = await supabase.request("POST", "rest/v1/rpc/check_staff_availability", json=payload)
     
-    result = supabase.rpc(
-        "check_staff_availability",
-        {
-            "p_staff_id": str(check.staff_id),
-            "p_service_id": str(check.service_id),
-            "p_booking_date": check.booking_date.isoformat(),
-            "p_time_slot": check.time_slot.strftime("%H:%M:%S"),
-            "p_duration": check.duration
-        }
-    ).execute()
-    
-    is_available = result.data if isinstance(result.data, bool) else False
+    is_available = response.json() if response.status_code == 200 else False
     
     return {
         "staff_id": check.staff_id,
@@ -529,45 +595,62 @@ async def get_staff_stats(
     - Most booked service
     - Busiest day and time slot
     """
-    supabase = get_supabase_client()
+    token = current_user.get("access_token")
     
     # Verify ownership
-    staff_check = supabase.table("staff").select("salon_id").eq("id", str(staff_id)).execute()
+    staff_check = await supabase.request(
+        "GET",
+        f"rest/v1/staff?id=eq.{staff_id}&select=salon_id,average_rating,total_reviews",
+        token=token
+    )
     
-    if not staff_check.data:
+    if staff_check.status_code != 200 or not staff_check.json():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Staff member not found"
         )
     
-    salon_id = staff_check.data[0]["salon_id"]
-    salon_check = supabase.table("salons").select("id").eq("id", salon_id).eq("owner_id", current_user["id"]).execute()
+    salon_id = staff_check.json()[0]["salon_id"]
+    salon_check = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{salon_id}&owner_id=eq.{current_user['id']}&select=id",
+        token=token
+    )
     
-    if not salon_check.data:
+    if salon_check.status_code != 200 or not salon_check.json():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to view this staff member's stats"
         )
     
     # Get booking stats
-    bookings = supabase.table("bookings").select("*").eq("staff_id", str(staff_id)).execute()
+    bookings_resp = await supabase.request(
+        "GET",
+        f"rest/v1/bookings?staff_id=eq.{staff_id}&select=status,total_amount",
+        token=token
+    )
     
-    total_bookings = len(bookings.data)
-    completed = len([b for b in bookings.data if b["status"] == "completed"])
-    cancelled = len([b for b in bookings.data if b["status"] == "cancelled"])
-    total_revenue = sum(Decimal(str(b["total_amount"])) for b in bookings.data if b["status"] == "completed")
+    if bookings_resp.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch booking stats"
+        )
+        
+    bookings = bookings_resp.json() or []
+    total_bookings = len(bookings)
+    completed = len([b for b in bookings if b.get("status") == "completed"])
+    cancelled = len([b for b in bookings if b.get("status") == "cancelled"])
+    total_revenue = sum(Decimal(str(b.get("total_amount") or 0)) for b in bookings if b.get("status") == "completed")
     
-    # Get staff rating
-    staff = supabase.table("staff").select("average_rating, total_reviews").eq("id", str(staff_id)).execute()
-    
+    staff_info = staff_check.json()[0]
     return StaffStats(
         staff_id=staff_id,
         total_bookings=total_bookings,
         completed_bookings=completed,
         cancelled_bookings=cancelled,
         total_revenue=total_revenue,
-        average_rating=Decimal(str(staff.data[0]["average_rating"])),
-        total_reviews=staff.data[0]["total_reviews"]
+        average_rating=Decimal(str(staff_info.get("average_rating") or 0)),
+        total_reviews=staff_info.get("total_reviews") or 0
     )
 
 
@@ -584,28 +667,42 @@ async def get_salon_staff_performance(
     - Sorted by total bookings
     - Includes ratings and revenue
     """
-    supabase = get_supabase_client()
+    token = current_user.get("access_token")
     
     # Verify ownership
-    salon_check = supabase.table("salons").select("id").eq("id", str(salon_id)).eq("owner_id", current_user["id"]).execute()
+    salon_check = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{salon_id}&owner_id=eq.{current_user['id']}&select=id",
+        token=token
+    )
     
-    if not salon_check.data:
+    if salon_check.status_code != 200 or not salon_check.json():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to view this salon's staff performance"
         )
     
     # Get staff performance from view
-    result = supabase.table("staff_performance").select("*").eq("salon_id", str(salon_id)).order("total_bookings", desc=True).execute()
+    result = await supabase.request(
+        "GET",
+        f"rest/v1/staff_performance?salon_id=eq.{salon_id}&select=*&order=total_bookings.desc",
+        token=token
+    )
     
+    if result.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch staff performance metrics"
+        )
+        
     return [
         StaffPerformance(
             staff_id=staff["id"],
             staff_name=staff["name"],
             total_bookings=staff["total_bookings"],
             total_reviews=staff["total_reviews"],
-            average_rating=Decimal(str(staff["average_rating"])),
+            average_rating=Decimal(str(staff["average_rating"] or 0)),
             services_count=staff["services_count"]
         )
-        for staff in result.data
+        for staff in result.json() or []
     ]

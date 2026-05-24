@@ -31,12 +31,11 @@ import { AuthScreenProps } from '../../navigation/types';
 
 type ForgotPasswordProps = AuthScreenProps<'ForgotPassword'>;
 
-export default function ForgotPasswordScreen({ navigation }: ForgotPasswordProps) {
+export default function ForgotPasswordScreen({ navigation, route }: ForgotPasswordProps) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(route.params?.prefilledEmail ?? '');
   const [isLoading, setIsLoading] = useState(false);
-  const [isSent, setIsSent] = useState(false);
   const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
 
   const handleSubmit = async () => {
@@ -49,10 +48,11 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordProps
     setRateLimitMessage(null);
     try {
       await api.post('/auth/forgot-password', {
-        email,
+        email: email.trim().toLowerCase(),
         redirect_to: buildConfig.resetPasswordDeepLink,
       });
-      setIsSent(true);
+      showToast('Verification OTP code sent to your email.', 'success');
+      navigation.navigate('VerifyOtp', { email: email.trim().toLowerCase(), type: 'recovery' });
     } catch (error) {
       const appErr = handleApiError(error);
       if (
@@ -63,43 +63,13 @@ export default function ForgotPasswordScreen({ navigation }: ForgotPasswordProps
         setRateLimitMessage(getUserFacingMessage(error, { authContext: 'forgot' }));
       } else {
         // Avoid revealing whether the email exists
-        setIsSent(true);
+        showToast('Verification OTP code sent to your email.', 'success');
+        navigation.navigate('VerifyOtp', { email: email.trim().toLowerCase(), type: 'recovery' });
       }
     } finally {
       setIsLoading(false);
     }
   };
-
-  if (isSent) {
-    return (
-      <ScreenWrapper variant="auth">
-        <View style={styles.sentContainer}>
-          <View style={styles.successIcon}>
-            <Ionicons name="mail" size={48} color={theme.colors.primary} />
-          </View>
-          <Text style={styles.sentTitle}>Check Your Email</Text>
-          <Text style={styles.sentText}>
-            If an account exists for {email}, we sent a reset link. Open it in your browser
-            (Safari/Chrome) to set a new password, then return here to sign in.
-          </Text>
-          <Button
-            title="Back to Sign In"
-            onPress={() => navigation.navigate('Login')}
-            style={{ marginTop: spacing.xxl }}
-          />
-          <TouchableOpacity
-            onPress={() => {
-              setIsSent(false);
-              setEmail('');
-            }}
-            style={{ marginTop: spacing.lg }}
-          >
-            <Text style={styles.retryText}>Try a different email</Text>
-          </TouchableOpacity>
-        </View>
-      </ScreenWrapper>
-    );
-  }
 
   return (
     <ScreenWrapper variant="auth">

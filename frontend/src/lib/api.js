@@ -2,6 +2,7 @@ import axios from 'axios';
 import { getEnv } from '../config/env';
 import { clearPersistedAuth } from './session';
 import { createIdempotencyKey, pathRequiresIdempotencyKey } from './idempotency';
+import { supabase } from './supabase';
 
 /**
  * Single API surface: all requests go to …/api/v1 (same contract as mobile).
@@ -27,6 +28,19 @@ export function isPublicSalonRead(config) {
   if (method !== 'get') return false;
   const path = (config?.url || '').split('?')[0].replace(/\/$/, '') || '/';
   return path === '/salons' || path.startsWith('/salons/');
+}
+
+function isProtectedAuthFailure(status, config) {
+  const url = config?.url || '';
+  return (
+    status === 401 &&
+    !url.includes('/auth/login') &&
+    !url.includes('/auth/signup') &&
+    !url.includes('/auth/forgot-password') &&
+    !url.includes('/auth/reset-password') &&
+    !url.includes('/auth/send-otp') &&
+    !url.includes('/auth/verify-otp')
+  );
 }
 
 const api = axios.create({
@@ -80,7 +94,7 @@ api.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
+  async (error) => {
     const status = error.response?.status;
     const config = error.config;
     console.error('❌ [WEB_API][ERR]', {
@@ -89,6 +103,36 @@ api.interceptors.response.use(
       url: `${(config?.baseURL || '').replace(/\/$/, '')}${(config?.url || '').startsWith('/') ? config.url : `/${config?.url || ''}`}`,
       detail: error.response?.data?.detail || error.message,
     });
+
+    if (isProtectedAuthFailure(status, config) && config && !config._retryAfterRefresh) {
+      try {
+        const { useAuthStore } = await import('../store/authStore');
+        const authState = useAuthStore.getState();
+        if (authState.refreshToken) {
+          const { data, error: refreshError } = await supabase.auth.setSession({
+            access_token: authState.token || '',
+            refresh_token: authState.refreshToken,
+          });
+          const nextAccessToken = data.session?.access_token;
+          const nextRefreshToken = data.session?.refresh_token || authState.refreshToken;
+          if (!refreshError && nextAccessToken) {
+            useAuthStore.setState({
+              token: nextAccessToken,
+              refreshToken: nextRefreshToken,
+              isAuthenticated: true,
+              error: null,
+            });
+            api.defaults.headers.common.Authorization = `Bearer ${nextAccessToken}`;
+            config._retryAfterRefresh = true;
+            config.headers = config.headers || {};
+            config.headers.Authorization = `Bearer ${nextAccessToken}`;
+            return api.request(config);
+          }
+        }
+      } catch {
+        // fall through to auth clear below
+      }
+    }
 
     if (status === 401) {
       const hadAuth = Boolean(

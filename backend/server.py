@@ -51,7 +51,7 @@ try:
     from routers import payments
     from routers import promotions
     from routers import staff_availability
-    # staff CRUD router disabled until rewritten for httpx supabase wrapper (BC2)
+    from routers import staff
     from routers import owner
     from routers import reviews
     from routers import uploads
@@ -64,6 +64,29 @@ except Exception as e:
     sys.exit(1)
 
 # Initialize Sentry
+def _scrub_sentry_event(event, hint):
+    """Strip Authorization headers and obvious JWT/secret-looking values from
+    Sentry payloads before they leave the server. Defensive; not a substitute
+    for not logging the values in the first place."""
+    try:
+        req = event.get("request") or {}
+        headers = req.get("headers") or {}
+        if isinstance(headers, dict):
+            for key in list(headers.keys()):
+                if key.lower() in {"authorization", "cookie", "x-trimit-signature"}:
+                    headers[key] = "[Filtered]"
+        # Strip access_token / refresh_token / password from request data
+        data = req.get("data")
+        if isinstance(data, dict):
+            for key in list(data.keys()):
+                if key.lower() in {"password", "access_token", "refresh_token", "token"}:
+                    data[key] = "[Filtered]"
+    except Exception:
+        # Never let scrubbing failures kill error reporting
+        pass
+    return event
+
+
 if settings.SENTRY_DSN:
     sentry_sdk.init(
         dsn=settings.SENTRY_DSN,
@@ -71,6 +94,8 @@ if settings.SENTRY_DSN:
         environment=settings.ENVIRONMENT,
         traces_sample_rate=0.2,
         profiles_sample_rate=0.2,
+        send_default_pii=False,
+        before_send=_scrub_sentry_event,
     )
 
 # Configure Logging
@@ -130,7 +155,7 @@ v1_router.include_router(bookings.router)
 v1_router.include_router(payments.router)
 v1_router.include_router(promotions.router)
 v1_router.include_router(staff_availability.router)
-# v1_router.include_router(staff.router)  # BC2: full CRUD after staff.py rewrite
+v1_router.include_router(staff.router)
 v1_router.include_router(owner.router)
 v1_router.include_router(reviews.router)
 v1_router.include_router(uploads.router)

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { EnvelopeSimple, ArrowLeft, CheckCircle } from '@phosphor-icons/react';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
 import { useAuthStore } from '../store/authStore';
 
 const ForgotPasswordPage = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [errorTitle, setErrorTitle] = useState(null);
@@ -22,7 +22,7 @@ const ForgotPasswordPage = () => {
     try {
       const result = await forgotPassword(email);
       if (result.success) {
-        setIsSubmitted(true);
+        navigate(`/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}&type=recovery`);
       } else {
         setErrorTitle(result.rateLimitTitle || null);
         setError(result.error || 'Failed to send reset email. Please try again.');
@@ -48,87 +48,59 @@ const ForgotPasswordPage = () => {
             Reset Password
           </h1>
           <p className="text-stone-500">
-            Enter your email and we'll send you a reset link
+            Enter your email and we'll send you a 6-digit verification code
           </p>
         </div>
 
         {/* Form */}
         <div className="bg-white rounded-3xl shadow-xl p-8 border border-stone-200">
-          {!isSubmitted ? (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-950 text-sm"
-                  role="alert"
-                >
-                  {errorTitle ? (
-                    <p className="font-semibold text-amber-900 mb-2">{errorTitle}</p>
-                  ) : null}
-                  <p className="whitespace-pre-line leading-relaxed">{error}</p>
-                </motion.div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <EnvelopeSimple 
-                    size={20} 
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" 
-                  />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
-                    placeholder="you@example.com"
-                    required
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-950 text-sm"
+                role="alert"
               >
-                {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  'Send Reset Link'
-                )}
-              </button>
-            </form>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="text-center py-8"
-            >
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle size={32} className="text-green-600" />
+                {errorTitle ? (
+                  <p className="font-semibold text-amber-900 mb-2">{errorTitle}</p>
+                ) : null}
+                <p className="whitespace-pre-line leading-relaxed">{error}</p>
+              </motion.div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-2">
+                Email Address
+              </label>
+              <div className="relative">
+                <EnvelopeSimple 
+                  size={20} 
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" 
+                />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
+                  placeholder="you@example.com"
+                  required
+                />
               </div>
-              <h3 className="text-xl font-semibold text-stone-900 mb-2">
-                Check your email
-              </h3>
-              <p className="text-stone-600 mb-6">
-                We've sent a password reset link to <strong>{email}</strong>. 
-                Please check your inbox and follow the instructions.
-              </p>
-              <p className="text-sm text-stone-500">
-                Didn't receive the email? Check your spam folder or{' '}
-                <button
-                  onClick={() => setIsSubmitted(false)}
-                  className="text-orange-800 font-medium hover:underline"
-                >
-                  try again
-                </button>
-              </p>
-            </motion.div>
-          )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                'Send Verification Code'
+              )}
+            </button>
+          </form>
 
           <div className="mt-6 pt-6 border-t border-stone-100">
             <Link
