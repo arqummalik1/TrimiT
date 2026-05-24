@@ -540,7 +540,21 @@ async def verify_otp(request: Request, data: VerifyOtpRequest):
         "token": data.token.strip(),
         "type": data.type.value
     }
+    
     response = await supabase.request("POST", "auth/v1/verify", json=payload)
+    
+    # Hybrid Fix: If the primary type fails, try the alternative (signup vs magiclink)
+    # This handles the case where a user tries to 'signup' but already exists, or 'login' but is new.
+    if response.status_code not in (200, 201) and data.type in (OtpType.signup, OtpType.magiclink):
+        alt_type = OtpType.magiclink if data.type == OtpType.signup else OtpType.signup
+        logger.info("verify_otp: primary type %s failed, retrying with %s", data.type.value, alt_type.value)
+        
+        payload["type"] = alt_type.value
+        alt_response = await supabase.request("POST", "auth/v1/verify", json=payload)
+        
+        if alt_response.status_code in (200, 201):
+            response = alt_response
+
     if response.status_code not in (200, 201):
         logger.warning(
             "verify_otp supabase status=%s email=%s type=%s body=%s",
