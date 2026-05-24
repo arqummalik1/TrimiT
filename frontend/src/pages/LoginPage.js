@@ -18,6 +18,16 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isOtpLogin, setIsOtpLogin] = useState(true);
+  const [resendTimer, setResendTimer] = useState(0);
+
+  // Resend Countdown Timer
+  useEffect(() => {
+    if (resendTimer === 0) return;
+    const interval = setInterval(() => {
+      setResendTimer((t) => t - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   // Load saved credentials if remember me was checked
   useEffect(() => {
@@ -39,6 +49,7 @@ const LoginPage = () => {
     const result = await sendOtp(email.trim());
     if (result.success) {
       useToastStore.getState().success('Verification OTP code sent to your email.');
+      setResendTimer(60);
       navigate(`/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}&type=magiclink`);
     }
   };
@@ -175,14 +186,14 @@ const LoginPage = () => {
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || (isOtpLogin && resendTimer > 0)}
               data-testid="login-submit"
               className="w-full btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                isOtpLogin ? 'Send Verification Code' : 'Sign In'
+                isOtpLogin ? (resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Send Verification Code') : 'Sign In'
               )}
             </button>
           </form>
