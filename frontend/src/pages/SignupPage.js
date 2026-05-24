@@ -12,6 +12,7 @@ import {
   Users
 } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
+import { useToastStore } from '../store/toastStore';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
 
 const SignupPage = () => {
@@ -63,8 +64,8 @@ const SignupPage = () => {
     
     if (result.success) {
       if (result.requiresEmailConfirmation) {
-        setConfirmedEmail(formData.email);
-        setEmailConfirmationSent(true);
+        useToastStore.getState().success('Verification OTP code sent to your email.');
+        navigate(`/verify-otp?email=${encodeURIComponent(formData.email.trim().toLowerCase())}&type=signup`);
         return;
       }
       if (formData.role === 'owner') {

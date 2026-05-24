@@ -9,7 +9,8 @@ export type AuthStackParamList = {
   Login: undefined;
   RoleSelect: undefined;
   Signup: { role: 'customer' | 'owner' };
-  ForgotPassword: undefined;
+  ForgotPassword: { prefilledEmail?: string } | undefined;
+  VerifyOtp: { email: string; type: 'signup' | 'recovery' | 'magiclink' };
   ResetPassword: { token: string };
   PrivacyPolicy: undefined;
   Terms: undefined;
@@ -88,6 +89,7 @@ export type OwnerTabParamList = {
 // ROOT
 // =============================================================================
 export type RootStackParamList = {
+  Onboarding: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList>;
   CustomerTabs: NavigatorScreenParams<CustomerTabParamList>;
   OwnerTabs: NavigatorScreenParams<OwnerTabParamList>;

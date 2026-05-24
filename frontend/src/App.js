@@ -10,6 +10,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import VerifyOtpPage from './pages/VerifyOtpPage';
 import EmailConfirmedPage from './pages/EmailConfirmedPage';
 import SalonDetail from './pages/customer/SalonDetail';
 import BookingPage from './pages/customer/BookingPage';
@@ -120,6 +121,7 @@ function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/verify-otp" element={<VerifyOtpPage />} />
           <Route path="/auth/email-confirmed" element={<EmailConfirmedPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />

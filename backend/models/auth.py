@@ -56,3 +56,17 @@ class ValidateTokenRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     password: str
+
+class OtpType(str, Enum):
+    signup = "signup"
+    recovery = "recovery"
+    magiclink = "magiclink"
+
+class SendOtpRequest(BaseModel):
+    email: EmailStr
+
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    token: str
+    type: OtpType
+

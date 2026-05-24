@@ -81,6 +81,7 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
+  const [isOtpLogin, setIsOtpLogin] = useState(true);
 
   const handleFieldChange = useCallback(
     (field: 'email' | 'password', value: string) => {
@@ -93,6 +94,26 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
     },
     [fieldErrors, authError, clearError]
   );
+
+  const handleSignInWithOtp = async () => {
+    if (!email.trim()) {
+      setFieldErrors({ email: 'Email is required to sign in with OTP.' });
+      return;
+    }
+    if (!EMAIL_REGEX.test(email.trim())) {
+      setFieldErrors({ email: 'Enter a valid email address.' });
+      return;
+    }
+
+    const store = useAuthStore.getState();
+    const result = await store.sendOtp(email.trim());
+    if (result.success) {
+      showToast('Verification OTP code sent to your email.', 'success');
+      navigation.navigate('VerifyOtp', { email: email.trim().toLowerCase(), type: 'magiclink' });
+    } else {
+      showToast(result.error || 'Failed to send OTP. Please try again.', 'error');
+    }
+  };
 
   const handleLogin = async () => {
     // 1. Client-side validation first
@@ -129,8 +150,10 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
             <View style={styles.logoContainer}>
               <Image source={require('../../../assets/logo.png')} style={{ width: 40, height: 40, resizeMode: 'contain', tintColor: theme.colors.textInverse }} />
             </View>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to continue to TrimiT</Text>
+            <Text style={styles.title}>{isOtpLogin ? 'Sign In with OTP' : 'Welcome Back'}</Text>
+            <Text style={styles.subtitle}>
+              {isOtpLogin ? 'Enter your email to receive a 6-digit code' : 'Sign in to continue to TrimiT'}
+            </Text>
           </View>
 
           {/* Form */}
@@ -188,40 +211,56 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
               error={fieldErrors.email}
             />
 
-            <View style={styles.passwordContainer}>
-              <Input
-                label="Password"
-                placeholder="Enter your password"
-                value={password}
-                onChangeText={(v) => handleFieldChange('password', v)}
-                secureTextEntry={!showPassword}
-                editable={!isLoading}
-                icon={<Ionicons name="lock-closed-outline" size={20} color={theme.colors.textSecondary} />}
-                error={fieldErrors.password}
-              />
+            {!isOtpLogin && (
+              <View style={styles.passwordContainer}>
+                <Input
+                  label="Password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChangeText={(v) => handleFieldChange('password', v)}
+                  secureTextEntry={!showPassword}
+                  editable={!isLoading}
+                  icon={<Ionicons name="lock-closed-outline" size={20} color={theme.colors.textSecondary} />}
+                  error={fieldErrors.password}
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  disabled={isLoading}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={theme.colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setShowPassword((prev) => !prev)}
+                onPress={() => {
+                  setIsOtpLogin(!isOtpLogin);
+                  if (authError) clearError();
+                }}
                 disabled={isLoading}
               >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={theme.colors.textSecondary}
-                />
+                <Text style={styles.forgotText}>
+                  {isOtpLogin ? 'Sign In with Password' : 'Sign In with OTP'}
+                </Text>
               </TouchableOpacity>
+              {!isOtpLogin && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('ForgotPassword')}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.forgotText}>Forgot Password?</Text>
+                </TouchableOpacity>
+              )}
             </View>
-
-            <TouchableOpacity
-              onPress={() => navigation.navigate('ForgotPassword')}
-              style={styles.forgotButton}
-              disabled={isLoading}
-            >
-              <Text style={styles.forgotText}>Forgot Password?</Text>
-            </TouchableOpacity>
             <Button
-              title="Sign In"
-              onPress={handleLogin}
+              title={isOtpLogin ? 'Send Verification Code' : 'Sign In'}
+              onPress={isOtpLogin ? handleSignInWithOtp : handleLogin}
               loading={isLoading}
               style={styles.submitButton}
             />

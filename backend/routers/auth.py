@@ -16,10 +16,12 @@ from models.auth import (
     ConfirmEmailCallbackRequest,
     ValidateTokenRequest,
     ResetPasswordRequest,
+    SendOtpRequest,
+    VerifyOtpRequest,
 )
 from dependencies.auth import get_current_user, user_profile_cache
 from services.auth_errors import map_supabase_signup_error, safe_auth_response_json
-from services.user_profile import resolve_profile_for_user, upsert_user_profile
+from services.user_profile import resolve_profile_for_user, upsert_user_profile, fetch_profile_service_role
 from services.auth_signup import (
     try_idempotent_signup,
     perform_supabase_signup,
@@ -473,6 +475,82 @@ async def forgot_password(request: Request, data: ForgotPasswordRequest):
         )
     # Always return success to avoid email enumeration (Supabase may return 200 even if email unknown)
     return {"message": "If an account exists, a reset link has been sent", "redirect_to": redirect_to}
+
+@router.post("/send-otp")
+@limiter.limit("5/minute")
+async def send_otp(request: Request, data: SendOtpRequest):
+    """Trigger email OTP delivery (password-less login or signup verification retry)"""
+    response = await supabase.request("POST", "auth/v1/otp", json={
+        "email": data.email.strip().lower(),
+        "create_user": True
+    })
+    if response.status_code != 200:
+        logger.warning(
+            "send_otp supabase status=%s email=%s body=%s",
+            response.status_code,
+            data.email,
+            response.text[:200] if response.text else ""
+        )
+        raise HTTPException(status_code=400, detail="Failed to send OTP code")
+    return {"message": "OTP code sent successfully"}
+
+@router.post("/verify-otp")
+@limiter.limit("10/minute")
+async def verify_otp(request: Request, data: VerifyOtpRequest):
+    """Verify numeric email OTP for signup, magiclink/login, or recovery/forgot-password"""
+    payload = {
+        "email": data.email.strip().lower(),
+        "token": data.token.strip(),
+        "type": data.type.value
+    }
+    response = await supabase.request("POST", "auth/v1/verify", json=payload)
+    if response.status_code not in (200, 201):
+        logger.warning(
+            "verify_otp supabase status=%s email=%s type=%s body=%s",
+            response.status_code,
+            data.email,
+            data.type.value,
+            response.text[:200] if response.text else ""
+        )
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP code")
+
+    auth_data = response.json()
+    user_id = auth_data.get("user", {}).get("id") if isinstance(auth_data.get("user"), dict) else None
+    access_token = auth_data.get("access_token")
+
+    profile = None
+    is_new = False
+    if user_id and access_token:
+        supabase_user = auth_data.get("user", {})
+        user_profile_cache.pop(user_id, None)
+        try:
+            existing_profile = await fetch_profile_service_role(user_id)
+            if not existing_profile:
+                is_new = True
+
+            profile = await resolve_profile_for_user(
+                user_id,
+                supabase_user.get("email", data.email),
+                supabase_user.get("user_metadata"),
+                user_jwt=access_token,
+            )
+            logger.info(
+                "OTP verify profile resolved user=%s role=%s",
+                user_id[:8],
+                profile.get("role"),
+            )
+        except RuntimeError:
+            logger.error("OTP verify profile resolve failed for user %s", user_id)
+
+    return {
+        "access_token": access_token,
+        "token_type": auth_data.get("token_type", "bearer"),
+        "expires_in": auth_data.get("expires_in"),
+        "refresh_token": auth_data.get("refresh_token"),
+        "user": auth_data.get("user"),
+        "profile": profile,
+        "is_new_user": is_new
+    }
 
 @router.post("/validate-reset-token")
 async def validate_reset_token(data: ValidateTokenRequest):
