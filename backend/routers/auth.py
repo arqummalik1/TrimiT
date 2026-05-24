@@ -182,7 +182,7 @@ async def login(request: Request, data: UserLogin):
 
         if "invalid login credentials" in error_msg.lower():
             raise HTTPException(
-                status_code=status_code.HTTP_401_UNAUTHORIZED,
+                status_code=401,
                 detail={
                     "code": "INVALID_CREDENTIALS",
                     "message": "Invalid email or password. Please try again.",
@@ -194,7 +194,7 @@ async def login(request: Request, data: UserLogin):
             # In production, we return the same error to prevent enumeration,
             # but allow resending the link.
             raise HTTPException(
-                status_code=status_code.HTTP_401_UNAUTHORIZED,
+                status_code=401,
                 detail={
                     "code": "INVALID_CREDENTIALS",
                     "message": "Invalid email or password. Please try again.",
@@ -203,7 +203,7 @@ async def login(request: Request, data: UserLogin):
 
     # Generic fallback
     raise HTTPException(
-        status_code=status_code.HTTP_401_UNAUTHORIZED,
+        status_code=401,
         detail={
             "code": "INVALID_CREDENTIALS",
             "message": "Invalid email or password. Please try again.",
