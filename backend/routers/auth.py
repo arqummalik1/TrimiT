@@ -535,37 +535,47 @@ async def send_otp(request: Request, data: SendOtpRequest):
 @limiter.limit("10/minute")
 async def verify_otp(request: Request, data: VerifyOtpRequest):
     """Verify numeric email OTP for signup, magiclink/login, or recovery/forgot-password"""
+    email = data.email.strip().lower()
+    token = data.token.strip()
+    otp_type = data.type.value if hasattr(data.type, 'value') else str(data.type)
+
     payload = {
-        "email": data.email.strip().lower(),
-        "token": data.token.strip(),
-        "type": data.type.value
+        "email": email,
+        "token": token,
+        "type": otp_type
     }
     
-    response = await supabase.request("POST", "auth/v1/verify", json=payload)
-    
-    # Hybrid Fix: If the primary type fails, try the alternative (signup vs magiclink)
-    # This handles the case where a user tries to 'signup' but already exists, or 'login' but is new.
-    if response.status_code not in (200, 201) and data.type in (OtpType.signup, OtpType.magiclink):
-        alt_type = OtpType.magiclink if data.type == OtpType.signup else OtpType.signup
-        logger.info("verify_otp: primary type %s failed, retrying with %s", data.type.value, alt_type.value)
+    try:
+        response = await supabase.request("POST", "auth/v1/verify", json=payload)
         
-        payload["type"] = alt_type.value
-        alt_response = await supabase.request("POST", "auth/v1/verify", json=payload)
-        
-        if alt_response.status_code in (200, 201):
-            response = alt_response
+        # Hybrid Fix: If the primary type fails, try the alternative (signup vs magiclink)
+        if response.status_code not in (200, 201) and otp_type in ("signup", "magiclink"):
+            alt_type = "magiclink" if otp_type == "signup" else "signup"
+            logger.info("verify_otp: primary type %s failed, retrying with %s for %s", otp_type, alt_type, email)
+            
+            payload["type"] = alt_type
+            alt_response = await supabase.request("POST", "auth/v1/verify", json=payload)
+            
+            if alt_response.status_code in (200, 201):
+                response = alt_response
 
-    if response.status_code not in (200, 201):
-        logger.warning(
-            "verify_otp supabase status=%s email=%s type=%s body=%s",
-            response.status_code,
-            data.email,
-            data.type.value,
-            response.text[:200] if response.text else ""
-        )
-        raise HTTPException(status_code=400, detail="Invalid or expired OTP code")
+        if response.status_code not in (200, 201):
+            logger.warning(
+                "verify_otp supabase status=%s email=%s type=%s body=%s",
+                response.status_code,
+                email,
+                otp_type,
+                response.text[:200] if response.text else ""
+            )
+            raise HTTPException(status_code=400, detail="Invalid or expired OTP code")
 
-    auth_data = response.json()
+        auth_data = response.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("verify_otp unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred during verification")
+
     user_id = auth_data.get("user", {}).get("id") if isinstance(auth_data.get("user"), dict) else None
     access_token = auth_data.get("access_token")
 
