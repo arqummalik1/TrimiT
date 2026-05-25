@@ -148,10 +148,23 @@ async def signup(request: Request, user: UserCreate):
                 }
             )
 
-    raise HTTPException(status_code=status_code_resp, detail=body)
+    # body is a raw Supabase JSON dict. Map it to a stable {code, message} shape
+    # so every client gets a clean error instead of "An unexpected error occurred."
+    class _FakeResp:
+        def __init__(self, status, data):
+            self.status_code = status
+            self._data = data
+        def json(self):
+            return self._data
+
+    err_code, err_msg = map_supabase_signup_error(_FakeResp(status_code_resp, body))
+    raise HTTPException(
+        status_code=status_code_resp if status_code_resp in (400, 422, 429) else 400,
+        detail={"code": err_code, "message": err_msg},
+    )
 
 
-@router.post("/login")
+
 @limiter.limit("20/minute")
 async def login(request: Request, data: UserLogin):
     """

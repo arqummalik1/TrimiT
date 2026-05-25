@@ -30,6 +30,7 @@ import { ErrorState } from '../../components/ErrorState';
 import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
+import { logger } from '../../lib/logger';
 import {
   AUTH_EMAIL_COOLDOWN_TITLE,
   getAuthRateLimitMessage,
@@ -85,6 +86,8 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
       return;
     }
     
+    logger.debug('[Signup] submit', { email: data.email, role });
+
     const result = await signup(
       data.email.trim(),
       "",
@@ -92,6 +95,13 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
       data.phone || '',
       role
     );
+
+    logger.debug('[Signup] result', {
+      success: result.success,
+      requiresEmailConfirmation: result.requiresEmailConfirmation,
+      errorCode: result.errorCode,
+      error: result.error,
+    });
 
     if (result.success) {
       if (result.requiresEmailConfirmation) {
