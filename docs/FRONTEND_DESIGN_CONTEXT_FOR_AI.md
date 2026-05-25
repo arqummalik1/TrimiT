@@ -27,7 +27,6 @@ The **web frontend** is a marketing landing site + authenticated web portal. The
 ## 2. Technology Stack (for accurate suggestions)
 
 - **Framework:** React 19, **Vite 6** (`npm start` / `npm run build`; output `dist/`)
-- **Legacy:** `npm run build:cra` still available via react-scripts if needed
 - **Routing:** React Router v7
 - **Styling:** Tailwind CSS 3 + custom CSS in `index.css`
 - **Animation:** Framer Motion (`motion.div`, scroll/viewport animations)

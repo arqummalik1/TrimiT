@@ -7,7 +7,10 @@ email-validator==2.3.0
 slowapi==0.1.9
 
 # Database & Auth
-supabase==2.29.0
+# NOTE: We use a hand-rolled httpx client (`core/supabase.py`) instead of the
+# official `supabase` Python SDK, so the SDK is not listed here. If you ever
+# add `from supabase import …` somewhere, re-add `supabase==2.29.0` and pin
+# transitive deps deliberately.
 python-dotenv==1.0.1
 PyJWT==2.12.1
 cryptography==47.0.0

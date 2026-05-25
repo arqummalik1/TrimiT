@@ -7,44 +7,45 @@ import os
 import time
 import sys
 
-# Add startup logging
-print("=" * 50)
-print("🚀 TrimiT Backend Starting...")
-print("=" * 50)
-print(f"Python version: {sys.version}")
-print(f"Working directory: {os.getcwd()}")
-print(f"PORT: {os.getenv('PORT', '8000')}")
-print("=" * 50)
+# Configure logging up front so all startup messages flow through Render's
+# structured logs (and any future JSON formatter) instead of raw stdout.
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("trimit")
+
+# Startup banner
+logger.info("=" * 50)
+logger.info("🚀 TrimiT Backend Starting...")
+logger.info("=" * 50)
+logger.info("Python version: %s", sys.version)
+logger.info("Working directory: %s", os.getcwd())
+logger.info("PORT: %s", os.getenv("PORT", "8000"))
+logger.info("=" * 50)
 
 try:
-    print("📦 Importing config...")
+    logger.info("📦 Importing config...")
     from config import settings
-    print("✅ Config imported successfully")
-    print(f"Environment: {settings.ENVIRONMENT}")
-    print(f"Supabase URL: {settings.SUPABASE_URL[:30]}...")
+    logger.info("✅ Config imported successfully")
+    logger.info("Environment: %s", settings.ENVIRONMENT)
+    logger.info("Supabase URL: %s...", settings.SUPABASE_URL[:30])
 except Exception as e:
-    print(f"❌ FATAL: Failed to import config: {e}")
-    import traceback
-    traceback.print_exc()
+    logger.exception("❌ FATAL: Failed to import config: %s", e)
     sys.exit(1)
 
 try:
-    print("📦 Importing core modules...")
+    logger.info("📦 Importing core modules...")
     from core.limiter import limiter
     from core.exceptions import setup_exception_handlers
     from core.middleware import RequestIDMiddleware
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
     from slowapi.middleware import SlowAPIMiddleware
-    print("✅ Core modules imported")
+    logger.info("✅ Core modules imported")
 except Exception as e:
-    print(f"❌ FATAL: Failed to import core modules: {e}")
-    import traceback
-    traceback.print_exc()
+    logger.exception("❌ FATAL: Failed to import core modules: %s", e)
     sys.exit(1)
 
 try:
-    print("📦 Importing routers...")
+    logger.info("📦 Importing routers...")
     from routers import auth
     from routers import salons
     from routers import bookings
@@ -57,11 +58,10 @@ try:
     from routers import uploads
     from routers import geocode
     from routers import early_access
-    print("✅ Routers imported successfully")
+    from routers import admin
+    logger.info("✅ Routers imported successfully")
 except Exception as e:
-    print(f"❌ FATAL: Failed to import routers: {e}")
-    import traceback
-    traceback.print_exc()
+    logger.exception("❌ FATAL: Failed to import routers: %s", e)
     sys.exit(1)
 
 # Initialize Sentry
@@ -98,10 +98,6 @@ if settings.SENTRY_DSN:
         send_default_pii=False,
         before_send=_scrub_sentry_event,
     )
-
-# Configure Logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("trimit")
 
 app = FastAPI(
     title="TrimiT API",
@@ -162,6 +158,7 @@ v1_router.include_router(reviews.router)
 v1_router.include_router(uploads.router)
 v1_router.include_router(geocode.router)
 v1_router.include_router(early_access.router)
+v1_router.include_router(admin.router)
 
 app.include_router(v1_router)
 

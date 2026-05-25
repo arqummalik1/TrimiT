@@ -8,7 +8,7 @@ This is a monorepo for **TrimiT**, a salon marketplace platform. Three deployabl
 
 - `backend/` — FastAPI (Python 3.10+). Bootstrap at `backend/server.py` (~190 lines); versioned routes in `backend/routers/`. Push logic in `backend/services/push_dispatch.py` and `booking_push.py`.
 - `mobile/` — Expo SDK 54 / React Native 0.81 / React 19. Customer + owner flows in one app.
-- `frontend/` — Create React App (react-scripts 5) + Tailwind. Web dashboard / portal.
+- `frontend/` — Vite 6 + React 19 + Tailwind. Web dashboard / portal. (`react-scripts` is still listed in package.json but unused; web builds via `vite build`.)
 - `database/` — Numbered SQL migrations (`01_schema.sql` … `09_production_updates.sql`) applied manually in Supabase SQL editor. Run them in order on a fresh project.
 - `shared/legal/` — Shared legal docs (referenced by both web and mobile).
 
@@ -37,9 +37,9 @@ Production builds: **always** use `npm run build:apk:local` / `build:aab:local` 
 ### Web
 ```bash
 cd frontend
-npm start                         # CRA dev server (port 3000)
-npm run build
-npm test                          # react-scripts test (Jest)
+npm start                         # Vite dev server (port 3000)
+npm run build                     # vite build → dist/
+npm run preview                   # preview production build
 ```
 
 ### Backend tests
