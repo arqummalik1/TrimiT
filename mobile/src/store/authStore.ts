@@ -345,8 +345,17 @@ export const useAuthStore = create<AuthState>()(
             throw new Error('Invalid verification response');
           }
 
+          // Backend returns the resolved profile from public.users in `data.profile`.
+          // Use that — NOT the raw Supabase auth user (`data.user`) which only has
+          // {id, email}, so the local store would render "User" / "Not set".
+          const normalized = normalizeAuthUser({
+            ...((data.profile ?? {}) as Record<string, unknown>),
+            id: data.profile?.id ?? data.user?.id,
+            email: data.profile?.email ?? data.user?.email,
+          } as Parameters<typeof normalizeAuthUser>[0]);
+
           set({
-            user: data.user,
+            user: normalized,
             token: data.access_token,
             refreshToken: data.refresh_token ?? null,
             isAuthenticated: true,

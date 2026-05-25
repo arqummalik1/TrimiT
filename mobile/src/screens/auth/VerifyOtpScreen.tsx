@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { ErrorState } from '../../components/ErrorState';
 import { useAuthStore } from '../../store/authStore';
+import { usePendingSignupStore } from '../../store/pendingSignupStore';
 import { showToast } from '../../store/toastStore';
 import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
@@ -111,6 +112,36 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
       } else {
         const isNew = result.session?.is_new_user;
         const name = result.session?.profile?.name || email.split('@')[0];
+
+        // SIGNUP path: write the name + phone the user typed on the signup form
+        // into public.users. We can't depend on Supabase round-tripping
+        // `options.data` from auth/v1/otp through to verify.
+        if (type === 'signup') {
+          const pending = usePendingSignupStore.getState().consumePendingSignup(email);
+          if (pending && (pending.name || pending.phone)) {
+            try {
+              const { authService } = require('../../services/authService');
+              await authService.updateProfile({
+                name: pending.name || undefined,
+                phone: pending.phone || undefined,
+              });
+              // Reflect immediately in the local user store so ProfileScreen
+              // shows the right values without waiting for /auth/me.
+              const { useAuthStore: store } = require('../../store/authStore');
+              const current = store.getState().user;
+              if (current) {
+                store.setState({
+                  user: { ...current, name: pending.name || current.name, phone: pending.phone || current.phone },
+                });
+              }
+            } catch (e) {
+              // Non-fatal: user is already signed in. They can edit later from Profile.
+              // eslint-disable-next-line no-console
+              console.warn('[VerifyOtp] post-signup profile patch failed', e);
+            }
+          }
+        }
+
         if (isNew) {
           showToast('Your new account has been created successfully!', 'success');
         } else {

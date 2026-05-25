@@ -23,6 +23,7 @@ import {
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
+import { usePendingSignupStore } from '../../store/pendingSignupStore';
 import { showToast } from '../../store/toastStore';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
@@ -87,6 +88,16 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
     }
     
     logger.debug('[Signup] submit', { email: data.email, role });
+
+    // Stash name + phone so VerifyOtp screen can PATCH the profile after the
+    // OTP verifies. This avoids depending on Supabase round-tripping
+    // `options.data` through auth/v1/otp → auth/v1/verify (unreliable).
+    usePendingSignupStore.getState().setPendingSignup({
+      email: data.email.trim().toLowerCase(),
+      name: data.name.trim(),
+      phone: (data.phone || '').trim(),
+      role,
+    });
 
     const result = await signup(
       data.email.trim(),
