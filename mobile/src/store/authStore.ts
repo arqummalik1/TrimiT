@@ -287,35 +287,51 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
 
+        // ─── Trust the persisted session immediately ──────────────────────
+        // This is how Zomato / Blinkit / Instagram keep users logged in across
+        // swipe-kills. Treat the token as valid based solely on persisted
+        // state, push the user past the auth gate, then refresh the profile
+        // in the background. The apiClient response interceptor will catch a
+        // real 401 and trigger a refresh-or-clear there. Network blips on
+        // cold start NEVER log the user out.
         setAuthToken(state.token);
-        try {
-          const { authService } = require('../services/authService');
-          const meResponse = await authService.getMe();
-          const user: User | null =
-            normalizeAuthUser(meResponse.data as { profile?: User }) ?? state.user;
+        set({
+          isAuthenticated: true,
+          authBootstrapComplete: true,
+          error: null,
+          sessionExpired: false,
+        });
+        // Sync Supabase Realtime auth so postgres_changes work immediately.
+        void syncSupabaseAuthSession(state.token, state.refreshToken);
 
-          set({
-            user,
-            isAuthenticated: true,
-            token: state.token,
-            refreshToken: state.refreshToken,
-            error: null,
-            sessionExpired: false,
-            authBootstrapComplete: true,
-          });
-          await syncSupabaseAuthSession(state.token, state.refreshToken);
-          logger.info('[Auth] initializeAuth ok', { role: user?.role });
-        } catch (err) {
-          logger.warn('[Auth] initializeAuth failed — clearing session', { err });
-          await get().clearSession({
-            sessionExpired: isAppError(err) && err.kind === 'unauthorized',
-            errorMessage:
-              isAppError(err) && err.kind === 'unauthorized'
-                ? 'Session expired. Please sign in again.'
-                : undefined,
-          });
-          set({ authBootstrapComplete: true });
-        }
+        // Background profile refresh — never blocks the UI, never signs out
+        // unless the server explicitly says the token is invalid (401).
+        void (async () => {
+          try {
+            const { authService } = require('../services/authService');
+            const meResponse = await authService.getMe();
+            const fresh: User | null =
+              normalizeAuthUser(meResponse.data as { profile?: User }) ?? get().user;
+            if (fresh) {
+              set({ user: fresh });
+            }
+            logger.info('[Auth] initializeAuth profile refreshed', { role: fresh?.role });
+          } catch (err) {
+            // ONLY a confirmed 401 from the server should clear the session.
+            // Network errors, 5xx, timeouts → keep the user logged in. The
+            // request interceptor in apiClient already handles silent refresh
+            // for 401s on subsequent calls.
+            if (isAppError(err) && err.kind === 'unauthorized') {
+              logger.warn('[Auth] persisted session is unauthorized — clearing');
+              await get().clearSession({
+                sessionExpired: true,
+                errorMessage: 'Session expired. Please sign in again.',
+              });
+            } else {
+              logger.warn('[Auth] background profile refresh failed (keeping session)', { err });
+            }
+          }
+        })();
       },
 
       verifyOtp: async (email, token, type) => {

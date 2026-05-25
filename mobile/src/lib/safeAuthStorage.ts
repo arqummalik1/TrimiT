@@ -5,8 +5,15 @@ import { secureStorage } from './secureStorage';
 const AUTH_PERSIST_KEY = 'trimit-auth-storage';
 
 /**
- * Zustand persist storage: SecureStore for tokens, with AsyncStorage fallback.
- * Validates JSON on read so corrupt data cannot crash startup (common APK crash).
+ * Zustand persist storage for auth.
+ *
+ * Reads route through secureStorage which now transparently falls back to
+ * AsyncStorage when SecureStore is unavailable / over its size limit. We keep
+ * an extra AsyncStorage read as a defense-in-depth so legacy installs that
+ * never wrote through secureStorage's fallback can still rehydrate.
+ *
+ * Validates JSON on read so corrupt data cannot crash startup (was a real
+ * APK crash source).
  */
 export const safeAuthStorage: StateStorage = {
   getItem: async (name: string): Promise<string | null> => {
@@ -33,6 +40,7 @@ export const safeAuthStorage: StateStorage = {
       JSON.parse(raw);
       return raw;
     } catch {
+      // Corrupt blob — wipe both backends so we don't keep returning bad data.
       try {
         await secureStorage.removeItem(name);
         await AsyncStorage.removeItem(name);
@@ -44,20 +52,13 @@ export const safeAuthStorage: StateStorage = {
   },
 
   setItem: async (name: string, value: string): Promise<void> => {
-    try {
-      await secureStorage.setItem(name, value);
-    } catch {
-      // SecureStore size limits / device quirks — fallback so login still works
-      await AsyncStorage.setItem(name, value);
-    }
+    // secureStorage handles SecureStore + AsyncStorage fallback internally.
+    await secureStorage.setItem(name, value);
   },
 
   removeItem: async (name: string): Promise<void> => {
-    try {
-      await secureStorage.removeItem(name);
-    } catch {
-      // ignore
-    }
+    await secureStorage.removeItem(name);
+    // Belt-and-braces: nuke any stray AsyncStorage copy under the same key.
     try {
       await AsyncStorage.removeItem(name);
     } catch {
