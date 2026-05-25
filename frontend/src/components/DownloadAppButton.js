@@ -6,12 +6,11 @@ import { DOWNLOAD_APP_URL } from '../config/storeLinks';
  * Header CTA with a clockwise “running light” border (conic gradient spin).
  * Link: REACT_APP_DOWNLOAD_APP_URL (default: Google Drive APK folder).
  */
-export function DownloadAppButton({ className = '' }) {
+export function DownloadAppButton({ onClick, className = '' }) {
   return (
-    <a
-      href={DOWNLOAD_APP_URL}
-      target="_blank"
-      rel="noopener noreferrer"
+    <button
+      type="button"
+      onClick={onClick}
       data-testid="header-download-app"
       aria-label="Download TrimiT app"
       className={`download-app-btn group relative inline-flex shrink-0 ${className}`}
@@ -22,7 +21,7 @@ export function DownloadAppButton({ className = '' }) {
         <span className="hidden sm:inline">Download App</span>
         <span className="sm:hidden">App</span>
       </span>
-    </a>
+    </button>
   );
 }
 

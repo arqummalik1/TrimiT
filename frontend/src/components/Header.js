@@ -12,6 +12,7 @@ import {
 } from '@phosphor-icons/react';
 import DownloadAppButton from './DownloadAppButton';
 import TrimitLogo from './brand/TrimitLogo';
+import EarlyAccessModal from './EarlyAccessModal';
 
 const MARKETING_LINKS = [
   { to: '/explore', label: 'Explore' },
@@ -23,6 +24,7 @@ const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [earlyAccessOpen, setEarlyAccessOpen] = useState(false);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -171,7 +173,7 @@ const Header = () => {
           </nav>
 
           <div className="hidden lg:flex items-center gap-3 shrink-0">
-            <DownloadAppButton />
+            <DownloadAppButton onClick={() => setEarlyAccessOpen(true)} />
             {isAuthenticated ? (
               <div className="flex items-center gap-2">
                 <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-full glass-chip">
@@ -301,7 +303,13 @@ const Header = () => {
               )}
 
               <div className="pt-3 mt-2 border-t border-stone-100">
-                <DownloadAppButton className="w-full justify-center" />
+                <DownloadAppButton 
+                  className="w-full justify-center" 
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setEarlyAccessOpen(true);
+                  }}
+                />
               </div>
 
               <div className="pt-3 flex flex-col gap-2">
@@ -337,6 +345,7 @@ const Header = () => {
           </div>
         </>
       ) : null}
+      <EarlyAccessModal isOpen={earlyAccessOpen} onClose={() => setEarlyAccessOpen(false)} />
     </header>
   );
 };
