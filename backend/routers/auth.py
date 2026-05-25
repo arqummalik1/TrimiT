@@ -445,3 +445,175 @@ async def reset_password(data: ResetPasswordRequest):
         logger.warning("reset_password failed status=%s body=%s", r.status_code, r.text)
         raise HTTPException(status_code=400, detail="Could not reset password. Token may be expired.")
     return {"message": "Password updated successfully"}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Authenticated user endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get("/me")
+async def get_me(current_user: dict = Depends(get_current_user)):
+    """Return the authenticated user with the resolved profile from public.users."""
+    profile = current_user.get("profile") or {}
+    return {
+        "id": current_user.get("id"),
+        "email": current_user.get("email"),
+        "profile": profile,
+        # Flatten common fields so older clients reading top-level still work.
+        "name": profile.get("name"),
+        "phone": profile.get("phone"),
+        "role": profile.get("role"),
+        "push_token": profile.get("push_token"),
+        "push_enabled": profile.get("push_enabled"),
+        "notify_bookings": profile.get("notify_bookings"),
+        "notify_booking_updates": profile.get("notify_booking_updates"),
+        "notify_promotional": profile.get("notify_promotional"),
+        "notify_reminders": profile.get("notify_reminders"),
+    }
+
+
+@router.patch("/profile")
+async def update_profile(
+    data: UserUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Update the authenticated user's name / phone / push_token."""
+    user_id = current_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    payload = data.model_dump(exclude_unset=True, exclude_none=True)
+    # Never allow role escalation from this endpoint.
+    payload.pop("role", None)
+    if not payload:
+        return {"message": "No changes"}
+
+    resp = await supabase.request(
+        "PATCH",
+        f"rest/v1/users?id=eq.{user_id}",
+        json=payload,
+        service_role=True,
+    )
+    if resp.status_code not in (200, 201, 204):
+        logger.error(
+            "[update_profile] PATCH failed user=%s status=%s body=%s",
+            user_id,
+            resp.status_code,
+            resp.text[:200],
+        )
+        raise HTTPException(status_code=400, detail="Could not update profile")
+
+    # Cache might still hold the old row; drop it so /auth/me is fresh.
+    user_profile_cache.pop(user_id, None)
+    fresh = await fetch_profile_service_role(user_id)
+    return {"message": "Profile updated", "profile": fresh or {}}
+
+
+@router.post("/push-token")
+async def upsert_push_token(
+    data: PushTokenUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Register or clear the Expo push token for this user."""
+    user_id = current_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    token = data.push_token
+    if token is not None:
+        token = str(token).strip()
+        if token and not (
+            token.startswith("ExponentPushToken[") or token.startswith("ExpoPushToken[")
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "INVALID_PUSH_TOKEN",
+                    "message": "Push token format is not recognised.",
+                },
+            )
+
+    resp = await supabase.request(
+        "PATCH",
+        f"rest/v1/users?id=eq.{user_id}",
+        json={"push_token": token if token else None},
+        service_role=True,
+    )
+    if resp.status_code not in (200, 201, 204):
+        logger.error(
+            "[upsert_push_token] PATCH failed user=%s status=%s body=%s",
+            user_id,
+            resp.status_code,
+            resp.text[:200],
+        )
+        raise HTTPException(status_code=400, detail="Could not save push token")
+
+    user_profile_cache.pop(user_id, None)
+    return {"message": "Push token saved"}
+
+
+@router.patch("/notification-preferences")
+async def update_notification_preferences(
+    data: NotificationPreferencesUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Update notification preferences (master switch + per-category toggles)."""
+    user_id = current_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    payload = data.model_dump(exclude_unset=True, exclude_none=True)
+    if not payload:
+        return {"message": "No changes"}
+
+    resp = await supabase.request(
+        "PATCH",
+        f"rest/v1/users?id=eq.{user_id}",
+        json=payload,
+        service_role=True,
+    )
+    if resp.status_code not in (200, 201, 204):
+        logger.error(
+            "[update_notification_preferences] PATCH failed user=%s status=%s body=%s",
+            user_id,
+            resp.status_code,
+            resp.text[:200],
+        )
+        raise HTTPException(status_code=400, detail="Could not update preferences")
+
+    user_profile_cache.pop(user_id, None)
+    fresh = await fetch_profile_service_role(user_id)
+    return {"message": "Preferences updated", "profile": fresh or {}}
+
+
+@router.delete("/account")
+async def delete_account(current_user: dict = Depends(get_current_user)):
+    """Delete the authenticated user's account permanently (auth + profile)."""
+    user_id = current_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # Auth row delete (service role; cascades to public.users via FK ON DELETE CASCADE).
+    auth_resp = await supabase.request(
+        "DELETE",
+        f"auth/v1/admin/users/{user_id}",
+        service_role=True,
+    )
+    if auth_resp.status_code not in (200, 204, 404):
+        logger.error(
+            "[delete_account] auth delete failed user=%s status=%s body=%s",
+            user_id,
+            auth_resp.status_code,
+            auth_resp.text[:200],
+        )
+        raise HTTPException(status_code=400, detail="Could not delete account")
+
+    # Defensive: if FK cascade didn't fire (older schema), clear the row directly.
+    await supabase.request(
+        "DELETE",
+        f"rest/v1/users?id=eq.{user_id}",
+        service_role=True,
+    )
+    user_profile_cache.pop(user_id, None)
+    return {"message": "Account deleted"}
