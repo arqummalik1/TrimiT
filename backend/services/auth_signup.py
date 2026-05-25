@@ -243,9 +243,9 @@ async def salvage_rate_limited_signup(
     )
 
 
-async def perform_supabase_signup(user: UserCreate):
+async def perform_supabase_signup(user: UserCreate) -> Tuple[int, Dict[str, Any]]:
     redirect_to = email_confirmation_redirect_url()
-    return await supabase.request(
+    resp = await supabase.request(
         "POST",
         "auth/v1/signup",
         json={
@@ -260,6 +260,8 @@ async def perform_supabase_signup(user: UserCreate):
             "options": {"email_redirect_to": redirect_to},
         },
     )
+    return resp.status_code, safe_auth_response_json(resp)
+
 
 
 async def perform_admin_signup(user: UserCreate) -> Tuple[int, Dict[str, Any]]:

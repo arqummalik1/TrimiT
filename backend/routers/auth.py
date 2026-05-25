@@ -111,16 +111,25 @@ async def signup(request: Request, user: UserCreate):
     # Production: Supabase Auth
     status_code_resp, body = await perform_supabase_signup(user)
     
-    if status_code_resp == 200:
+    if status_code_resp in (200, 201):
+        if not body.get("session") and not body.get("access_token"):
+            return JSONResponse(
+                status_code=202,
+                content={
+                    "code": "EMAIL_CONFIRMATION_REQUIRED",
+                    "message": "Account created. Please check your email for the verification link/OTP to complete your registration."
+                }
+            )
         return body
     if status_code_resp == 202:
         return JSONResponse(status_code=202, content=body)
 
     # Hybrid Fix: If user exists but is unconfirmed, resend and act like it's a new signup
     if status_code_resp == 400 and body.get("code") == "USER_ALREADY_EXISTS":
-        if not await _is_email_confirmed(user.email):
+        state = await check_existing_signup_state(user.email)
+        if state and state[0] == "pending":
             logger.info("signup: user %s already exists but unconfirmed, resending code", user.email)
-            resend_body = await resend_confirmation_email(user.email)
+            await resend_confirmation_email(user.email)
             # Return 202 (Accepted) so frontend moves to OTP screen
             return JSONResponse(
                 status_code=202, 
