@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spine TB (Pott's Disease) Lecture</title>
+    <style>
+        :root {
+            --primary-dark: #1e3a5f;
+            --primary-light: #3a6b9c;
+            --accent: #e74c3c;
+            --bg-color: #f4f7f6;
+            --text-main: #333;
+            --pearl-bg: #e8f4f8;
+            --pearl-border: #3498db;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            display: flex;
+            height: 100vh;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 280px;
+            background-color: var(--primary-dark);
+            color: #fff;
+            overflow-y: auto;
+            box-shadow: 3px 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 25px 20px;
+            background-color: #152b47;
+            text-align: center;
+            border-bottom: 3px solid var(--accent);
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.4rem;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-header p {
+            font-size: 0.85rem;
+            color: #9ab4d0;
+            margin-top: 5px;
+        }
+
+        .sidebar button {
+            width: 100%;
+            padding: 18px 20px;
+            background: none;
+            color: #b8cde1;
+    
+                            collapse.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Tab Navigation Logic
+        function openTopic(evt, topicId) {
+            // Hide all sections
+            let sections = document.getElementsByClassName("topic-section");
+            for (let i = 0; i < sections.length; i++) {
+                sections[i].classList.remove("active");
+            }
+
+            // Remove active class from all buttons
+            let tablinks = document.getElementsByClassName("tab-link");
+            for (let i = 0; i < tablinks.length; i++) {
+                tablinks[i].classList.remove("active");
+            }
+
+            // Show current section and activate button
+            document.getElementById(topicId).classList.add("active");
+            evt.currentTarget.classList.add("active");
+        }
+
+        // Accordion / Clinical Pearls Logic
+        function togglePearl(button) {
+            button.classList.toggle("active");
+            let content = button.nextElementSibling;
+            let icon = button.querySelector('span');
+
+            if (content.style.maxHeight) {
+                content.style.maxHeight = null;
+                content.style.padding = "0 20px";
+                icon.textContent = "+";
+            } else {
+                content.style.maxHeight = content.scrollHeight + "px";
+                content.style.padding = "15px 20px";
+                icon.textContent = "-";
+            }
+        }
+
+        // Flashcard Flip Logic
+        function flipCard(card) {
+            card.classList.toggle('flipped');
+        }
+    </script>
+</body>
+
+</html>
