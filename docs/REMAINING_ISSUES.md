@@ -261,12 +261,8 @@ change.
 
 ### B11. ADMIN_API_TOKEN — v1 simple bearer auth for admin endpoints (P2)
 **File(s):** `backend/config.py`, `backend/routers/admin.py`
-**Why it matters:** The new broadcast endpoint (added in pass 4) is gated by
-a static bearer token. Fine for v1 but a real admin role table + JWT-based
-admin auth is the next step.
-**Fix:** Add an `is_admin` boolean to `users` (or a separate `admins` table),
-swap `_require_admin` in `routers/admin.py` to use the JWT-derived user
-identity, and stop relying on `ADMIN_API_TOKEN`.
+**Status:** `ADMIN_API_TOKEN` set in Render env vars ✅. Static bearer token is live.
+**Remaining:** When you want a real admin role table + JWT-based admin auth, swap `_require_admin` in `routers/admin.py` to use the JWT-derived user identity and stop relying on the static token.
 **Risk:** none — additive.
 
 ---
@@ -513,6 +509,7 @@ the `ADMIN_API_TOKEN` env var.
 | 2026-05-25 | Pass 3 | Mobile: customer Bookings tab auto-refreshes via `useFocusEffect` + Supabase Realtime (`subscribeToUserBookings`). |
 | 2026-05-25 | Pass 3 | Mobile: Discover-tab-after-booking bug fixed via `popToTop` in `navigateToCustomerBookings` + new `resetToCustomerDiscover` helper. |
 | 2026-05-25 | Pass 4 | Backend + Mobile + DB: Zomato/Blinkit-style broadcast push (admin endpoint, `promotions` Android channel, `notify_promotional` opt-in, `broadcast_notifications` audit table). |
+| 2026-05-25 | Ops | `database/39_broadcast_notifications.sql` applied in Supabase ✅. `ADMIN_API_TOKEN` set in Render env vars ✅. Local APK build triggered (EAS local, preview profile). |
 
 ---
 
