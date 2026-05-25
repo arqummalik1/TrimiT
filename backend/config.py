@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     # Sentry Configuration
     SENTRY_DSN: Optional[str] = None
     ENVIRONMENT: str = "development"
+
+    # Admin endpoints (broadcast notifications, ops). Static bearer token for
+    # v1; admin endpoints check `Authorization: Bearer <ADMIN_API_TOKEN>`.
+    # Leave unset in dev/staging to disable admin endpoints entirely.
+    ADMIN_API_TOKEN: Optional[str] = None
     
     # Payment Providers
     STRIPE_SECRET_KEY: Optional[str] = None

@@ -205,3 +205,106 @@ Dashboard updates          Tap to open app
 **NO NEED TO MIGRATE TO REACT NATIVE CLI**
 
 Everything is ready. Just build the APK and test on a real device. Push notifications will work perfectly in all app states (open, background, closed) just like WhatsApp, Instagram, Ola, and Blinkit.
+
+
+---
+
+## Broadcast push notifications (Zomato/Blinkit-style)
+
+Added in Pass 4. **Independent from the booking notification system**;
+both can run side-by-side.
+
+### Channels (Android)
+
+| Channel ID    | Purpose                                  | Importance |
+|---------------|------------------------------------------|------------|
+| `bookings`    | Booking lifecycle (existing)             | MAX        |
+| `promotions`  | Broadcast marketing pushes (new)         | DEFAULT    |
+
+The two channels are deliberately separate so users can mute promotions in
+Android system settings without losing booking alerts.
+
+### User opt-in
+
+`users.notify_promotional` (added in migration 24) gates broadcast delivery.
+Default is `false` — broadcasts are **opt-in**, like Zomato. The mobile UI
+already exposes the toggle in `NotificationSettingsSection.tsx` →
+"Promotional notifications".
+
+The backend always also checks `users.push_enabled` (master switch). Either
+flag being false skips the user.
+
+### Backend admin endpoint
+
+`POST /api/v1/admin/broadcast` — protected by static bearer token from
+`ADMIN_API_TOKEN` env var. If the env var is unset, the endpoint returns
+404 (intentionally hides existence in dev/staging).
+
+```bash
+curl -X POST https://trimit-az5h.onrender.com/api/v1/admin/broadcast \
+  -H "Authorization: Bearer $ADMIN_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "audience": "customers",
+    "title": "Weekend offer",
+    "body": "Flat 20% off all haircut services this weekend at participating salons.",
+    "data": { "deeplink": "trimit://discover" }
+  }'
+```
+
+Response (`202 Accepted`):
+
+```json
+{
+  "broadcast_id": "…",
+  "audience": "customers",
+  "recipients_count": 1234,
+  "delivered_count": 1180,
+  "failed_count": 54
+}
+```
+
+`audience` must be one of:
+- `customers` — every customer with `notify_promotional=true` and a valid token
+- `owners` — every salon owner with the same flags
+- `all` — both
+
+`title` ≤ 80 chars, `body` ≤ 240 chars (validated DB-side too).
+
+`data` is forwarded to Expo as the message `data` field; reserved keys
+(`type`, `audience`) are always overridden server-side. Mobile receives
+`data.type = "broadcast"` and routes to the role's home tab on tap (no
+deep-link by default; encode one in `data` if you want).
+
+### Audit log
+
+Every broadcast is recorded in `public.broadcast_notifications` with the
+final `recipients_count`, `delivered_count`, and `failed_count`. RLS locks
+the table to service-role only — no direct authenticated/anon read or
+write. Read it via `GET /api/v1/admin/broadcast`.
+
+### Rate limits
+
+- `POST /admin/broadcast` — 10/minute per admin token
+- `GET /admin/broadcast` — 30/minute per admin token
+
+### Code paths
+
+- DB migration: `database/39_broadcast_notifications.sql`
+- Backend service: `backend/services/broadcast.py`
+- Admin router: `backend/routers/admin.py`
+- Push fan-out: `backend/services/push_notifications.py:send_batch_notifications`
+  (now accepts per-message `channelId`; broadcasts pass `'promotions'`)
+- Mobile channel registration: `mobile/src/lib/notifications.ts:ensureAndroidNotificationChannels`
+- Mobile foreground handler: `mobile/src/lib/notifications.ts:handleOwnerForegroundPush`
+  (early-returns when `data.type === 'broadcast'`, so marketing pushes do
+   **not** trigger the owner booking-modal flow)
+- Mobile tap navigation: `mobile/src/lib/notificationNavigation.ts`
+
+### Roadmap (out of scope for v1)
+
+- Replace the static `ADMIN_API_TOKEN` with a real admin role table + JWT
+  (tracked as `B11` in `docs/REMAINING_ISSUES.md`).
+- Web Sentry on the admin console (when one exists).
+- Scheduled / drip broadcasts (queue + cron).
+- Per-broadcast click-through tracking (requires deep-link instrumentation).

@@ -5,11 +5,12 @@
 
 ## Current State
 
-**Last updated:** 2026-05-24  
-**Project type:** Live production monorepo  
-**Primary surfaces:** Backend API, Web app, Mobile app  
-**Deployments:** Backend on Render, Web on Vercel, Database/Auth on Supabase, Mobile on Play Store testing  
+**Last updated:** 2026-05-25
+**Project type:** Live production monorepo
+**Primary surfaces:** Backend API, Web app, Mobile app
+**Deployments:** Backend on Render, Web on Vercel, Database/Auth on Supabase, Mobile on Play Store testing
 **Main audit baseline:** `docs/audit/PRODUCTION_AUDIT_2026_05_24.md` and `docs/audit/PRODUCTION_AUDIT_2026_05_24_REV2.md`
+**Open-issue tracker (canonical):** [`docs/REMAINING_ISSUES.md`](REMAINING_ISSUES.md) — split into Web, Backend, Mobile, Others. Update this whenever an item is closed or added.
 
 ## Product Context
 
@@ -215,6 +216,10 @@ This pass is focused on the selected P1 items:
 |------|---------|--------|
 | 2026-05-24 | Rewrote `docs/PROGRESS.md` into a full project handoff file with architecture, scope, active fixes, done items, remaining items, and migration instructions. | DONE |
 | 2026-05-24 | Applied P1 hardening and verified SQL migrations. | DONE |
+| 2026-05-25 | Pass 1 — fixed latent `settings.FRONTEND_URL` reference in `backend/routers/auth.py` (now uses `PUBLIC_SITE_URL`). Added `error.log` / `*.log` guard to `mobile/.gitignore`. Updated stale CRA mentions in `CLAUDE.md` and `docs/FRONTEND_DESIGN_CONTEXT_FOR_AI.md`. | DONE |
+| 2026-05-25 | Pass 2 — removed unused `react-native-toast-message` from `mobile/package.json`; removed unused `supabase==2.29.0` Python SDK from `backend/requirements.txt`; replaced startup `print()` calls in `backend/server.py` with `logger.info`; removed `react-scripts` and dead `build:cra` / `test` scripts from `frontend/package.json` (`npm install` removed 1,152 transitive packages, `vite build` verified). | DONE |
+| 2026-05-25 | Pass 3 — fixed two customer-facing bugs: (a) `MyBookingsScreen` now refetches on focus and subscribes to Supabase Realtime (`subscribeToUserBookings`) so the list auto-updates without pull-to-refresh whenever the owner accepts/rejects/completes/reschedules; (b) `navigateToCustomerBookings` now `popToTop` the Discover stack before switching tabs so the next tap on the Discover tab shows the salon list rather than the previous booking success screen. Added `subscribeToUserBookings` helper to `mobile/src/lib/supabase.ts` and `resetToCustomerDiscover` helper to `mobile/src/lib/navigationHelpers.ts`. Mobile `tsc --noEmit` clean. | DONE |
+| 2026-05-25 | Pass 4 — added Zomato/Blinkit-style broadcast push notifications (additive; existing booking notifications untouched). New DB migration `database/39_broadcast_notifications.sql` (audit table + RLS lock-out). New backend service `backend/services/broadcast.py` and admin router `backend/routers/admin.py` with `POST /api/v1/admin/broadcast` and `GET /api/v1/admin/broadcast` gated by `ADMIN_API_TOKEN`. New `audience` field — `customers`, `owners`, or `all`. Fan-out via existing Expo push, batched 100/req. New Android channel `promotions` (separate from `bookings`) so users can mute marketing without losing booking alerts. `users.notify_promotional` already gates delivery (default false; visible toggle already in `NotificationSettingsSection`). Mobile foreground handler now ignores broadcast events (no booking-modal pop-up). Created `docs/REMAINING_ISSUES.md` as the canonical open-issue tracker (Web / Backend / Mobile / Others sections). Mobile `tsc --noEmit` clean; backend syntax-check clean. | DONE |
 
 ## Next Recommended Steps
 

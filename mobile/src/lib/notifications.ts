@@ -10,6 +10,7 @@ import api from './api';
 import { logger } from './logger';
 
 const BOOKINGS_CHANNEL_ID = 'bookings';
+const PROMOTIONS_CHANNEL_ID = 'promotions';
 const DEFAULT_EAS_PROJECT_ID = 'e4f2eade-fe15-4a16-8766-83b0771a4643';
 
 let pushTokenListener: Notifications.Subscription | null = null;
@@ -47,6 +48,21 @@ export async function ensureAndroidNotificationChannels(): Promise<void> {
     sound: soundEnabled ? 'default' : undefined,
     enableLights: true,
     showBadge: true,
+  });
+
+  // Promotions / broadcast channel — kept separate from bookings so users
+  // can mute marketing pushes in Android settings without losing booking
+  // alerts. Lower importance than bookings (no full-screen interrupt).
+  await Notifications.setNotificationChannelAsync(PROMOTIONS_CHANNEL_ID, {
+    name: 'Promotions & Offers',
+    description:
+      'Offers, news, and announcements from TrimiT. Booking alerts use a separate channel.',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    vibrationPattern: vibrationEnabled ? [0, 200, 100, 200] : undefined,
+    enableVibrate: vibrationEnabled,
+    sound: soundEnabled ? 'default' : undefined,
+    enableLights: false,
+    showBadge: false,
   });
 }
 
@@ -214,6 +230,15 @@ export async function handleOwnerForegroundPush(
   }
 
   const data = notification.request.content.data as Record<string, unknown> | undefined;
+  const eventType = typeof data?.type === 'string' ? data.type : 'new_booking';
+
+  // Broadcasts (Zomato/Blinkit-style marketing pushes) are not booking events
+  // and must not pop the new-booking modal. The system tray notification still
+  // shows on the promotions channel; tap → handleNotificationNavigation routes.
+  if (eventType === 'broadcast') {
+    return;
+  }
+
   const roleHint = typeof data?.role_hint === 'string' ? data.role_hint : '';
   if (roleHint && roleHint !== 'owner') {
     return;
@@ -228,7 +253,6 @@ export async function handleOwnerForegroundPush(
     return;
   }
 
-  const eventType = typeof data?.type === 'string' ? data.type : 'new_booking';
   const modalType =
     eventType === 'booking_cancelled' || eventType === 'booking_cancelled_by_owner'
       ? 'cancellation'

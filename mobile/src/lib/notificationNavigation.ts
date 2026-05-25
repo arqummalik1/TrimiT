@@ -12,6 +12,7 @@ export type PushPayload = {
   bookingId?: string;
   role_hint?: string;
   status?: string;
+  audience?: string;
 };
 
 export function handleNotificationNavigation(
@@ -28,6 +29,28 @@ export function handleNotificationNavigation(
   const role = data.role_hint ?? userRole ?? 'customer';
 
   logger.info('[PushNav] navigate', { type, bookingId, role });
+
+  // Broadcast (Zomato/Blinkit-style) marketing pushes don't deep-link anywhere
+  // by default — open the app on the role's home tab. If a future broadcast
+  // wants to deep link, encode it in `data` and extend this branch.
+  if (type === 'broadcast') {
+    if (role === 'owner') {
+      navigationRef.dispatch(
+        CommonActions.navigate({
+          name: 'OwnerTabs',
+          params: { screen: 'Dashboard' },
+        })
+      );
+    } else {
+      navigationRef.dispatch(
+        CommonActions.navigate({
+          name: 'CustomerTabs',
+          params: { screen: 'Discover', params: { screen: 'DiscoverMain' } },
+        })
+      );
+    }
+    return;
+  }
 
   if (role === 'owner') {
     navigationRef.dispatch(

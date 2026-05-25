@@ -144,28 +144,44 @@ class PushNotificationService:
                     "sound": notif.get("sound", "default"),
                     "priority": notif.get("priority", "high"),
                     "data": notif.get("data", {}),
-                    "channelId": "bookings",
+                    # Default to the bookings channel for backwards-compat;
+                    # broadcasts pass channelId='promotions' so users can mute
+                    # marketing without losing booking alerts.
+                    "channelId": notif.get("channelId", "bookings"),
                 }
             )
 
         if not messages:
             return {"success": 0, "failed": 0}
 
+        # Expo push API accepts max 100 messages per request. Chunk to be safe.
+        success_total = 0
+        failed_total = 0
         try:
-            async with httpx.AsyncClient(timeout=12.0) as client:
-                response = await client.post(
-                    EXPO_PUSH_URL,
-                    json=messages,
-                    headers={"Content-Type": "application/json"},
-                )
-                if response.status_code != 200:
-                    return {"success": 0, "failed": len(messages)}
-                tickets = response.json().get("data", [])
-                success = sum(1 for t in tickets if t.get("status") == "ok")
-                return {"success": success, "failed": len(tickets) - success}
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                for i in range(0, len(messages), 100):
+                    chunk = messages[i : i + 100]
+                    response = await client.post(
+                        EXPO_PUSH_URL,
+                        json=chunk,
+                        headers={"Content-Type": "application/json"},
+                    )
+                    if response.status_code != 200:
+                        logger.error(
+                            "[Push] batch HTTP %s body=%s",
+                            response.status_code,
+                            response.text[:300],
+                        )
+                        failed_total += len(chunk)
+                        continue
+                    tickets = response.json().get("data", []) or []
+                    chunk_success = sum(1 for t in tickets if t.get("status") == "ok")
+                    success_total += chunk_success
+                    failed_total += len(tickets) - chunk_success
+            return {"success": success_total, "failed": failed_total}
         except Exception as e:
             logger.error("[Push] batch exception: %s", str(e))
-            return {"success": 0, "failed": len(messages)}
+            return {"success": success_total, "failed": failed_total + len(messages) - success_total - failed_total}
 
 
 push_service = PushNotificationService()
