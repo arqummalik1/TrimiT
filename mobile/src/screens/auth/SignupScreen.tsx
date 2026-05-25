@@ -105,9 +105,13 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
 
     if (result.success) {
       if (result.requiresEmailConfirmation) {
-        setConfirmedEmail(data.email.trim());
-        setEmailConfirmationSent(true);
-        setAccountReadyForLogin(!!result.accountReadyForLogin);
+        // OTP-based signup: backend has already triggered the email OTP via
+        // auth/v1/otp. Route to the 6-digit verify screen — Zomato/Blinkit-style
+        // — instead of the legacy "check your email link" page.
+        navigation.navigate('VerifyOtp', {
+          email: data.email.trim().toLowerCase(),
+          type: 'signup',
+        });
         setLastSignupErrorCode(null);
       }
     } else {
