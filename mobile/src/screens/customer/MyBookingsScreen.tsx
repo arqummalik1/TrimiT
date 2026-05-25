@@ -9,7 +9,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -33,6 +34,13 @@ import { Booking } from '../../types';
 import { typography, spacing, fonts } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
+import { useAuthStore } from '../../store/authStore';
+import {
+  subscribeToUserBookings,
+  unsubscribeFromBookings,
+} from '../../lib/supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import { logger } from '../../lib/logger';
 
 import { AppError } from '../../types/error';
 import { CustomerTabScreenProps } from '../../navigation/types';
@@ -44,6 +52,7 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const userId = useAuthStore((s) => s.user?.id);
 
   const {
     data: bookings,
@@ -64,6 +73,34 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
       return failureCount < 2;
     },
   });
+
+  // Refetch whenever the user lands on this tab — closes the gap where a
+  // freshly-confirmed booking exists in cache but stale-while-revalidate
+  // hadn't kicked in yet.
+  useFocusEffect(
+    React.useCallback(() => {
+      void queryClient.invalidateQueries({ queryKey: ['myBookings'] });
+    }, [queryClient])
+  );
+
+  // Realtime: instant refresh when the owner accepts/rejects/completes/reschedules
+  // any of the customer's bookings, or when this customer creates a new one from
+  // another device. Subscribes only while we have a logged-in user id.
+  useEffect(() => {
+    if (!userId) return;
+    const channel: RealtimeChannel = subscribeToUserBookings(userId, (payload) => {
+      logger.debug('[MyBookings] realtime event', {
+        type: payload.eventType,
+        bookingId:
+          (payload.new as { id?: string } | null)?.id ??
+          (payload.old as { id?: string } | null)?.id,
+      });
+      void queryClient.invalidateQueries({ queryKey: ['myBookings'] });
+    });
+    return () => {
+      unsubscribeFromBookings(channel);
+    };
+  }, [userId, queryClient]);
 
   const showSkeleton = useMinLoadingTime(isLoading);
 

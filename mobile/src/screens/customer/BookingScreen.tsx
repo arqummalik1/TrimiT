@@ -26,6 +26,10 @@ import { Button } from '../../components/Button';
 import { useBookingStore } from '../../store/bookingStore';
 import { scheduleBookingReminder, presentBookingConfirmedLocal } from '../../lib/notifications';
 import { openNativeDirections } from '../../lib/maps';
+import {
+  navigateToCustomerBookings,
+  resetToCustomerDiscover,
+} from '../../lib/navigationHelpers';
 import { handleApiError } from '../../lib/errorHandler';
 import { isAppError } from '../../types/error';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
@@ -547,10 +551,14 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       logger.debug('[BookingFlow] booking.create.success', { bookingId });
 
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      // Customer Bookings tab uses ['myBookings']; ensure it refetches immediately
+      // instead of waiting for pull-to-refresh.
+      queryClient.invalidateQueries({ queryKey: ['myBookings'] });
       queryClient.invalidateQueries({ queryKey: ['slots'] });
       unsubscribeFromSlots();
 
       void Promise.all([
+        queryClient.refetchQueries({ queryKey: ['myBookings'] }),
         queryClient.refetchQueries({ queryKey: ['ownerBookings'] }),
         queryClient.refetchQueries({ queryKey: ['recentBookings'] }),
         queryClient.refetchQueries({ queryKey: ['ownerAnalytics'] }),
@@ -792,7 +800,9 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
     const timer = setTimeout(() => {
       if (!successNavigatedRef.current) {
         successNavigatedRef.current = true;
-        navigation.navigate('CustomerTabs', { screen: 'Bookings' });
+        // Pop the Discover stack back to root before switching tabs so the
+        // next tap on the Discover tab does not refocus this success screen.
+        navigateToCustomerBookings(navigation);
       }
     }, 3000);
     return () => clearTimeout(timer);
@@ -860,7 +870,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
                   setSelectedSlot(null);
                   setHoldId(null);
                   setTimeLeft(null);
-                  navigation.navigate('CustomerTabs', { screen: 'Bookings' });
+                  navigateToCustomerBookings(navigation);
                 }}
               >
                 <Text style={styles.primarySuccessButtonText}>View Bookings</Text>
@@ -874,7 +884,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
                   setSelectedSlot(null);
                   setHoldId(null);
                   setTimeLeft(null);
-                  navigation.navigate('DiscoverMain');
+                  resetToCustomerDiscover(navigation);
                 }}
               >
                 <Text style={styles.secondaryButtonText}>Back to Home</Text>

@@ -140,7 +140,7 @@ export const subscribeToSalonBookings = (
   if (__DEV__) {
     console.log('[Supabase] Subscribing to salon bookings:', salonId);
   }
-  
+
   const channel = supabase
     .channel(`salon-bookings:${salonId}`)
     .on(
@@ -167,6 +167,47 @@ export const subscribeToSalonBookings = (
         console.error('[Supabase] ❌ salon-bookings CHANNEL_ERROR', { salonId, err });
       } else if (__DEV__) {
         console.log('[Supabase] salon-bookings status', { salonId, status, err: err?.message });
+      }
+    });
+
+  return channel;
+};
+
+/**
+ * Subscribe to bookings owned by the current customer (used by MyBookingsScreen
+ * to refresh the list automatically when status changes — owner accept/reject,
+ * complete, reschedule, etc. — without a pull-to-refresh).
+ */
+export const subscribeToUserBookings = (
+  userId: string,
+  onChange: (payload: BookingPayload) => void
+): RealtimeChannel => {
+  if (__DEV__) {
+    console.log('[Supabase] Subscribing to user bookings:', userId);
+  }
+
+  const channel = supabase
+    .channel(`user-bookings:${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'bookings',
+        filter: `user_id=eq.${userId}`,
+      },
+      (payload: BookingPayload) => {
+        if (__DEV__) {
+          console.log('[Supabase] user-bookings event:', payload.eventType);
+        }
+        onChange(payload);
+      }
+    )
+    .subscribe((status, err) => {
+      if (status === 'CHANNEL_ERROR') {
+        console.error('[Supabase] ❌ user-bookings CHANNEL_ERROR', { userId, err });
+      } else if (__DEV__) {
+        console.log('[Supabase] user-bookings status', { userId, status, err: err?.message });
       }
     });
 
