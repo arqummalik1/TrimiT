@@ -232,7 +232,10 @@ async def resend_confirmation(request: Request, data: ResendConfirmationRequest)
 @limiter.limit("5/minute")
 async def forgot_password(request: Request, data: ForgotPasswordRequest):
     """Trigger Supabase password reset email."""
-    redirect_to = data.redirect_to or f"{settings.FRONTEND_URL}/reset-password"
+    # Settings only defines PUBLIC_SITE_URL; FRONTEND_URL was a typo from an earlier
+    # config and would AttributeError if a caller ever omitted `redirect_to`.
+    # Mobile sends a deep link; web omits redirect_to and relies on the public site URL.
+    redirect_to = data.redirect_to or f"{settings.PUBLIC_SITE_URL.rstrip('/')}/reset-password"
     response = await supabase.request(
         "POST", "auth/v1/recover", json={"email": data.email}, params={"redirectTo": redirect_to}
     )
