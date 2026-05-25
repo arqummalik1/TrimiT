@@ -14,10 +14,7 @@ const LoginPage = () => {
   const redirectAfterLogin = safeInternalPath(searchParams.get('redirect'));
   
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [isOtpLogin, setIsOtpLogin] = useState(true);
+  const isOtpLogin = true;
   const [resendTimer, setResendTimer] = useState(0);
 
   // Resend Countdown Timer
@@ -28,16 +25,6 @@ const LoginPage = () => {
     }, 1000);
     return () => clearInterval(interval);
   }, [resendTimer]);
-
-  // Load saved credentials if remember me was checked
-  useEffect(() => {
-    const savedEmail = localStorage.getItem('trimit_remember_email');
-    const savedRemember = localStorage.getItem('trimit_remember_me');
-    if (savedRemember === 'true' && savedEmail) {
-      setEmail(savedEmail);
-      setRememberMe(true);
-    }
-  }, []);
 
   const handleSignInWithOtp = async (e) => {
     e.preventDefault();
@@ -51,32 +38,6 @@ const LoginPage = () => {
       useToastStore.getState().success('Verification OTP code sent to your email.');
       setResendTimer(60);
       navigate(`/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}&type=magiclink`);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    clearError();
-    
-    const result = await login(email, password, rememberMe);
-    
-    if (result.success) {
-      // Save or clear remember me preferences
-      if (rememberMe) {
-        localStorage.setItem('trimit_remember_email', email);
-        localStorage.setItem('trimit_remember_me', 'true');
-      } else {
-        localStorage.removeItem('trimit_remember_email');
-        localStorage.removeItem('trimit_remember_me');
-      }
-      
-      if (result.profile?.role === 'owner') {
-        navigate(result.hasSalon ? '/owner/dashboard' : '/owner/salon', { replace: true });
-      } else if (redirectAfterLogin) {
-        navigate(redirectAfterLogin, { replace: true });
-      } else {
-        navigate('/explore', { replace: true });
-      }
     }
   };
 
@@ -133,57 +94,6 @@ const LoginPage = () => {
               </div>
             </div>
 
-            {!isOtpLogin && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-2">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <Lock 
-                      size={20} 
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" 
-                    />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      data-testid="login-password"
-                      className="w-full pl-12 pr-12 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
-                      placeholder="Enter your password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
-                    >
-                      {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Remember Me & Forgot Password */}
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 text-orange-800 border-stone-300 rounded focus:ring-orange-800"
-                    />
-                    <span className="text-sm text-stone-600">Remember me</span>
-                  </label>
-                  <Link
-                    to="/forgot-password"
-                    className="text-sm text-orange-800 font-medium hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-              </>
-            )}
-
             <button
               type="submit"
               disabled={isLoading || (isOtpLogin && resendTimer > 0)}
@@ -193,7 +103,7 @@ const LoginPage = () => {
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                isOtpLogin ? (resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Send Verification Code') : 'Sign In'
+                resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Send Verification Code'
               )}
             </button>
           </form>
@@ -209,18 +119,6 @@ const LoginPage = () => {
                 Sign up
               </Link>
             </p>
-            <div className="border-t border-stone-100 pt-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOtpLogin(!isOtpLogin);
-                  clearError();
-                }}
-                className="text-sm text-orange-800 font-semibold hover:underline cursor-pointer focus:outline-none"
-              >
-                {isOtpLogin ? 'Sign In with Password' : 'Sign In with OTP'}
-              </button>
-            </div>
           </div>
         </div>
       </motion.div>

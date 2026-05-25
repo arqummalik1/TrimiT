@@ -244,23 +244,29 @@ async def salvage_rate_limited_signup(
 
 
 async def perform_supabase_signup(user: UserCreate) -> Tuple[int, Dict[str, Any]]:
-    redirect_to = email_confirmation_redirect_url()
+    email_norm = _normalize_email(user.email)
     resp = await supabase.request(
         "POST",
-        "auth/v1/signup",
+        "auth/v1/otp",
         json={
-            "email": _normalize_email(user.email),
-            "password": user.password,
-            "data": {
-                "name": user.name,
-                "phone": user.phone or "",
-                "role": user.role.value,
-            },
-            "redirect_to": redirect_to,
-            "options": {"email_redirect_to": redirect_to},
+            "email": email_norm,
+            "create_user": True,
+            "options": {
+                "data": {
+                    "name": user.name,
+                    "phone": user.phone or "",
+                    "role": user.role.value,
+                }
+            }
         },
     )
+    if resp.status_code in (200, 201):
+        return 202, {
+            "code": "EMAIL_CONFIRMATION_REQUIRED",
+            "message": "Account created. Please check your email for the verification link/OTP to complete your registration."
+        }
     return resp.status_code, safe_auth_response_json(resp)
+
 
 
 

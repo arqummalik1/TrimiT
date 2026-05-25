@@ -24,10 +24,8 @@ const SignupPage = () => {
     name: '',
     email: '',
     phone: '',
-    password: '',
     role: searchParams.get('role') || '',
   });
-  const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [emailConfirmationSent, setEmailConfirmationSent] = useState(false);
   const [confirmedEmail, setConfirmedEmail] = useState('');
@@ -56,7 +54,7 @@ const SignupPage = () => {
     
     const result = await signup(
       formData.email, 
-      formData.password, 
+      null, 
       formData.name, 
       formData.phone, 
       formData.role
@@ -272,35 +270,7 @@ const SignupPage = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock 
-                    size={20} 
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" 
-                  />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    data-testid="signup-password"
-                    className="w-full pl-12 pr-12 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
-                    placeholder="Min 6 characters"
-                    minLength={6}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
-                  >
-                    {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-              </div>
+
 
               <label className="flex items-start gap-3 cursor-pointer">
                 <input

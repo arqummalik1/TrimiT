@@ -78,18 +78,13 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
   const [resendLoading, setResendLoading] = useState(false);
 
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
-  const [isOtpLogin, setIsOtpLogin] = useState(true);
+  const isOtpLogin = true;
 
   const handleFieldChange = useCallback(
-    (field: 'email' | 'password', value: string) => {
-      if (field === 'email') setEmail(value);
-      else setPassword(value);
-
-      // Clear both field-level and API-level errors on input
-      if (fieldErrors[field]) setFieldErrors((e) => ({ ...e, [field]: undefined }));
+    (value: string) => {
+      setEmail(value);
+      if (fieldErrors.email) setFieldErrors((e) => ({ ...e, email: undefined }));
       if (authError) clearError();
     },
     [fieldErrors, authError, clearError]
@@ -203,7 +198,7 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
               label="Email Address"
               placeholder="you@example.com"
               value={email}
-              onChangeText={(v) => handleFieldChange('email', v)}
+              onChangeText={(v) => handleFieldChange(v)}
               keyboardType="email-address"
               autoCapitalize="none"
               editable={!isLoading}
@@ -211,56 +206,9 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
               error={fieldErrors.email}
             />
 
-            {!isOtpLogin && (
-              <View style={styles.passwordContainer}>
-                <Input
-                  label="Password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChangeText={(v) => handleFieldChange('password', v)}
-                  secureTextEntry={!showPassword}
-                  editable={!isLoading}
-                  icon={<Ionicons name="lock-closed-outline" size={20} color={theme.colors.textSecondary} />}
-                  error={fieldErrors.password}
-                />
-                <TouchableOpacity
-                  style={styles.eyeButton}
-                  onPress={() => setShowPassword((prev) => !prev)}
-                  disabled={isLoading}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color={theme.colors.textSecondary}
-                  />
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <TouchableOpacity
-                onPress={() => {
-                  setIsOtpLogin(!isOtpLogin);
-                  if (authError) clearError();
-                }}
-                disabled={isLoading}
-              >
-                <Text style={styles.forgotText}>
-                  {isOtpLogin ? 'Sign In with Password' : 'Sign In with OTP'}
-                </Text>
-              </TouchableOpacity>
-              {!isOtpLogin && (
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('ForgotPassword')}
-                  disabled={isLoading}
-                >
-                  <Text style={styles.forgotText}>Forgot Password?</Text>
-                </TouchableOpacity>
-              )}
-            </View>
             <Button
-              title={isOtpLogin ? 'Send Verification Code' : 'Sign In'}
-              onPress={isOtpLogin ? handleSignInWithOtp : handleLogin}
+              title="Send Verification Code"
+              onPress={handleSignInWithOtp}
               loading={isLoading}
               style={styles.submitButton}
             />

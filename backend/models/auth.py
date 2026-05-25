@@ -8,7 +8,7 @@ class UserRole(str, Enum):
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
+    password: Optional[str] = None
     name: str
     phone: Optional[str] = None
     role: UserRole

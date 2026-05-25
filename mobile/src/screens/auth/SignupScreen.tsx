@@ -46,7 +46,6 @@ const signupSchema = z.object({
   name: z.string().min(1, 'Full name is required'),
   email: z.string().email('Enter a valid email address'),
   phone: z.string().regex(/^[+\d\s\-()]{7,15}$/, 'Enter a valid phone number').optional().or(z.literal('')),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 type SignupFormData = z.infer<typeof signupSchema>;
@@ -63,7 +62,6 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
   const role: 'customer' | 'owner' = route.params?.role || 'customer';
   const { signup, resendConfirmation, isLoading, error: authError, clearError } = useAuthStore();
 
-  const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [emailConfirmationSent, setEmailConfirmationSent] = useState(false);
   const [confirmedEmail, setConfirmedEmail] = useState('');
@@ -77,7 +75,7 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { name: '', email: '', phone: '', password: '' },
+    defaultValues: { name: '', email: '', phone: '' },
   });
 
   const onSignupSubmit = async (data: SignupFormData) => {
@@ -89,7 +87,7 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
     
     const result = await signup(
       data.email.trim(),
-      data.password,
+      "",
       data.name.trim(),
       data.phone || '',
       role
@@ -332,36 +330,7 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
               )}
             />
 
-            <View style={styles.passwordContainer}>
-              <Controller
-                control={control}
-                name="password"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <Input
-                    label="Password *"
-                    placeholder="Min 6 characters"
-                    value={value}
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    secureTextEntry={!showPassword}
-                    editable={!isLoading}
-                    icon={<Ionicons name="lock-closed-outline" size={20} color={theme.colors.textSecondary} />}
-                    error={errors.password?.message}
-                  />
-                )}
-              />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setShowPassword((prev) => !prev)}
-                disabled={isLoading}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={theme.colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
+
 
             <View style={styles.termsRow}>
               <TouchableOpacity

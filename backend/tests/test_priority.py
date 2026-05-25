@@ -102,14 +102,8 @@ def test_payment_verify_invalid_signature(client):
     app.dependency_overrides = {}
 
 def test_signup_email_confirmation_required(client, mock_supabase):
-    # Mock Supabase signup returning 200 but session is null (email confirmation required)
-    mock_supabase.post("/auth/v1/signup").return_value = Response(200, json={
-        "user": {
-            "id": "u123",
-            "email": "test@example.com"
-        },
-        "session": None
-    })
+    # Mock Supabase signup returning 200 (OTP sent successfully)
+    mock_supabase.post("/auth/v1/otp").return_value = Response(200, json={})
     
     # Mock admin list to check if user exists (none)
     mock_supabase.get("/auth/v1/admin/users").return_value = Response(200, json={"users": []})
