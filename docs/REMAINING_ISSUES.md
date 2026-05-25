@@ -265,6 +265,11 @@ change.
 **Remaining:** When you want a real admin role table + JWT-based admin auth, swap `_require_admin` in `routers/admin.py` to use the JWT-derived user identity and stop relying on the static token.
 **Risk:** none — additive.
 
+### B12. Missing backend auth endpoints (FIXED ✅)
+`GET /auth/me`, `PATCH /auth/profile`, `POST /auth/push-token`,
+`PATCH /auth/notification-preferences`, `DELETE /auth/account` were missing
+from `backend/routers/auth.py`. Restored in pass 6 (commit `a02ab79a`).
+
 ---
 
 ## Mobile — open issues
@@ -510,6 +515,8 @@ the `ADMIN_API_TOKEN` env var.
 | 2026-05-25 | Pass 3 | Mobile: Discover-tab-after-booking bug fixed via `popToTop` in `navigateToCustomerBookings` + new `resetToCustomerDiscover` helper. |
 | 2026-05-25 | Pass 4 | Backend + Mobile + DB: Zomato/Blinkit-style broadcast push (admin endpoint, `promotions` Android channel, `notify_promotional` opt-in, `broadcast_notifications` audit table). |
 | 2026-05-25 | Ops | `database/39_broadcast_notifications.sql` applied in Supabase ✅. `ADMIN_API_TOKEN` set in Render env vars ✅. Local APK build triggered (EAS local, preview profile). |
+| 2026-05-25 | Pass 5 | Mobile: persistent login across swipe-kill — `secureStorage` now falls back to AsyncStorage on 2KB limit; `initializeAuth` trusts persisted token immediately, only clears on confirmed 401. |
+| 2026-05-25 | Pass 6 | Mobile: signup OTP flow routes to `VerifyOtp` screen. `authStore.verifyOtp` now uses `data.profile` (not raw `data.user`). `pendingSignupStore` stashes name+phone; `VerifyOtpScreen` PATCHes profile after verify. Backend: restored 5 missing endpoints (`/auth/me`, `/auth/profile`, `/auth/push-token`, `/auth/notification-preferences`, `/auth/account`). Profile save now works. |
 
 ---
 
