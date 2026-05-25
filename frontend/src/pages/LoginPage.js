@@ -14,7 +14,9 @@ const LoginPage = () => {
   const redirectAfterLogin = safeInternalPath(searchParams.get('redirect'));
   
   const [email, setEmail] = useState('');
-  const isOtpLogin = true;
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isOtpLogin, setIsOtpLogin] = useState(true);
   const [resendTimer, setResendTimer] = useState(0);
 
   // Resend Countdown Timer
@@ -38,6 +40,20 @@ const LoginPage = () => {
       useToastStore.getState().success('Verification OTP code sent to your email.');
       setResendTimer(60);
       navigate(`/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}&type=magiclink`);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    clearError();
+    if (!email || !password) {
+      useAuthStore.setState({ error: 'Please enter both your email address and password.' });
+      return;
+    }
+    const result = await login(email.trim(), password);
+    if (result.success) {
+      useToastStore.getState().success('Signed in successfully.');
+      navigate(redirectAfterLogin || '/');
     }
   };
 
@@ -94,6 +110,44 @@ const LoginPage = () => {
               </div>
             </div>
 
+            {!isOtpLogin && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-stone-700">
+                    Password
+                  </label>
+                  <Link
+                    to={`/forgot-password?email=${encodeURIComponent(email.trim())}`}
+                    className="text-sm font-medium text-orange-800 hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <Lock 
+                    size={20} 
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" 
+                  />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    data-testid="login-password"
+                    className="w-full pl-12 pr-12 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors"
+                  >
+                    {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={isLoading || (isOtpLogin && resendTimer > 0)}
@@ -103,9 +157,24 @@ const LoginPage = () => {
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Send Verification Code'
+                isOtpLogin 
+                  ? (resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Send Verification Code')
+                  : 'Sign In'
               )}
             </button>
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOtpLogin(!isOtpLogin);
+                  clearError();
+                }}
+                className="text-sm font-semibold text-orange-800 hover:underline"
+              >
+                {isOtpLogin ? 'Sign in with Email and Password' : 'Sign in with OTP'}
+              </button>
+            </div>
           </form>
 
           <div className="mt-6 text-center space-y-3">

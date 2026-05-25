@@ -78,13 +78,24 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
   const [resendLoading, setResendLoading] = useState(false);
 
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isOtpLogin, setIsOtpLogin] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
-  const isOtpLogin = true;
 
   const handleFieldChange = useCallback(
     (value: string) => {
       setEmail(value);
       if (fieldErrors.email) setFieldErrors((e) => ({ ...e, email: undefined }));
+      if (authError) clearError();
+    },
+    [fieldErrors, authError, clearError]
+  );
+
+  const handlePasswordChange = useCallback(
+    (value: string) => {
+      setPassword(value);
+      if (fieldErrors.password) setFieldErrors((e) => ({ ...e, password: undefined }));
       if (authError) clearError();
     },
     [fieldErrors, authError, clearError]
@@ -206,12 +217,60 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
               error={fieldErrors.email}
             />
 
+            {!isOtpLogin && (
+              <View style={styles.passwordContainer}>
+                <Input
+                  label="Password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChangeText={(v) => handlePasswordChange(v)}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                  icon={<Ionicons name="lock-closed-outline" size={20} color={theme.colors.textSecondary} />}
+                  error={fieldErrors.password}
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={theme.colors.textSecondary}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.forgotButton}
+                  onPress={() => navigation.navigate('ForgotPassword', { prefilledEmail: email.trim() })}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.forgotText}>Forgot Password?</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <Button
-              title="Send Verification Code"
-              onPress={handleSignInWithOtp}
+              title={isOtpLogin ? 'Send Verification Code' : 'Sign In'}
+              onPress={isOtpLogin ? handleSignInWithOtp : handleLogin}
               loading={isLoading}
               style={styles.submitButton}
             />
+
+            <TouchableOpacity
+              style={styles.toggleModeButton}
+              onPress={() => {
+                setIsOtpLogin(!isOtpLogin);
+                setFieldErrors({});
+                clearError();
+              }}
+              disabled={isLoading}
+            >
+              <Text style={styles.toggleModeText}>
+                {isOtpLogin ? 'Sign in with Email and Password' : 'Sign in with OTP'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Footer */}
@@ -292,6 +351,16 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   submitButton: {
     marginTop: spacing.sm,
+  },
+  toggleModeButton: {
+    alignSelf: 'center',
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  toggleModeText: {
+    ...typography.bodySmallMedium,
+    color: theme.colors.primary,
+    textAlign: 'center',
   },
   footer: {
     flexDirection: 'row',

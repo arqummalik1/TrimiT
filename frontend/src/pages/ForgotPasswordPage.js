@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { EnvelopeSimple, ArrowLeft, CheckCircle } from '@phosphor-icons/react';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
@@ -7,7 +7,8 @@ import { useAuthStore } from '../store/authStore';
 
 const ForgotPasswordPage = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [searchParams] = useSearchParams();
+  const [email, setEmail] = useState(searchParams.get('email') || '');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [errorTitle, setErrorTitle] = useState(null);
