@@ -99,7 +99,24 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
       return;
     }
 
-    const result = await verifyOtp(email, fullCode, type);
+    // For signup verifications, peek at the pending signup so we can pass the
+    // role hint (and name/phone) to the backend BEFORE the profile row is
+    // created. This is the only reliable way to land on the right tab — Supabase
+    // does not round-trip options.data through OTP. Peek (don't consume) here;
+    // we consume after the verify call succeeds.
+    let pendingExtras: { role?: 'customer' | 'owner'; name?: string; phone?: string } | undefined;
+    if (type === 'signup') {
+      const peek = usePendingSignupStore.getState().pending;
+      if (peek && peek.email.trim().toLowerCase() === email.trim().toLowerCase()) {
+        pendingExtras = {
+          role: peek.role,
+          name: peek.name || undefined,
+          phone: peek.phone || undefined,
+        };
+      }
+    }
+
+    const result = await verifyOtp(email, fullCode, type, pendingExtras);
     if (result.success) {
       if (type === 'recovery') {
         // If recovery, navigate to ResetPassword with the retrieved token
@@ -113,9 +130,10 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
         const isNew = result.session?.is_new_user;
         const name = result.session?.profile?.name || email.split('@')[0];
 
-        // SIGNUP path: write the name + phone the user typed on the signup form
-        // into public.users. We can't depend on Supabase round-tripping
-        // `options.data` from auth/v1/otp through to verify.
+        // SIGNUP path: backend already received our role/name/phone hints, so
+        // the profile row was created with the correct role. Now consume the
+        // pending entry and PATCH name/phone defensively (covers any edge
+        // case where the backend dropped them).
         if (type === 'signup') {
           const pending = usePendingSignupStore.getState().consumePendingSignup(email);
           if (pending && (pending.name || pending.phone)) {
@@ -125,8 +143,6 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
                 name: pending.name || undefined,
                 phone: pending.phone || undefined,
               });
-              // Reflect immediately in the local user store so ProfileScreen
-              // shows the right values without waiting for /auth/me.
               const { useAuthStore: store } = require('../../store/authStore');
               const current = store.getState().user;
               if (current) {

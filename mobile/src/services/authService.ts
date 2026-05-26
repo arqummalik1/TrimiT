@@ -47,7 +47,16 @@ export const authService = {
     return apiClient.post('/auth/send-otp', { email });
   },
 
-  verifyOtp: async (email: string, token: string, type: 'signup' | 'recovery' | 'magiclink') => {
-    return apiClient.post('/auth/verify-otp', { email, token, type });
+  verifyOtp: async (
+    email: string,
+    token: string,
+    type: 'signup' | 'recovery' | 'magiclink',
+    extras?: {
+      role?: 'customer' | 'owner';
+      name?: string;
+      phone?: string;
+    }
+  ) => {
+    return apiClient.post('/auth/verify-otp', { email, token, type, ...(extras || {}) });
   },
 };

@@ -401,16 +401,34 @@ async def verify_otp(request: Request, data: VerifyOtpRequest):
             if not existing_profile:
                 is_new = True
 
+            # Build the metadata dict resolve_profile_for_user reads. For brand-
+            # new accounts (no profile row yet), merge the client's signup intent
+            # (role, name, phone) on top of whatever Supabase forwarded — Supabase
+            # does NOT reliably persist `options.data` from auth/v1/otp into
+            # user_metadata when the user is created via OTP, so we'd otherwise
+            # always default to role='customer'. Once a profile row exists, the
+            # client values are ignored (no role escalation possible).
+            merged_metadata: dict = dict(supabase_user.get("user_metadata") or {})
+            if is_new:
+                if data.role is not None:
+                    merged_metadata["role"] = data.role.value
+                if data.name:
+                    merged_metadata.setdefault("name", data.name)
+                if data.phone:
+                    merged_metadata.setdefault("phone", data.phone)
+
             profile = await resolve_profile_for_user(
                 user_id,
                 supabase_user.get("email", data.email),
-                supabase_user.get("user_metadata"),
+                merged_metadata,
                 user_jwt=access_token,
             )
             logger.info(
-                "OTP verify profile resolved user=%s role=%s",
+                "OTP verify profile resolved user=%s role=%s is_new=%s client_role_hint=%s",
                 user_id[:8],
                 profile.get("role"),
+                is_new,
+                (data.role.value if data.role else None),
             )
         except RuntimeError:
             logger.error("OTP verify profile resolve failed for user %s", user_id)

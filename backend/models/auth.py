@@ -69,4 +69,10 @@ class VerifyOtpRequest(BaseModel):
     email: EmailStr
     token: str
     type: OtpType
+    # Signup-only: client's intended role from the SignupScreen. Used ONLY when
+    # the user does not yet have a public.users row — i.e. account creation.
+    # Once a profile exists, the server ignores this field (no escalation).
+    role: Optional[UserRole] = None
+    name: Optional[str] = None
+    phone: Optional[str] = None
 

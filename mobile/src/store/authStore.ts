@@ -45,7 +45,12 @@ interface AuthState {
   deleteAccount: () => Promise<{ success: boolean; error?: string }>;
   clearError: () => void;
   initializeAuth: () => Promise<void>;
-  verifyOtp: (email: string, token: string, type: 'signup' | 'recovery' | 'magiclink') => Promise<{ success: boolean; error?: string; session?: any }>;
+  verifyOtp: (
+    email: string,
+    token: string,
+    type: 'signup' | 'recovery' | 'magiclink',
+    extras?: { role?: 'customer' | 'owner'; name?: string; phone?: string }
+  ) => Promise<{ success: boolean; error?: string; session?: any }>;
   sendOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
   isOnboardingCompleted: boolean;
   completeOnboarding: () => void;
@@ -334,11 +339,11 @@ export const useAuthStore = create<AuthState>()(
         })();
       },
 
-      verifyOtp: async (email, token, type) => {
+      verifyOtp: async (email, token, type, extras) => {
         set({ isLoading: true, error: null });
         try {
           const { authService } = require('../services/authService');
-          const response = await authService.verifyOtp(email, token, type);
+          const response = await authService.verifyOtp(email, token, type, extras);
           const data = response.data;
           
           if (!data || !data.access_token) {

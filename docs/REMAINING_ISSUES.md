@@ -517,6 +517,7 @@ the `ADMIN_API_TOKEN` env var.
 | 2026-05-25 | Ops | `database/39_broadcast_notifications.sql` applied in Supabase ✅. `ADMIN_API_TOKEN` set in Render env vars ✅. Local APK build triggered (EAS local, preview profile). |
 | 2026-05-25 | Pass 5 | Mobile: persistent login across swipe-kill — `secureStorage` now falls back to AsyncStorage on 2KB limit; `initializeAuth` trusts persisted token immediately, only clears on confirmed 401. |
 | 2026-05-25 | Pass 6 | Mobile: signup OTP flow routes to `VerifyOtp` screen. `authStore.verifyOtp` now uses `data.profile` (not raw `data.user`). `pendingSignupStore` stashes name+phone; `VerifyOtpScreen` PATCHes profile after verify. Backend: restored 5 missing endpoints (`/auth/me`, `/auth/profile`, `/auth/push-token`, `/auth/notification-preferences`, `/auth/account`). Profile save now works. |
+| 2026-05-25 | Pass 7 | Backend + Mobile: owner signup now lands on owner tabs. `VerifyOtpRequest` accepts `role`/`name`/`phone` hints; backend uses them only when no profile row exists (no escalation). Mobile reads from `pendingSignupStore` and passes them on signup verify. Added `.kiro/steering/production-rules.md` for the production posture. |
 
 ---
 
