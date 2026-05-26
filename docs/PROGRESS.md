@@ -1,6 +1,8 @@
 # TrimiT — Project Progress
 
-> Living handoff file for humans and AI tools.  
+> **READ `/RULES.md` ON EVERY PROMPT.** Engineering rules live at the repo root.
+>
+> Living handoff file for humans and AI tools.
 > Update this file after every meaningful prompt, code change, migration, deploy, or QA pass.
 
 ## Current State
@@ -224,6 +226,7 @@ This pass is focused on the selected P1 items:
 | 2026-05-25 | Pass 5 — fixed persistent login across swipe-kill (Zomato/Blinkit-style). Root causes: (1) `expo-secure-store` 2KB limit silently dropped writes; fallback now routes to AsyncStorage. (2) `initializeAuth` was clearing session on any network error at cold start — now trusts persisted token immediately, runs `/auth/me` in background, only clears on confirmed 401. (3) `safeAuthStorage` consolidated to delegate through `secureStorage`. | DONE |
 | 2026-05-25 | Pass 6 — fixed signup OTP flow: after 202, app now navigates to `VerifyOtp` screen (6-digit code) instead of legacy "check email link" page. Fixed profile name/phone not saving: (1) `authStore.verifyOtp` was setting `data.user` (raw Supabase auth user, no name/phone) instead of `data.profile` (resolved `public.users` row). (2) New `pendingSignupStore` stashes name+phone at signup submit; `VerifyOtpScreen` consumes it after OTP verify and PATCHes `/auth/profile`. (3) Restored 5 missing backend endpoints that were lost in an earlier refactor: `GET /auth/me`, `PATCH /auth/profile`, `POST /auth/push-token`, `PATCH /auth/notification-preferences`, `DELETE /auth/account`. Profile save now works. | DONE |
 | 2026-05-25 | Pass 7 — fixed owner signup landing on customer tabs. Root cause: Supabase does not reliably round-trip `options.data` from `auth/v1/otp` into `user_metadata` at verify time, so backend's `resolve_profile_for_user` never saw the role and defaulted to `customer`. Fix: `VerifyOtpRequest` now accepts optional `role`/`name`/`phone` fields; backend uses them ONLY when no `public.users` row exists (no escalation possible). Mobile `VerifyOtpScreen` reads them from `pendingSignupStore` and passes them on every signup verify. New `.kiro/steering/production-rules.md` codifies the production posture for future sessions. | DONE |
+| 2026-05-25 | Pass 8 — created `RULES.md` at the repo root as the single source of truth for engineering rules (persona, live-app safety, quality bar, real-time architecture, booking + auth invariants, deployment, communication). Mirrored the rules into `.kiro/steering/production-rules.md` and `.cursorrules`. Added a banner pointing to `RULES.md` at the top of `CLAUDE.md`, `docs/PROGRESS.md`, and `docs/REMAINING_ISSUES.md`. Reference apps explicitly named: Zomato, Blinkit, Zepto, Swiggy, Uber, Ola, Instagram, Facebook. Top-of-file rule: read `RULES.md` on every prompt. | DONE |
 
 ## Next Recommended Steps
 

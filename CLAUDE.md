@@ -1,5 +1,11 @@
 # CLAUDE.md
 
+> **READ `/RULES.md` AT THE REPO ROOT ON EVERY PROMPT.** That file is the
+> single source of truth for engineering rules (persona, live-app safety,
+> quality bar, real-time architecture, booking + auth invariants, deployment
+> posture, communication style). This file documents the repo layout and
+> common commands.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Repository Layout
