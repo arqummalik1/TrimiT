@@ -1,6 +1,6 @@
 # TrimiT — Engineering Rules (Single Source of Truth)
 
-> **READ THIS FILE ON EVERY PROMPT.**
+> **READ THIS FILE ON EVERY PROMPT — BEFORE WRITING ANY CODE.**
 > If you are an AI assistant (Kiro, Claude, ChatGPT, Cursor, Copilot, etc.) or a
 > human contributor working on this repo, this file is the authoritative ruleset.
 > It supersedes anything else in `.cursorrules`, `CLAUDE.md`, or `.kiro/steering/`
@@ -8,21 +8,35 @@
 
 ---
 
-## 0. The product
+## 0. The product — LIVE IN PRODUCTION (v1)
 
-**TrimiT** is a salon marketplace for India (₹ pricing, English UI), already
-live in production:
+**TrimiT** is a salon marketplace for India (₹ pricing, English UI). It is
+**already in production at v1**. Real customers and real salon owners use it
+every day. Treat every change as a production change.
+
+**Current production state — ALL OF THIS IS LIVE:**
 
 - **Mobile** — Expo SDK 54 / React Native 0.81 / React 19. Customer + owner in
-  one app. On Google Play.
-- **Web** — Vite 6 + React 19 + Tailwind. Marketing + customer + owner web on
-  `trimit.online`.
-- **Backend** — FastAPI on Render.
-- **DB / Auth / Realtime** — Supabase (Postgres with RLS, Auth, Realtime
-  websockets, Storage).
+  one app. **Published on Google Play Store.** Real users have it installed.
+- **Web** — Vite 6 + React 19 + Tailwind. Marketing + customer + owner web.
+  **Deployed on Vercel at `trimit.online`.** Auto-deploys from `main`.
+- **Backend** — FastAPI. **Deployed on Render.** Auto-deploys from `main`.
+- **Database / Auth / Realtime / Storage** — **Supabase, fully provisioned.**
+  Postgres with RLS enabled, Auth configured, Realtime websockets active,
+  Storage buckets in use.
+- **Database schema** — **Every numbered migration in `database/` has already
+  been run successfully against the production Supabase project.** Do not
+  assume any prior migration is unapplied. Any new SQL is a *new* numbered
+  file that must be applied manually in the Supabase SQL Editor.
+- **Secrets and API keys** — **All integrated and live.** Supabase service-role
+  + anon keys, Resend (transactional email), Razorpay (payments), Expo push
+  credentials, Google Maps, etc. Do not regenerate, rotate, or print these
+  without explicit user instruction.
 
-**This is a multi-million-dollar startup trajectory.** Every change reaches
-real users within minutes of being pushed to `main`. Treat it that way.
+**Bottom line:** every push to `main` reaches real paying users within minutes
+via Render and Vercel auto-deploy, and every user on Google Play is one OTA
+update or AAB release away from your code. **There is no staging buffer.
+There is no "we'll fix it later." Treat `main` as production, because it is.**
 
 ---
 
@@ -36,26 +50,79 @@ real users within minutes of being pushed to `main`. Treat it that way.
   responsiveness, error handling, and reliability is set by these apps.
 - Be **responsible**. Quality bar is non-negotiable. No half-baked code.
 
-## 2. Live-app safety (most important)
+## 2. Live-app safety (THE rule above all rules)
 
-- **The app is in production.** Real customers and salon owners depend on it.
-- **Before any change with even a small chance of breaking the live app, the
-  data, the mobile app, the web app, or the backend — STOP and ASK FIRST.**
-  This is the rule above all other rules. Never push a breaking change without
-  the user's explicit go-ahead.
-- **Never break:**
-  - Authentication for existing users (sessions persist across swipe-kill).
-  - Booking flow (race-safe, atomic, idempotent).
-  - Push notifications (booking + broadcast on separate channels).
-  - RLS-enforced data tenancy.
-  - Existing API contract (no removed/renamed fields; only additive optional
-    fields).
-- **Schema migrations are forward-only.** Never edit an applied migration.
-  Add a new numbered file under `database/`. Test on staging or a copy of prod
-  before applying. State explicitly that migrations need to be applied
-  manually in Supabase SQL Editor.
-- **Find the root cause, not the surface symptom.** If a fix is a band-aid,
-  say so explicitly. Top-1% engineers don't ship band-aids.
+The product is in production at v1. Real customers, real salon owners, real
+money, real bookings, real push notifications. **A bad change does not just
+fail a test — it breaks logins, corrupts data, drops bookings, and erodes
+trust with paying users.**
+
+### 2.1 Pre-change gate (mandatory)
+
+**Before writing or applying any change**, mentally walk through this gate.
+If the answer to ANY of these is "yes" or "maybe", **STOP and ask the user
+first** — describe the risk plainly, propose a safe rollout, wait for
+explicit go-ahead. No exceptions, no shortcuts, no "I'll just try it."
+
+- Could this log out, lock out, or change the role of any existing user?
+- Could this break or alter the OTP / signup / login flow for customers or
+  owners?
+- Could this change, drop, rename, or otherwise modify columns, tables,
+  policies, triggers, or RPCs in Supabase?
+- Could this change the request/response shape of any existing FastAPI
+  endpoint, or remove/rename any field clients already read?
+- Could this affect the booking flow — slot holds, atomic booking, capacity,
+  reschedule, or the realtime subscriptions that drive the customer Bookings
+  tab and owner Dashboard?
+- Could this affect push notification delivery, channels, dedupe, or
+  permissions?
+- Could this affect RLS policies, service-role usage, or data tenancy
+  between salons?
+- Could this require a Play Store rebuild + resubmission, or a forced app
+  update for users on older builds?
+
+If the change is purely additive, internal-only, behind a flag, or
+backwards-compatible, say so explicitly and proceed with the standard
+quality bar.
+
+### 2.2 Hard never-break list
+
+The following must keep working without regression on every change:
+
+- **Auth for existing users.** Sessions persist across swipe-kill, app
+  uninstall-reinstall scenarios excepted. Cold-start NEVER logs a user out
+  on a transient network error.
+- **Booking flow.** Race-safe, atomic, idempotent end to end (mobile + web +
+  backend + RPC).
+- **Push notifications.** Booking events + broadcast on the configured
+  channels, deduped per `(booking, event_type, user)`.
+- **RLS-enforced data tenancy.** A salon can never see another salon's data.
+  A customer can never see another customer's data.
+- **API contract.** Existing fields are not removed or renamed. Only
+  additive, optional fields. Old mobile builds in the wild must keep working.
+- **Realtime subscriptions.** Customer Bookings tab, customer BookingScreen
+  slot grid, owner Dashboard, web BookingPage — all stay live.
+
+### 2.3 Migrations and SQL
+
+- **Every existing migration in `database/` has already been applied to
+  production Supabase.** Do not edit, reorder, or "fix" an applied migration.
+- New SQL goes into a **new numbered file** in `database/`.
+- After authoring any new SQL, **state explicitly that the user must apply it
+  manually in the Supabase SQL Editor against the production project**, and
+  list the file path.
+- **Forward-only.** No destructive `DROP` or `ALTER` against existing
+  production tables/columns/policies without an explicit confirmed plan from
+  the user.
+- Any new RLS policy, trigger, or RPC must be reviewed for tenant isolation
+  before being proposed for application.
+
+### 2.4 Root cause, not band-aid
+
+- Find the **root cause** of every bug. State it plainly.
+- If a fix is a band-aid (suppressing an error, hiding a symptom, retrying
+  past a real problem), **say so explicitly** and call out the proper fix
+  that should follow. Top-1% engineers do not silently ship band-aids.
 
 ## 3. Quality bar
 
@@ -135,18 +202,29 @@ wrapper. **Never move enforcement up to the API layer.**
 - **Idempotent signup**: re-submitting signup for an unconfirmed account
   resends the OTP rather than erroring.
 
-## 8. Deployment posture
+## 8. Deployment posture (everything is already wired — do not break it)
 
-- Backend deploys from `main` to **Render** automatically on push.
-- Web deploys from `main` to **Vercel** automatically on push.
-- Mobile builds via `npm run build:apk:local` (preview profile) or
-  `npm run build:aab:local` (production AAB for Play Store).
-- After fixes, **always merge `zero-point-ten` → `main` and push both** so
-  Render/Vercel pick up the change. Forgetting this leaves prod on stale code.
-- After SQL migrations are written, **state explicitly that they need to be
-  applied manually in Supabase SQL Editor**.
+- **Backend** → Render. Auto-deploys from `main`. Health: `/health`. Service
+  role + Supabase URL + all third-party keys are already configured in Render
+  environment variables.
+- **Web** → Vercel. Auto-deploys from `main`. `trimit.online`. Env vars
+  configured in Vercel project settings.
+- **Mobile** → Already published on Google Play Store. New release flow:
+  `npm run build:aab:local` → upload AAB to Play Console. Preview/internal:
+  `npm run build:apk:local`. **A breaking client change requires either an
+  OTA-safe Expo update or a new Play Store submission — flag this before
+  shipping.**
+- **Supabase** → Project provisioned. All schema migrations already applied.
+  Auth, RLS, Realtime, Storage all configured. **Do not run destructive SQL
+  against this project without explicit user confirmation.**
+- **Branch flow** — After fixes, **always merge `zero-point-ten` → `main` and
+  push both** so Render/Vercel pick up the change. Forgetting this leaves
+  prod on stale code.
+- After SQL migrations are written, **state explicitly that the user must
+  apply them manually in the Supabase SQL Editor** and name the file.
 - **Watch the deploy.** Confirm with `curl /health` and a sanity request
-  before claiming the fix is live.
+  before claiming the fix is live. Don't claim a fix is in production until
+  you have proof from the deployed environment.
 
 ## 9. Documentation discipline
 
@@ -168,6 +246,9 @@ wrapper. **Never move enforcement up to the API layer.**
   was actually wrong.
 - **No filler.** No "Great question!" / "I'd be happy to help!" / "Let me know
   if you have questions!" — just the work and the result.
+- **Flag risk before doing the work**, not after. If a request has a chance
+  of breaking production, the FIRST thing in the reply is the risk and the
+  question — not the diff.
 
 ## 11. When in doubt
 
@@ -184,4 +265,4 @@ Then act. If still unsure, **ask the user first.**
 ---
 
 *This file must be read on every prompt. If you skip it, you are violating
-the engineering contract for this repo.*
+the engineering contract for this repo. The product is live. Act like it.*

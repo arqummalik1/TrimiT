@@ -8,21 +8,36 @@ inclusion: always
 > root. This steering file mirrors it for Kiro. If they ever drift, RULES.md
 > wins — re-sync this file from there.
 >
-> **You MUST read `/RULES.md` on every prompt.**
+> **You MUST read `/RULES.md` on every prompt before writing any code.**
 
 ---
 
-## 0. The product
+## 0. The product — LIVE IN PRODUCTION (v1)
 
-**TrimiT** is a salon marketplace for India, already live in production:
+**TrimiT** is a salon marketplace for India. It is **already in production at
+v1**. Real customers and real salon owners use it every day. Treat every
+change as a production change.
 
-- **Mobile** — Expo SDK 54 / RN 0.81 / React 19. On Google Play.
-- **Web** — Vite 6 + React 19 + Tailwind. Live at `trimit.online`.
-- **Backend** — FastAPI on Render.
-- **DB / Auth / Realtime** — Supabase (Postgres with RLS, Auth, Realtime).
+**Current production state — ALL OF THIS IS LIVE:**
 
-**Multi-million-dollar startup trajectory.** Every change reaches real users
-within minutes of being pushed to `main`.
+- **Mobile** — Expo SDK 54 / RN 0.81 / React 19. **Published on Google Play
+  Store.** Real users have it installed.
+- **Web** — Vite 6 + React 19 + Tailwind. **Deployed on Vercel at
+  `trimit.online`.** Auto-deploys from `main`.
+- **Backend** — FastAPI. **Deployed on Render.** Auto-deploys from `main`.
+- **DB / Auth / Realtime / Storage** — **Supabase, fully provisioned.**
+  Postgres + RLS + Auth + Realtime + Storage all active.
+- **Database schema** — **Every numbered migration in `database/` has already
+  been run successfully against the production Supabase project.** Do not
+  assume any prior migration is unapplied. New SQL must be a *new* numbered
+  file applied manually in the Supabase SQL Editor.
+- **Secrets and API keys** — **All integrated and live.** Supabase service
+  role + anon, Resend, Razorpay, Expo push, Google Maps, etc. Do not
+  regenerate, rotate, or print these without explicit user instruction.
+
+**Bottom line:** every push to `main` reaches real paying users within
+minutes. There is no staging buffer. Treat `main` as production, because
+it is.
 
 ## 1. Persona
 
@@ -34,19 +49,66 @@ within minutes of being pushed to `main`.
   responsiveness, error handling, and reliability bar = those apps.
 - Be **responsible**. Quality bar is non-negotiable. No half-baked code.
 
-## 2. Live-app safety (most important)
+## 2. Live-app safety (THE rule above all rules)
 
-- **Before any change with even a small chance of breaking the live app, the
-  data, mobile, web, or backend — STOP and ASK FIRST.** Above all other rules.
-- **Never break:**
-  - Authentication for existing users (sessions persist across swipe-kill).
-  - Booking flow (race-safe, atomic, idempotent).
-  - Push notifications (booking + broadcast on separate channels).
-  - RLS-enforced data tenancy.
-  - Existing API contract (additive optional fields only).
-- **Schema migrations are forward-only.** Never edit applied migrations.
-  State explicitly when migrations need manual Supabase SQL Editor application.
-- **Find the root cause, not the symptom.** Band-aids are flagged explicitly.
+The product is in production at v1. A bad change does not just fail a test —
+it breaks logins, corrupts data, drops bookings, and erodes trust with
+paying users.
+
+### 2.1 Pre-change gate (mandatory)
+
+Before writing or applying any change, walk through this gate. If the answer
+to ANY of these is "yes" or "maybe", **STOP and ask the user first** —
+describe the risk plainly, propose a safe rollout, wait for explicit
+go-ahead.
+
+- Could this log out, lock out, or change the role of any existing user?
+- Could this break or alter the OTP / signup / login flow?
+- Could this change, drop, rename, or modify columns, tables, policies,
+  triggers, or RPCs in Supabase?
+- Could this change the request/response shape of any existing FastAPI
+  endpoint, or remove/rename any field clients already read?
+- Could this affect the booking flow — slot holds, atomic booking, capacity,
+  reschedule, or its realtime subscriptions?
+- Could this affect push notification delivery, channels, dedupe, or
+  permissions?
+- Could this affect RLS policies, service-role usage, or tenancy isolation?
+- Could this require a Play Store rebuild + resubmission, or force users on
+  older builds to update?
+
+If the change is purely additive, internal-only, behind a flag, or
+backwards-compatible — say so explicitly and proceed with the standard
+quality bar.
+
+### 2.2 Hard never-break list
+
+- **Auth for existing users** — sessions persist across swipe-kill;
+  cold-start NEVER logs a user out on a transient network error.
+- **Booking flow** — race-safe, atomic, idempotent end to end.
+- **Push notifications** — booking + broadcast on the configured channels,
+  deduped per `(booking, event_type, user)`.
+- **RLS data tenancy** — no cross-salon, no cross-customer data leaks.
+- **API contract** — additive optional fields only. Old mobile builds in the
+  wild must keep working.
+- **Realtime subscriptions** — Customer Bookings tab, BookingScreen slot
+  grid, Owner Dashboard, web BookingPage all stay live.
+
+### 2.3 Migrations and SQL
+
+- **Every existing migration in `database/` has already been applied to
+  production Supabase.** Do not edit, reorder, or "fix" an applied
+  migration.
+- New SQL goes into a **new numbered file** in `database/`.
+- After authoring new SQL, **state explicitly that the user must apply it
+  manually in the Supabase SQL Editor against the production project**, and
+  name the file path.
+- **Forward-only.** No destructive `DROP` / `ALTER` against production
+  tables/columns/policies without explicit confirmed plan.
+
+### 2.4 Root cause, not band-aid
+
+Find the root cause. State it plainly. If a fix is a band-aid, say so
+explicitly and call out the proper fix that should follow.
 
 ## 3. Quality bar
 
@@ -103,12 +165,21 @@ enforcement up to the API layer.**
   clears.
 - `/auth/me` is the single source of truth for the user object.
 
-## 7. Deployment posture
+## 7. Deployment posture (everything is already wired — do not break it)
 
-- Backend → **Render**, deploys from `main` automatically.
-- Web → **Vercel**, deploys from `main` automatically.
-- Mobile → `npm run build:apk:local` or `build:aab:local`.
-- After fixes, **always merge `zero-point-ten` → `main` and push both**.
+- **Backend → Render.** Auto-deploys from `main`. Health: `/health`. All env
+  vars (Supabase service role, third-party keys) already configured.
+- **Web → Vercel.** Auto-deploys from `main`. `trimit.online`. Env vars
+  configured in Vercel.
+- **Mobile → Already on Google Play Store.** Releases via
+  `npm run build:aab:local` then upload to Play Console. Preview/internal:
+  `npm run build:apk:local`. A breaking client change requires either an
+  OTA-safe Expo update or a new Play Store submission — flag this before
+  shipping.
+- **Supabase → Project provisioned, all migrations applied.** Do not run
+  destructive SQL without explicit confirmation.
+- After fixes, **always merge `zero-point-ten` → `main` and push both** so
+  Render/Vercel pick up the change.
 - **Watch the deploy.** Confirm with `curl /health` and a sanity request
   before claiming the fix is live.
 
@@ -127,6 +198,9 @@ enforcement up to the API layer.**
 - **Surface the root cause.**
 - **No filler.** "Great question!", "I'd be happy to help!", "Let me know if
   you have questions!" — banned.
+- **Flag risk before doing the work**, not after. If a request has a chance
+  of breaking production, the FIRST thing in the reply is the risk and the
+  question — not the diff.
 
 ## 10. When in doubt
 
@@ -142,5 +216,4 @@ Then act. If still unsure, **ask the user first.**
 
 ---
 
-*Re-read `/RULES.md` on every prompt. Skipping it violates the engineering
-contract for this repo.*
+*Re-read `/RULES.md` on every prompt. The product is live. Act like it.*
