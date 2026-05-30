@@ -150,8 +150,6 @@ TrimiT/
 │   └── [many more guides]
 │
 ├── RULES.md                   # ⭐ SINGLE SOURCE OF TRUTH for engineering rules
-├── CLAUDE.md                  # Agent guidance (mirrors RULES.md)
-├── CONTEXT.md                 # Shorter architecture summary
 ├── DOCUMENTATION.md           # Technical overview
 ├── README.md                  # Project intro
 └── .cursorrules               # Cursor IDE rules (mirrors RULES.md)
@@ -1591,12 +1589,11 @@ My task: [describe your task here]
 
 1. Read this document top-to-bottom
 2. Read `/RULES.md` at the repo root
-3. Read `CLAUDE.md` for agent guidance
-4. Clone the repo and run locally:
+3. Clone the repo and run locally:
    - Backend: `cd backend && uvicorn server:app --port 8001 --reload`
    - Mobile: `cd mobile && npm start`
    - Web: `cd frontend && npm start`
-5. Explore the codebase following the file structure
+4. Explore the codebase following the file structure
 
 ### 18.3 For Code Reviews
 

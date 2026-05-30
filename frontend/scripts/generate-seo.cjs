@@ -4,6 +4,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const seoData = require('../src/config/seo-data.json');
 
 const siteUrl = (
   process.env.REACT_APP_PUBLIC_SITE_URL ||
@@ -21,27 +22,7 @@ if (!siteUrl) {
 const publicDir = path.join(__dirname, '..', 'public');
 const lastmodDate = new Date().toISOString().split('T')[0];
 
-const staticRoutes = [
-  { path: '/', changefreq: 'weekly', priority: '1.0' },
-  { path: '/explore', changefreq: 'daily', priority: '0.95' },
-  { path: '/for-salons', changefreq: 'weekly', priority: '0.9' },
-  { path: '/blog', changefreq: 'weekly', priority: '0.7' },
-  { path: '/salons-in-jammu', changefreq: 'weekly', priority: '0.85' },
-  { path: '/best-haircut-in-jammu', changefreq: 'weekly', priority: '0.85' },
-  { path: '/beard-trimming-jammu', changefreq: 'weekly', priority: '0.85' },
-  { path: '/spa-services-jammu', changefreq: 'weekly', priority: '0.85' },
-  { path: '/beauty-parlours-jammu', changefreq: 'weekly', priority: '0.85' },
-  { path: '/mens-salon-jammu', changefreq: 'weekly', priority: '0.85' },
-  { path: '/bridal-makeup-jammu', changefreq: 'weekly', priority: '0.85' },
-  { path: '/blog/best-salon-booking-tips-jammu', changefreq: 'monthly', priority: '0.6' },
-  { path: '/blog/mens-grooming-guide-jammu', changefreq: 'monthly', priority: '0.6' },
-  { path: '/blog/spa-wellness-jammu', changefreq: 'monthly', priority: '0.6' },
-  { path: '/signup', changefreq: 'monthly', priority: '0.8' },
-  { path: '/login', changefreq: 'monthly', priority: '0.6' },
-  { path: '/contact', changefreq: 'monthly', priority: '0.6' },
-  { path: '/privacy', changefreq: 'yearly', priority: '0.5' },
-  { path: '/terms', changefreq: 'yearly', priority: '0.5' },
-];
+const staticRoutes = seoData.STATIC_ROUTES;
 
 function locFor(routePath) {
   return routePath === '/' ? `${siteUrl}/` : `${siteUrl}${routePath}`;
@@ -55,10 +36,36 @@ async function getSalons() {
     console.warn('[generate-seo] Supabase credentials missing from env. Skipping dynamic sitemap generation.');
     return [];
   }
+  
+  // Try querying the dedicated read-only view first (for safety and schema isolation)
+  const viewUrl = `${supabaseUrl.replace(/\/$/, '')}/rest/v1/salons_sitemap?select=id,created_at`;
+  const tableUrl = `${supabaseUrl.replace(/\/$/, '')}/rest/v1/salons?select=id,created_at`;
+  
   try {
-    const url = `${supabaseUrl.replace(/\/$/, '')}/rest/v1/salons?select=id,updated_at`;
-    console.log(`[generate-seo] Fetching dynamic salons from: ${url}`);
-    const response = await fetch(url, {
+    console.log(`[generate-seo] Attempting to fetch dynamic salons from view: ${viewUrl}`);
+    const response = await fetch(viewUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`[generate-seo] Fetched ${data.length} salons successfully from view.`);
+      return data;
+    }
+    console.warn(`[generate-seo] View fetch failed with status ${response.status}. Falling back to direct table query.`);
+  } catch (error) {
+    console.warn(`[generate-seo] View fetch failed: ${error.message}. Falling back to direct table query.`);
+  }
+
+  // Fallback to querying public.salons table directly if the migration is not yet run
+  try {
+    console.log(`[generate-seo] Fetching dynamic salons from table fallback: ${tableUrl}`);
+    const response = await fetch(tableUrl, {
       method: 'GET',
       headers: {
         'apikey': supabaseKey,
@@ -67,13 +74,13 @@ async function getSalons() {
       }
     });
     if (!response.ok) {
-      throw new Error(`Supabase API responded with status ${response.status}`);
+      throw new Error(`Supabase API table fallback responded with status ${response.status}`);
     }
     const data = await response.json();
-    console.log(`[generate-seo] Fetched ${data.length} salons successfully.`);
+    console.log(`[generate-seo] Fetched ${data.length} salons successfully from table fallback.`);
     return data;
   } catch (error) {
-    console.warn(`[generate-seo] Failed to fetch dynamic salons: ${error.message}. Deferring to static routes.`);
+    console.warn(`[generate-seo] Failed to fetch dynamic salons from fallback: ${error.message}. Deferring to static routes.`);
     return [];
   }
 }
@@ -81,7 +88,7 @@ async function getSalons() {
 async function main() {
   const salons = await getSalons();
   const dynamicRoutes = salons.map((salon) => {
-    const lastmod = salon.updated_at ? salon.updated_at.split('T')[0] : lastmodDate;
+    const lastmod = salon.created_at ? salon.created_at.split('T')[0] : lastmodDate;
     return {
       path: `/salon/${salon.id}`,
       changefreq: 'daily',

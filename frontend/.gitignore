@@ -15,3 +15,7 @@ npm-debug.log*
 
 # editor
 .DS_Store
+
+# Generated SEO files
+public/sitemap.xml
+public/robots.txt
