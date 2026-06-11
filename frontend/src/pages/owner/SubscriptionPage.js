@@ -32,8 +32,18 @@ const STATUS_TONE = {
   payment_failed: 'bg-red-100 text-red-700',
 };
 
-const fmtDate = (iso) => {
-  if (!iso) return '—';
+const PRO_FEATURES = [
+  ['Unlimited bookings', 'Accept, confirm & manage all customer bookings'],
+  ['Services & pricing', 'Add and edit your full service menu'],
+  ['Staff management', 'Add staff, assign services & schedules'],
+  ['Real-time dashboard', 'Live new-booking alerts the moment they arrive'],
+  ['Analytics & reports', 'Revenue, trends and business insights'],
+  ['Promotions & marketing', 'Run promo codes and offers'],
+  ['Customer notifications', 'Automatic booking push updates to customers'],
+  ['Marketplace visibility', 'Your salon stays listed & bookable to all customers'],
+];
+
+const fmtDate = (iso) => {  if (!iso) return '—';
   try {
     return new Date(iso).toLocaleDateString('en-IN', {
       day: 'numeric',
@@ -165,6 +175,31 @@ const SubscriptionPage = () => {
             {sub.trial_days_remaining} day{sub.trial_days_remaining === 1 ? '' : 's'} left in your free trial
           </div>
         )}
+      </div>
+
+      {/* What you get — TrimiT Pro value card */}
+      <div className="rounded-2xl border border-teal-300 bg-white p-6 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="font-bold text-gray-900">Everything in TrimiT Pro</h2>
+            <p className="text-sm text-gray-500">One plan. All features unlocked.</p>
+          </div>
+          <div className="flex items-end text-teal-700">
+            <span className="text-3xl font-extrabold">₹299</span>
+            <span className="text-sm font-bold mb-1">/mo</span>
+          </div>
+        </div>
+        <ul className="grid sm:grid-cols-2 gap-3">
+          {PRO_FEATURES.map(([title, desc]) => (
+            <li key={title} className="flex items-start gap-2">
+              <CheckCircle size={20} weight="fill" className="text-teal-600 mt-0.5 shrink-0" />
+              <div>
+                <div className="text-sm font-semibold text-gray-900">{title}</div>
+                <div className="text-xs text-gray-500">{desc}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {/* Details */}

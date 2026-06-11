@@ -31,6 +31,17 @@ const STATUS_LABEL: Record<SubscriptionStatus, string> = {
   grace_period: 'Grace Period',
 };
 
+const PRO_FEATURES: { icon: keyof typeof import('@expo/vector-icons').Ionicons.glyphMap; title: string; desc: string }[] = [
+  { icon: 'calendar', title: 'Unlimited bookings', desc: 'Accept, confirm & manage all customer bookings' },
+  { icon: 'pricetags', title: 'Services & pricing', desc: 'Add and edit your full service menu' },
+  { icon: 'people', title: 'Staff management', desc: 'Add staff, assign services & schedules' },
+  { icon: 'flash', title: 'Real-time dashboard', desc: 'Live new-booking alerts the moment they arrive' },
+  { icon: 'bar-chart', title: 'Analytics & reports', desc: 'Revenue, trends and business insights' },
+  { icon: 'megaphone', title: 'Promotions & marketing', desc: 'Run promo codes and offers' },
+  { icon: 'notifications', title: 'Customer notifications', desc: 'Automatic booking push updates to customers' },
+  { icon: 'storefront', title: 'Marketplace visibility', desc: 'Your salon stays listed & bookable to all customers' },
+];
+
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
   try {
@@ -132,6 +143,33 @@ const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
               </Text>
             </View>
           )}
+        </View>
+
+        {/* What you get — TrimiT Pro value card */}
+        <View style={styles.featuresCard}>
+          <View style={styles.featuresHeader}>
+            <View>
+              <Text style={styles.featuresTitle}>Everything in TrimiT Pro</Text>
+              <Text style={styles.featuresSub}>One plan. All features unlocked.</Text>
+            </View>
+            <View style={styles.priceTag}>
+              <Text style={styles.priceAmount}>₹299</Text>
+              <Text style={styles.pricePer}>/mo</Text>
+            </View>
+          </View>
+          <View style={styles.featuresList}>
+            {PRO_FEATURES.map((f) => (
+              <View key={f.title} style={styles.featureRow}>
+                <View style={styles.featureCheck}>
+                  <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                </View>
+                <View style={styles.featureTextWrap}>
+                  <Text style={styles.featureTitle}>{f.title}</Text>
+                  <Text style={styles.featureDesc}>{f.desc}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
 
         {/* Details */}
@@ -257,6 +295,38 @@ const createStyles = (theme: Theme) =>
       borderRadius: 10,
     },
     trialText: { color: theme.colors.text, fontSize: 13, fontWeight: '600' },
+    featuresCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.primary + '55',
+      padding: 16,
+      gap: 14,
+    },
+    featuresHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    featuresTitle: { fontSize: 16, fontWeight: '800', color: theme.colors.text },
+    featuresSub: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 },
+    priceTag: { flexDirection: 'row', alignItems: 'flex-end' },
+    priceAmount: { fontSize: 24, fontWeight: '900', color: theme.colors.primary },
+    pricePer: { fontSize: 13, fontWeight: '700', color: theme.colors.primary, marginBottom: 3 },
+    featuresList: { gap: 12 },
+    featureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+    featureCheck: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: theme.colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 1,
+    },
+    featureTextWrap: { flex: 1 },
+    featureTitle: { fontSize: 14, fontWeight: '700', color: theme.colors.text },
+    featureDesc: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 1 },
     detailCard: {
       backgroundColor: theme.colors.surface,
       borderRadius: 16,
