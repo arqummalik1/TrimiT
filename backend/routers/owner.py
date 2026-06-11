@@ -6,6 +6,7 @@ import logging
 from core.supabase import supabase
 from config import settings
 from dependencies.auth import get_current_user
+from dependencies.subscription import require_active_subscription
 
 logger = logging.getLogger("trimit")
 
@@ -74,7 +75,7 @@ async def get_owner_salon(current_user: dict = Depends(get_current_user)):
     return salon
 
 @router.get("/analytics")
-async def get_owner_analytics(period: str = "today", current_user: dict = Depends(get_current_user)):
+async def get_owner_analytics(period: str = "today", current_user: dict = Depends(require_active_subscription)):
     """
     Get business analytics for the current owner's salon.
     """

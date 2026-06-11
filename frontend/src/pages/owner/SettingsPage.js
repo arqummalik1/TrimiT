@@ -12,12 +12,13 @@ import {
   CheckCircle,
   Minus,
   Plus,
-  Users
+  Users,
+  Star
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import AccountDeletionSection from '../../components/AccountDeletionSection';
 import AppVersionNote from '../../components/AppVersionNote';
-import { ENABLE_MULTI_BOOKING_PER_SLOT } from '../../lib/featureFlags';
+import { ENABLE_MULTI_BOOKING_PER_SLOT, ENABLE_SUBSCRIPTIONS } from '../../lib/featureFlags';
 
 const SettingsPage = () => {
   const queryClient = useQueryClient();
@@ -128,6 +129,22 @@ const SettingsPage = () => {
             Manage your salon preferences
           </p>
         </motion.div>
+
+        {ENABLE_SUBSCRIPTIONS && (
+          <Link
+            to="/owner/subscription"
+            className="flex items-center gap-3 bg-white rounded-2xl p-4 mb-6 border border-stone-200 hover:border-teal-400 transition-colors"
+          >
+            <div className="w-11 h-11 rounded-xl bg-teal-50 flex items-center justify-center">
+              <Star size={22} weight="fill" className="text-teal-700" />
+            </div>
+            <div className="flex-1">
+              <div className="font-semibold text-stone-900">TrimiT Pro Subscription</div>
+              <div className="text-sm text-stone-500">Manage your plan, billing & payment history</div>
+            </div>
+            <span className="text-stone-400">›</span>
+          </Link>
+        )}
 
         {/* Success Message */}
         {showSuccess && (

@@ -73,6 +73,9 @@ export type OwnerSettingsStackParamList = {
   ManageSalon: undefined;
   StaffManagement: undefined;
   PromoManagement: undefined;
+  Subscription: undefined;
+  SubscriptionCheckout: undefined;
+  PaymentHistory: undefined;
   PrivacyPolicy: undefined;
   Terms: undefined;
   Contact: undefined;

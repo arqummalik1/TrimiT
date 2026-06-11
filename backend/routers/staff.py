@@ -10,6 +10,7 @@ from datetime import date, time
 from decimal import Decimal
 
 from dependencies.auth import get_current_user
+from dependencies.subscription import require_active_subscription
 from models.staff import (
     StaffCreate, StaffUpdate, StaffResponse, StaffWithServices,
     StaffServiceAssignment, StaffServiceResponse, BulkStaffServiceAssignment,
@@ -31,7 +32,7 @@ router = APIRouter(prefix="/staff", tags=["staff"])
 async def create_staff(
     request: Request,
     staff_data: StaffCreate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_active_subscription)
 ):
     """
     Create a new staff member (Owner only)
@@ -163,7 +164,7 @@ async def update_staff(
     request: Request,
     staff_id: UUID,
     staff_data: StaffUpdate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_active_subscription)
 ):
     """
     Update staff member (Owner only)
@@ -230,7 +231,7 @@ async def update_staff(
 async def delete_staff(
     request: Request,
     staff_id: UUID,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_active_subscription)
 ):
     """
     Soft delete staff member (Owner only)
@@ -292,7 +293,7 @@ async def delete_staff(
 async def assign_service_to_staff(
     request: Request,
     assignment: StaffServiceAssignment,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_active_subscription)
 ):
     """
     Assign a service to a staff member (Owner only)
@@ -367,7 +368,7 @@ async def assign_service_to_staff(
 async def bulk_assign_services(
     request: Request,
     assignment: BulkStaffServiceAssignment,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_active_subscription)
 ):
     """
     Assign multiple services to a staff member at once (Owner only)
@@ -428,7 +429,7 @@ async def bulk_assign_services(
 async def remove_service_from_staff(
     request: Request,
     staff_service_id: UUID,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_active_subscription)
 ):
     """Remove a service assignment from a staff member (Owner only)"""
     token = current_user.get("access_token")

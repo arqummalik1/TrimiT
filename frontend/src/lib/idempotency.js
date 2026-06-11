@@ -1,5 +1,5 @@
 /** POST paths that require `Idempotency-Key` (must match backend `@idempotency_required`). */
-export const IDEMPOTENT_POST_PATHS = ['/bookings/', '/payments/verify'];
+export const IDEMPOTENT_POST_PATHS = ['/bookings/', '/payments/verify', '/subscriptions/verify'];
 
 export function pathRequiresIdempotencyKey(url) {
   if (!url) return false;

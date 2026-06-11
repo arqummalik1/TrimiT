@@ -5,7 +5,52 @@
 > Living handoff file for humans and AI tools.
 > Update this file after every meaningful prompt, code change, migration, deploy, or QA pass.
 
+## Session log
+
+### 2026-06-11 — TrimiT Pro subscriptions (SaaS, Razorpay) — Phase 1 + Phase 2 (flagged)
+
+Added a complete owner-subscription system. **Phase 1 ships observe-only**
+(status + banners, NO hard enforcement). **Phase 2** (owner freeze + customer
+grey-out + backend 402 gating) is fully built but behind flags, OFF by default.
+
+- **DB (apply manually in Supabase):** `database/41_subscriptions.sql`
+  (subscriptions, subscription_payments, subscription_events, webhook_logs,
+  `salons.subscription_active`, trial trigger on owner signup, daily
+  expire-trials cron) and `database/42_nearby_salons_subscription_active.sql`
+  (RPC now returns `subscription_active`).
+- **Backend:** `routers/subscriptions.py` (+webhook, +cron reminder runner),
+  `services/subscription_service.py` (source of truth), `subscription_billing.py`
+  (Razorpay subscriptions), `subscription_notifications.py` (2d/1d/expired +
+  lifecycle), `dependencies/subscription.py` (`require_active_subscription`,
+  no-op in Phase 1), admin MRR/ARR analytics in `routers/admin.py`. Gate wired
+  into owner mutations (booking status, services, staff, promos, analytics).
+- **Config/env:** `RAZORPAY_PLAN_ID`, `RAZORPAY_WEBHOOK_SECRET`,
+  `SUBSCRIPTION_ENFORCEMENT_ENABLED` (default false).
+- **Mobile:** types/repo/service/hooks, `SubscriptionScreen`,
+  `SubscriptionCheckoutScreen` (Razorpay WebView), `PaymentHistoryScreen`,
+  `SubscriptionBanner`, `SubscriptionGate` (Phase 2 freeze), settings entry,
+  dashboard banner, SalonCard grey-out. Flags `ENABLE_SUBSCRIPTIONS` (on),
+  `ENABLE_SUBSCRIPTION_ENFORCEMENT` (off).
+- **Web:** service/repo/hooks, `/owner/subscription` page (Razorpay checkout),
+  settings link, same flags.
+- **Verified:** backend imports (74 routes) + py_compile clean; mobile
+  `tsc --noEmit` clean; pre-existing test failures confirmed unrelated.
+
+### 2026-06-11 (later) — subscription follow-ups
+- **Phase 2 booking block:** `create_booking` now returns `403 SALON_UNAVAILABLE`
+  for lapsed salons (flag-gated).
+- **Customer "unavailable" UX:** mobile `SalonDetailScreen` + web `SalonDetail`
+  show a notice and disable/booking-block when `subscription_active=false`.
+- **Resubscribe/reactivation:** verify + `subscription.charged` webhook detect a
+  prior lapsed state, reactivate, clear cancellation flags, log `reactivated`,
+  send "welcome back" push.
+- **Receipt emails (Resend):** `services/subscription_invoice_email.py` sends a
+  ₹299 receipt on every successful charge (verify + webhook). Graceful no-op if
+  `RESEND_API_KEY` unset. New env: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`.
+- Setup guide updated (sections 9–11 + env reference).
+
 ## Current State
+
 
 **Last updated:** 2026-05-25
 **Project type:** Live production monorepo

@@ -37,6 +37,7 @@ import {
   ENABLE_MULTI_BOOKING_PER_SLOT,
   ENABLE_OWNER_PROMO_MANAGEMENT,
   ENABLE_STAFF_SELECTION,
+  ENABLE_SUBSCRIPTIONS,
 } from '../../lib/featureFlags';
 
 type SettingsProps = OwnerSettingsScreenProps<'SettingsMain'>;
@@ -497,7 +498,25 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
         {/* Other Settings Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Salon Management</Text>
-          
+
+          {ENABLE_SUBSCRIPTIONS ? (
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('Subscription')}
+            >
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="star" size={24} color={theme.colors.primary} />
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionTitle}>TrimiT Pro Subscription</Text>
+                <Text style={styles.actionDescription}>
+                  Manage your plan, billing, and payment history
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          ) : null}
+
           <TouchableOpacity
             style={styles.actionCard}
             onPress={() => navigation.navigate('ManageSalon')}

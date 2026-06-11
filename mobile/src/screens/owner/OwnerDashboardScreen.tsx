@@ -37,6 +37,8 @@ import { handleApiError } from '../../lib/errorHandler';
 import { useMinLoadingTime } from '../../hooks/useMinLoadingTime';
 import { BookingsTrendChart, PopularServicesChart, StatusDistributionChart } from '../../components/charts';
 import BookingCard from '../../components/BookingCard';
+import { SubscriptionBanner } from '../../components/SubscriptionBanner';
+import { useSubscriptionStatus } from '../../hooks/useSubscription';
 
 import { OwnerDashboardScreenProps as NavigationProps } from '../../navigation/types';
 import { ComponentProps } from 'react';
@@ -206,6 +208,8 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
   });
 
   const queryClient = useQueryClient();
+
+  const { data: subscriptionStatus } = useSubscriptionStatus();
   const statusMutation = useMutation({
     mutationFn: ({ bookingId, status }: { bookingId: string; status: string }) => 
       bookingRepository.updateBookingStatus(bookingId, status),
@@ -332,6 +336,16 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
             {analytics && analytics.pending_bookings > 0 && <View style={styles.bellDot} />}
           </TouchableOpacity>
         </View>
+
+        {/* Subscription / trial banner (Phase 1: informational) */}
+        {subscriptionStatus ? (
+          <SubscriptionBanner
+            status={subscriptionStatus}
+            onPress={() =>
+              navigation.getParent()?.navigate('Settings', { screen: 'Subscription' })
+            }
+          />
+        ) : null}
 
         {/* Period Selector */}
         <View style={styles.periodRow}>

@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -95,11 +94,7 @@ export function ImageUploadField({
     }
 
     void (async () => {
-      const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!granted) {
-        Alert.alert('Permission required', 'Please allow access to your photo library.');
-        return;
-      }
+      // Android Photo Picker / iOS picker — no media-library permission needed.
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         quality: 1,

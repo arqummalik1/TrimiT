@@ -162,11 +162,15 @@ module.exports = ({ config }) => {
           backgroundColor: '#000000',
         },
         edgeToEdgeEnabled: true,
+        // NOTE: READ_MEDIA_IMAGES is intentionally NOT declared. Salon photo
+        // upload uses the Android Photo Picker via expo-image-picker's
+        // launchImageLibraryAsync (no permission required). Declaring
+        // READ_MEDIA_IMAGES for one-time/infrequent access violates Google
+        // Play's Photo and Video Permissions policy (app rejected v19).
         permissions: [
           'android.permission.ACCESS_FINE_LOCATION',
           'android.permission.ACCESS_COARSE_LOCATION',
           'android.permission.CAMERA',
-          'android.permission.READ_MEDIA_IMAGES',
           'android.permission.POST_NOTIFICATIONS',
         ],
         config: {
