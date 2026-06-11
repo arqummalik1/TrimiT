@@ -32,9 +32,8 @@ export const ENABLE_SUBSCRIPTIONS =
 
 /**
  * Phase 2 client enforcement: freeze the owner app + grey out lapsed salons
- * for customers. Keep OFF until a subscription-aware build is live in the
- * store AND the backend SUBSCRIPTION_ENFORCEMENT_ENABLED is flipped on.
+ * for customers. Default ON; set the env to 'false' to revert to observe-only.
  */
 export const ENABLE_SUBSCRIPTION_ENFORCEMENT =
-  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTION_ENFORCEMENT === 'true' ||
-  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTION_ENFORCEMENT === '1';
+  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTION_ENFORCEMENT !== 'false' &&
+  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTION_ENFORCEMENT !== '0';
