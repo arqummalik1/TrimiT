@@ -11,8 +11,8 @@ Allow: /spa-services-jammu
 Allow: /beauty-parlours-jammu
 Allow: /mens-salon-jammu
 Allow: /bridal-makeup-jammu
+Allow: /salon/
 Disallow: /discover
-Disallow: /salon/
 Disallow: /booking/
 Disallow: /my-bookings
 Disallow: /account

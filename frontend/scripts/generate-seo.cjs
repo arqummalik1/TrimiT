@@ -19,9 +19,9 @@ if (!siteUrl) {
 }
 
 const publicDir = path.join(__dirname, '..', 'public');
-const lastmod = new Date().toISOString().split('T')[0];
+const lastmodDate = new Date().toISOString().split('T')[0];
 
-const routes = [
+const staticRoutes = [
   { path: '/', changefreq: 'weekly', priority: '1.0' },
   { path: '/explore', changefreq: 'daily', priority: '0.95' },
   { path: '/for-salons', changefreq: 'weekly', priority: '0.9' },
@@ -47,13 +47,61 @@ function locFor(routePath) {
   return routePath === '/' ? `${siteUrl}/` : `${siteUrl}${routePath}`;
 }
 
-const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+const supabaseUrl = (process.env.VITE_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL || '').trim();
+const supabaseKey = (process.env.VITE_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY || '').trim();
+
+async function getSalons() {
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn('[generate-seo] Supabase credentials missing from env. Skipping dynamic sitemap generation.');
+    return [];
+  }
+  try {
+    const url = `${supabaseUrl.replace(/\/$/, '')}/rest/v1/salons?select=id,updated_at`;
+    console.log(`[generate-seo] Fetching dynamic salons from: ${url}`);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Supabase API responded with status ${response.status}`);
+    }
+    const data = await response.json();
+    console.log(`[generate-seo] Fetched ${data.length} salons successfully.`);
+    return data;
+  } catch (error) {
+    console.warn(`[generate-seo] Failed to fetch dynamic salons: ${error.message}. Deferring to static routes.`);
+    return [];
+  }
+}
+
+async function main() {
+  const salons = await getSalons();
+  const dynamicRoutes = salons.map((salon) => {
+    const lastmod = salon.updated_at ? salon.updated_at.split('T')[0] : lastmodDate;
+    return {
+      path: `/salon/${salon.id}`,
+      changefreq: 'daily',
+      priority: '0.80',
+      lastmod
+    };
+  });
+
+  const routes = [
+    ...staticRoutes.map(r => ({ ...r, lastmod: lastmodDate })),
+    ...dynamicRoutes
+  ];
+
+  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${routes
   .map(
     (r) => `  <url>
     <loc>${locFor(r.path)}</loc>
-    <lastmod>${lastmod}</lastmod>
+    <lastmod>${r.lastmod}</lastmod>
     <changefreq>${r.changefreq}</changefreq>
     <priority>${r.priority}</priority>
   </url>`
@@ -62,7 +110,7 @@ ${routes
 </urlset>
 `;
 
-const robots = `# TrimiT (${siteUrl})
+  const robots = `# TrimiT (${siteUrl})
 User-agent: *
 Allow: /
 Allow: /explore
@@ -75,8 +123,8 @@ Allow: /spa-services-jammu
 Allow: /beauty-parlours-jammu
 Allow: /mens-salon-jammu
 Allow: /bridal-makeup-jammu
+Allow: /salon/
 Disallow: /discover
-Disallow: /salon/
 Disallow: /booking/
 Disallow: /my-bookings
 Disallow: /account
@@ -87,8 +135,14 @@ Disallow: /reset-password
 Sitemap: ${siteUrl}/sitemap.xml
 `;
 
-fs.mkdirSync(publicDir, { recursive: true });
-fs.writeFileSync(path.join(publicDir, 'sitemap.xml'), sitemap, 'utf8');
-fs.writeFileSync(path.join(publicDir, 'robots.txt'), robots, 'utf8');
+  fs.mkdirSync(publicDir, { recursive: true });
+  fs.writeFileSync(path.join(publicDir, 'sitemap.xml'), sitemap, 'utf8');
+  fs.writeFileSync(path.join(publicDir, 'robots.txt'), robots, 'utf8');
 
-console.log(`[generate-seo] Wrote robots.txt and sitemap.xml for ${siteUrl}`);
+  console.log(`[generate-seo] Wrote robots.txt and sitemap.xml for ${siteUrl}`);
+}
+
+main().catch(err => {
+  console.error('[generate-seo] Error executing main sitemap builder:', err);
+  process.exit(1);
+});

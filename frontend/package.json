@@ -34,7 +34,7 @@
     "dev": "vite",
     "prebuild": "node scripts/generate-seo.cjs",
     "build": "vite build",
-    "postbuild": "node scripts/prerender-routes.cjs",
+    "postbuild": "node scripts/prerender-routes-static.cjs",
     "preview": "vite preview",
     "sync-legal": "node ../scripts/sync-legal.cjs"
   },

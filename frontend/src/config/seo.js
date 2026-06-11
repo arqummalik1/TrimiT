@@ -5,11 +5,11 @@ import { BLOG_POSTS } from '../content/blog/posts';
 export { PUBLIC_SITE_URL };
 
 export const DEFAULT_SEO = {
-  title: 'TrimiT — Book Salons in Jammu | Haircut, Beard, Spa & Bridal',
+  title: 'TrimiT — Book Salons & Saloons in Jammu | Haircut, Beard, Spa',
   description:
-    'Book premium salons in Jammu online. Haircuts, beard grooming, spa, and beauty parlour appointments with live slots and instant confirmation. List your salon free on TrimiT.',
+    'Book premium salons & hair saloons in Jammu online. Haircuts, beard grooming, spa, and beauty parlour appointments with live slots and instant confirmation. List your salon/saloon free on TrimiT.',
   keywords:
-    'salon booking Jammu, best salons in Jammu, haircut Jammu, beard grooming Jammu, spa Jammu, salon near me Jammu, beauty parlour Jammu, TrimiT',
+    'salon booking Jammu, saloon booking Jammu, best salons in Jammu, best saloons in Jammu, haircut Jammu, beard grooming Jammu, spa Jammu, saloon near me Jammu, salon near me Jammu, beauty parlour Jammu, TrimiT, trim it',
 };
 
 const SEO_PAGE_MAP = Object.fromEntries(
@@ -31,21 +31,21 @@ export const SEO_BY_PATH = {
     keywords: DEFAULT_SEO.keywords,
   },
   '/explore': {
-    title: 'Explore Salons in Jammu | TrimiT',
+    title: 'Explore Salons & Saloons in Jammu | TrimiT',
     description:
-      'Search and book salons in Jammu. Compare ratings, services, and live appointment slots on TrimiT.',
-    keywords: 'explore salons Jammu, salon near me Jammu, book salon Jammu',
+      'Search and book premium salons and saloons in Jammu. Compare ratings, services, and live appointment slots on TrimiT.',
+    keywords: 'explore salons Jammu, explore saloons Jammu, salon near me Jammu, saloon near me Jammu, book salon Jammu, book saloon Jammu',
   },
   '/for-salons': {
-    title: 'List Your Salon Free | TrimiT for Owners',
+    title: 'List Your Salon & Saloon Free | TrimiT for Owners',
     description:
-      'Take your salon online with TrimiT. Get more bookings, manage your calendar, and grow your salon business in Jammu.',
-    keywords: 'salon software India, list salon online, salon booking system Jammu',
+      'Take your salon or saloon online with TrimiT. Get more bookings, manage your calendar, and grow your business in Jammu.',
+    keywords: 'salon software India, list saloon online, list salon online, salon booking system Jammu',
   },
   '/blog': {
-    title: 'Salon Booking Guides Jammu | TrimiT Blog',
+    title: 'Salon & Saloon Booking Guides Jammu | TrimiT Blog',
     description: 'Tips for booking salons, grooming, and spa services in Jammu.',
-    keywords: 'salon tips Jammu, grooming guide, TrimiT blog',
+    keywords: 'salon tips Jammu, saloon tips Jammu, grooming guide, TrimiT blog',
   },
   ...SEO_PAGE_MAP,
   '/login': {
