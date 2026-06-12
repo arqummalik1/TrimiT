@@ -21,8 +21,10 @@ export const subscriptionRepository = {
     try {
       return await subscriptionService.getHistory();
     } catch (error) {
+      // Surface the failure so React Query enters its error/retry state instead
+      // of rendering an empty "No payments yet" list on network/auth/server errors.
       logger.error('[SubscriptionRepository] getHistory failed', error);
-      return { total_paid: 0, currency: 'INR', payments: [] };
+      throw error;
     }
   },
 

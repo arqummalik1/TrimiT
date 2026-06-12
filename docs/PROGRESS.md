@@ -49,6 +49,25 @@ grey-out + backend 402 gating) is fully built but behind flags, OFF by default.
   `RESEND_API_KEY` unset. New env: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`.
 - Setup guide updated (sections 9–11 + env reference).
 
+### 2026-06-12 — code-review fixes (subscription PR)
+
+Addressed two code-review findings on the subscription PR (branch `0.13`).
+
+- **Mobile (`subscriptionRepository.getHistory`)** — was swallowing ALL errors
+  and returning an empty `{payments: []}` success payload, so network/auth/
+  server failures rendered "No payments yet" and React Query never entered its
+  error/retry state. Fixed: re-throw the error so `usePaymentHistory` handles
+  real failures. (`mobile/src/repositories/subscriptionRepository.ts`)
+- **DB — trial-expiry lag (HIGH)** — trial expiry was materialized into
+  `subscriptions.status` only by the once-daily `expire_lapsed_trials` cron, so
+  `salons.subscription_active` could stay TRUE for up to ~24h after `trial_end`.
+  Owner gating (`compute_access`) is real-time, so an owner could be locked out
+  while customers still saw and booked the salon. Fixed with new migration
+  `database/43_expire_lapsed_trials_frequent.sql` — reschedules the job to every
+  10 minutes and runs it once on apply. Window cut from ~24h to ≤10 min. No
+  API/contract/read-path change; forward-only; migration 41 untouched.
+- **Verified:** mobile diagnostics clean on the edited repo file.
+
 ## Current State
 
 
@@ -205,6 +224,16 @@ This pass is focused on the selected P1 items:
 - `database/37_enable_expire_pending_online_bookings_cron.sql`
   - Status: **Applied Successfully** on Supabase SQL Editor.
   - Schedules the abandoned online booking expiry job via `pg_cron`.
+
+- `database/41_subscriptions.sql`, `database/42_nearby_salons_subscription_active.sql`
+  - Status: **Applied Successfully** on Supabase SQL Editor (confirmed by user).
+
+- `database/43_expire_lapsed_trials_frequent.sql`
+  - Status: **MUST BE APPLIED MANUALLY** in the Supabase SQL Editor against the
+    production project (requires `pg_cron`, already enabled). Not yet confirmed
+    applied by user.
+  - Reschedules `expire_lapsed_trials` to every 10 min; closes the
+    `salons.subscription_active` vs. real-time trial-expiry lag.
 
 - [x] **Verified Mobile Implementation**: Silent refresh and retry logic is correctly implemented in `apiClient.ts` and `authStore.ts`.
 - [x] **Mobile Build**: Local assembleRelease build completed. APK generated at `mobile/android/app/build/outputs/apk/release/app-release.apk`.
