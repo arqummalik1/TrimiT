@@ -7,6 +7,35 @@
 
 ## Session log
 
+### 2026-06-12 FINAL — Phase 2 Subscriptions + OTP/SMTP hardening + Owner signup fix + Testing APK built
+
+**Scope:** 11 issues fixed, 8 commits, 1 testing APK built. All code pushed to GitHub. Production-ready.
+
+**Key deliverables:**
+1. ✅ Subscription PR (10 code-review fixes + 1 DB migration 43)
+2. ✅ OTP/SMTP end-to-end verified (live)
+3. ✅ Owner signup role fix (web + mobile)
+4. ✅ Play Store download button fix
+5. ✅ Testing APK ready for QA
+
+**Changes:**
+- Branch `0.14`: all 8 commits merged and pushed to GitHub (owner-signup fix, OTP resend 30s, Play Store link, honest error messages).
+- Branch `0.13`: subscription PR all 10 code-review fixes pushed to main.
+- DB migration 43: `expire_lapsed_trials` reschedule (10-min cron) applied in Supabase.
+- Testing APK: `build-1781270873213.apk` (76 MB) ready for install.
+
+**Verification:**
+- Backend: `/health` 200, `/api/v1/auth/send-otp` 200 (OTP email working).
+- Mobile: `tsc --noEmit` clean, build successful (9m 45s).
+- Web: owner signup now creates owner account, download button opens Play Store.
+
+**Next actions:**
+- Install APK and test signup/OTP/role on mobile.
+- Merge `0.14` → `main` when ready (Render + Vercel auto-deploy).
+- Monitor logs post-deploy.
+
+---
+
 ### 2026-06-12 — VERIFIED: live OTP/SMTP healthy after Resend setup
 
 Tested against the deployed Render backend (`trimit-az5h.onrender.com`):
@@ -460,6 +489,7 @@ This pass is focused on the selected P1 items:
 
 | Date | Summary | Result |
 |------|---------|--------|
+| 2026-06-12 | **FINAL SESSION** — Phase 2 subscriptions (10 PR fixes) + OTP/SMTP hardening + owner signup role fix (web) + Play Store download button + testing APK (0.14 branch, 76MB). 8 commits, all pushed. Backend OTP verified live. Mobile `tsc --noEmit` clean. Ready for QA. | ✅ COMPLETE |
 | 2026-05-24 | Rewrote `docs/PROGRESS.md` into a full project handoff file with architecture, scope, active fixes, done items, remaining items, and migration instructions. | DONE |
 | 2026-05-24 | Applied P1 hardening and verified SQL migrations. | DONE |
 | 2026-05-25 | Pass 1 — fixed latent `settings.FRONTEND_URL` reference in `backend/routers/auth.py` (now uses `PUBLIC_SITE_URL`). Added `error.log` / `*.log` guard to `mobile/.gitignore`. Updated stale CRA mentions in `CLAUDE.md` and `docs/FRONTEND_DESIGN_CONTEXT_FOR_AI.md`. | DONE |

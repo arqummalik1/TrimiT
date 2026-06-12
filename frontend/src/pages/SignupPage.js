@@ -63,14 +63,17 @@ const SignupPage = () => {
     if (result.success) {
       if (result.requiresEmailConfirmation) {
         useToastStore.getState().success('Verification OTP code sent to your email.');
+        // Only the email + non-PII routing hints go in the URL (survive refresh).
+        // name/phone are PII — pass them via short-lived navigation state so they
+        // never leak into browser history, server logs, analytics, or referrers.
         const params = new URLSearchParams({
           email: formData.email.trim().toLowerCase(),
           type: 'signup',
           role: formData.role,
         });
-        if (formData.name) params.set('name', formData.name);
-        if (formData.phone) params.set('phone', formData.phone);
-        navigate(`/verify-otp?${params.toString()}`);
+        navigate(`/verify-otp?${params.toString()}`, {
+          state: { name: formData.name || undefined, phone: formData.phone || undefined },
+        });
         return;
       }
       if (formData.role === 'owner') {
