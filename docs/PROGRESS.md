@@ -7,6 +7,30 @@
 
 ## Session log
 
+### 2026-06-12 — VERIFIED: live OTP/SMTP healthy after Resend setup
+
+Tested against the deployed Render backend (`trimit-az5h.onrender.com`):
+- `GET /health` → **200**.
+- `POST /api/v1/auth/send-otp` → **200** (was **500** before SMTP fix → Supabase
+  now accepts + dispatches the OTP email via Resend SMTP).
+- `POST /api/v1/auth/signup` (role=owner) → **202 EMAIL_CONFIRMATION_REQUIRED**
+  (no 500/400). OTP email path healthy end to end.
+- Created two unconfirmed test auth users
+  (`trimit.smoketest.otp@gmail.com`, `trimit.smoketest.owner@gmail.com`) —
+  safe to delete in Supabase → Authentication → Users.
+
+Resend key placement (confirmed by code):
+- OTP/signup/login/forgot-password emails → **Supabase Auth SMTP** (Resend key
+  lives in Supabase). Render does NOT need the key for these.
+- Subscription receipt emails → backend `settings.RESEND_API_KEY` via Resend
+  API (`subscription_invoice_email.py`). Currently empty → receipts no-op.
+  Set `RESEND_API_KEY` on Render only if receipt emails are wanted.
+- Early-access → DB row only, no backend email.
+
+Final manual check left to owner: sign up on web + mobile, receive 6-digit code,
+verify, confirm owner role lands on salon setup.
+
+
 ### 2026-06-12 — FIX: web owner signup created a CUSTOMER account
 
 **Symptom:** signing up as Salon Owner on the website created a customer
