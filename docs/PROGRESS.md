@@ -66,6 +66,7 @@ Addressed two code-review findings on the subscription PR (branch `0.13`).
   `database/43_expire_lapsed_trials_frequent.sql` — reschedules the job to every
   10 minutes and runs it once on apply. Window cut from ~24h to ≤10 min. No
   API/contract/read-path change; forward-only; migration 41 untouched.
+  **Applied successfully in Supabase by user on 2026-06-12.**
 - **Verified:** mobile diagnostics clean on the edited repo file.
 
 ## Current State
@@ -229,9 +230,7 @@ This pass is focused on the selected P1 items:
   - Status: **Applied Successfully** on Supabase SQL Editor (confirmed by user).
 
 - `database/43_expire_lapsed_trials_frequent.sql`
-  - Status: **MUST BE APPLIED MANUALLY** in the Supabase SQL Editor against the
-    production project (requires `pg_cron`, already enabled). Not yet confirmed
-    applied by user.
+  - Status: **Applied Successfully** on Supabase SQL Editor (confirmed by user 2026-06-12).
   - Reschedules `expire_lapsed_trials` to every 10 min; closes the
     `salons.subscription_active` vs. real-time trial-expiry lag.
 
