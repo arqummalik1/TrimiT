@@ -14,21 +14,9 @@ import { Theme } from '../../theme/tokens';
 import { OwnerSettingsScreenProps } from '../../navigation/types';
 import { usePaymentHistory } from '../../hooks/useSubscription';
 import { SubscriptionPayment } from '../../types/subscription';
+import { formatDate } from '../../lib/formatDate';
 
 type Props = OwnerSettingsScreenProps<'PaymentHistory'>;
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  } catch {
-    return '—';
-  }
-}
 
 const STATUS_COLORS: Record<string, string> = {
   captured: '#16A34A',

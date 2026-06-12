@@ -69,6 +69,37 @@ Addressed two code-review findings on the subscription PR (branch `0.13`).
   **Applied successfully in Supabase by user on 2026-06-12.**
 - **Verified:** mobile diagnostics clean on the edited repo file.
 
+### 2026-06-12 (later) — subscription PR review fixes (batch 2)
+
+More code-review findings on the subscription PR (branch `0.13`). All mobile;
+no API/contract/DB change. `tsc --noEmit` clean.
+
+- **`SubscriptionGate` startup window:** in enforcement mode the gate returned
+  `null` while status was still loading, leaving the owner app interactive
+  during the fetch. Now shows a blocking loading overlay while fetching; fails
+  OPEN on error (network blip must never freeze an owner out — RULES 2.2;
+  backend still enforces 402).
+- **`SubscriptionGate` z-order:** rendered as a plain `View`, so native `Modal`s
+  (booking notification modal) could appear above it. Now rendered inside a
+  native `Modal` (`transparent`, `statusBarTranslucent`, back-press blocked).
+- **`SubscriptionGate` dead-end:** mounted at tab root, the freeze also blocked
+  the `SubscriptionCheckout` screen it navigates to. Now skips the overlay on
+  the payment-flow routes (`Subscription`, `SubscriptionCheckout`,
+  `PaymentHistory`) via `useNavigationState`.
+- **`SubscriptionCheckoutScreen` WebView:** `originWhitelist` was restricted to
+  3 Razorpay hosts, blocking bank/UPI/3DS redirect pages. Now `['*']` (result
+  captured via `postMessage`, not URL interception).
+- **`formatDate` dedup:** extracted to shared `mobile/src/lib/formatDate.ts`;
+  `PaymentHistoryScreen` + `SubscriptionScreen` reuse it.
+- **`SubscriptionScreen` price:** feature card hardcoded `₹299`; now uses
+  `sub.amount` (single backend-driven source).
+- **`SubscriptionScreen` subscribe CTA:** was shown for every non-`active`
+  status incl. `grace_period` (still access-granting); now excludes
+  `grace_period` to avoid premature/duplicate checkout.
+- **`useSubscriptionStatus` enablement:** was gated only by `ENABLE_SUBSCRIPTIONS`
+  while the gate is driven by `ENABLE_SUBSCRIPTION_ENFORCEMENT`; now enabled when
+  EITHER flag is on, so the gate always receives a status.
+
 ## Current State
 
 

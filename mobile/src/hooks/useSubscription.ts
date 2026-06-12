@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { subscriptionRepository } from '../repositories/subscriptionRepository';
 import { queryKeys } from '../lib/queryKeys';
 import { useAuthStore } from '../store/authStore';
-import { ENABLE_SUBSCRIPTIONS } from '../lib/featureFlags';
+import { ENABLE_SUBSCRIPTIONS, ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../lib/featureFlags';
 
 /** Owner subscription (full view). Only fetches for owners. */
 export function useSubscription() {
@@ -21,7 +21,11 @@ export function useSubscription() {
 /** Lightweight status — used for banners + the Phase 2 freeze gate. */
 export function useSubscriptionStatus() {
   const role = useAuthStore((s) => s.user?.role);
-  const enabled = ENABLE_SUBSCRIPTIONS && role === 'owner';
+  // The freeze gate is driven by enforcement, which can be on even if the
+  // subscription UI flag is off — so this query must run when EITHER flag is on,
+  // otherwise the gate would never receive a status and never block.
+  const enabled =
+    (ENABLE_SUBSCRIPTIONS || ENABLE_SUBSCRIPTION_ENFORCEMENT) && role === 'owner';
 
   return useQuery({
     queryKey: queryKeys.subscriptionStatus,

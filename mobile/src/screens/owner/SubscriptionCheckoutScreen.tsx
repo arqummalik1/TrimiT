@@ -157,11 +157,12 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
       ) : (
         <View style={styles.webviewWrap}>
           <WebView
-            originWhitelist={[
-              'https://api.razorpay.com',
-              'https://checkout.razorpay.com',
-              'https://cdn.razorpay.com',
-            ]}
+            // Embedded Razorpay checkout redirects through many non-Razorpay
+            // origins (bank 3DS/OTP, UPI, NPCI, card-network ACS pages). A
+            // narrow allowlist blocks those and breaks payment. The flow result
+            // is captured via postMessage (onMessage), not URL interception, so
+            // allow all origins to load in-WebView.
+            originWhitelist={['*']}
             source={{ html: checkoutHtml }}
             onMessage={onMessage}
             javaScriptEnabled

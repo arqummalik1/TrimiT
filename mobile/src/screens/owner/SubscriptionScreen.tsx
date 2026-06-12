@@ -18,6 +18,7 @@ import {
   useCancelSubscription,
 } from '../../hooks/useSubscription';
 import { SubscriptionStatus } from '../../types/subscription';
+import { formatDate } from '../../lib/formatDate';
 
 type Props = OwnerSettingsScreenProps<'Subscription'>;
 
@@ -41,19 +42,6 @@ const PRO_FEATURES: { icon: keyof typeof import('@expo/vector-icons').Ionicons.g
   { icon: 'notifications', title: 'Customer notifications', desc: 'Automatic booking push updates to customers' },
   { icon: 'storefront', title: 'Marketplace visibility', desc: 'Your salon stays listed & bookable to all customers' },
 ];
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  } catch {
-    return '—';
-  }
-}
 
 const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
@@ -114,7 +102,10 @@ const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
     );
   }
 
-  const showSubscribe = sub.status !== 'active';
+  // grace_period still grants access (backend treats it as access-granting and
+  // its `create` endpoint won't issue a fresh subscription), so don't push
+  // those owners into a premature/duplicate checkout.
+  const showSubscribe = sub.status !== 'active' && sub.status !== 'grace_period';
   const showCancel = sub.status === 'active' && !sub.cancel_at_period_end;
 
   return (
@@ -153,7 +144,7 @@ const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.featuresSub}>One plan. All features unlocked.</Text>
             </View>
             <View style={styles.priceTag}>
-              <Text style={styles.priceAmount}>₹299</Text>
+              <Text style={styles.priceAmount}>₹{(sub.amount / 100).toFixed(0)}</Text>
               <Text style={styles.pricePer}>/mo</Text>
             </View>
           </View>
