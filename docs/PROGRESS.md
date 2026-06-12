@@ -7,6 +7,28 @@
 
 ## Session log
 
+### ✅ RESOLVED — Subscription PR (branch `0.13`) code-review fixes — 2026-06-12
+
+> These code-review findings are **FIXED, committed, and pushed to `0.13`**
+> (commits `b60f544b`, `d543859a`, `ed35b8f4`). Other AIs: do NOT re-flag these.
+
+| # | Area / File | Issue (review comment) | Status |
+|---|-------------|------------------------|--------|
+| 1 | `mobile/.../repositories/subscriptionRepository.ts` | `getHistory` swallowed all errors → empty list on real failures; React Query never retried | ✅ Fixed — re-throws |
+| 2 | `database/43_expire_lapsed_trials_frequent.sql` | HIGH: daily trial-expiry cron left `salons.subscription_active` stale up to ~24h (owner locked out but salon still bookable) | ✅ Fixed — 10-min cron; **applied in Supabase** |
+| 3 | `mobile/.../components/SubscriptionGate.tsx` | Returned `null` while status loading → app interactive during startup freeze window | ✅ Fixed — blocking loading overlay (fail-open on error) |
+| 4 | `mobile/.../components/SubscriptionGate.tsx` | Plain `View` could sit under native `Modal`s (booking modal) | ✅ Fixed — rendered as native `Modal` |
+| 5 | `mobile/.../components/SubscriptionGate.tsx` + `navigation/OwnerTabs.tsx` | Gate trapped owner — blocked the `SubscriptionCheckout` it opens (dead-end) | ✅ Fixed — gate skips payment-flow routes |
+| 6 | `mobile/.../screens/owner/SubscriptionCheckoutScreen.tsx` | `originWhitelist` too narrow → blocked Razorpay bank/UPI/3DS redirects | ✅ Fixed — `['*']`, result via `postMessage` |
+| 7 | `mobile/.../screens/owner/PaymentHistoryScreen.tsx` + `SubscriptionScreen.tsx` | `formatDate` duplicated | ✅ Fixed — shared `lib/formatDate.ts` |
+| 8 | `mobile/.../screens/owner/SubscriptionScreen.tsx` | Feature card hardcoded `₹299` vs dynamic `sub.amount` | ✅ Fixed — uses `sub.amount` |
+| 9 | `mobile/.../screens/owner/SubscriptionScreen.tsx` | Subscribe CTA shown for `grace_period` (still access-granting) → premature/duplicate checkout | ✅ Fixed — excludes `grace_period` |
+| 10 | `mobile/.../hooks/useSubscription.ts` | Status query gated by UI flag, not enforcement → gate never blocked if UI flag off | ✅ Fixed — enabled on either flag |
+
+**Verification:** mobile `tsc --noEmit` clean. No API/contract/DB-read changes;
+all backwards-compatible and flag-gated. Live app safe.
+
+
 ### 2026-06-11 — TrimiT Pro subscriptions (SaaS, Razorpay) — Phase 1 + Phase 2 (flagged)
 
 Added a complete owner-subscription system. **Phase 1 ships observe-only**
