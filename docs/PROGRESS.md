@@ -7,6 +7,30 @@
 
 ## Session log
 
+### 2026-06-12 — OTP "sent but not received" fix (backend)
+
+**Symptom:** app occasionally showed "OTP sent" and navigated to the OTP
+screen, but no email arrived.
+
+**Root cause (two layers):**
+1. **Email (primary):** Supabase Auth was using the built-in/default email
+   sender — tiny rate limit, no delivery guarantee, testing-only. Occasional
+   silent drops. (Action: configure custom SMTP / Resend in the Supabase
+   dashboard — owner task.)
+2. **Code (secondary, masking):** `send_otp` returned a generic success for
+   ANY non-200/429 Supabase response, so genuine send failures (5xx "Error
+   sending email") still returned HTTP 200 → app navigated as if sent.
+
+**Fix (this commit):** `backend/routers/auth.py:send_otp` now distinguishes a
+genuine delivery failure (`>=500` or body mentions "error sending"/"failed to
+send"/"smtp") from the anti-enumeration case. On a real send failure it clears
+the per-email throttle and returns `502 OTP_SEND_FAILED` so the app shows
+"couldn't send, try again" instead of falsely navigating. Anti-enumeration
+preserved for ineligible addresses (still generic success). Mobile already
+gates navigation on `result.success`, so no client change needed.
+`py_compile` clean.
+
+
 ### ✅ RESOLVED — Subscription PR (branch `0.13`) code-review fixes — 2026-06-12
 
 > These code-review findings are **FIXED, committed, and pushed to `0.13`**
