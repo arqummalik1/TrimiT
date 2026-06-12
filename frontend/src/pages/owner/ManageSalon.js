@@ -18,6 +18,7 @@ import {
 import api from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
 import { uploadImage, deleteImage } from '../../lib/supabase';
+import LocationPicker from '../../components/LocationPicker';
 
 const ManageSalon = () => {
   const navigate = useNavigate();
@@ -341,6 +342,27 @@ const ManageSalon = () => {
                   required
                 />
               </div>
+            </div>
+
+            {/* Map location picker (parity with mobile LocationPickerModal) */}
+            <div className="mt-5">
+              <label className="block text-sm font-medium text-stone-700 mb-2">
+                Pin your exact location on the map *
+              </label>
+              <LocationPicker
+                latitude={Number(formData.latitude)}
+                longitude={Number(formData.longitude)}
+                onChange={(lat, lng) =>
+                  setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }))
+                }
+                onAddressResolved={({ address, city }) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    address: prev.address?.trim() ? prev.address : address || prev.address,
+                    city: prev.city?.trim() ? prev.city : city || prev.city,
+                  }))
+                }
+              />
             </div>
           </div>
 
