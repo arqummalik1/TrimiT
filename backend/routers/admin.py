@@ -22,6 +22,7 @@ from services.broadcast import (
     list_recent_broadcasts,
     send_broadcast,
 )
+from services import subscription_service as subs
 
 logger = logging.getLogger("trimit")
 
@@ -109,3 +110,14 @@ async def list_broadcasts(
 ):
     _require_admin(authorization)
     return await list_recent_broadcasts(limit=limit)
+
+
+@router.get("/subscriptions/analytics")
+@limiter.limit("30/minute")
+async def subscription_analytics(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
+    """Subscriber counts, MRR/ARR, revenue, status breakdown."""
+    _require_admin(authorization)
+    return await subs.admin_analytics()

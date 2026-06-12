@@ -1,49 +1,85 @@
 const { AndroidConfig, withAndroidManifest } = require('@expo/config-plugins');
 
-/** Full android.permission.* names only — never suffix-match (POST_NOTIFICATIONS ends with NOTIFICATIONS). */
-const BLOCKED_PERMISSIONS = new Set([
+/**
+ * Full android.permission.* names only — never suffix-match (POST_NOTIFICATIONS ends with NOTIFICATIONS).
+ *
+ * These are emitted into the app manifest as `tools:node="remove"` markers so
+ * the Android manifest merger STRIPS them from the FINAL merged AAB — even when
+ * a transitive library (expo-image-picker, expo-av, etc.) declares them in its
+ * own manifest. Plain array filtering is NOT enough: the merger re-adds
+ * library-declared permissions after config plugins run.
+ *
+ * READ_MEDIA_IMAGES / READ_MEDIA_VIDEO are restricted by Google Play's Photo
+ * and Video Permissions policy. Salon image upload uses the Android Photo
+ * Picker (launchImageLibraryAsync), which needs NO permission, so these must
+ * never appear in the shipped manifest.
+ */
+const BLOCKED_PERMISSIONS = [
   'android.permission.SYSTEM_ALERT_WINDOW',
   'android.permission.RECORD_AUDIO',
   'android.permission.USE_FINGERPRINT',
   'android.permission.USE_BIOMETRIC',
   'android.permission.READ_EXTERNAL_STORAGE',
   'android.permission.WRITE_EXTERNAL_STORAGE',
-]);
+  'android.permission.READ_MEDIA_IMAGES',
+  'android.permission.READ_MEDIA_VIDEO',
+  'android.permission.READ_MEDIA_VISUAL_USER_SELECTED',
+  'android.permission.ACCESS_MEDIA_LOCATION',
+];
 
 const REQUIRED_PERMISSIONS = ['android.permission.POST_NOTIFICATIONS'];
 
 /**
- * Strips over-broad permissions merged from transitive dependencies (expo-av, etc.).
- * Ensures POST_NOTIFICATIONS remains for Android 13+ push delivery in release APKs.
+ * Strips over-broad / restricted permissions merged from transitive
+ * dependencies and guarantees they are absent from the final AAB.
+ * Ensures POST_NOTIFICATIONS remains for Android 13+ push delivery.
  */
 function withAndroidPermissions(config) {
   return withAndroidManifest(config, (config) => {
     const manifest = config.modResults.manifest;
+
+    // Ensure the tools namespace exists so tools:node="remove" is valid.
+    manifest.$ = manifest.$ || {};
+    if (!manifest.$['xmlns:tools']) {
+      manifest.$['xmlns:tools'] = 'http://schemas.android.com/tools';
+    }
+
     if (!manifest['uses-permission']) {
       manifest['uses-permission'] = [];
     }
 
-    const permissions = Array.isArray(manifest['uses-permission'])
+    let permissions = Array.isArray(manifest['uses-permission'])
       ? manifest['uses-permission']
       : [manifest['uses-permission']];
 
-    const filtered = permissions.filter((item) => {
+    const blocked = new Set(BLOCKED_PERMISSIONS);
+
+    // Drop any existing declarations of blocked perms; re-add them below as
+    // explicit removal markers.
+    permissions = permissions.filter((item) => {
       const name = item.$?.['android:name'] || item.$?.name || '';
-      return !BLOCKED_PERMISSIONS.has(name);
+      return !blocked.has(name);
     });
 
+    // Force the manifest merger to remove these from the final merged manifest.
+    for (const name of BLOCKED_PERMISSIONS) {
+      permissions.push({ $: { 'android:name': name, 'tools:node': 'remove' } });
+    }
+
     const names = new Set(
-      filtered.map((item) => item.$?.['android:name'] || item.$?.name || '').filter(Boolean)
+      permissions
+        .map((item) => item.$?.['android:name'] || item.$?.name || '')
+        .filter(Boolean)
     );
 
     for (const required of REQUIRED_PERMISSIONS) {
       if (!names.has(required)) {
-        filtered.push({ $: { 'android:name': required } });
+        permissions.push({ $: { 'android:name': required } });
         names.add(required);
       }
     }
 
-    manifest['uses-permission'] = filtered;
+    manifest['uses-permission'] = permissions;
 
     const app = AndroidConfig.Manifest.getMainApplicationOrThrow(config.modResults);
     app.$ = app.$ || {};

@@ -17,6 +17,7 @@ import {
 import api from '../../lib/api';
 import { formatPrice, formatDate } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
+import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../../lib/featureFlags';
 
 const SalonDetail = () => {
   const { id } = useParams();
@@ -151,6 +152,15 @@ const SalonDetail = () => {
 
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
+        {ENABLE_SUBSCRIPTION_ENFORCEMENT && salon.subscription_active === false && (
+          <div className="mb-6 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+            <span className="text-lg">🔒</span>
+            <p className="text-sm font-medium">
+              This salon is currently unavailable for booking. Please check back later.
+            </p>
+          </div>
+        )}
+
         {/* Description */}
         {salon.description && (
           <motion.div
@@ -241,18 +251,30 @@ const SalonDetail = () => {
                         </span>
                       </div>
                     </div>
-                    <Link
-                      to={bookTarget(service.id)}
-                      data-testid={`book-service-${service.id}`}
-                      className={`text-sm px-5 py-2.5 flex items-center gap-2 rounded-full font-semibold transition-all ${
-                        service.is_on_offer
-                          ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white hover:from-orange-700 hover:to-red-700'
-                          : 'btn-primary'
-                      }`}
-                    >
-                      <CalendarCheck size={18} />
-                      {isAuthenticated ? 'Book now' : 'Sign in to book'}
-                    </Link>
+                    {ENABLE_SUBSCRIPTION_ENFORCEMENT && salon.subscription_active === false ? (
+                      <button
+                        type="button"
+                        disabled
+                        data-testid={`book-service-${service.id}`}
+                        className="text-sm px-5 py-2.5 flex items-center gap-2 rounded-full font-semibold bg-stone-200 text-stone-400 cursor-not-allowed"
+                      >
+                        <CalendarCheck size={18} />
+                        Unavailable
+                      </button>
+                    ) : (
+                      <Link
+                        to={bookTarget(service.id)}
+                        data-testid={`book-service-${service.id}`}
+                        className={`text-sm px-5 py-2.5 flex items-center gap-2 rounded-full font-semibold transition-all ${
+                          service.is_on_offer
+                            ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white hover:from-orange-700 hover:to-red-700'
+                            : 'btn-primary'
+                        }`}
+                      >
+                        <CalendarCheck size={18} />
+                        {isAuthenticated ? 'Book now' : 'Sign in to book'}
+                      </Link>
+                    )}
                   </div>
                 </motion.div>
               ))}

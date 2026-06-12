@@ -8,6 +8,7 @@ from core.supabase import supabase
 from core.salon_auth import assert_salon_owner
 from core.limiter import limiter
 from dependencies.auth import get_current_user
+from dependencies.subscription import require_active_subscription
 from models.promotions import (
     PromoCodeValidate, 
     PromoCodeResponse,
@@ -104,7 +105,7 @@ async def get_active_promotions(
 async def create_promotion(
     request: Request,
     promo: PromotionCreate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_active_subscription)
 ):
     """
     Create a new promotion.
@@ -198,7 +199,7 @@ async def get_owner_promotions(
 async def update_promotion(
     promo_id: str,
     data: PromotionUpdate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_active_subscription)
 ):
     """
     Update a promotion. Only the creator can update.
@@ -243,7 +244,7 @@ async def update_promotion(
 @router.delete("/{promo_id}")
 async def delete_promotion(
     promo_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_active_subscription)
 ):
     """
     Soft delete (deactivate) a promotion.

@@ -35,7 +35,8 @@
         "NODE_ENV": "production",
         "EXPO_PUBLIC_ENABLE_ONLINE_PAY": "false",
         "SENTRY_ORG": "trimit-inc",
-        "SENTRY_PROJECT": "trimit-mobile"
+        "SENTRY_PROJECT": "trimit-mobile",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }
   },

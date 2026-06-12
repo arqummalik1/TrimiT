@@ -10,6 +10,7 @@ from core.supabase import supabase
 from core.limiter import limiter
 from core.idempotency import idempotency_required
 from dependencies.auth import get_current_user
+from dependencies.subscription import require_active_subscription
 from models.bookings import BookingCreate, BookingStatusUpdate, BookingStatus, ReviewCreate, SlotReserve
 from models.promotions import PromoCodeValidate
 from models.reschedule import RescheduleRequest
@@ -83,7 +84,7 @@ async def list_my_bookings(current_user: dict = Depends(get_current_user)):
 async def update_booking_status(
     booking_id: str,
     body: BookingStatusUpdate,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_active_subscription),
 ):
     token = current_user.get("access_token")
     b = await supabase.request(
@@ -622,6 +623,18 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
         
     salon = salon_resp.json()[0]
     service = service_resp.json()[0]
+
+    # Phase 2: block bookings to salons whose owner subscription has lapsed.
+    # No-op in Phase 1 (flag off). The salon flag is kept in sync by the
+    # subscription triggers (migration 41).
+    if settings.SUBSCRIPTION_ENFORCEMENT_ENABLED and salon.get("subscription_active") is False:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "SALON_UNAVAILABLE",
+                "message": "This salon is not accepting bookings right now.",
+            },
+        )
 
     allowed_payment_methods = _get_allowed_payment_methods(salon)
     if data.payment_method not in allowed_payment_methods:

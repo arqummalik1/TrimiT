@@ -316,7 +316,47 @@ async def send_otp(request: Request, data: SendOtpRequest):
             },
         )
 
-    # Always return success to avoid email enumeration (Supabase may return 200 even if email unknown)
+    # Distinguish a genuine email-DELIVERY failure from the anti-enumeration case.
+    #
+    # Previously every non-200/429 response returned a generic "code has been
+    # sent" success, which made the app navigate to the OTP screen even when
+    # Supabase failed to actually send the email (e.g. 5xx "Error sending email"
+    # when the built-in SMTP is throttled/unavailable). The user then waits for
+    # a code that never arrives.
+    #
+    # Anti-enumeration is still preserved: we only surface an error when the
+    # failure is clearly a send/server problem, NOT when the address is simply
+    # ineligible (which Supabase reports as a 4xx like "user not found").
+    body_text = (response.text or "").lower()
+    send_failure = (
+        response.status_code >= 500
+        or "error sending" in body_text
+        or "failed to send" in body_text
+        or "smtp" in body_text
+    )
+
+    logger.warning(
+        "send_otp supabase status=%s email=%s send_failure=%s body=%s",
+        response.status_code,
+        email,
+        send_failure,
+        response.text[:200] if response.text else "",
+    )
+
+    if send_failure:
+        # Let this email retry immediately rather than being blocked by our
+        # 60s per-email throttle, since no code actually went out.
+        otp_email_throttle.pop(email, None)
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": "OTP_SEND_FAILED",
+                "message": "We couldn't send the code right now. Please try again in a moment.",
+            },
+        )
+
+    # Otherwise treat as the anti-enumeration case (ineligible address, etc.):
+    # return success so we don't reveal whether the email exists.
     return {"message": "An OTP code has been sent if the email is valid"}
 
 

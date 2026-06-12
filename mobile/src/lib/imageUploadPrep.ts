@@ -74,12 +74,8 @@ export async function prepareImageForUpload(
 }
 
 async function pickFromLibrary(): Promise<string | null> {
-  const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!granted) {
-    Alert.alert('Permission required', 'Please allow access to your photo library.');
-    return null;
-  }
-
+  // Android Photo Picker / iOS picker — no media-library permission required.
+  // (Declaring READ_MEDIA_IMAGES for this one-time use violates Play policy.)
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
     quality: 1,

@@ -1,0 +1,200 @@
+{
+  "DEFAULT_SEO": {
+    "title": "TrimiT — Book Salons & Saloons in Jammu | Haircut, Beard, Spa",
+    "description": "Book premium salons & hair saloons in Jammu online. Haircuts, beard grooming, spa, and beauty parlour appointments with live slots and instant confirmation. List your salon/saloon free on TrimiT.",
+    "keywords": "salon booking Jammu, saloon booking Jammu, best salons in Jammu, best saloons in Jammu, haircut Jammu, beard grooming Jammu, spa Jammu, saloon near me Jammu, salon near me Jammu, beauty parlour Jammu, TrimiT, trim it"
+  },
+  "HOMEPAGE_FAQ": [
+    {
+      "q": "How do I book a salon or saloon appointment in Jammu on TrimiT?",
+      "a": "Search for a service, salon, or saloon on TrimiT, pick an available time slot, and confirm your booking. You can browse salons and saloons in Jammu without an account; sign up when you are ready to book."
+    },
+    {
+      "q": "Is TrimiT available for salon/saloon booking near me in Jammu?",
+      "a": "Yes. TrimiT lists salons and saloons across Jammu with distance sorting when you allow location, or defaults to central Jammu so you can find premium saloons near you in Jammu quickly."
+    },
+    {
+      "q": "Can I pay at the salon or saloon?",
+      "a": "Many partner salons and saloons support pay-at-salon/cash-at-salon. Service prices are shown before you book so you know what to expect."
+    },
+    {
+      "q": "How do salon/saloon owners list on TrimiT?",
+      "a": "Salon and saloon owners can list for free by signing up as an owner, creating a salon profile, and adding services. You will receive online bookings through your owner dashboard."
+    },
+    {
+      "q": "What services can I book in Jammu?",
+      "a": "Haircuts, beard grooming, spa and wellness, facials, bridal makeup, beauty parlour, and beauty saloon services — all bookable through TrimiT in Jammu."
+    },
+    {
+      "q": "Do I need the Android app to book a saloon slot?",
+      "a": "You can explore salons and saloons on the web. For the best booking experience and notifications, download the TrimiT Android app."
+    },
+    {
+      "q": "Are salon and saloon listings verified?",
+      "a": "Salons and saloons on TrimiT are real businesses with profiles managed by owners. Customer reviews help you choose trusted professionals."
+    },
+    {
+      "q": "Can I cancel or reschedule a booking?",
+      "a": "After signing in, manage your saloon/salon bookings from My Bookings. Cancellation policies may vary by salon."
+    }
+  ],
+  "SEO_PAGES": [
+    {
+      "path": "/salons-in-jammu",
+      "title": "Salons & Saloons in Jammu | Book Online — TrimiT",
+      "description": "Browse salons and hair saloons in Jammu and book haircuts, grooming, spa, and beauty services online. Verified listings with live slots on TrimiT.",
+      "keywords": "salons in Jammu, saloons in Jammu, salon booking Jammu, saloon booking Jammu, best salons Jammu, best saloons Jammu, salon near me Jammu, saloon near me Jammu, TrimiT, trim it",
+      "h1": "Salons & Saloons in Jammu — book online",
+      "faqIndexStart": 0,
+      "faqIndexEnd": 5,
+      "relatedPaths": ["/best-haircut-in-jammu", "/beard-trimming-jammu", "/spa-services-jammu"]
+    },
+    {
+      "path": "/best-haircut-in-jammu",
+      "title": "Best Haircut & Hair Saloon in Jammu | Book Salons — TrimiT",
+      "description": "Find the best hair salons & saloons and haircuts in Jammu. Book men's and women's haircut appointments online with live availability.",
+      "keywords": "best haircut Jammu, hair salon Jammu, hair saloon Jammu, haircut near me Jammu, saloon near me Jammu, book haircut online, book saloon online",
+      "h1": "Best haircut & hair saloon in Jammu",
+      "exploreQuery": "haircut",
+      "faq": [
+        {
+          "q": "How much does a haircut cost in Jammu?",
+          "a": "Prices vary by salon and service. TrimiT shows starting prices on each salon profile before you book."
+        },
+        {
+          "q": "Can I book a same-day haircut in Jammu?",
+          "a": "Yes — check live slots on TrimiT for same-day availability at salons/saloons near you."
+        }
+      ],
+      "relatedPaths": ["/salons-in-jammu", "/mens-salon-jammu", "/beauty-parlours-jammu"]
+    },
+    {
+      "path": "/beard-trimming-jammu",
+      "title": "Beard Trimming Jammu | Men's Grooming Saloon — TrimiT",
+      "description": "Book beard trimming and grooming in Jammu. Expert barbers and gents saloons with online slots and reviews.",
+      "keywords": "beard trimming Jammu, beard grooming Jammu, barber Jammu, saloon Jammu, gents saloon Jammu, men grooming Jammu",
+      "h1": "Beard trimming & grooming saloon in Jammu",
+      "exploreQuery": "beard",
+      "faq": [],
+      "relatedPaths": ["/mens-salon-jammu", "/best-haircut-in-jammu"]
+    },
+    {
+      "path": "/spa-services-jammu",
+      "title": "Spa Services Jammu | Book Spa & Massage Saloon — TrimiT",
+      "description": "Spa booking in Jammu — massages, wellness, and relaxation. Compare beauty salons & wellness saloons and book slots online.",
+      "keywords": "spa Jammu, spa booking Jammu, spa services Jammu, massage Jammu, wellness saloon Jammu",
+      "h1": "Spa & wellness services in Jammu",
+      "exploreQuery": "spa",
+      "faq": [],
+      "relatedPaths": ["/salons-in-jammu", "/beauty-parlours-jammu"]
+    },
+    {
+      "path": "/beauty-parlours-jammu",
+      "title": "Beauty Parlours Jammu | Book Women Beauty Saloons — TrimiT",
+      "description": "Women's beauty parlours & beauty saloons in Jammu — facials, threading, waxing, and hair. Book online on TrimiT.",
+      "keywords": "beauty parlour Jammu, women salon Jammu, beauty saloon Jammu, facial Jammu, beauty services Jammu",
+      "h1": "Beauty parlours & women saloons in Jammu",
+      "exploreQuery": "beauty parlour",
+      "faq": [],
+      "relatedPaths": ["/bridal-makeup-jammu", "/best-haircut-in-jammu"]
+    },
+    {
+      "path": "/mens-salon-jammu",
+      "title": "Men's Salon & Gents Saloon Jammu | Grooming & Haircuts — TrimiT",
+      "description": "Men's salons & gents saloons in Jammu for haircuts, beard care, and grooming packages. Book online with TrimiT.",
+      "keywords": "men salon Jammu, gents saloon Jammu, mens grooming Jammu, barber shop Jammu, barber saloon Jammu",
+      "h1": "Men's salon & gents saloon in Jammu",
+      "exploreQuery": "men salon",
+      "faq": [],
+      "relatedPaths": ["/beard-trimming-jammu", "/best-haircut-in-jammu"]
+    },
+    {
+      "path": "/bridal-makeup-jammu",
+      "title": "Bridal Makeup Jammu | Book Bridal Salons & Artists — TrimiT",
+      "description": "Bridal makeup services in Jammu — book trials and wedding day makeup artists or premium salons/saloons online on TrimiT.",
+      "keywords": "bridal makeup Jammu, wedding makeup Jammu, bridal artist Jammu, bridal saloon Jammu",
+      "h1": "Bridal makeup & styling in Jammu",
+      "exploreQuery": "bridal makeup",
+      "faq": [],
+      "relatedPaths": ["/beauty-parlours-jammu", "/spa-services-jammu"]
+    }
+  ],
+  "SEO_BY_PATH": {
+    "/explore": {
+      "title": "Explore Salons & Saloons in Jammu | TrimiT",
+      "description": "Search and book premium salons and saloons in Jammu. Compare ratings, services, and live appointment slots on TrimiT.",
+      "keywords": "explore salons Jammu, explore saloons Jammu, salon near me Jammu, saloon near me Jammu, book salon Jammu, book saloon Jammu"
+    },
+    "/for-salons": {
+      "title": "List Your Salon & Saloon Free | TrimiT for Owners",
+      "description": "Take your salon or saloon online with TrimiT. Get more bookings, manage your calendar, and grow your business in Jammu.",
+      "keywords": "salon software India, list saloon online, list saloon online, salon booking system Jammu"
+    },
+    "/blog": {
+      "title": "Salon & Saloon Booking Guides Jammu | TrimiT Blog",
+      "description": "Tips for booking salons, grooming, and spa services in Jammu.",
+      "keywords": "salon tips Jammu, saloon tips Jammu, grooming guide, TrimiT blog"
+    },
+    "/login": {
+      "title": "Sign In | TrimiT Salon Booking",
+      "description": "Sign in to your TrimiT account to manage salon bookings and appointments.",
+      "keywords": "TrimiT login, salon booking sign in"
+    },
+    "/signup": {
+      "title": "Create Account | TrimiT Salon Booking",
+      "description": "Create a free TrimiT account to book salon services and manage your appointments.",
+      "keywords": "TrimiT sign up, create salon booking account"
+    },
+    "/forgot-password": {
+      "title": "Reset Password | TrimiT",
+      "description": "Reset your TrimiT account password.",
+      "robots": "noindex, follow"
+    },
+    "/reset-password": {
+      "title": "Set New Password | TrimiT",
+      "description": "Choose a new password for your TrimiT account.",
+      "robots": "noindex, nofollow"
+    },
+    "/auth/email-confirmed": {
+      "title": "Email Confirmed | TrimiT",
+      "description": "Your TrimiT email address has been confirmed.",
+      "robots": "noindex, nofollow"
+    },
+    "/privacy": {
+      "title": "Privacy Policy | TrimiT",
+      "description": "TrimiT privacy policy — how we collect, use, and protect your data.",
+      "keywords": "TrimiT privacy policy, salon app privacy"
+    },
+    "/terms": {
+      "title": "Terms of Service | TrimiT",
+      "description": "TrimiT terms of service for customers and salon owners.",
+      "keywords": "TrimiT terms of service, salon booking terms"
+    },
+    "/contact": {
+      "title": "Contact Us | TrimiT",
+      "description": "Contact TrimiT support for help with bookings, accounts, and salon listings.",
+      "keywords": "TrimiT contact, salon booking support"
+    }
+  },
+  "STATIC_ROUTES": [
+    { "path": "/", "changefreq": "weekly", "priority": "1.0" },
+    { "path": "/explore", "changefreq": "daily", "priority": "0.95" },
+    { "path": "/for-salons", "changefreq": "weekly", "priority": "0.9" },
+    { "path": "/blog", "changefreq": "weekly", "priority": "0.7" },
+    { "path": "/salons-in-jammu", "changefreq": "weekly", "priority": "0.85" },
+    { "path": "/best-haircut-in-jammu", "changefreq": "weekly", "priority": "0.85" },
+    { "path": "/beard-trimming-jammu", "changefreq": "weekly", "priority": "0.85" },
+    { "path": "/spa-services-jammu", "changefreq": "weekly", "priority": "0.85" },
+    { "path": "/beauty-parlours-jammu", "changefreq": "weekly", "priority": "0.85" },
+    { "path": "/mens-salon-jammu", "changefreq": "weekly", "priority": "0.85" },
+    { "path": "/bridal-makeup-jammu", "changefreq": "weekly", "priority": "0.85" },
+    { "path": "/blog/best-salon-booking-tips-jammu", "changefreq": "monthly", "priority": "0.6" },
+    { "path": "/blog/mens-grooming-guide-jammu", "changefreq": "monthly", "priority": "0.6" },
+    { "path": "/blog/spa-wellness-jammu", "changefreq": "monthly", "priority": "0.6" },
+    { "path": "/signup", "changefreq": "monthly", "priority": "0.8" },
+    { "path": "/login", "changefreq": "monthly", "priority": "0.6" },
+    { "path": "/contact", "changefreq": "monthly", "priority": "0.6" },
+    { "path": "/privacy", "changefreq": "yearly", "priority": "0.5" },
+    { "path": "/terms", "changefreq": "yearly", "priority": "0.5" }
+  ]
+}

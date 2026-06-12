@@ -4,4 +4,7 @@ export const queryKeys = {
     ['ownerAnalytics', period, salonId] as const,
   ownerBookings: ['ownerBookings'] as const,
   recentBookings: ['recentBookings'] as const,
+  subscription: ['subscription'] as const,
+  subscriptionStatus: ['subscriptionStatus'] as const,
+  subscriptionHistory: ['subscriptionHistory'] as const,
 };

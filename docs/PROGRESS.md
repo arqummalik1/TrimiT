@@ -5,7 +5,149 @@
 > Living handoff file for humans and AI tools.
 > Update this file after every meaningful prompt, code change, migration, deploy, or QA pass.
 
+## Session log
+
+### 2026-06-12 — OTP "sent but not received" fix (backend)
+
+**Symptom:** app occasionally showed "OTP sent" and navigated to the OTP
+screen, but no email arrived.
+
+**Root cause (two layers):**
+1. **Email (primary):** Supabase Auth was using the built-in/default email
+   sender — tiny rate limit, no delivery guarantee, testing-only. Occasional
+   silent drops. (Action: configure custom SMTP / Resend in the Supabase
+   dashboard — owner task.)
+2. **Code (secondary, masking):** `send_otp` returned a generic success for
+   ANY non-200/429 Supabase response, so genuine send failures (5xx "Error
+   sending email") still returned HTTP 200 → app navigated as if sent.
+
+**Fix (this commit):** `backend/routers/auth.py:send_otp` now distinguishes a
+genuine delivery failure (`>=500` or body mentions "error sending"/"failed to
+send"/"smtp") from the anti-enumeration case. On a real send failure it clears
+the per-email throttle and returns `502 OTP_SEND_FAILED` so the app shows
+"couldn't send, try again" instead of falsely navigating. Anti-enumeration
+preserved for ineligible addresses (still generic success). Mobile already
+gates navigation on `result.success`, so no client change needed.
+`py_compile` clean.
+
+
+### ✅ RESOLVED — Subscription PR (branch `0.13`) code-review fixes — 2026-06-12
+
+> These code-review findings are **FIXED, committed, and pushed to `0.13`**
+> (commits `b60f544b`, `d543859a`, `ed35b8f4`). Other AIs: do NOT re-flag these.
+
+| # | Area / File | Issue (review comment) | Status |
+|---|-------------|------------------------|--------|
+| 1 | `mobile/.../repositories/subscriptionRepository.ts` | `getHistory` swallowed all errors → empty list on real failures; React Query never retried | ✅ Fixed — re-throws |
+| 2 | `database/43_expire_lapsed_trials_frequent.sql` | HIGH: daily trial-expiry cron left `salons.subscription_active` stale up to ~24h (owner locked out but salon still bookable) | ✅ Fixed — 10-min cron; **applied in Supabase** |
+| 3 | `mobile/.../components/SubscriptionGate.tsx` | Returned `null` while status loading → app interactive during startup freeze window | ✅ Fixed — blocking loading overlay (fail-open on error) |
+| 4 | `mobile/.../components/SubscriptionGate.tsx` | Plain `View` could sit under native `Modal`s (booking modal) | ✅ Fixed — rendered as native `Modal` |
+| 5 | `mobile/.../components/SubscriptionGate.tsx` + `navigation/OwnerTabs.tsx` | Gate trapped owner — blocked the `SubscriptionCheckout` it opens (dead-end) | ✅ Fixed — gate skips payment-flow routes |
+| 6 | `mobile/.../screens/owner/SubscriptionCheckoutScreen.tsx` | `originWhitelist` too narrow → blocked Razorpay bank/UPI/3DS redirects | ✅ Fixed — `['*']`, result via `postMessage` |
+| 7 | `mobile/.../screens/owner/PaymentHistoryScreen.tsx` + `SubscriptionScreen.tsx` | `formatDate` duplicated | ✅ Fixed — shared `lib/formatDate.ts` |
+| 8 | `mobile/.../screens/owner/SubscriptionScreen.tsx` | Feature card hardcoded `₹299` vs dynamic `sub.amount` | ✅ Fixed — uses `sub.amount` |
+| 9 | `mobile/.../screens/owner/SubscriptionScreen.tsx` | Subscribe CTA shown for `grace_period` (still access-granting) → premature/duplicate checkout | ✅ Fixed — excludes `grace_period` |
+| 10 | `mobile/.../hooks/useSubscription.ts` | Status query gated by UI flag, not enforcement → gate never blocked if UI flag off | ✅ Fixed — enabled on either flag |
+
+**Verification:** mobile `tsc --noEmit` clean. No API/contract/DB-read changes;
+all backwards-compatible and flag-gated. Live app safe.
+
+
+### 2026-06-11 — TrimiT Pro subscriptions (SaaS, Razorpay) — Phase 1 + Phase 2 (flagged)
+
+Added a complete owner-subscription system. **Phase 1 ships observe-only**
+(status + banners, NO hard enforcement). **Phase 2** (owner freeze + customer
+grey-out + backend 402 gating) is fully built but behind flags, OFF by default.
+
+- **DB (apply manually in Supabase):** `database/41_subscriptions.sql`
+  (subscriptions, subscription_payments, subscription_events, webhook_logs,
+  `salons.subscription_active`, trial trigger on owner signup, daily
+  expire-trials cron) and `database/42_nearby_salons_subscription_active.sql`
+  (RPC now returns `subscription_active`).
+- **Backend:** `routers/subscriptions.py` (+webhook, +cron reminder runner),
+  `services/subscription_service.py` (source of truth), `subscription_billing.py`
+  (Razorpay subscriptions), `subscription_notifications.py` (2d/1d/expired +
+  lifecycle), `dependencies/subscription.py` (`require_active_subscription`,
+  no-op in Phase 1), admin MRR/ARR analytics in `routers/admin.py`. Gate wired
+  into owner mutations (booking status, services, staff, promos, analytics).
+- **Config/env:** `RAZORPAY_PLAN_ID`, `RAZORPAY_WEBHOOK_SECRET`,
+  `SUBSCRIPTION_ENFORCEMENT_ENABLED` (default false).
+- **Mobile:** types/repo/service/hooks, `SubscriptionScreen`,
+  `SubscriptionCheckoutScreen` (Razorpay WebView), `PaymentHistoryScreen`,
+  `SubscriptionBanner`, `SubscriptionGate` (Phase 2 freeze), settings entry,
+  dashboard banner, SalonCard grey-out. Flags `ENABLE_SUBSCRIPTIONS` (on),
+  `ENABLE_SUBSCRIPTION_ENFORCEMENT` (off).
+- **Web:** service/repo/hooks, `/owner/subscription` page (Razorpay checkout),
+  settings link, same flags.
+- **Verified:** backend imports (74 routes) + py_compile clean; mobile
+  `tsc --noEmit` clean; pre-existing test failures confirmed unrelated.
+
+### 2026-06-11 (later) — subscription follow-ups
+- **Phase 2 booking block:** `create_booking` now returns `403 SALON_UNAVAILABLE`
+  for lapsed salons (flag-gated).
+- **Customer "unavailable" UX:** mobile `SalonDetailScreen` + web `SalonDetail`
+  show a notice and disable/booking-block when `subscription_active=false`.
+- **Resubscribe/reactivation:** verify + `subscription.charged` webhook detect a
+  prior lapsed state, reactivate, clear cancellation flags, log `reactivated`,
+  send "welcome back" push.
+- **Receipt emails (Resend):** `services/subscription_invoice_email.py` sends a
+  ₹299 receipt on every successful charge (verify + webhook). Graceful no-op if
+  `RESEND_API_KEY` unset. New env: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`.
+- Setup guide updated (sections 9–11 + env reference).
+
+### 2026-06-12 — code-review fixes (subscription PR)
+
+Addressed two code-review findings on the subscription PR (branch `0.13`).
+
+- **Mobile (`subscriptionRepository.getHistory`)** — was swallowing ALL errors
+  and returning an empty `{payments: []}` success payload, so network/auth/
+  server failures rendered "No payments yet" and React Query never entered its
+  error/retry state. Fixed: re-throw the error so `usePaymentHistory` handles
+  real failures. (`mobile/src/repositories/subscriptionRepository.ts`)
+- **DB — trial-expiry lag (HIGH)** — trial expiry was materialized into
+  `subscriptions.status` only by the once-daily `expire_lapsed_trials` cron, so
+  `salons.subscription_active` could stay TRUE for up to ~24h after `trial_end`.
+  Owner gating (`compute_access`) is real-time, so an owner could be locked out
+  while customers still saw and booked the salon. Fixed with new migration
+  `database/43_expire_lapsed_trials_frequent.sql` — reschedules the job to every
+  10 minutes and runs it once on apply. Window cut from ~24h to ≤10 min. No
+  API/contract/read-path change; forward-only; migration 41 untouched.
+  **Applied successfully in Supabase by user on 2026-06-12.**
+- **Verified:** mobile diagnostics clean on the edited repo file.
+
+### 2026-06-12 (later) — subscription PR review fixes (batch 2)
+
+More code-review findings on the subscription PR (branch `0.13`). All mobile;
+no API/contract/DB change. `tsc --noEmit` clean.
+
+- **`SubscriptionGate` startup window:** in enforcement mode the gate returned
+  `null` while status was still loading, leaving the owner app interactive
+  during the fetch. Now shows a blocking loading overlay while fetching; fails
+  OPEN on error (network blip must never freeze an owner out — RULES 2.2;
+  backend still enforces 402).
+- **`SubscriptionGate` z-order:** rendered as a plain `View`, so native `Modal`s
+  (booking notification modal) could appear above it. Now rendered inside a
+  native `Modal` (`transparent`, `statusBarTranslucent`, back-press blocked).
+- **`SubscriptionGate` dead-end:** mounted at tab root, the freeze also blocked
+  the `SubscriptionCheckout` screen it navigates to. Now skips the overlay on
+  the payment-flow routes (`Subscription`, `SubscriptionCheckout`,
+  `PaymentHistory`) via `useNavigationState`.
+- **`SubscriptionCheckoutScreen` WebView:** `originWhitelist` was restricted to
+  3 Razorpay hosts, blocking bank/UPI/3DS redirect pages. Now `['*']` (result
+  captured via `postMessage`, not URL interception).
+- **`formatDate` dedup:** extracted to shared `mobile/src/lib/formatDate.ts`;
+  `PaymentHistoryScreen` + `SubscriptionScreen` reuse it.
+- **`SubscriptionScreen` price:** feature card hardcoded `₹299`; now uses
+  `sub.amount` (single backend-driven source).
+- **`SubscriptionScreen` subscribe CTA:** was shown for every non-`active`
+  status incl. `grace_period` (still access-granting); now excludes
+  `grace_period` to avoid premature/duplicate checkout.
+- **`useSubscriptionStatus` enablement:** was gated only by `ENABLE_SUBSCRIPTIONS`
+  while the gate is driven by `ENABLE_SUBSCRIPTION_ENFORCEMENT`; now enabled when
+  EITHER flag is on, so the gate always receives a status.
+
 ## Current State
+
 
 **Last updated:** 2026-05-25
 **Project type:** Live production monorepo
@@ -160,6 +302,14 @@ This pass is focused on the selected P1 items:
 - `database/37_enable_expire_pending_online_bookings_cron.sql`
   - Status: **Applied Successfully** on Supabase SQL Editor.
   - Schedules the abandoned online booking expiry job via `pg_cron`.
+
+- `database/41_subscriptions.sql`, `database/42_nearby_salons_subscription_active.sql`
+  - Status: **Applied Successfully** on Supabase SQL Editor (confirmed by user).
+
+- `database/43_expire_lapsed_trials_frequent.sql`
+  - Status: **Applied Successfully** on Supabase SQL Editor (confirmed by user 2026-06-12).
+  - Reschedules `expire_lapsed_trials` to every 10 min; closes the
+    `salons.subscription_active` vs. real-time trial-expiry lag.
 
 - [x] **Verified Mobile Implementation**: Silent refresh and retry logic is correctly implemented in `apiClient.ts` and `authStore.ts`.
 - [x] **Mobile Build**: Local assembleRelease build completed. APK generated at `mobile/android/app/build/outputs/apk/release/app-release.apk`.

@@ -15,7 +15,7 @@ if [[ -z "$FNM_BIN" && -x /opt/homebrew/bin/fnm ]]; then
 fi
 
 if [[ -n "$FNM_BIN" ]]; then
-  eval "$("$FNM_BIN" env)"
+  eval "$("$FNM_BIN" env --shell bash)"
   "$FNM_BIN" use 22 2>/dev/null || { "$FNM_BIN" install 22 && "$FNM_BIN" use 22; }
 elif [[ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]]; then
   # shellcheck disable=SC1091

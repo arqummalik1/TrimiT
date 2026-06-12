@@ -9,6 +9,7 @@ from core.supabase import supabase
 from core.salon_auth import assert_salon_owner
 from config import settings
 from dependencies.auth import get_current_user
+from dependencies.subscription import require_active_subscription
 from models.salons import SalonCreate, SalonUpdate, ServiceCreate, ServiceUpdate
 
 logger = logging.getLogger("trimit")
@@ -231,7 +232,7 @@ async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_curr
     return res_data[0]
 
 @router.patch("/{salon_id}")
-async def update_salon(salon_id: str, data: SalonUpdate, current_user: dict = Depends(get_current_user)):
+async def update_salon(salon_id: str, data: SalonUpdate, current_user: dict = Depends(require_active_subscription)):
     await assert_salon_owner(salon_id, current_user.get("id"))
 
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
@@ -256,7 +257,7 @@ async def update_salon(salon_id: str, data: SalonUpdate, current_user: dict = De
     return fetch.json()[0]
 
 @router.post("/{salon_id}/services")
-async def create_service(salon_id: str, service: ServiceCreate, current_user: dict = Depends(get_current_user)):
+async def create_service(salon_id: str, service: ServiceCreate, current_user: dict = Depends(require_active_subscription)):
     # Ownership check... (omitted for brevity in this step, but I'll include it)
     await assert_salon_owner(salon_id, current_user.get("id"))
 
@@ -290,7 +291,7 @@ async def update_service(
     salon_id: str,
     service_id: str,
     data: ServiceUpdate,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_active_subscription),
 ):
     await assert_salon_owner(salon_id, current_user.get("id"))
     svc = await supabase.request(
@@ -316,7 +317,7 @@ async def update_service(
 async def delete_service(
     salon_id: str,
     service_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_active_subscription),
 ):
     await assert_salon_owner(salon_id, current_user.get("id"))
     svc = await supabase.request(

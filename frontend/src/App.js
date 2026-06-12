@@ -20,6 +20,7 @@ import ManageSalon from './pages/owner/ManageSalon';
 import ManageServices from './pages/owner/ManageServices';
 import ManageBookings from './pages/owner/ManageBookings';
 import SettingsPage from './pages/owner/SettingsPage';
+import SubscriptionPage from './pages/owner/SubscriptionPage';
 import PrivacyPage from './pages/legal/PrivacyPage';
 import TermsPage from './pages/legal/TermsPage';
 import ContactPage from './pages/legal/ContactPage';
@@ -205,6 +206,14 @@ function App() {
                 <SettingsPage />
               </ProtectedRoute>
             } 
+          />
+          <Route
+            path="/owner/subscription"
+            element={
+              <ProtectedRoute allowedRoles={['owner']}>
+                <SubscriptionPage />
+              </ProtectedRoute>
+            }
           />
           
           {/* Fallback */}

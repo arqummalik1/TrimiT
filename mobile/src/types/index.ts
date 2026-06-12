@@ -40,6 +40,7 @@ export interface Salon {
   max_bookings_per_slot?: number;
   auto_accept?: boolean;
   show_offers?: boolean;
+  subscription_active?: boolean;
   created_at: string;
   services?: Service[];
   reviews?: Review[];

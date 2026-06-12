@@ -105,11 +105,14 @@ export default function VerifyOtpPage() {
         setIsNewUser(isNew);
         setUserName(name);
 
-        // Redirect to appropriate dashboard based on role
+        // Redirect to appropriate dashboard based on role.
+        // New owners (no salon yet) go to the salon setup/onboarding form.
         let redirectPath = '/';
         const role = result.profile?.role;
         if (role === 'owner') {
-          redirectPath = result.hasSalon ? '/owner/dashboard' : '/owner/salon/setup';
+          redirectPath = result.hasSalon ? '/owner/dashboard' : '/owner/salon';
+        } else {
+          redirectPath = '/explore';
         }
         setTargetRedirect(redirectPath);
         setShowSuccessModal(true);

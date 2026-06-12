@@ -7,6 +7,7 @@ import { fonts, borderRadius, spacing, formatPrice, formatDistanceKm } from '../
 import { useTheme } from '../theme/ThemeContext';
 import { Theme } from '../theme/tokens';
 import { normalizeSalon, resolveSalonImageSource } from '../lib/salonImage';
+import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../lib/featureFlags';
 
 interface SalonCardProps {
   salon: Salon;
@@ -23,8 +24,16 @@ const SalonCardComponent: React.FC<SalonCardProps> = ({ salon: rawSalon, onPress
     ? Math.min(...salon.services.map((s) => s.price))
     : null;
 
+  // Phase 2: salons whose owner subscription lapsed are shown greyed + non-clickable.
+  const inactive = ENABLE_SUBSCRIPTION_ENFORCEMENT && salon.subscription_active === false;
+
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.9}>
+    <TouchableOpacity
+      style={[styles.container, inactive && styles.containerInactive]}
+      onPress={onPress}
+      activeOpacity={inactive ? 1 : 0.9}
+      disabled={inactive}
+    >
       <View style={styles.imageContainer}>
         <Image
           source={imageSource}
@@ -33,6 +42,14 @@ const SalonCardComponent: React.FC<SalonCardProps> = ({ salon: rawSalon, onPress
           transition={300}
           cachePolicy="memory-disk"
         />
+        {inactive && (
+          <View style={styles.unavailableOverlay}>
+            <View style={styles.unavailableBadge}>
+              <Ionicons name="lock-closed" size={12} color="#FFFFFF" />
+              <Text style={styles.unavailableText}>Currently unavailable</Text>
+            </View>
+          </View>
+        )}
         {typeof salon.distance === 'number' && !Number.isNaN(salon.distance) && (
           <View style={styles.distanceBadge}>
             <Ionicons name="navigate" size={12} color={theme.colors.primary} />
@@ -86,6 +103,29 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.colors.border,
       marginBottom: spacing.lg,
+    },
+    containerInactive: {
+      opacity: 0.55,
+    },
+    unavailableOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.25)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    unavailableBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: 'rgba(28, 25, 23, 0.85)',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: borderRadius.pill,
+    },
+    unavailableText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontFamily: fonts.bodyMedium,
     },
     imageContainer: {
       position: 'relative',

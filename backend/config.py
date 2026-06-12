@@ -30,6 +30,24 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: Optional[str] = None
     RAZORPAY_KEY_ID: Optional[str] = None
     RAZORPAY_KEY_SECRET: Optional[str] = None
+
+    # ── Subscriptions (TrimiT Pro) ──────────────────────────────────────────
+    # Razorpay recurring plan id + webhook secret. Set these in Render/.env.
+    RAZORPAY_PLAN_ID: Optional[str] = None
+    RAZORPAY_WEBHOOK_SECRET: Optional[str] = None
+    # Phase 2 enforcement. Default ON (app launched fresh with subscription-aware
+    # clients). Set to false in env to revert to observe-only.
+    SUBSCRIPTION_ENFORCEMENT_ENABLED: bool = True
+    # Plan economics (paise). ₹299 / month.
+    SUBSCRIPTION_PRICE_PAISE: int = 29900
+    SUBSCRIPTION_TRIAL_DAYS: int = 14
+    # Days after a failed charge before access is cut (past_due -> expired).
+    SUBSCRIPTION_GRACE_DAYS: int = 3
+
+    # Resend (transactional email) for subscription invoices/receipts. Optional:
+    # if RESEND_API_KEY is unset, receipt emails are skipped (logged), never error.
+    RESEND_API_KEY: Optional[str] = None
+    RESEND_FROM_EMAIL: str = "TrimiT <billing@trimit.online>"
     
     # API Keys
     GOOGLE_MAPS_API_KEY: Optional[str] = None

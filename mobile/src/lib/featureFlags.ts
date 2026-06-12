@@ -21,3 +21,19 @@ export const ENABLE_MULTI_BOOKING_PER_SLOT =
 export const ENABLE_OWNER_PROMO_MANAGEMENT =
   process.env.EXPO_PUBLIC_ENABLE_PROMO_MANAGEMENT === 'true' ||
   process.env.EXPO_PUBLIC_ENABLE_PROMO_MANAGEMENT === '1';
+
+/**
+ * TrimiT Pro subscriptions. Phase 1: show subscription UI (status, banners,
+ * screens) without blocking. Default ON so owners see their trial.
+ */
+export const ENABLE_SUBSCRIPTIONS =
+  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTIONS !== 'false' &&
+  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTIONS !== '0';
+
+/**
+ * Phase 2 client enforcement: freeze the owner app + grey out lapsed salons
+ * for customers. Default ON; set the env to 'false' to revert to observe-only.
+ */
+export const ENABLE_SUBSCRIPTION_ENFORCEMENT =
+  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTION_ENFORCEMENT !== 'false' &&
+  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTION_ENFORCEMENT !== '0';

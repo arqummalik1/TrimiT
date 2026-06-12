@@ -1,16 +1,11 @@
 import { PUBLIC_SITE_URL } from './site';
 import { SEO_PAGES } from './seoPages';
 import { BLOG_POSTS } from '../content/blog/posts';
+import seoData from './seo-data.json';
 
 export { PUBLIC_SITE_URL };
 
-export const DEFAULT_SEO = {
-  title: 'TrimiT — Book Salons & Saloons in Jammu | Haircut, Beard, Spa',
-  description:
-    'Book premium salons & hair saloons in Jammu online. Haircuts, beard grooming, spa, and beauty parlour appointments with live slots and instant confirmation. List your salon/saloon free on TrimiT.',
-  keywords:
-    'salon booking Jammu, saloon booking Jammu, best salons in Jammu, best saloons in Jammu, haircut Jammu, beard grooming Jammu, spa Jammu, saloon near me Jammu, salon near me Jammu, beauty parlour Jammu, TrimiT, trim it',
-};
+export const DEFAULT_SEO = seoData.DEFAULT_SEO;
 
 const SEO_PAGE_MAP = Object.fromEntries(
   SEO_PAGES.map((p) => [
@@ -30,64 +25,8 @@ export const SEO_BY_PATH = {
     description: DEFAULT_SEO.description,
     keywords: DEFAULT_SEO.keywords,
   },
-  '/explore': {
-    title: 'Explore Salons & Saloons in Jammu | TrimiT',
-    description:
-      'Search and book premium salons and saloons in Jammu. Compare ratings, services, and live appointment slots on TrimiT.',
-    keywords: 'explore salons Jammu, explore saloons Jammu, salon near me Jammu, saloon near me Jammu, book salon Jammu, book saloon Jammu',
-  },
-  '/for-salons': {
-    title: 'List Your Salon & Saloon Free | TrimiT for Owners',
-    description:
-      'Take your salon or saloon online with TrimiT. Get more bookings, manage your calendar, and grow your business in Jammu.',
-    keywords: 'salon software India, list saloon online, list salon online, salon booking system Jammu',
-  },
-  '/blog': {
-    title: 'Salon & Saloon Booking Guides Jammu | TrimiT Blog',
-    description: 'Tips for booking salons, grooming, and spa services in Jammu.',
-    keywords: 'salon tips Jammu, saloon tips Jammu, grooming guide, TrimiT blog',
-  },
+  ...seoData.SEO_BY_PATH,
   ...SEO_PAGE_MAP,
-  '/login': {
-    title: 'Sign In | TrimiT Salon Booking',
-    description: 'Sign in to your TrimiT account to manage salon bookings and appointments.',
-    keywords: 'TrimiT login, salon booking sign in',
-  },
-  '/signup': {
-    title: 'Create Account | TrimiT Salon Booking',
-    description: 'Create a free TrimiT account to book salon services and manage your appointments.',
-    keywords: 'TrimiT sign up, create salon booking account',
-  },
-  '/forgot-password': {
-    title: 'Reset Password | TrimiT',
-    description: 'Reset your TrimiT account password.',
-    robots: 'noindex, follow',
-  },
-  '/reset-password': {
-    title: 'Set New Password | TrimiT',
-    description: 'Choose a new password for your TrimiT account.',
-    robots: 'noindex, nofollow',
-  },
-  '/auth/email-confirmed': {
-    title: 'Email Confirmed | TrimiT',
-    description: 'Your TrimiT email address has been confirmed.',
-    robots: 'noindex, nofollow',
-  },
-  '/privacy': {
-    title: 'Privacy Policy | TrimiT',
-    description: 'TrimiT privacy policy — how we collect, use, and protect your data.',
-    keywords: 'TrimiT privacy policy, salon app privacy',
-  },
-  '/terms': {
-    title: 'Terms of Service | TrimiT',
-    description: 'TrimiT terms of service for customers and salon owners.',
-    keywords: 'TrimiT terms of service, salon booking terms',
-  },
-  '/contact': {
-    title: 'Contact Us | TrimiT',
-    description: 'Contact TrimiT support for help with bookings, accounts, and salon listings.',
-    keywords: 'TrimiT contact, salon booking support',
-  },
 };
 
 BLOG_POSTS.forEach((post) => {
@@ -100,21 +39,12 @@ BLOG_POSTS.forEach((post) => {
 
 /** Paths included in sitemap.xml */
 export const SITEMAP_ROUTES = [
-  { path: '/', changefreq: 'weekly', priority: '1.0' },
-  { path: '/explore', changefreq: 'daily', priority: '0.95' },
-  { path: '/for-salons', changefreq: 'weekly', priority: '0.9' },
-  { path: '/blog', changefreq: 'weekly', priority: '0.7' },
-  ...SEO_PAGES.map((p) => ({ path: p.path, changefreq: 'weekly', priority: '0.85' })),
+  ...seoData.STATIC_ROUTES,
   ...BLOG_POSTS.map((p) => ({
     path: `/blog/${p.slug}`,
     changefreq: 'monthly',
     priority: '0.6',
   })),
-  { path: '/signup', changefreq: 'monthly', priority: '0.8' },
-  { path: '/login', changefreq: 'monthly', priority: '0.6' },
-  { path: '/contact', changefreq: 'monthly', priority: '0.6' },
-  { path: '/privacy', changefreq: 'yearly', priority: '0.5' },
-  { path: '/terms', changefreq: 'yearly', priority: '0.5' },
 ];
 
 export function getSeoForPath(pathname) {
@@ -126,6 +56,19 @@ export function getSeoForPath(pathname) {
       ...entry,
     };
   }
+
+  // Handle dynamic salon detail paths: /salon/:id
+  if (pathname.startsWith('/salon/')) {
+    const segments = pathname.split('/').filter(Boolean);
+    if (segments.length === 2 && segments[0] === 'salon') {
+      return {
+        ...DEFAULT_SEO,
+        title: 'Book Salon | TrimiT',
+        robots: 'index, follow',
+      };
+    }
+  }
+
   return {
     ...DEFAULT_SEO,
     robots: 'noindex, nofollow',

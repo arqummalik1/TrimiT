@@ -14,6 +14,7 @@ import { bookingRepository } from '../repositories/bookingRepository';
 import { useRealtimeBookings } from '../hooks/useRealtimeBookings';
 import { useNotificationStore } from '../store/notificationStore';
 import { BookingNotificationModal } from '../components/BookingNotificationModal';
+import { SubscriptionGate } from '../components/SubscriptionGate';
 
 const devLog = (...args: unknown[]) => {
   if (__DEV__) console.log(...args);
@@ -26,6 +27,9 @@ import StaffManagementScreen from '../screens/owner/StaffManagementScreen';
 import PromoManagementScreen from '../screens/owner/PromoManagementScreen';
 import SettingsScreen from '../screens/owner/SettingsScreen';
 import ManageSalonScreen from '../screens/owner/ManageSalonScreen';
+import SubscriptionScreen from '../screens/owner/SubscriptionScreen';
+import SubscriptionCheckoutScreen from '../screens/owner/SubscriptionCheckoutScreen';
+import PaymentHistoryScreen from '../screens/owner/PaymentHistoryScreen';
 import PrivacyPolicyScreen from '../screens/legal/PrivacyPolicyScreen';
 import TermsScreen from '../screens/legal/TermsScreen';
 import ContactScreen from '../screens/legal/ContactScreen';
@@ -41,6 +45,9 @@ function SettingsStackScreen() {
       <SettingsStack.Screen name="ManageSalon" component={ManageSalonScreen} />
       <SettingsStack.Screen name="StaffManagement" component={StaffManagementScreen} />
       <SettingsStack.Screen name="PromoManagement" component={PromoManagementScreen} />
+      <SettingsStack.Screen name="Subscription" component={SubscriptionScreen} />
+      <SettingsStack.Screen name="SubscriptionCheckout" component={SubscriptionCheckoutScreen} />
+      <SettingsStack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
       <SettingsStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <SettingsStack.Screen name="Terms" component={TermsScreen} />
       <SettingsStack.Screen name="Contact" component={ContactScreen} />
@@ -216,6 +223,9 @@ export default function OwnerTabs() {
         }}
         isProcessing={statusMutation.isPending}
       />
+
+      {/* Phase 2: full-screen freeze when subscription is inactive (no-op in Phase 1) */}
+      <SubscriptionGate />
     </>
   );
 }

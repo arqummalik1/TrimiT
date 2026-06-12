@@ -31,6 +31,7 @@ import { isAppError } from '../../types/error';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
 import { SalonDetailParamsSchema } from '../../navigation/params';
 import { normalizeSalon } from '../../lib/salonImage';
+import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../../lib/featureFlags';
 
 type Props = CustomerDiscoverScreenProps<'SalonDetail'>;
 
@@ -75,6 +76,9 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   });
 
   const handleViewService = (service: Service) => {
+    if (ENABLE_SUBSCRIPTION_ENFORCEMENT && salon?.subscription_active === false) {
+      return;
+    }
     navigation.navigate('ServiceDetail', {
       serviceId: service.id,
       salonId,
@@ -83,6 +87,9 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleBookService = (service: Service) => {
+    if (ENABLE_SUBSCRIPTION_ENFORCEMENT && salon?.subscription_active === false) {
+      return;
+    }
     navigation.navigate('Booking', { salonId, serviceId: service.id });
   };
 
@@ -159,6 +166,16 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Content */}
         <View style={styles.content}>
+          {/* Subscription-unavailable notice (Phase 2) */}
+          {ENABLE_SUBSCRIPTION_ENFORCEMENT && salon.subscription_active === false && (
+            <View style={styles.unavailableBanner}>
+              <Ionicons name="lock-closed" size={20} color={theme.colors.error} />
+              <Text style={styles.unavailableBannerText}>
+                This salon is currently unavailable for booking. Please check back later.
+              </Text>
+            </View>
+          )}
+
           {/* Action Buttons */}
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.callButton} onPress={handleCall}>
@@ -286,6 +303,23 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+  unavailableBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: theme.colors.error + '14',
+    borderWidth: 1,
+    borderColor: theme.colors.error + '55',
+    borderRadius: borderRadius.md,
+    padding: 14,
+    marginBottom: spacing.lg,
+  },
+  unavailableBannerText: {
+    flex: 1,
+    color: theme.colors.error,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
@@ -385,8 +419,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   content: {
     padding: 24,
-    backgroundColor: theme.colors.background,
-    borderTopLeftRadius: 32,
+    backgroundColor: theme.colors.background,    borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     marginTop: -32,
   },

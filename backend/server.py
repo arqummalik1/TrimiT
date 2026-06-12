@@ -59,6 +59,7 @@ try:
     from routers import geocode
     from routers import early_access
     from routers import admin
+    from routers import subscriptions
     logger.info("✅ Routers imported successfully")
 except Exception as e:
     logger.exception("❌ FATAL: Failed to import routers: %s", e)
@@ -159,6 +160,7 @@ v1_router.include_router(uploads.router)
 v1_router.include_router(geocode.router)
 v1_router.include_router(early_access.router)
 v1_router.include_router(admin.router)
+v1_router.include_router(subscriptions.router)
 
 app.include_router(v1_router)
 
