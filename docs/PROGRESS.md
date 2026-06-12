@@ -7,6 +7,40 @@
 
 ## Session log
 
+### 2026-06-12 — FIX: web owner signup created a CUSTOMER account
+
+**Symptom:** signing up as Salon Owner on the website created a customer
+account.
+
+**Root cause:** the web OTP flow never sent the role to the backend. Mobile was
+fixed in Pass 7 (role/name/phone hints to `verify-otp`), but web was missed:
+`SignupPage` navigated to `/verify-otp?email&type` (no role) and
+`authStore.verifyOtp` posted only `{email, token, type}`. With no role hint,
+backend `verify_otp` defaulted the new `public.users` row to `customer`.
+
+**Fix (web only, backwards-compatible):**
+- `SignupPage` now forwards `role` (+ `name`, `phone`) as query params to
+  `/verify-otp`.
+- `VerifyOtpPage` reads those hints and passes them to `verifyOtp`.
+- `authStore.verifyOtp(email, token, type, extras)` includes `role/name/phone`
+  in the POST body when present. Backend ignores them once a profile exists
+  (no escalation). Web build verified clean.
+
+Also: web OTP resend button now shows after 30s (was 60s).
+
+
+### 2026-06-12 — OTP delivers magic LINK instead of 6-digit code (Supabase template)
+
+After disabling custom SMTP, signups work but the email contains a magic LINK
+while the app UI expects a 6-digit OTP code. **Root cause: Supabase email
+templates ("Magic Link" + "Confirm signup") use `{{ .ConfirmationURL }}`
+instead of `{{ .Token }}`.** No app/backend code change needed — our
+`verify-otp` already verifies the numeric token; only the email body is wrong.
+Fix = edit both templates in Supabase → Authentication → Email Templates to
+render `{{ .Token }}`. Proper Resend SMTP setup documented for the owner
+(verify domain, sender on verified domain, host/port/user/pass).
+
+
 ### 2026-06-12 — P0: signup fully broken (Supabase OTP 500) + honest error + web download fix
 
 **Symptom:** every signup (customer + owner) failed; app showed "We could not

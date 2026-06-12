@@ -12,6 +12,12 @@ export default function VerifyOtpPage() {
   const queryParams = new URLSearchParams(location.search);
   const email = queryParams.get('email') || '';
   const type = queryParams.get('type') || 'signup'; // signup, recovery, magiclink
+  // Signup role/name/phone hints — forwarded to the backend so a NEW account is
+  // created with the correct role (owner vs customer). Ignored server-side once
+  // a profile row exists (no escalation).
+  const signupRole = queryParams.get('role') || undefined;
+  const signupName = queryParams.get('name') || undefined;
+  const signupPhone = queryParams.get('phone') || undefined;
 
   const { verifyOtp, sendOtp, isLoading, error: authError, clearError } = useAuthStore();
 
@@ -93,7 +99,11 @@ export default function VerifyOtpPage() {
       return;
     }
 
-    const result = await verifyOtp(email, fullCode, type);
+    const result = await verifyOtp(email, fullCode, type, {
+      role: signupRole,
+      name: signupName,
+      phone: signupPhone,
+    });
     if (result.success) {
       if (type === 'recovery') {
         const token = result.session?.access_token;

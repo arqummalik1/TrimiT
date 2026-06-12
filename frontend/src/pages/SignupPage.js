@@ -63,7 +63,14 @@ const SignupPage = () => {
     if (result.success) {
       if (result.requiresEmailConfirmation) {
         useToastStore.getState().success('Verification OTP code sent to your email.');
-        navigate(`/verify-otp?email=${encodeURIComponent(formData.email.trim().toLowerCase())}&type=signup`);
+        const params = new URLSearchParams({
+          email: formData.email.trim().toLowerCase(),
+          type: 'signup',
+          role: formData.role,
+        });
+        if (formData.name) params.set('name', formData.name);
+        if (formData.phone) params.set('phone', formData.phone);
+        navigate(`/verify-otp?${params.toString()}`);
         return;
       }
       if (formData.role === 'owner') {

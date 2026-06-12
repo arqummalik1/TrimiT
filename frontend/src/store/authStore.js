@@ -335,10 +335,16 @@ export const useAuthStore = create(
         }
       },
 
-      verifyOtp: async (email, token, type) => {
+      verifyOtp: async (email, token, type, extras = {}) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.post('/auth/verify-otp', { email, token, type });
+          const body = { email, token, type };
+          // Signup-only hints so a new account gets the right role. Backend
+          // ignores them once a profile row exists.
+          if (extras.role) body.role = extras.role;
+          if (extras.name) body.name = extras.name;
+          if (extras.phone) body.phone = extras.phone;
+          const response = await api.post('/auth/verify-otp', body);
           const { user, access_token, refresh_token, profile } = response.data;
 
           api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
