@@ -7,6 +7,42 @@
 
 ## Session log
 
+### 2026-06-12 — P0: signup fully broken (Supabase OTP 500) + honest error + web download fix
+
+**Symptom:** every signup (customer + owner) failed; app showed "We could not
+create your account. Please check the details you entered."
+
+**Root cause (email/config, NOT code):** Supabase `auth/v1/otp` returned `500`
+on every request — Supabase Auth failed to SEND the verification email. This
+began right after custom SMTP (Resend) was configured in Supabase, i.e. the
+new SMTP config is broken (most likely sender domain not verified in Resend, or
+wrong sender/host/port). The built-in sender previously worked (with occasional
+drops); the misconfigured custom SMTP now fails 100%.
+
+**Immediate mitigation (owner action in Supabase):** disable Custom SMTP to
+fall back to the built-in sender and restore signups, OR fix the Resend SMTP
+(verify domain + correct sender). See chat for step-by-step.
+
+**Code fix (this commit):**
+- `backend/routers/auth.py:signup` now detects a Supabase `5xx` (email send
+  failure), logs the real provider body to Render logs, and returns
+  `502 OTP_SEND_FAILED` with an honest "temporary email-service issue, try
+  again" message — instead of the misleading "check your details" 400.
+  Backwards-compatible (new error code; success/202/400 paths unchanged).
+
+**Web (download button):** the website "Download App" button opened the
+early-access modal instead of the Play Store. Fixed:
+- `frontend/src/config/storeLinks.js` now defaults `DOWNLOAD_APP_URL` /
+  `PLAY_STORE_URL` to the live listing
+  `https://play.google.com/store/apps/details?id=com.trimit.app`; corrected
+  `IS_APK_DRIVE_DOWNLOAD` to reflect the resolved URL.
+- `frontend/src/components/Header.js` download buttons (desktop + mobile) now
+  open the Play Store; removed the now-unused EarlyAccessModal wiring.
+  (`EarlyAccessModal` component file left in place; no longer referenced.)
+
+`py_compile` clean; web diagnostics clean.
+
+
 ### 2026-06-12 — OTP "sent but not received" fix (backend)
 
 **Symptom:** app occasionally showed "OTP sent" and navigated to the OTP

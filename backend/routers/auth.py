@@ -124,6 +124,29 @@ async def signup(request: Request, user: UserCreate):
     if status_code_resp == 202:
         return JSONResponse(status_code=202, content=body)
 
+    # Supabase 5xx on signup almost always means the Auth email SEND failed
+    # (SMTP / email-provider problem), NOT bad user input. Surface that honestly
+    # instead of telling the user to "check their details", and log the real
+    # provider response so it's visible in Render logs.
+    if status_code_resp >= 500:
+        logger.error(
+            "signup: supabase auth email send failed status=%s email=%s body=%s",
+            status_code_resp,
+            user.email,
+            body if isinstance(body, dict) else str(body),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": "OTP_SEND_FAILED",
+                "message": (
+                    "We couldn't send your verification code right now. This is a "
+                    "temporary email-service issue on our side — please try again "
+                    "in a few minutes."
+                ),
+            },
+        )
+
     # Hybrid Fix: If user exists but is unconfirmed, resend and act like it's a new signup
     if status_code_resp == 400 and body.get("code") == "USER_ALREADY_EXISTS":
         state = await check_existing_signup_state(user.email)
