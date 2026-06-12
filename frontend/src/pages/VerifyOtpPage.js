@@ -16,7 +16,7 @@ export default function VerifyOtpPage() {
   const { verifyOtp, sendOtp, isLoading, error: authError, clearError } = useAuthStore();
 
   const [code, setCode] = useState(Array(6).fill(''));
-  const [resendTimer, setResendTimer] = useState(60);
+  const [resendTimer, setResendTimer] = useState(30);
   const [localError, setLocalError] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
@@ -126,7 +126,7 @@ export default function VerifyOtpPage() {
     const result = await sendOtp(email);
     if (result.success) {
       useToastStore.getState().success('A new verification code has been sent to your email.');
-      setResendTimer(60);
+      setResendTimer(30);
       setCode(Array(6).fill(''));
       inputRefs[0].current.focus();
     }
