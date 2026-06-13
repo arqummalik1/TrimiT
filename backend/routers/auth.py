@@ -43,7 +43,7 @@ logger = logging.getLogger("trimit")
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-OTP_EMAIL_THROTTLE_SECONDS = 60
+OTP_EMAIL_THROTTLE_SECONDS = 30
 otp_email_throttle = TTLCache(maxsize=5000, ttl=OTP_EMAIL_THROTTLE_SECONDS)
 
 
