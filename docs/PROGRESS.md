@@ -7,6 +7,48 @@
 
 ## Session log
 
+### 2026-06-13 — FIX: OTP optimistic navigation bug (contradictory toast messages)
+
+**Problem:** After implementing optimistic navigation, `VerifyOtpScreen` always
+showed a success toast after 2 seconds via a fixed timeout, **regardless of whether
+the background OTP send actually succeeded**. When the OTP send failed, users saw:
+1. Error toast from caller screen (LoginScreen/SignupScreen)
+2. Success toast from VerifyOtpScreen 2s later ("Verification code sent...")
+3. Normal subtitle text implying code was sent
+
+This created contradictory messages and confused users about whether the code was
+actually sent.
+
+**Root cause:** The optimistic flow used a fixed 2s `setTimeout` to clear the
+"Sending code..." state and show success toast. This timer ran unconditionally
+and had no awareness of the actual API result.
+
+**Fix (wire actual result through navigation params):**
+- Added `otpSendResult?: 'success' | 'error'` to `VerifyOtp` route params in `types.ts`.
+- `LoginScreen` + `SignupScreen` now call `navigation.setParams()` with the real
+  result after the background OTP send completes.
+- `VerifyOtpScreen` listens to `otpSendResult` via `useEffect` and:
+  - Shows success toast + clears "sending" state **only when `otpSendResult === 'success'`**
+  - Shows inline error + updates subtitle **when `otpSendResult === 'error'`**
+  - Removed the unconditional 2s timeout entirely.
+
+**Verified:**
+- Success case: instant navigation → "Sending code..." → success toast → normal OTP UI
+- Failure case: instant navigation → "Sending code..." → inline error + updated subtitle,
+  no success toast
+- No contradictory toasts
+- No TypeScript errors
+
+**Files changed:**
+- `mobile/src/navigation/types.ts` (added `otpSendResult` param)
+- `mobile/src/screens/auth/SignupScreen.tsx` (setParams after signup)
+- `mobile/src/screens/auth/VerifyOtpScreen.tsx` (useEffect to handle result)
+- `mobile/src/screens/auth/LoginScreen.tsx` (already had setParams from previous fix)
+
+**Commit:** `dc4b9105` on branch `0.15`
+
+---
+
 ### 2026-06-13 — INSTANT OTP navigation + 30s resend timer (UX improvement)
 
 **Problem:** After entering email and tapping "Send Verification Code", the app
