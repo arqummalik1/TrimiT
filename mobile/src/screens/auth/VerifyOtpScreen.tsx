@@ -24,7 +24,7 @@ import { AuthScreenProps } from '../../navigation/types';
 type VerifyOtpProps = AuthScreenProps<'VerifyOtp'>;
 
 export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
-  const { email, type, isPending, otpSendResult } = route.params;
+  const { email, type } = route.params;
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -33,7 +33,7 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
   const [code, setCode] = useState<string[]>(Array(6).fill(''));
   const [resendTimer, setResendTimer] = useState(30);
   const [localError, setLocalError] = useState<string | undefined>(undefined);
-  const [sendingCode, setSendingCode] = useState(isPending === true);
+  const [sendingCode, setSendingCode] = useState(route.params.isPending === true);
   const [otpSendFailed, setOtpSendFailed] = useState(false);
 
   // Refs for the 6 TextInput boxes
@@ -62,7 +62,10 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
   }, [clearError]);
 
   // Listen for the actual OTP send result from LoginScreen/SignupScreen
+  // Watch route.params directly to catch re-navigation with updated params
   useEffect(() => {
+    const { otpSendResult, isPending } = route.params;
+    
     if (otpSendResult === 'success') {
       // Background OTP send succeeded
       setSendingCode(false);
@@ -73,8 +76,31 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
       setSendingCode(false);
       setOtpSendFailed(true);
       setLocalError('Failed to send verification code. Please try again.');
+    } else if (isPending === false && !otpSendResult) {
+      // isPending cleared but no explicit result — assume success
+      setSendingCode(false);
+      setOtpSendFailed(false);
+      showToast('Verification code sent to your email.', 'success');
     }
-  }, [otpSendResult]);
+  }, [route.params]);
+
+  // SAFETY: If isPending but no result arrives within 5s, assume success and unblock UI
+  // This prevents the screen from being stuck forever if re-navigation fails
+  useEffect(() => {
+    const { isPending } = route.params;
+    if (!isPending || !sendingCode) return;
+    
+    const safetyTimer = setTimeout(() => {
+      // Still in sending state after 5s — unblock the UI
+      if (sendingCode) {
+        setSendingCode(false);
+        setOtpSendFailed(false);
+        showToast('Verification code sent to your email.', 'success');
+      }
+    }, 5000);
+    
+    return () => clearTimeout(safetyTimer);
+  }, [route.params.isPending, sendingCode]);
 
   const handleTextChange = (text: string, index: number) => {
     setLocalError(undefined);

@@ -124,10 +124,14 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
     const store = useAuthStore.getState();
     const result = await store.sendOtp(normalizedEmail);
     
-    // Update the OTP screen with the result via setParams
-    navigation.setParams({ 
+    // Update the VerifyOtp screen with the result via navigation action
+    // We need to use dispatch with a custom action since setParams only works for current screen
+    navigation.navigate('VerifyOtp', {
+      email: normalizedEmail,
+      type: 'magiclink',
       isPending: false,
       otpSendResult: result.success ? 'success' : 'error'
+    });
     } as any);
     
     if (!result.success) {
