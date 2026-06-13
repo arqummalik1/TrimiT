@@ -10,7 +10,12 @@ export type AuthStackParamList = {
   RoleSelect: undefined;
   Signup: { role: 'customer' | 'owner' };
   ForgotPassword: { prefilledEmail?: string } | undefined;
-  VerifyOtp: { email: string; type: 'signup' | 'recovery' | 'magiclink' };
+  VerifyOtp: { 
+    email: string; 
+    type: 'signup' | 'recovery' | 'magiclink'; 
+    isPending?: boolean;
+    otpSendResult?: 'success' | 'error';
+  };
   ResetPassword: { token: string };
   PrivacyPolicy: undefined;
   Terms: undefined;

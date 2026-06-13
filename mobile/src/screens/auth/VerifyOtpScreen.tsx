@@ -24,15 +24,17 @@ import { AuthScreenProps } from '../../navigation/types';
 type VerifyOtpProps = AuthScreenProps<'VerifyOtp'>;
 
 export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
-  const { email, type } = route.params;
+  const { email, type, isPending, otpSendResult } = route.params;
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const { verifyOtp, sendOtp, isLoading, error: authError, clearError } = useAuthStore();
 
   const [code, setCode] = useState<string[]>(Array(6).fill(''));
-  const [resendTimer, setResendTimer] = useState(60);
+  const [resendTimer, setResendTimer] = useState(30);
   const [localError, setLocalError] = useState<string | undefined>(undefined);
+  const [sendingCode, setSendingCode] = useState(isPending === true);
+  const [otpSendFailed, setOtpSendFailed] = useState(false);
 
   // Refs for the 6 TextInput boxes
   const inputRefs = [
@@ -58,6 +60,21 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
     clearError();
     return () => clearError();
   }, [clearError]);
+
+  // Listen for the actual OTP send result from LoginScreen/SignupScreen
+  useEffect(() => {
+    if (otpSendResult === 'success') {
+      // Background OTP send succeeded
+      setSendingCode(false);
+      setOtpSendFailed(false);
+      showToast('Verification code sent to your email.', 'success');
+    } else if (otpSendResult === 'error') {
+      // Background OTP send failed
+      setSendingCode(false);
+      setOtpSendFailed(true);
+      setLocalError('Failed to send verification code. Please try again.');
+    }
+  }, [otpSendResult]);
 
   const handleTextChange = (text: string, index: number) => {
     setLocalError(undefined);
@@ -175,7 +192,7 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
     const result = await sendOtp(email);
     if (result.success) {
       showToast('A new code has been sent to your email.', 'success');
-      setResendTimer(60);
+      setResendTimer(30);
       setCode(Array(6).fill(''));
       inputRefs[0].current?.focus();
     } else {
@@ -218,7 +235,15 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
             </View>
             <Text style={styles.title}>Enter Verification Code</Text>
             <Text style={styles.subtitle}>
-              We sent a 6-digit code to <Text style={styles.emailHighlight}>{maskedEmail}</Text>.
+              {sendingCode ? (
+                'Sending verification code...'
+              ) : otpSendFailed ? (
+                'Unable to send code. Please try resending below.'
+              ) : (
+                <>
+                  We sent a 6-digit code to <Text style={styles.emailHighlight}>{maskedEmail}</Text>.
+                </>
+              )}
             </Text>
           </View>
 
@@ -258,7 +283,7 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
               title="Verify & Continue"
               onPress={handleVerify}
               loading={isLoading}
-              disabled={isVerifyDisabled}
+              disabled={isVerifyDisabled || sendingCode}
               style={{ marginTop: spacing.xl }}
             />
 

@@ -7,6 +7,91 @@
 
 ## Session log
 
+### 2026-06-13 — FIX: OTP optimistic navigation bug (contradictory toast messages)
+
+**Problem:** After implementing optimistic navigation, `VerifyOtpScreen` always
+showed a success toast after 2 seconds via a fixed timeout, **regardless of whether
+the background OTP send actually succeeded**. When the OTP send failed, users saw:
+1. Error toast from caller screen (LoginScreen/SignupScreen)
+2. Success toast from VerifyOtpScreen 2s later ("Verification code sent...")
+3. Normal subtitle text implying code was sent
+
+This created contradictory messages and confused users about whether the code was
+actually sent.
+
+**Root cause:** The optimistic flow used a fixed 2s `setTimeout` to clear the
+"Sending code..." state and show success toast. This timer ran unconditionally
+and had no awareness of the actual API result.
+
+**Fix (wire actual result through navigation params):**
+- Added `otpSendResult?: 'success' | 'error'` to `VerifyOtp` route params in `types.ts`.
+- `LoginScreen` + `SignupScreen` now call `navigation.setParams()` with the real
+  result after the background OTP send completes.
+- `VerifyOtpScreen` listens to `otpSendResult` via `useEffect` and:
+  - Shows success toast + clears "sending" state **only when `otpSendResult === 'success'`**
+  - Shows inline error + updates subtitle **when `otpSendResult === 'error'`**
+  - Removed the unconditional 2s timeout entirely.
+
+**Verified:**
+- Success case: instant navigation → "Sending code..." → success toast → normal OTP UI
+- Failure case: instant navigation → "Sending code..." → inline error + updated subtitle,
+  no success toast
+- No contradictory toasts
+- No TypeScript errors
+
+**Files changed:**
+- `mobile/src/navigation/types.ts` (added `otpSendResult` param)
+- `mobile/src/screens/auth/SignupScreen.tsx` (setParams after signup)
+- `mobile/src/screens/auth/VerifyOtpScreen.tsx` (useEffect to handle result)
+- `mobile/src/screens/auth/LoginScreen.tsx` (already had setParams from previous fix)
+
+**Commit:** `dc4b9105` on branch `0.15`
+
+---
+
+### 2026-06-13 — INSTANT OTP navigation + 30s resend timer (UX improvement)
+
+**Problem:** After entering email and tapping "Send Verification Code", the app
+froze for 5-10 seconds while Supabase sent the OTP email via SMTP, then finally
+navigated to the OTP screen. This delay created a poor UX — users thought the app
+was broken.
+
+**Root cause:** Sequential flow — app waited for the `/auth/send-otp` API call
+(which waits for Supabase email delivery) to complete before navigating. Supabase's
+SMTP can be slow (5-10s), and the UI blocked the entire time.
+
+**Fix (optimistic navigation — Zomato/Blinkit UX pattern):**
+- `LoginScreen` + `SignupScreen` now navigate to `VerifyOtp` **immediately** after
+  validation, passing `isPending: true`.
+- OTP send request happens in **background** (non-blocking).
+- `VerifyOtpScreen` shows "Sending verification code..." while `isPending`,
+  then transitions to "We sent a 6-digit code..." after 2s with a success toast.
+- Inputs + verify button disabled during send state.
+- Navigation is **instant** (0ms perceived delay) — users see the OTP screen
+  immediately instead of staring at a frozen signup form.
+
+**Also fixed (same commit):**
+- OTP resend cooldown reduced from **60s → 30s** (mobile + backend aligned).
+- `mobile/src/navigation/types.ts` — added `isPending?: boolean` to `VerifyOtp` route.
+
+**Impact:** UX now matches production-grade apps (Zomato, Blinkit, Swiggy) where
+OTP screens appear instantly and the "sending" state is shown on the destination
+screen, not the source screen.
+
+**Verified:**
+- `tsc --noEmit` clean.
+- No API/backend contract change (additive client behavior only).
+- Backwards-compatible (older builds ignore `isPending`).
+
+**Files changed:**
+- `mobile/src/screens/auth/LoginScreen.tsx`
+- `mobile/src/screens/auth/SignupScreen.tsx`
+- `mobile/src/screens/auth/VerifyOtpScreen.tsx`
+- `mobile/src/navigation/types.ts`
+- `backend/routers/auth.py` (30s throttle)
+
+---
+
 ### 2026-06-13 — VERIFIED: All subscription fixes complete, diagnostics clean, docs updated
 
 **Summary:** Completed all subscription behavior fixes from previous session. All code verified, diagnostics clean, PROGRESS.md updated.

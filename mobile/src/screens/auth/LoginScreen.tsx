@@ -111,13 +111,28 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
       return;
     }
 
+    // OPTIMISTIC NAVIGATION: Navigate immediately for instant UX (Zomato/Blinkit-style).
+    // OTP screen shows "Sending code..." state while the email is being sent in background.
+    const normalizedEmail = email.trim().toLowerCase();
+    navigation.navigate('VerifyOtp', { 
+      email: normalizedEmail, 
+      type: 'magiclink',
+      isPending: true 
+    });
+
+    // Send OTP in background and update the screen with the result
     const store = useAuthStore.getState();
-    const result = await store.sendOtp(email.trim());
-    if (result.success) {
-      showToast('Verification OTP code sent to your email.', 'success');
-      navigation.navigate('VerifyOtp', { email: email.trim().toLowerCase(), type: 'magiclink' });
-    } else {
-      showToast(result.error || 'Failed to send OTP. Please try again.', 'error');
+    const result = await store.sendOtp(normalizedEmail);
+    
+    // Update the OTP screen with the result via setParams
+    navigation.setParams({ 
+      isPending: false,
+      otpSendResult: result.success ? 'success' : 'error'
+    } as any);
+    
+    if (!result.success) {
+      // Error is shown inline in VerifyOtp via the otpSendResult param
+      // No toast here to avoid duplicate error messages
     }
   };
 
