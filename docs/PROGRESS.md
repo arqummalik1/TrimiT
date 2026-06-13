@@ -7,6 +7,39 @@
 
 ## Session log
 
+### 2026-06-13 — FIX: Flickering button and resend text on VerifyOtp screen
+
+**Problem:** After fixing the stuck button issue, the "Verify & Continue" button
+and "Resend code in Xs" text were **flickering rapidly** — half the button and
+text were blinking on/off.
+
+**Root cause:**
+1. useEffect was watching entire `route.params` object → fired on **every param change**
+2. LoginScreen/SignupScreen call `navigate()` twice (once with `isPending: true`,
+   again with result) → each triggers useEffect
+3. Safety timeout (5s) could also fire → **multiple rapid state updates**
+4. Each state update caused re-render → flickering UI
+
+**Fix:**
+1. Watch **specific params only**: `route.params.otpSendResult` and
+   `route.params.isPending` instead of entire `route.params` object
+2. **Guard with `if (!sendingCode) return`** — only act once during the
+   sending → complete transition
+3. Prevents duplicate state changes and duplicate toasts
+
+**Verified:**
+- No more flickering
+- Button transitions smoothly from disabled → enabled
+- Single success toast (not multiple)
+- Resend text appears stable
+
+**Files changed:**
+- `mobile/src/screens/auth/VerifyOtpScreen.tsx`
+
+**Commit:** `cacc5aa2` on branch `0.15`
+
+---
+
 ### 2026-06-13 — CRITICAL FIX: VerifyOtp stuck in "Sending code..." state
 
 **Problem:** After entering email and navigating to VerifyOtp screen, it showed
