@@ -7,6 +7,47 @@
 
 ## Session log
 
+### 2026-06-13 — CRITICAL FIX: VerifyOtp stuck in "Sending code..." state
+
+**Problem:** After entering email and navigating to VerifyOtp screen, it showed
+"Sending verification code..." and the "Verify & Continue" button remained
+**disabled forever**, even after the OTP arrived. Users couldn't enter or verify
+the code. Screen was completely stuck.
+
+**Root cause:**
+1. `navigation.setParams()` in LoginScreen/SignupScreen was trying to update
+   params on the **caller screen**, not the VerifyOtp screen (wrong target).
+2. Even when using re-navigation with `navigate()`, the useEffect wasn't watching
+   `route.params` properly to detect param changes.
+3. `sendingCode` state stayed `true` forever, keeping the button disabled via
+   `disabled={isVerifyDisabled || sendingCode}`.
+
+**Fix:**
+1. **LoginScreen + SignupScreen:** Changed from `setParams()` to full
+   `navigate()` with updated params (including `isPending: false` and
+   `otpSendResult`).
+2. **VerifyOtpScreen:** Watch `route.params` in useEffect (not individual
+   destructured vars) to catch param updates from re-navigation.
+3. **Safety timeout:** Added 5s fallback timer — if no param update arrives,
+   automatically unblock the UI and assume success.
+4. **Handle edge case:** If `isPending` becomes `false` but no explicit
+   `otpSendResult`, assume success and unblock.
+
+**Verified:**
+- Button now unblocks immediately after OTP send completes
+- Users can enter and verify code normally
+- Safety timeout prevents stuck state if param update fails
+- Both success and failure cases work correctly
+
+**Files changed:**
+- `mobile/src/screens/auth/LoginScreen.tsx`
+- `mobile/src/screens/auth/SignupScreen.tsx`
+- `mobile/src/screens/auth/VerifyOtpScreen.tsx`
+
+**Commit:** `a1188705` on branch `0.15`
+
+---
+
 ### 2026-06-13 — FIX: OTP optimistic navigation bug (contradictory toast messages)
 
 **Problem:** After implementing optimistic navigation, `VerifyOtpScreen` always
