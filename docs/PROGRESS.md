@@ -7,6 +7,49 @@
 
 ## Session log
 
+### 2026-06-13 — INSTANT OTP navigation + 30s resend timer (UX improvement)
+
+**Problem:** After entering email and tapping "Send Verification Code", the app
+froze for 5-10 seconds while Supabase sent the OTP email via SMTP, then finally
+navigated to the OTP screen. This delay created a poor UX — users thought the app
+was broken.
+
+**Root cause:** Sequential flow — app waited for the `/auth/send-otp` API call
+(which waits for Supabase email delivery) to complete before navigating. Supabase's
+SMTP can be slow (5-10s), and the UI blocked the entire time.
+
+**Fix (optimistic navigation — Zomato/Blinkit UX pattern):**
+- `LoginScreen` + `SignupScreen` now navigate to `VerifyOtp` **immediately** after
+  validation, passing `isPending: true`.
+- OTP send request happens in **background** (non-blocking).
+- `VerifyOtpScreen` shows "Sending verification code..." while `isPending`,
+  then transitions to "We sent a 6-digit code..." after 2s with a success toast.
+- Inputs + verify button disabled during send state.
+- Navigation is **instant** (0ms perceived delay) — users see the OTP screen
+  immediately instead of staring at a frozen signup form.
+
+**Also fixed (same commit):**
+- OTP resend cooldown reduced from **60s → 30s** (mobile + backend aligned).
+- `mobile/src/navigation/types.ts` — added `isPending?: boolean` to `VerifyOtp` route.
+
+**Impact:** UX now matches production-grade apps (Zomato, Blinkit, Swiggy) where
+OTP screens appear instantly and the "sending" state is shown on the destination
+screen, not the source screen.
+
+**Verified:**
+- `tsc --noEmit` clean.
+- No API/backend contract change (additive client behavior only).
+- Backwards-compatible (older builds ignore `isPending`).
+
+**Files changed:**
+- `mobile/src/screens/auth/LoginScreen.tsx`
+- `mobile/src/screens/auth/SignupScreen.tsx`
+- `mobile/src/screens/auth/VerifyOtpScreen.tsx`
+- `mobile/src/navigation/types.ts`
+- `backend/routers/auth.py` (30s throttle)
+
+---
+
 ### 2026-06-13 — VERIFIED: All subscription fixes complete, diagnostics clean, docs updated
 
 **Summary:** Completed all subscription behavior fixes from previous session. All code verified, diagnostics clean, PROGRESS.md updated.

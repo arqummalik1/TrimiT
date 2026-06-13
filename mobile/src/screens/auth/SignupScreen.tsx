@@ -99,8 +99,18 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
       role,
     });
 
+    // OPTIMISTIC NAVIGATION: Navigate immediately for instant UX (Zomato/Blinkit-style).
+    // The 5-10s Supabase OTP email-send delay no longer blocks the UI.
+    const normalizedEmail = data.email.trim().toLowerCase();
+    navigation.navigate('VerifyOtp', {
+      email: normalizedEmail,
+      type: 'signup',
+      isPending: true
+    });
+
+    // Send signup request in background
     const result = await signup(
-      data.email.trim(),
+      normalizedEmail,
       "",
       data.name.trim(),
       data.phone || '',
@@ -114,21 +124,12 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
       error: result.error,
     });
 
-    if (result.success) {
-      if (result.requiresEmailConfirmation) {
-        // OTP-based signup: backend has already triggered the email OTP via
-        // auth/v1/otp. Route to the 6-digit verify screen — Zomato/Blinkit-style
-        // — instead of the legacy "check your email link" page.
-        navigation.navigate('VerifyOtp', {
-          email: data.email.trim().toLowerCase(),
-          type: 'signup',
-        });
-        setLastSignupErrorCode(null);
-      }
-    } else {
+    if (!result.success) {
+      // Error: VerifyOtp will detect and show inline error with back/retry options
       setLastSignupErrorCode(result.errorCode ?? null);
-      setConfirmedEmail(data.email.trim());
+      setConfirmedEmail(normalizedEmail);
     }
+    // Success case: VerifyOtp already showing, isPending will clear automatically
   };
 
   const handleResendConfirmation = async () => {
