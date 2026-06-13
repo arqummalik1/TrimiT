@@ -24,15 +24,16 @@ const SalonCardComponent: React.FC<SalonCardProps> = ({ salon: rawSalon, onPress
     ? Math.min(...salon.services.map((s) => s.price))
     : null;
 
-  // Phase 2: salons whose owner subscription lapsed are shown greyed + non-clickable.
+  // Phase 2: salons whose owner subscription lapsed are shown greyed but STILL
+  // visible and clickable — customers can browse services, they just can't book
+  // (booking is blocked downstream). The salon is "frozen", not hidden.
   const inactive = ENABLE_SUBSCRIPTION_ENFORCEMENT && salon.subscription_active === false;
 
   return (
     <TouchableOpacity
       style={[styles.container, inactive && styles.containerInactive]}
       onPress={onPress}
-      activeOpacity={inactive ? 1 : 0.9}
-      disabled={inactive}
+      activeOpacity={0.9}
     >
       <View style={styles.imageContainer}>
         <Image
@@ -46,7 +47,7 @@ const SalonCardComponent: React.FC<SalonCardProps> = ({ salon: rawSalon, onPress
           <View style={styles.unavailableOverlay}>
             <View style={styles.unavailableBadge}>
               <Ionicons name="lock-closed" size={12} color="#FFFFFF" />
-              <Text style={styles.unavailableText}>Currently unavailable</Text>
+              <Text style={styles.unavailableText}>Not taking bookings</Text>
             </View>
           </View>
         )}

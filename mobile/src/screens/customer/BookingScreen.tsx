@@ -41,6 +41,7 @@ import {
   ENABLE_ONLINE_PAY,
   ENABLE_STAFF_SELECTION,
   ENABLE_MULTI_BOOKING_PER_SLOT,
+  ENABLE_SUBSCRIPTION_ENFORCEMENT,
 } from '../../lib/featureFlags';
 import { createIdempotencyKey } from '../../lib/idempotency';
 import { isTransientNetworkError, withTransientNetworkRetry } from '../../lib/networkRetry';
@@ -127,6 +128,12 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
   });
 
   const service = salon?.services?.find((s) => s.id === serviceId);
+
+  // Phase 2: a frozen salon (lapsed owner subscription) is viewable but NOT
+  // bookable. Block the booking flow here; backend also returns 403 as the hard
+  // gate.
+  const notBookable =
+    ENABLE_SUBSCRIPTION_ENFORCEMENT && salon?.subscription_active === false;
 
   const slotsStaffId = useMemo(
     () => (!anyStaffSelected && selectedStaffId ? selectedStaffId : undefined),
@@ -692,6 +699,13 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       serviceId,
       selectedDate,
     });
+    if (notBookable) {
+      Alert.alert(
+        'Booking unavailable',
+        "This salon isn't accepting bookings right now. Please check back later.",
+      );
+      return;
+    }
     if (bookingMutation.isPending) {
       logger.debug('[BookingFlow] confirm.blocked', { reason: 'mutation_pending' });
       return;
@@ -910,6 +924,16 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Frozen-salon notice (Phase 2): viewable but not bookable */}
+        {notBookable && (
+          <View style={styles.frozenBanner}>
+            <Ionicons name="lock-closed" size={20} color={theme.colors.error} />
+            <Text style={styles.frozenBannerText}>
+              This salon isn&apos;t accepting bookings right now. Please check back later.
+            </Text>
+          </View>
+        )}
+
         {/* Service Info */}
         {service && (
           <View style={styles.serviceCard}>
@@ -1291,6 +1315,7 @@ export const BookingScreen: React.FC<CustomerDiscoverScreenProps<'Booking'>> = (
             title="Confirm Booking"
             onPress={handleConfirmBooking}
             loading={bookingMutation.isPending || reserveMutation.isPending}
+            disabled={notBookable}
             icon={<Ionicons name="card-outline" size={20} color={theme.colors.textInverse} />}
           />
         </View>
@@ -1356,6 +1381,24 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     marginBottom: 32,
+  },
+  frozenBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: theme.colors.error + '14',
+    borderWidth: 1,
+    borderColor: theme.colors.error + '55',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 20,
+  },
+  frozenBannerText: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: theme.colors.text,
+    lineHeight: 18,
   },
   serviceName: {
     fontFamily: fonts.heading,

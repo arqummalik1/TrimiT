@@ -203,6 +203,14 @@ export default function OwnerTabs() {
         <Tab.Screen
           name="Settings"
           component={SettingsStackScreen}
+          listeners={({ navigation: tabNav }) => ({
+            // Always open the Settings tab at its menu (SettingsMain), never
+            // parked on a deep screen like Subscription that was opened from the
+            // dashboard. This guarantees a tap on Settings shows Settings.
+            tabPress: () => {
+              tabNav.navigate('Settings', { screen: 'SettingsMain' });
+            },
+          })}
           options={{
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="settings" size={size} color={color} />

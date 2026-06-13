@@ -127,6 +127,36 @@ def compute_access(row: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def compute_billing_anchor(row: Dict[str, Any]) -> Optional[datetime]:
+    """When a NEW paid cycle should begin so re-subscribing "stacks" onto the
+    remaining time instead of discarding it.
+
+    Returns a FUTURE datetime to defer the first charge to, or None to begin
+    immediately:
+      * On trial with trial_end in the future -> defer to trial_end
+        (owner keeps every free day; billing starts the day the trial ends).
+      * Active / grace_period with current_period_end in the future (early
+        renewal) -> defer to current_period_end (new cycle picks up exactly
+        where the paid one ends).
+      * Otherwise (expired / cancelled / lapsed) -> None (start now).
+    """
+    now = _now()
+    access = compute_access(row)
+    eff = access["effective_status"]
+
+    if eff == SubscriptionStatus.trial.value:
+        trial_end = _parse_dt(row.get("trial_end"))
+        if trial_end and trial_end > now:
+            return trial_end
+
+    if eff in (SubscriptionStatus.active.value, SubscriptionStatus.grace_period.value):
+        period_end = _parse_dt(row.get("current_period_end"))
+        if period_end and period_end > now:
+            return period_end
+
+    return None
+
+
 async def has_active_access(owner_id: str) -> bool:
     row = await fetch_subscription(owner_id)
     if not row:

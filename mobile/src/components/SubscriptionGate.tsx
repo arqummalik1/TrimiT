@@ -64,7 +64,9 @@ export const SubscriptionGate: React.FC = () => {
   if (!status.enforcement_enabled || status.has_access) return null;
 
   const goSubscribe = () => {
-    navigation.navigate('Settings', { screen: 'SubscriptionCheckout' });
+    // initial:false keeps SettingsMain beneath the checkout so Back returns to
+    // Settings rather than dead-ending or exiting the tab.
+    navigation.navigate('Settings', { screen: 'SubscriptionCheckout', initial: false });
   };
 
   return (

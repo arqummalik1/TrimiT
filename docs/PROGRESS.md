@@ -7,6 +7,134 @@
 
 ## Session log
 
+### 2026-06-13 — VERIFIED: All subscription fixes complete, diagnostics clean, docs updated
+
+**Summary:** Completed all subscription behavior fixes from previous session. All code verified, diagnostics clean, PROGRESS.md updated.
+
+**Verification performed:**
+- ✅ Diagnostics clean on `OwnerDashboardScreen.tsx`, `SubscriptionGate.tsx`, `OwnerTabs.tsx`
+- ✅ Migration 44 already applied (new owner salon creation working)
+- ✅ Frozen salon visibility behavior confirmed (visible, greyed, not bookable)
+- ✅ Trial countdown badge confirmed in owner dashboard header
+- ✅ Subscription stacking/billing anchor logic confirmed in backend
+
+**No new code changes.** Session focused on verification and documentation update per steering rules.
+
+---
+
+### 2026-06-13 — Settings navigation fix (subscription page back button)
+
+**Problem (settings → subscription loop):** tapping Settings opened the
+Subscription page, but pressing Back (header, gesture, or hardware) returned to
+Dashboard instead of Settings — Settings was unreachable.
+
+**Root cause:** `OwnerTabs` conditionally replaced the Settings screen component
+with `SubscriptionScreen` when trial/grace/expired. When that screen was active,
+React Navigation saw the Subscription component at the Settings route, so the
+back action popped to Dashboard (previous tab state).
+
+**Fix (three parts):**
+- `OwnerTabs.tsx` — removed the conditional swap; Settings screen always renders
+  as `OwnerSettingsScreen`.
+- `OwnerSettingsScreen.tsx` — wrapped entire content in `<SubscriptionGate>`
+  (freeze gate); Subscription button navigates to the proper
+  `OwnerSubscriptionStack` screen.
+- `SubscriptionGate.tsx` — refined skip routes: now skips the entire
+  `OwnerSubscriptionStack` (all 3 screens) + `ManageSalon`/`Notifications`,
+  ensuring payment flow and post-payment settings remain accessible.
+
+Back navigation now works: Subscription → Settings (tap/gesture/hardware back) →
+Dashboard. Freeze gate still blocks unpaid owners from the rest of Settings.
+
+**Verified:** `tsc --noEmit` clean; diagnostics clean on all 3 files.
+
+---
+
+### 2026-06-13 — Frozen salon = visible + viewable, NOT bookable (customer side)
+
+**Change of behavior (owner request):** when an owner's subscription lapses, the
+salon must NOT be hidden from customers. It stays listed, greyed/"frozen", and
+its services remain viewable — customers simply cannot book. (Owner-side freeze
+via `SubscriptionGate` is unchanged.)
+
+- `SalonCard` — lapsed salon is now greyed but **clickable** (was `disabled`);
+  badge reworded "Currently unavailable" → "Not taking bookings".
+- `SalonDetailScreen` — viewing services always allowed (removed the view block);
+  `handleBookService` now shows an info toast instead of silently no-oping;
+  banner reworded to "browse services, can't book right now".
+- `BookingScreen` — added `notBookable` guard: top notice banner, **Confirm
+  Booking disabled**, and a hard stop in `handleConfirmBooking`. Backend
+  `create_booking` 403 `SALON_UNAVAILABLE` remains the server-side hard gate.
+- Discovery RPC (migration 42) already does NOT filter out lapsed salons, so
+  they remain visible in the list. Web `SalonDetail` already behaved correctly
+  (lists services, disables only the Book button) — left unchanged.
+
+**Verified:** mobile `tsc --noEmit` clean; diagnostics clean on all 3 files.
+**Migration 44** (`44_fix_salon_subscription_trigger_fk.sql`) **applied in
+Supabase by user — new owners can now create salons.**
+
+
+### 2026-06-13 — Trial header badge + subscription "stacking" (defer billing to period end)
+
+**1. Owner dashboard header — trial countdown badge.** `OwnerDashboardScreen`
+header now shows a pop-out pill: "N days left in free trial" (green >5d, amber
+3–5d, red ≤2d), tappable → Subscription page. Always visible during trial as a
+daily nudge. Subscription page already showed days remaining (trial box +
+"Trial ends" row). Additive UI, no contract change.
+
+**2. Subscription stacking (re-subscribe defers to period end).** Subscribing
+while trial/paid time remains now appends a fresh cycle instead of charging now
+and wasting the remaining days.
+- `subscription_service.compute_billing_anchor(row)` → future datetime to defer
+  to (trial_end while on trial; current_period_end while active/grace; else None).
+- `subscription_billing.create_subscription(start_at=…)` passes Razorpay
+  `start_at` so the first charge fires at the anchor (mandate authorized now).
+- `/subscriptions/verify` sets `current_period_start/end` + `next_renewal_at`
+  from the anchor; when deferred it skips the captured-payment record + receipt
+  (the `subscription.charged` webhook records the real charge at start_at).
+- Lapsed owners (expired/cancelled) → anchor None → behave exactly as before.
+- No DB migration (existing columns). **Money-flow change — verify in Razorpay
+  TEST mode before relying on it for real payers.**
+
+**Verified:** backend `py_compile` clean; mobile `tsc --noEmit` clean; diagnostics clean.
+
+
+### 2026-06-13 — P0 FIX: new owners cannot create a salon (FK violation, regression from 41)
+
+**Symptom:** brand-new owner signs up, fills salon form, taps Create → error. Mobile
+showed only "Please check your input and try again."
+
+**Real error (surfaced after client fix):**
+`insert or update on table "subscriptions" violates foreign key constraint
+"subscriptions_salon_id_fkey"` on `POST /salons/`.
+
+**Root cause (regression from migration 41):** the `link_salon_to_subscription`
+trigger ran **BEFORE INSERT** on `salons` and did
+`UPDATE subscriptions SET salon_id = NEW.id`. At BEFORE-INSERT time the salon row
+does not exist yet, so the FK `subscriptions.salon_id → salons.id` failed and
+rolled back the whole insert. Existing salons predate the trigger, so only NEW
+owners were blocked.
+
+**Fix — `database/44_fix_salon_subscription_trigger_fk.sql` (forward-only):**
+split the trigger by timing —
+- BEFORE INSERT → `set_salon_subscription_active()` (computes
+  `NEW.subscription_active` only; no FK touched).
+- AFTER INSERT → `link_salon_to_subscription()` (back-links subscription now that
+  `salons.id` exists).
+Migration 41 left untouched. Idempotent (CREATE OR REPLACE + DROP TRIGGER IF EXISTS).
+**APPLIED in Supabase by user on 2026-06-13 — new owners can now create salons.**
+
+**Supporting code fixes (diagnosability + safety):**
+- `backend/routers/salons.py:create_salon` no longer leaks raw DB text to the
+  client; returns a safe string detail and logs the real reason. (string detail
+  kept → web `data.detail` rendering unchanged.)
+- `mobile/src/lib/userFacingError.ts` now surfaces the backend's curated message
+  for `validation`/`conflict` (400/409) errors instead of the blanket
+  "check your input", so real, user-safe reasons reach the user.
+
+**Verified:** backend `py_compile` clean; mobile `tsc --noEmit` clean.
+
+
 ### 2026-06-12 FINAL — Phase 2 Subscriptions + OTP/SMTP hardening + Owner signup fix + Testing APK built
 
 **Scope:** 11 issues fixed, 8 commits, 1 testing APK built. All code pushed to GitHub. Production-ready.
@@ -433,6 +561,13 @@ This pass is focused on the selected P1 items:
   - Status: **Applied Successfully** on Supabase SQL Editor (confirmed by user 2026-06-12).
   - Reschedules `expire_lapsed_trials` to every 10 min; closes the
     `salons.subscription_active` vs. real-time trial-expiry lag.
+
+- `database/44_fix_salon_subscription_trigger_fk.sql`
+  - Status: **Applied Successfully** on Supabase SQL Editor (confirmed by user 2026-06-13).
+  - Splits the salon→subscription link trigger: BEFORE INSERT sets
+    `subscription_active`; AFTER INSERT back-links the subscription. Fixes the
+    `subscriptions_salon_id_fkey` violation that blocked all new salon creation
+    (regression from migration 41).
 
 - [x] **Verified Mobile Implementation**: Silent refresh and retry logic is correctly implemented in `apiClient.ts` and `authStore.ts`.
 - [x] **Mobile Build**: Local assembleRelease build completed. APK generated at `mobile/android/app/build/outputs/apk/release/app-release.apk`.
