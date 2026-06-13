@@ -60,6 +60,20 @@ export function getUserFacingMessage(
     return MESSAGES.timeout;
   }
 
+  // For client-actionable errors (400 validation, 409 conflict) the backend sends
+  // a specific, user-safe message (e.g. "You already have a salon registered.").
+  // Surface it instead of the blanket generic so the user sees what actually needs
+  // fixing. Fall back to the generic copy when the message is missing or is just an
+  // axios/network default placeholder.
+  const GENERIC_FALLBACK = /^(an unexpected error occurred|request failed|network error)/i;
+  if (
+    (appErr.kind === 'validation' || appErr.kind === 'conflict') &&
+    appErr.message &&
+    !GENERIC_FALLBACK.test(appErr.message)
+  ) {
+    return appErr.message;
+  }
+
   return MESSAGES[appErr.kind] ?? appErr.message ?? MESSAGES.unknown;
 }
 

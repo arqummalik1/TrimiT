@@ -51,6 +51,22 @@ def _normalize_email(value: str) -> str:
     return value.strip().lower()
 
 
+def _mask_email(value: str) -> str:
+    """Redact an email for logs: keep first 2 chars of local part + domain.
+
+    e.g. 'saddamhmalik@gmail.com' -> 'sa***@gmail.com'. Avoids writing full PII
+    into centralized logs while keeping just enough to correlate a report.
+    """
+    try:
+        local, _, domain = (value or "").partition("@")
+        if not domain:
+            return "***"
+        shown = local[:2] if len(local) > 2 else local[:1]
+        return f"{shown}***@{domain}"
+    except Exception:
+        return "***"
+
+
 def _enforce_otp_email_throttle(email: str) -> None:
     if email in otp_email_throttle:
         raise HTTPException(
@@ -123,6 +139,29 @@ async def signup(request: Request, user: UserCreate):
         return body
     if status_code_resp == 202:
         return JSONResponse(status_code=202, content=body)
+
+    # Supabase 5xx on signup almost always means the Auth email SEND failed
+    # (SMTP / email-provider problem), NOT bad user input. Surface that honestly
+    # instead of telling the user to "check their details", and log the real
+    # provider response so it's visible in Render logs.
+    if status_code_resp >= 500:
+        logger.error(
+            "signup: supabase auth email send failed status=%s email=%s body=%s",
+            status_code_resp,
+            _mask_email(user.email),
+            repr(body)[:500] if body else "",
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": "OTP_SEND_FAILED",
+                "message": (
+                    "We couldn't send your verification code right now. This is a "
+                    "temporary email-service issue on our side — please try again "
+                    "in a few minutes."
+                ),
+            },
+        )
 
     # Hybrid Fix: If user exists but is unconfirmed, resend and act like it's a new signup
     if status_code_resp == 400 and body.get("code") == "USER_ALREADY_EXISTS":
@@ -268,7 +307,7 @@ async def forgot_password(request: Request, data: ForgotPasswordRequest):
         logger.warning(
             "forgot_password supabase status=%s email=%s body=%s",
             response.status_code,
-            data.email,
+            _mask_email(data.email),
             response.text[:200] if response.text else "",
         )
     # Always return success to avoid email enumeration (Supabase may return 200 even if email unknown)
@@ -292,7 +331,7 @@ async def send_otp(request: Request, data: SendOtpRequest):
     if response.status_code == 400:
         logger.info(
             "send_otp: user not found with create_user=False, retrying with create_user=True for %s",
-            email,
+            _mask_email(email),
         )
         response = await supabase.request(
             "POST", "auth/v1/otp", json={"email": email, "create_user": True}
@@ -305,7 +344,7 @@ async def send_otp(request: Request, data: SendOtpRequest):
         logger.warning(
             "send_otp supabase status=%s email=%s body=%s",
             response.status_code,
-            email,
+            _mask_email(email),
             response.text[:200] if response.text else "",
         )
         raise HTTPException(
@@ -338,7 +377,7 @@ async def send_otp(request: Request, data: SendOtpRequest):
     logger.warning(
         "send_otp supabase status=%s email=%s send_failure=%s body=%s",
         response.status_code,
-        email,
+        _mask_email(email),
         send_failure,
         response.text[:200] if response.text else "",
     )
@@ -380,7 +419,7 @@ async def verify_otp(request: Request, data: VerifyOtpRequest):
                 "verify_otp: primary type %s failed, retrying with %s for %s",
                 otp_type,
                 alt_type,
-                email,
+                _mask_email(email),
             )
 
             payload["type"] = alt_type
@@ -409,7 +448,7 @@ async def verify_otp(request: Request, data: VerifyOtpRequest):
             logger.warning(
                 "verify_otp supabase status=%s email=%s type=%s body=%s",
                 response.status_code,
-                email,
+                _mask_email(email),
                 otp_type,
                 response.text[:200] if response.text else "",
             )

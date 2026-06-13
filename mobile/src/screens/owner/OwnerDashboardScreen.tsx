@@ -26,10 +26,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { salonRepository } from '../../repositories/salonRepository';
 import { bookingRepository } from '../../repositories/bookingRepository';
 import { Salon, Analytics, Booking } from '../../types';
-import { formatPrice, typography, spacing, borderRadius } from '../../lib/utils';
+import { formatPrice, spacing } from '../../lib/utils';
 import { useTheme, Theme } from '../../theme/ThemeContext';
 import { navigateToOwnerBookings } from '../../lib/navigationHelpers';
-import { Button } from '../../components/Button';
 import { DashboardSkeleton } from '../../components/skeletons/DashboardSkeleton';
 import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
@@ -278,15 +277,6 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
   }
 
   // ── Stat cards ─────────────────────────────────────────────────────────────
-  const getPeriodLabel = () => {
-    switch(selectedPeriod) {
-      case 'today': return 'Today';
-      case '7d': return 'Last 7 Days';
-      case '30d': return 'Last 30 Days';
-      default: return 'Total';
-    }
-  };
-
   const statCards = [
     { 
       title: selectedPeriod === 'all' ? 'Total Earnings' : 'Earnings', 
@@ -310,6 +300,24 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
     },
   ];
 
+  // Trial countdown pill colour — greener when comfortable, red as it runs out,
+  // so the owner is nudged a little harder each day to subscribe.
+  const trialDaysLeft = subscriptionStatus?.trial_days_remaining ?? 0;
+  const trialPillColor =
+    trialDaysLeft <= 2
+      ? theme.colors.error
+      : trialDaysLeft <= 5
+      ? theme.colors.warning ?? '#B45309'
+      : theme.colors.success ?? theme.colors.primary;
+
+  // Open the Subscription screen inside the Settings tab. `initial: false` makes
+  // React Navigation place SettingsMain beneath it, so Back / swipe / hardware
+  // back returns to Settings (not the Dashboard) and the tab is never "stuck".
+  const openSubscription = () =>
+    navigation
+      .getParent()
+      ?.navigate('Settings', { screen: 'Subscription', initial: false });
+
   return (
     <ScreenWrapper variant="tab">
       <ScrollView
@@ -324,9 +332,25 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
       >
         {/* Premium Header */}
         <View style={styles.premiumHeader}>
-          <View>
+          <View style={styles.headerLeft}>
             <Text style={styles.welcomeText}>Good Day,</Text>
-            <Text style={styles.salonTitle}>{salon.name}</Text>
+            <Text style={styles.salonTitle} numberOfLines={1}>{salon.name}</Text>
+            {subscriptionStatus?.is_trial ? (
+              <TouchableOpacity
+                style={[styles.trialPill, { backgroundColor: trialPillColor }]}
+                activeOpacity={0.85}
+                onPress={openSubscription}
+              >
+                <Ionicons name="time" size={13} color="#FFFFFF" />
+                <Text style={styles.trialPillText}>
+                  {subscriptionStatus.trial_days_remaining > 0
+                    ? `${subscriptionStatus.trial_days_remaining} day${
+                        subscriptionStatus.trial_days_remaining === 1 ? '' : 's'
+                      } left in free trial`
+                    : 'Free trial ends today'}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
           <TouchableOpacity
             style={styles.notificationBell}
@@ -341,9 +365,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
         {subscriptionStatus ? (
           <SubscriptionBanner
             status={subscriptionStatus}
-            onPress={() =>
-              navigation.getParent()?.navigate('Settings', { screen: 'Subscription' })
-            }
+            onPress={openSubscription}
           />
         ) : null}
 
@@ -470,6 +492,18 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   welcomeText: { fontSize: 14, color: theme.colors.textSecondary, fontWeight: '500' },
   salonTitle: { fontSize: 24, fontWeight: '800', color: theme.colors.text, letterSpacing: -0.5 },
+  headerLeft: { flex: 1, paddingRight: 12 },
+  trialPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  trialPillText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', letterSpacing: 0.2 },
   notificationBell: {
     width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.surface,
     alignItems: 'center', justifyContent: 'center',

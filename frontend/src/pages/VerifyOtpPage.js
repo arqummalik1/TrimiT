@@ -12,11 +12,23 @@ export default function VerifyOtpPage() {
   const queryParams = new URLSearchParams(location.search);
   const email = queryParams.get('email') || '';
   const type = queryParams.get('type') || 'signup'; // signup, recovery, magiclink
+  // Signup role/name/phone hints — forwarded to the backend so a NEW account is
+  // created with the correct role (owner vs customer). Ignored server-side once
+  // a profile row exists (no escalation).
+  // role is a non-PII routing hint (URL-safe). name/phone are PII and arrive via
+  // short-lived navigation state so they never land in the URL/history/logs.
+  const signupRole = queryParams.get('role') || undefined;
+  const signupName = location.state?.name || undefined;
+  const signupPhone = location.state?.phone || undefined;
 
   const { verifyOtp, sendOtp, isLoading, error: authError, clearError } = useAuthStore();
 
   const [code, setCode] = useState(Array(6).fill(''));
-  const [resendTimer, setResendTimer] = useState(60);
+  // Server enforces a 60s per-email OTP throttle (backend OTP_EMAIL_THROTTLE_SECONDS
+  // + Supabase's own 60s email rate limit). Keep the client cooldown aligned so the
+  // "Resend Code" button doesn't enable early and hand the user a guaranteed 429.
+  const RESEND_COOLDOWN_SECONDS = 60;
+  const [resendTimer, setResendTimer] = useState(RESEND_COOLDOWN_SECONDS);
   const [localError, setLocalError] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
@@ -93,7 +105,11 @@ export default function VerifyOtpPage() {
       return;
     }
 
-    const result = await verifyOtp(email, fullCode, type);
+    const result = await verifyOtp(email, fullCode, type, {
+      role: signupRole,
+      name: signupName,
+      phone: signupPhone,
+    });
     if (result.success) {
       if (type === 'recovery') {
         const token = result.session?.access_token;
@@ -126,7 +142,7 @@ export default function VerifyOtpPage() {
     const result = await sendOtp(email);
     if (result.success) {
       useToastStore.getState().success('A new verification code has been sent to your email.');
-      setResendTimer(60);
+      setResendTimer(RESEND_COOLDOWN_SECONDS);
       setCode(Array(6).fill(''));
       inputRefs[0].current.focus();
     }

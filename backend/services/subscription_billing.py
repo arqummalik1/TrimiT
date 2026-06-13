@@ -61,19 +61,25 @@ def create_customer(name: str, email: str, contact: Optional[str]) -> Optional[s
 
 def create_subscription(
     *,
+    start_at: Optional[int] = None,
     notes: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     client = _client()
     plan_id = _require_plan()
+    params: Dict[str, Any] = {
+        "plan_id": plan_id,
+        "total_count": DEFAULT_TOTAL_COUNT,
+        "customer_notify": 1,
+        "notes": notes or {},
+    }
+    # Defer the first charge to the end of the current free trial / paid cycle so
+    # a new subscription "stacks" onto the remaining time instead of charging
+    # immediately and wasting those days. Razorpay authorizes the mandate now and
+    # raises the first invoice at start_at.
+    if start_at:
+        params["start_at"] = start_at
     try:
-        sub = client.subscription.create(
-            {
-                "plan_id": plan_id,
-                "total_count": DEFAULT_TOTAL_COUNT,
-                "customer_notify": 1,
-                "notes": notes or {},
-            }
-        )
+        sub = client.subscription.create(params)
         return sub
     except Exception as e:
         logger.error("[Sub] subscription.create failed: %s", e)

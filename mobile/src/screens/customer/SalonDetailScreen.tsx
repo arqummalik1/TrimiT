@@ -32,6 +32,7 @@ import { CustomerDiscoverScreenProps } from '../../navigation/types';
 import { SalonDetailParamsSchema } from '../../navigation/params';
 import { normalizeSalon } from '../../lib/salonImage';
 import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../../lib/featureFlags';
+import { showToast } from '../../store/toastStore';
 
 type Props = CustomerDiscoverScreenProps<'SalonDetail'>;
 
@@ -75,10 +76,12 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     },
   });
 
+  const notBookable =
+    ENABLE_SUBSCRIPTION_ENFORCEMENT && salon?.subscription_active === false;
+
   const handleViewService = (service: Service) => {
-    if (ENABLE_SUBSCRIPTION_ENFORCEMENT && salon?.subscription_active === false) {
-      return;
-    }
+    // Viewing is always allowed — even for a frozen salon, customers can browse
+    // the full service menu. Only booking is blocked.
     navigation.navigate('ServiceDetail', {
       serviceId: service.id,
       salonId,
@@ -87,7 +90,8 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleBookService = (service: Service) => {
-    if (ENABLE_SUBSCRIPTION_ENFORCEMENT && salon?.subscription_active === false) {
+    if (notBookable) {
+      showToast("This salon isn't taking bookings right now.", 'info');
       return;
     }
     navigation.navigate('Booking', { salonId, serviceId: service.id });
@@ -166,12 +170,13 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
         {/* Content */}
         <View style={styles.content}>
-          {/* Subscription-unavailable notice (Phase 2) */}
-          {ENABLE_SUBSCRIPTION_ENFORCEMENT && salon.subscription_active === false && (
+          {/* Subscription-frozen notice (Phase 2): salon is viewable, not bookable */}
+          {notBookable && (
             <View style={styles.unavailableBanner}>
               <Ionicons name="lock-closed" size={20} color={theme.colors.error} />
               <Text style={styles.unavailableBannerText}>
-                This salon is currently unavailable for booking. Please check back later.
+                This salon isn&apos;t accepting bookings right now. You can still browse
+                its services — please check back later to book.
               </Text>
             </View>
           )}

@@ -209,18 +209,15 @@ async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_curr
     if response.status_code not in [200, 201]:
         error_detail = response.text
         logger.error(f"[CREATE_SALON] Failed to create salon: {error_detail}")
-        
-        # Try to parse the error for better user feedback
-        try:
-            error_json = response.json()
-            if 'message' in error_json:
-                error_detail = error_json['message']
-            elif 'details' in error_json:
-                error_detail = error_json['details']
-        except:
-            pass
-            
-        raise HTTPException(status_code=400, detail=f"Database error: {error_detail}")
+
+        # Keep the real PostgREST/DB reason in server logs (above) for debugging,
+        # but never surface raw DB text to the client (RULES: no raw error strings).
+        # Return a safe, user-facing string detail — web renders detail directly and
+        # mobile now surfaces curated validation messages.
+        raise HTTPException(
+            status_code=400,
+            detail="We couldn't save your salon right now. Please try again in a moment.",
+        )
         
     res_data = response.json()
     if not res_data:

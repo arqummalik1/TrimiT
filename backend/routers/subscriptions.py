@@ -111,7 +111,14 @@ async def create_subscription(request: Request, current_user: dict = Depends(get
         contact=profile.get("phone"),
     )
 
+    # Stacking: if the owner still has free trial / paid time left, defer the
+    # first Razorpay charge to when that window ends so they don't lose those
+    # days. Lapsed owners (no future window) start immediately.
+    anchor = subs.compute_billing_anchor(row)
+    start_at = int(anchor.timestamp()) if anchor else None
+
     sub = billing.create_subscription(
+        start_at=start_at,
         notes={"owner_id": owner_id, "salon_id": str(row.get("salon_id") or "")},
     )
 
@@ -175,12 +182,18 @@ async def verify_subscription(
     )
 
     now = datetime.now(timezone.utc)
-    period_end = now + timedelta(days=30)
+    # Stacking: begin the paid cycle when the current free/paid window ends, so
+    # subscribing early appends a fresh cycle instead of overwriting the
+    # remaining days. Lapsed owners start now.
+    anchor = subs.compute_billing_anchor(row) or now
+    deferred = anchor > now
+    period_start = anchor
+    period_end = anchor + timedelta(days=30)
     updated = await subs.update_subscription(
         owner_id,
         {
             "status": SubscriptionStatus.active.value,
-            "current_period_start": now.isoformat(),
+            "current_period_start": period_start.isoformat(),
             "current_period_end": period_end.isoformat(),
             "next_renewal_at": period_end.isoformat(),
             "cancel_at_period_end": False,
@@ -188,18 +201,28 @@ async def verify_subscription(
         },
         event_type="reactivated" if is_reactivation else "activated",
         source="owner",
-        metadata={"razorpay_payment_id": payload.razorpay_payment_id, "prior_status": prior_status},
+        metadata={
+            "razorpay_payment_id": payload.razorpay_payment_id,
+            "prior_status": prior_status,
+            "billing_starts_at": period_start.isoformat(),
+            "deferred": deferred,
+        },
     )
 
-    await subs.record_payment(
-        subscription_id=row["id"],
-        owner_id=owner_id,
-        amount=row.get("amount", settings.SUBSCRIPTION_PRICE_PAISE),
-        status="captured",
-        razorpay_payment_id=payload.razorpay_payment_id,
-        razorpay_subscription_id=payload.razorpay_subscription_id,
-        paid_at=now.isoformat(),
-    )
+    # Only record a captured payment + receipt when the charge actually happened
+    # now. When deferred (start_at in the future), Razorpay has only authorized
+    # the mandate — the real charge fires at the anchor and the
+    # subscription.charged webhook records that payment and emails the receipt.
+    if not deferred:
+        await subs.record_payment(
+            subscription_id=row["id"],
+            owner_id=owner_id,
+            amount=row.get("amount", settings.SUBSCRIPTION_PRICE_PAISE),
+            status="captured",
+            razorpay_payment_id=payload.razorpay_payment_id,
+            razorpay_subscription_id=payload.razorpay_subscription_id,
+            paid_at=now.isoformat(),
+        )
 
     try:
         if is_reactivation:
@@ -209,18 +232,24 @@ async def verify_subscription(
     except Exception as e:
         logger.error("[Sub] activate notify failed: %s", e)
 
-    try:
-        await invoice_email.send_payment_receipt(
-            owner_id=owner_id,
-            amount_paise=row.get("amount", settings.SUBSCRIPTION_PRICE_PAISE),
-            payment_id=payload.razorpay_payment_id,
-            paid_at=now.isoformat(),
-            next_renewal_at=period_end.isoformat(),
-        )
-    except Exception as e:
-        logger.error("[Sub] receipt email failed: %s", e)
+    if not deferred:
+        try:
+            await invoice_email.send_payment_receipt(
+                owner_id=owner_id,
+                amount_paise=row.get("amount", settings.SUBSCRIPTION_PRICE_PAISE),
+                payment_id=payload.razorpay_payment_id,
+                paid_at=now.isoformat(),
+                next_renewal_at=period_end.isoformat(),
+            )
+        except Exception as e:
+            logger.error("[Sub] receipt email failed: %s", e)
 
-    return JSONResponse(status_code=200, content={"status": "success", "message": "Subscription active"})
+    msg = (
+        "Subscription scheduled — billing starts when your current period ends"
+        if deferred
+        else "Subscription active"
+    )
+    return JSONResponse(status_code=200, content={"status": "success", "message": msg})
 
 
 # ── cancel ───────────────────────────────────────────────────────────────────

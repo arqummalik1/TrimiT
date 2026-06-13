@@ -12,19 +12,22 @@ import {
 } from '@phosphor-icons/react';
 import DownloadAppButton from './DownloadAppButton';
 import TrimitLogo from './brand/TrimitLogo';
-import EarlyAccessModal from './EarlyAccessModal';
+import { PLAY_STORE_URL } from '../config/storeLinks';
 
 const MARKETING_LINKS = [
   { to: '/explore', label: 'Explore' },
   { to: '/for-salons', label: 'For Salons' },
 ];
 
+const openPlayStore = () => {
+  window.open(PLAY_STORE_URL, '_blank', 'noopener,noreferrer');
+};
+
 const Header = () => {
   const { isAuthenticated, profile, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [earlyAccessOpen, setEarlyAccessOpen] = useState(false);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -173,7 +176,7 @@ const Header = () => {
           </nav>
 
           <div className="hidden lg:flex items-center gap-3 shrink-0">
-            <DownloadAppButton onClick={() => setEarlyAccessOpen(true)} />
+            <DownloadAppButton onClick={openPlayStore} />
             {isAuthenticated ? (
               <div className="flex items-center gap-2">
                 <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-full glass-chip">
@@ -307,7 +310,7 @@ const Header = () => {
                   className="w-full justify-center" 
                   onClick={() => {
                     setMenuOpen(false);
-                    setEarlyAccessOpen(true);
+                    openPlayStore();
                   }}
                 />
               </div>
@@ -345,7 +348,6 @@ const Header = () => {
           </div>
         </>
       ) : null}
-      <EarlyAccessModal isOpen={earlyAccessOpen} onClose={() => setEarlyAccessOpen(false)} />
     </header>
   );
 };
