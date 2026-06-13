@@ -62,9 +62,12 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
   }, [clearError]);
 
   // Listen for the actual OTP send result from LoginScreen/SignupScreen
-  // Watch route.params directly to catch re-navigation with updated params
+  // Watch specific params to avoid triggering on every route.params change
   useEffect(() => {
     const { otpSendResult, isPending } = route.params;
+    
+    // Only act if we're currently in sending state (prevent duplicate actions)
+    if (!sendingCode) return;
     
     if (otpSendResult === 'success') {
       // Background OTP send succeeded
@@ -82,7 +85,7 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
       setOtpSendFailed(false);
       showToast('Verification code sent to your email.', 'success');
     }
-  }, [route.params]);
+  }, [route.params.otpSendResult, route.params.isPending, sendingCode]);
 
   // SAFETY: If isPending but no result arrives within 5s, assume success and unblock UI
   // This prevents the screen from being stuck forever if re-navigation fails
@@ -98,6 +101,9 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
         showToast('Verification code sent to your email.', 'success');
       }
     }, 5000);
+    
+    return () => clearTimeout(safetyTimer);
+  }, [route.params.isPending, sendingCode]);
     
     return () => clearTimeout(safetyTimer);
   }, [route.params.isPending, sendingCode]);
