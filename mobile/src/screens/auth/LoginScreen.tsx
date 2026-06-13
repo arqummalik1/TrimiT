@@ -120,14 +120,19 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
       isPending: true 
     });
 
-    // Send OTP in background — VerifyOtp screen handles the result
+    // Send OTP in background and update the screen with the result
     const store = useAuthStore.getState();
     const result = await store.sendOtp(normalizedEmail);
-    if (result.success) {
-      // Success toast shown in VerifyOtp after it detects isPending cleared
-    } else {
-      // Error: VerifyOtp will show inline error and offer to go back or retry
-      showToast(result.error || 'Failed to send code. Please try again.', 'error');
+    
+    // Update the OTP screen with the result via setParams
+    navigation.setParams({ 
+      isPending: false,
+      otpSendResult: result.success ? 'success' : 'error'
+    } as any);
+    
+    if (!result.success) {
+      // Error is shown inline in VerifyOtp via the otpSendResult param
+      // No toast here to avoid duplicate error messages
     }
   };
 

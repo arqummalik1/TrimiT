@@ -124,6 +124,13 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
       error: result.error,
     });
 
+    // Wire the actual result back to VerifyOtp screen
+    if (navigation.getState().routes[navigation.getState().routes.length - 1]?.name === 'VerifyOtp') {
+      navigation.setParams({
+        otpSendResult: result.success ? 'success' : 'error'
+      } as any);
+    }
+
     if (!result.success) {
       // Error: VerifyOtp will detect and show inline error with back/retry options
       setLastSignupErrorCode(result.errorCode ?? null);

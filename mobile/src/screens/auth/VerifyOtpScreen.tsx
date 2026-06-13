@@ -24,7 +24,7 @@ import { AuthScreenProps } from '../../navigation/types';
 type VerifyOtpProps = AuthScreenProps<'VerifyOtp'>;
 
 export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
-  const { email, type, isPending } = route.params;
+  const { email, type, isPending, otpSendResult } = route.params;
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -34,6 +34,7 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
   const [resendTimer, setResendTimer] = useState(30);
   const [localError, setLocalError] = useState<string | undefined>(undefined);
   const [sendingCode, setSendingCode] = useState(isPending === true);
+  const [otpSendFailed, setOtpSendFailed] = useState(false);
 
   // Refs for the 6 TextInput boxes
   const inputRefs = [
@@ -60,18 +61,20 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
     return () => clearError();
   }, [clearError]);
 
-  // Handle isPending state — wait for background OTP send to complete
+  // Listen for the actual OTP send result from LoginScreen/SignupScreen
   useEffect(() => {
-    if (isPending && sendingCode) {
-      // Background send is happening; clear the pending state after a short delay
-      // to simulate "code sent" transition (actual send may still be in progress)
-      const timer = setTimeout(() => {
-        setSendingCode(false);
-        showToast('Verification code sent to your email.', 'success');
-      }, 2000);
-      return () => clearTimeout(timer);
+    if (otpSendResult === 'success') {
+      // Background OTP send succeeded
+      setSendingCode(false);
+      setOtpSendFailed(false);
+      showToast('Verification code sent to your email.', 'success');
+    } else if (otpSendResult === 'error') {
+      // Background OTP send failed
+      setSendingCode(false);
+      setOtpSendFailed(true);
+      setLocalError('Failed to send verification code. Please try again.');
     }
-  }, [isPending, sendingCode]);
+  }, [otpSendResult]);
 
   const handleTextChange = (text: string, index: number) => {
     setLocalError(undefined);
@@ -234,6 +237,8 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
             <Text style={styles.subtitle}>
               {sendingCode ? (
                 'Sending verification code...'
+              ) : otpSendFailed ? (
+                'Unable to send code. Please try resending below.'
               ) : (
                 <>
                   We sent a 6-digit code to <Text style={styles.emailHighlight}>{maskedEmail}</Text>.
