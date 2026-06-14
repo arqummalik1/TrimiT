@@ -6,6 +6,25 @@
 > Update this file after every meaningful prompt, code change, migration, deploy, or QA pass.
 
 ## Session log
+### 2026-06-14 — FEATURE: Enabled standard iOS/Android OTP autofill suggestions
+
+**Problem:**
+Users had to manually read and type OTP verification codes from their emails or SMS. Modern mobile OS keyboard integrations (Gboard, Apple Keyboard) did not show autofill suggestion chips for the OTP entry fields on Android.
+
+**Fixes & Optimizations:**
+1. **Added Android Autofill**: Added `autoComplete="one-time-code"` on the `TextInput` components inside `VerifyOtpScreen.tsx` (in addition to the existing iOS `textContentType="oneTimeCode"`).
+2. **Keyboard Suggestions**: Enables Gboard/Android Autofill to automatically suggest numeric verification codes received via SMS and suggest copied clipboard content.
+
+**Verification:**
+- Verified type safety via `npm run typecheck` inside `mobile/` -> completed successfully.
+- Ran Jest unit tests in `mobile/` -> passed successfully.
+
+**Files changed:**
+- `mobile/src/screens/auth/VerifyOtpScreen.tsx` (MODIFIED)
+- `docs/PROGRESS.md` (MODIFIED)
+
+---
+
 ### 2026-06-14 — FIX: Guard post-await OTP navigation in Login & Signup screens
 
 **Problem:**

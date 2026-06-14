@@ -382,6 +382,7 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
                   selectTextOnFocus
                   editable={!isLoading}
                   textContentType="oneTimeCode"
+                  autoComplete="one-time-code"
                 />
               ))}
             </View>
