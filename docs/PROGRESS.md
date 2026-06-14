@@ -6,8 +6,32 @@
 > Update this file after every meaningful prompt, code change, migration, deploy, or QA pass.
 
 ## Session log
+### 2026-06-14 — FIX: Monorepo audit & reschedule staff availability database hardening
+
+**Problem:** The `reschedule_booking_atomic` RPC did not check staff availability (active status, working hours, days off, and conflicts), leading to a possibility of double-booking staff members or moving bookings to days/times they were off.
+
+**Fix (database migration 45):**
+1. Created `database/45_reschedule_staff_availability.sql` with updated `reschedule_booking_atomic` RPC.
+2. The function now validates:
+   - Staff active status (`is_active`).
+   - Staff working hours for the new day of the week.
+   - Selected date is not a staff day off (`days_off`).
+   - Rescheduled time slot is within working hours.
+   - Staff has no conflicting bookings (excluding the current booking ID `b.id <> p_booking_id` to avoid self-conflict).
+3. The schema contract remains unchanged.
+
+**Verification:**
+- TypeScript typecheck passes cleanly.
+- Vite production build compiles successfully.
+
+**Files changed:**
+- `database/45_reschedule_staff_availability.sql` (NEW)
+- `docs/REMAINING_ISSUES.md` (MODIFIED)
+
+---
 
 ### 2026-06-13 — FIX: Flickering button and resend text on VerifyOtp screen
+
 
 **Problem:** After fixing the stuck button issue, the "Verify & Continue" button
 and "Resend code in Xs" text were **flickering rapidly** — half the button and

@@ -161,20 +161,6 @@ direct UPDATE policy entirely and force every mutation through RPCs.
 **Risk:** medium — RLS changes against live data must be rolled out via
 migration with a tested rollback. Test on staging with copy of prod data.
 
-### B2. `reschedule_booking_atomic` doesn't validate staff conflicts or duration overlap (P0)
-**File(s):** `database/15_reschedule_atomic_time_compare.sql` and successors
-(`14_*`, `15_*`, `16_*`, `35_reschedule_holds_capacity.sql`)
-**Why it matters:** The atomic booking RPC enforces single-slot capacity, but
-when a booking is rescheduled to a new slot, the RPC does not check whether
-the **assigned staff** is already busy in the destination window, nor whether
-the service duration overlaps an adjacent booking. Same loophole that the
-booking RPC closes for create.
-**Fix:** Extend `reschedule_booking_atomic` to JOIN bookings with
-`services.duration` for the same staff member and reject overlaps.
-**Risk:** small — the RPC is the only path that mutates date/slot on
-existing bookings; tighten in a new migration without changing the public
-contract.
-
 ### B3. `SignatureMiddleware` is defined but never installed (P1)
 **File(s):** `backend/core/middleware.py`, `backend/server.py`,
 `backend/tests/test_priority.py`, `backend/tests/conftest.py`
@@ -520,7 +506,8 @@ the `ADMIN_API_TOKEN` env var.
 | 2026-05-25 | Pass 5 | Mobile: persistent login across swipe-kill — `secureStorage` now falls back to AsyncStorage on 2KB limit; `initializeAuth` trusts persisted token immediately, only clears on confirmed 401. |
 | 2026-05-25 | Pass 6 | Mobile: signup OTP flow routes to `VerifyOtp` screen. `authStore.verifyOtp` now uses `data.profile` (not raw `data.user`). `pendingSignupStore` stashes name+phone; `VerifyOtpScreen` PATCHes profile after verify. Backend: restored 5 missing endpoints (`/auth/me`, `/auth/profile`, `/auth/push-token`, `/auth/notification-preferences`, `/auth/account`). Profile save now works. |
 | 2026-05-25 | Pass 7 | Backend + Mobile: owner signup now lands on owner tabs. `VerifyOtpRequest` accepts `role`/`name`/`phone` hints; backend uses them only when no profile row exists (no escalation). Mobile reads from `pendingSignupStore` and passes them on signup verify. Added `.kiro/steering/production-rules.md` for the production posture. |
-| 2026-05-25 | Pass 8 | Repo: created `RULES.md` as the single source of truth for engineering rules. Mirrored to `.kiro/steering/production-rules.md` and `.cursorrules`. Pointed `CLAUDE.md`, `docs/PROGRESS.md`, `docs/REMAINING_ISSUES.md` at it. Reference apps named: Zomato, Blinkit, Zepto, Swiggy, Uber, Ola, Instagram, Facebook. |
+| 2026-06-14 | Pass 9 | Database: `reschedule_booking_atomic` validates staff active status, working hours, and conflicts (migration 45). |
+| 2026-06-14 | Pass 9 | Backend + Mobile + Web: unified email dispatch (Supabase primary, Resend fallback) & OTP flicker fixes. |
 
 ---
 
