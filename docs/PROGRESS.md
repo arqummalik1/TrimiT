@@ -13,13 +13,15 @@ VS Code highlighted the backend Python files (such as `auth.py`) with red underl
 
 **Fixes & Optimizations:**
 1. **Workspace Settings Update**: Added `python.defaultInterpreterPath` to point to `${workspaceFolder}/backend/venv/bin/python` and added `backend` to `python.analysis.extraPaths` in `.vscode/settings.json`.
-2. **Import Resolution**: The IDE now correctly resolves third-party packages (like `fastapi`) and local source directories (`core`, `config`, `models`, `services`, `dependencies`) from the virtual environment.
+2. **Pyright Configuration**: Created `pyrightconfig.json` at the workspace root to automatically link Pyright/Pylance analyzer to the virtualenv path `backend/venv` and resolve local paths.
+3. **Import Resolution**: The IDE now correctly resolves third-party packages (like `fastapi`) and local source directories (`core`, `config`, `models`, `services`, `dependencies`) from the virtual environment.
 
 **Verification:**
 - Verified backend import validity using the virtual environment's python directly: `./venv/bin/python3 -c "import routers.auth"`.
 
 **Files changed:**
 - `.vscode/settings.json` (MODIFIED)
+- `pyrightconfig.json` (NEW)
 - `docs/PROGRESS.md` (MODIFIED)
 
 ---
