@@ -124,17 +124,23 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
     const store = useAuthStore.getState();
     const result = await store.sendOtp(normalizedEmail);
     
-    // Update the VerifyOtp screen with the result via re-navigation using merge: true
-    navigation.navigate({
-      name: 'VerifyOtp',
-      params: {
-        email: normalizedEmail,
-        type: 'magiclink',
-        isPending: false,
-        otpSendResult: result.success ? 'success' : 'error'
-      },
-      merge: true
-    });
+    // Check if the user is still in the OTP flow (did not navigate back/away)
+    const state = navigation.getState();
+    const isStillInOtpFlow = !state || state.routes.some(route => route.name === 'VerifyOtp');
+    
+    if (isStillInOtpFlow) {
+      // Update the VerifyOtp screen with the result via re-navigation using merge: true
+      navigation.navigate({
+        name: 'VerifyOtp',
+        params: {
+          email: normalizedEmail,
+          type: 'magiclink',
+          isPending: false,
+          otpSendResult: result.success ? 'success' : 'error'
+        },
+        merge: true
+      });
+    }
     
     if (!result.success) {
       // Error is shown inline in VerifyOtp via the otpSendResult param

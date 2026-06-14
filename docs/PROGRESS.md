@@ -6,6 +6,26 @@
 > Update this file after every meaningful prompt, code change, migration, deploy, or QA pass.
 
 ## Session log
+### 2026-06-14 — FIX: Guard post-await OTP navigation in Login & Signup screens
+
+**Problem:**
+After entering an email and initiating the OTP request, the client performs optimistic navigation to the `VerifyOtp` screen. If the user backs out of this screen while the background API request is still pending, the post-await navigation `navigation.navigate` call gets triggered unconditionally. This results in the app unexpectedly routing the user back into the `VerifyOtp` screen, creating navigation state glitches.
+
+**Fixes & Optimizations:**
+1. **Navigation Stack Guard**: Checked `navigation.getState()?.routes` to ensure the `VerifyOtp` screen is still present in the navigation stack before dispatching the post-await re-navigation update in both `LoginScreen.tsx` and `SignupScreen.tsx`.
+2. **Backwards-Compatible Fallback**: If the navigation state is undefined (such as in mock/unit test environments), the guard falls back to true to avoid breaking tests.
+
+**Verification:**
+- Verified type safety via `npm run typecheck` inside `mobile/` -> completed successfully.
+- Ran Jest unit tests in `mobile/` -> passed successfully.
+
+**Files changed:**
+- `mobile/src/screens/auth/LoginScreen.tsx` (MODIFIED)
+- `mobile/src/screens/auth/SignupScreen.tsx` (MODIFIED)
+- `docs/PROGRESS.md` (MODIFIED)
+
+---
+
 ### 2026-06-14 — FIX: OTP flickering, state transitions & backend email check
 
 **Problem:**
