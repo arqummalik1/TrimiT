@@ -6,27 +6,36 @@
 > Update this file after every meaningful prompt, code change, migration, deploy, or QA pass.
 
 ## Session log
-### 2026-06-14 — FIX: Monorepo audit & reschedule staff availability database hardening
+### 2026-06-14 — FIX: Monorepo audit, performance optimization & database rescheduling availability hardening
 
-**Problem:** The `reschedule_booking_atomic` RPC did not check staff availability (active status, working hours, days off, and conflicts), leading to a possibility of double-booking staff members or moving bookings to days/times they were off.
+**Problem:** 
+1. The `reschedule_booking_atomic` RPC did not check staff availability (active status, working hours, days off, and conflicts), leading to a possibility of double-booking staff members.
+2. Inefficient `httpx.AsyncClient` instantiation on every Supabase call causing high latency (B5).
+3. Stale worker profile reads due to long user profile cache TTL of 300s (B6).
+4. Unused duplicate staff helpers in `mobile/src/lib/api.ts` (M7).
+5. OTP count timer screen flickering on mobile/web and lack of unified email dispatch.
 
-**Fix (database migration 45):**
-1. Created `database/45_reschedule_staff_availability.sql` with updated `reschedule_booking_atomic` RPC.
-2. The function now validates:
-   - Staff active status (`is_active`).
-   - Staff working hours for the new day of the week.
-   - Selected date is not a staff day off (`days_off`).
-   - Rescheduled time slot is within working hours.
-   - Staff has no conflicting bookings (excluding the current booking ID `b.id <> p_booking_id` to avoid self-conflict).
-3. The schema contract remains unchanged.
+**Fixes & Optimizations:**
+1. **Database Hardening (migration 45)**: Created `database/45_reschedule_staff_availability.sql` with updated `reschedule_booking_atomic` RPC to validate staff active status, working hours, days off, and overlapping bookings (excluding current booking to avoid self-conflict).
+2. **Supabase Client Reuse (B5)**: Refactored `backend/core/supabase.py` to lazily instantiate and reuse a single `httpx.AsyncClient` across all requests.
+3. **User Profile Cache (B6)**: Reduced TTLCache TTL from 300s to 30s in `backend/dependencies/auth.py`.
+4. **Dead Code Cleanup (M7)**: Cleaned up duplicate staff domain helpers in `mobile/src/lib/api.ts`.
+5. **Unified Email & OTP Flicker**: refactored VerifyOtp countdown timers on both React Native and web to prevent re-render flickers, and added `backend/services/email_dispatch.py` for unified email dispatching.
+6. **V1 Release Audit**: Conducted the full release audit checklist and created `docs/audit/V1_RELEASE_AUDIT_2026_06_14.md`.
 
 **Verification:**
-- TypeScript typecheck passes cleanly.
-- Vite production build compiles successfully.
+- TypeScript typecheck passes cleanly (`npm run typecheck` in mobile).
+- Jest tests pass inside `mobile/`.
+- Vite production build compiles successfully in `frontend/`.
 
 **Files changed:**
+- `backend/core/supabase.py` (MODIFIED)
+- `backend/dependencies/auth.py` (MODIFIED)
+- `mobile/src/lib/api.ts` (MODIFIED)
 - `database/45_reschedule_staff_availability.sql` (NEW)
+- `docs/audit/V1_RELEASE_AUDIT_2026_06_14.md` (NEW)
 - `docs/REMAINING_ISSUES.md` (MODIFIED)
+- `docs/PROGRESS.md` (MODIFIED)
 
 ---
 

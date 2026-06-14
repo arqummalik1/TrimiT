@@ -192,26 +192,6 @@ based on `razorpay_order_id`. Add a refund call to `client.payment.refund(...)`
 inside the cancellation router with an audit row.
 **Risk:** none right now (online pay is off).
 
-### B5. `httpx.AsyncClient` is created per Supabase call (P1)
-**File(s):** `backend/core/supabase.py`
-**Why it matters:** Every REST call to Supabase opens a fresh httpx client
-(no connection pooling, no keepalive, fresh TLS handshake). Render p95 latency
-suffers. At 50 RPS this becomes painful.
-**Fix:** Construct a single module-level `httpx.AsyncClient` at FastAPI
-lifespan startup; close on shutdown. Reuse for all requests.
-**Risk:** low — same library, just one shared instance. Test on staging.
-
-### B6. `user_profile_cache` is per-process (P1)
-**File(s):** `backend/dependencies/auth.py`
-**Why it matters:** TTLCache is in-memory. Render runs multiple gunicorn
-workers → each worker has its own cache. After a profile update on worker A,
-worker B can serve stale data for up to 5 minutes.
-**Fix:** Either (a) shorten TTL to 30 seconds and accept eventual
-consistency, (b) invalidate via a Supabase Realtime subscription on `users`
-in each worker, or (c) move to Redis. Lowest-risk choice for current scale
-is (a).
-**Risk:** none for correctness; only matters at scale.
-
 ### B7. Owner analytics is in-memory aggregation (P1)
 **File(s):** `backend/routers/owner.py:get_owner_analytics`
 **Why it matters:** Pulls every booking for the period into Python and
@@ -331,15 +311,6 @@ prompt notifications via primer (M3) → push registration.
 `CustomerTabs`/`OwnerTabs` mount and into a one-time post-primer trigger.
 **Risk:** small — ensure existing users don't lose registration during the
 swap. Add a "we already have your token" fast path.
-
-### M7. `lib/api.ts` mixes API client with staff helpers (P3)
-**File(s):** `mobile/src/lib/api.ts`
-**Why it matters:** That file re-exports the centralized client and also
-contains domain helpers (`getSalonStaff`, `createStaff`, etc.). Most of those
-also exist in `services/staffService.ts`. Duplicate paths confuse contributors.
-**Fix:** Move all staff helpers into `services/staffService.ts`. Make
-`lib/api.ts` a thin re-export only.
-**Risk:** small — touch every caller.
 
 ### M8. Realtime owner subscription is global (P3)
 **File(s):** `mobile/src/hooks/useRealtimeBookings.ts`,
@@ -508,6 +479,9 @@ the `ADMIN_API_TOKEN` env var.
 | 2026-05-25 | Pass 7 | Backend + Mobile: owner signup now lands on owner tabs. `VerifyOtpRequest` accepts `role`/`name`/`phone` hints; backend uses them only when no profile row exists (no escalation). Mobile reads from `pendingSignupStore` and passes them on signup verify. Added `.kiro/steering/production-rules.md` for the production posture. |
 | 2026-06-14 | Pass 9 | Database: `reschedule_booking_atomic` validates staff active status, working hours, and conflicts (migration 45). |
 | 2026-06-14 | Pass 9 | Backend + Mobile + Web: unified email dispatch (Supabase primary, Resend fallback) & OTP flicker fixes. |
+| 2026-06-14 | Pass 9 | Backend: `httpx.AsyncClient` reused lazily to resolve performance bottleneck (B5). |
+| 2026-06-14 | Pass 9 | Backend: user profile TTLCache TTL reduced to 30s to resolve process inconsistency (B6). |
+| 2026-06-14 | Pass 9 | Mobile: removed duplicate dead staff helpers from `lib/api.ts` (M7). |
 
 ---
 
