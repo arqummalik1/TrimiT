@@ -124,12 +124,16 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
     const store = useAuthStore.getState();
     const result = await store.sendOtp(normalizedEmail);
     
-    // Update the VerifyOtp screen with the result via re-navigation
-    navigation.navigate('VerifyOtp', {
-      email: normalizedEmail,
-      type: 'magiclink',
-      isPending: false,
-      otpSendResult: result.success ? 'success' : 'error'
+    // Update the VerifyOtp screen with the result via re-navigation using merge: true
+    navigation.navigate({
+      name: 'VerifyOtp',
+      params: {
+        email: normalizedEmail,
+        type: 'magiclink',
+        isPending: false,
+        otpSendResult: result.success ? 'success' : 'error'
+      },
+      merge: true
     });
     
     if (!result.success) {

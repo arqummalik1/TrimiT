@@ -321,10 +321,12 @@ async def send_otp(request: Request, data: SendOtpRequest):
     email = _normalize_email(data.email)
     _enforce_otp_email_throttle(email)
 
-    # Use create_user=True for both new signups and existing logins
-    # Supabase handles both cases gracefully with this single call
+    # Use create_user=False to prevent creating unconfirmed user rows in Supabase
+    # when users mistype their email during sign-in/login.
+    # Supabase will send the OTP to existing pending/unconfirmed users (from signup)
+    # and confirmed users, while returning 400 for non-existent users (handled below).
     response = await supabase.request(
-        "POST", "auth/v1/otp", json={"email": email, "create_user": True}
+        "POST", "auth/v1/otp", json={"email": email, "create_user": False}
     )
 
     if response.status_code in (200, 201):

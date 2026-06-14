@@ -124,12 +124,16 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
       error: result.error,
     });
 
-    // Wire the actual result back to VerifyOtp screen via re-navigation with updated params
-    navigation.navigate('VerifyOtp', {
-      email: normalizedEmail,
-      type: 'signup',
-      isPending: false,
-      otpSendResult: result.success ? 'success' : 'error'
+    // Wire the actual result back to VerifyOtp screen via re-navigation with updated params using merge: true
+    navigation.navigate({
+      name: 'VerifyOtp',
+      params: {
+        email: normalizedEmail,
+        type: 'signup',
+        isPending: false,
+        otpSendResult: result.success ? 'success' : 'error'
+      },
+      merge: true
     });
 
     if (!result.success) {
