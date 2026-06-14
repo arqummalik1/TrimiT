@@ -16,12 +16,13 @@
 5. OTP count timer screen flickering on mobile/web and lack of unified email dispatch.
 
 **Fixes & Optimizations:**
-1. **Database Hardening (migration 45)**: Created `database/45_reschedule_staff_availability.sql` with updated `reschedule_booking_atomic` RPC to validate staff active status, working hours, days off, and overlapping bookings (excluding current booking to avoid self-conflict).
+1. **Database Hardening (migration 45)**: Created `database/45_reschedule_staff_availability.sql` with updated `reschedule_booking_atomic` RPC to validate staff active status, working hours, days off, and overlapping bookings (excluding current booking to avoid self-conflict). **Applied successfully to the production database.**
 2. **Supabase Client Reuse (B5)**: Refactored `backend/core/supabase.py` to lazily instantiate and reuse a single `httpx.AsyncClient` across all requests.
 3. **User Profile Cache (B6)**: Reduced TTLCache TTL from 300s to 30s in `backend/dependencies/auth.py`.
 4. **Dead Code Cleanup (M7)**: Cleaned up duplicate staff domain helpers in `mobile/src/lib/api.ts`.
 5. **Unified Email & OTP Flicker**: refactored VerifyOtp countdown timers on both React Native and web to prevent re-render flickers, and added `backend/services/email_dispatch.py` for unified email dispatching.
 6. **V1 Release Audit**: Conducted the full release audit checklist and created `docs/audit/V1_RELEASE_AUDIT_2026_06_14.md`.
+
 
 **Verification:**
 - TypeScript typecheck passes cleanly (`npm run typecheck` in mobile).
@@ -760,6 +761,11 @@ This pass is focused on the selected P1 items:
     `subscription_active`; AFTER INSERT back-links the subscription. Fixes the
     `subscriptions_salon_id_fkey` violation that blocked all new salon creation
     (regression from migration 41).
+
+- `database/45_reschedule_staff_availability.sql`
+  - Status: **Applied Successfully** on Supabase SQL Editor (confirmed by user 2026-06-14).
+  - Hardens `reschedule_booking_atomic` to validate staff active status, working hours, days off, and overlapping bookings (excluding current booking).
+
 
 - [x] **Verified Mobile Implementation**: Silent refresh and retry logic is correctly implemented in `apiClient.ts` and `authStore.ts`.
 - [x] **Mobile Build**: Local assembleRelease build completed. APK generated at `mobile/android/app/build/outputs/apk/release/app-release.apk`.
