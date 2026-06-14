@@ -44,14 +44,41 @@ export default function VerifyOtpPage() {
     useRef(null),
   ];
 
-  // Resend Countdown Timer
+  // Resend Countdown Timer — stable interval, no re-render cascade.
+  // Matches mobile VerifyOtpScreen.tsx fix: interval is created once and
+  // self-clears when the timer reaches 0. Only re-created when resendTimer
+  // is explicitly reset to a positive value (e.g. after resend).
+  const timerRef = useRef(null);
+
   useEffect(() => {
-    if (resendTimer === 0) return;
-    const interval = setInterval(() => {
-      setResendTimer((t) => t - 1);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    if (resendTimer <= 0) return;
+
+    timerRef.current = setInterval(() => {
+      setResendTimer((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
-    return () => clearInterval(interval);
-  }, [resendTimer]);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resendTimer > 0 ? 'running' : 'stopped']);
 
   useEffect(() => {
     clearError();

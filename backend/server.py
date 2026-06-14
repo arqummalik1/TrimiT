@@ -27,6 +27,16 @@ try:
     logger.info("✅ Config imported successfully")
     logger.info("Environment: %s", settings.ENVIRONMENT)
     logger.info("Supabase URL: %s...", settings.SUPABASE_URL[:30])
+    
+    # Verify Resend API configuration in production
+    if settings.ENVIRONMENT == "production":
+        if not settings.RESEND_API_KEY:
+            logger.warning(
+                "⚠️ [WARNING] RESEND_API_KEY is not configured! Custom transactional emails "
+                "(like payment receipts, invoice notifications) will be logged and skipped in production."
+            )
+        else:
+            logger.info("✅ RESEND_API_KEY is configured")
 except Exception as e:
     logger.exception("❌ FATAL: Failed to import config: %s", e)
     sys.exit(1)

@@ -1,8 +1,9 @@
 """
-Subscription invoice / receipt emails via Resend.
+Subscription invoice / receipt emails.
 
-Graceful: if RESEND_API_KEY is not configured, this no-ops (logs and returns
-False) — it must never break the payment/webhook flow.
+Uses the unified email_dispatch module (Supabase SMTP → Resend as single source
+of truth). Graceful: if RESEND_API_KEY is not configured, email_dispatch no-ops
+(logs and returns False) — it must never break the payment/webhook flow.
 """
 
 from __future__ import annotations
@@ -11,14 +12,11 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-import httpx
-
 from config import settings
 from core.supabase import supabase
+from services.email_dispatch import send_email as dispatch_email
 
 logger = logging.getLogger("trimit")
-
-RESEND_ENDPOINT = "https://api.resend.com/emails"
 
 
 async def _fetch_owner_contact(owner_id: str) -> tuple[Optional[str], str]:
@@ -89,10 +87,6 @@ async def send_payment_receipt(
     paid_at: Optional[str] = None,
     next_renewal_at: Optional[str] = None,
 ) -> bool:
-    if not settings.RESEND_API_KEY:
-        logger.info("[Sub][Invoice] RESEND_API_KEY not set; skipping receipt email")
-        return False
-
     email, name = await _fetch_owner_contact(owner_id)
     if not email:
         logger.warning("[Sub][Invoice] no email for owner=%s; skipping receipt", owner_id[:8])
@@ -106,26 +100,13 @@ async def send_payment_receipt(
         next_renewal=next_renewal_at,
     )
 
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(15.0, connect=10.0)) as client:
-            resp = await client.post(
-                RESEND_ENDPOINT,
-                headers={
-                    "Authorization": f"Bearer {settings.RESEND_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "from": settings.RESEND_FROM_EMAIL,
-                    "to": [email],
-                    "subject": f"TrimiT Pro receipt — ₹{amount_paise / 100:.0f}",
-                    "html": html,
-                },
-            )
-        if resp.status_code in (200, 201):
-            logger.info("[Sub][Invoice] receipt sent owner=%s", owner_id[:8])
-            return True
-        logger.error("[Sub][Invoice] Resend failed status=%s body=%s", resp.status_code, resp.text[:300])
-        return False
-    except Exception as e:
-        logger.error("[Sub][Invoice] Resend exception: %s", e)
-        return False
+    subject = f"TrimiT Pro receipt — ₹{amount_paise / 100:.0f}"
+    sent = await dispatch_email(
+        to=email,
+        subject=subject,
+        html_body=html,
+        tags={"category": "subscription_receipt", "owner_id": owner_id[:8]},
+    )
+    if sent:
+        logger.info("[Sub][Invoice] receipt sent owner=%s", owner_id[:8])
+    return sent

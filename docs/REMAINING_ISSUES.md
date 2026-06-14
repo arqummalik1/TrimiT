@@ -161,20 +161,6 @@ direct UPDATE policy entirely and force every mutation through RPCs.
 **Risk:** medium — RLS changes against live data must be rolled out via
 migration with a tested rollback. Test on staging with copy of prod data.
 
-### B2. `reschedule_booking_atomic` doesn't validate staff conflicts or duration overlap (P0)
-**File(s):** `database/15_reschedule_atomic_time_compare.sql` and successors
-(`14_*`, `15_*`, `16_*`, `35_reschedule_holds_capacity.sql`)
-**Why it matters:** The atomic booking RPC enforces single-slot capacity, but
-when a booking is rescheduled to a new slot, the RPC does not check whether
-the **assigned staff** is already busy in the destination window, nor whether
-the service duration overlaps an adjacent booking. Same loophole that the
-booking RPC closes for create.
-**Fix:** Extend `reschedule_booking_atomic` to JOIN bookings with
-`services.duration` for the same staff member and reject overlaps.
-**Risk:** small — the RPC is the only path that mutates date/slot on
-existing bookings; tighten in a new migration without changing the public
-contract.
-
 ### B3. `SignatureMiddleware` is defined but never installed (P1)
 **File(s):** `backend/core/middleware.py`, `backend/server.py`,
 `backend/tests/test_priority.py`, `backend/tests/conftest.py`
@@ -205,26 +191,6 @@ by the existing expiry cron but the charge already settled.
 based on `razorpay_order_id`. Add a refund call to `client.payment.refund(...)`
 inside the cancellation router with an audit row.
 **Risk:** none right now (online pay is off).
-
-### B5. `httpx.AsyncClient` is created per Supabase call (P1)
-**File(s):** `backend/core/supabase.py`
-**Why it matters:** Every REST call to Supabase opens a fresh httpx client
-(no connection pooling, no keepalive, fresh TLS handshake). Render p95 latency
-suffers. At 50 RPS this becomes painful.
-**Fix:** Construct a single module-level `httpx.AsyncClient` at FastAPI
-lifespan startup; close on shutdown. Reuse for all requests.
-**Risk:** low — same library, just one shared instance. Test on staging.
-
-### B6. `user_profile_cache` is per-process (P1)
-**File(s):** `backend/dependencies/auth.py`
-**Why it matters:** TTLCache is in-memory. Render runs multiple gunicorn
-workers → each worker has its own cache. After a profile update on worker A,
-worker B can serve stale data for up to 5 minutes.
-**Fix:** Either (a) shorten TTL to 30 seconds and accept eventual
-consistency, (b) invalidate via a Supabase Realtime subscription on `users`
-in each worker, or (c) move to Redis. Lowest-risk choice for current scale
-is (a).
-**Risk:** none for correctness; only matters at scale.
 
 ### B7. Owner analytics is in-memory aggregation (P1)
 **File(s):** `backend/routers/owner.py:get_owner_analytics`
@@ -345,15 +311,6 @@ prompt notifications via primer (M3) → push registration.
 `CustomerTabs`/`OwnerTabs` mount and into a one-time post-primer trigger.
 **Risk:** small — ensure existing users don't lose registration during the
 swap. Add a "we already have your token" fast path.
-
-### M7. `lib/api.ts` mixes API client with staff helpers (P3)
-**File(s):** `mobile/src/lib/api.ts`
-**Why it matters:** That file re-exports the centralized client and also
-contains domain helpers (`getSalonStaff`, `createStaff`, etc.). Most of those
-also exist in `services/staffService.ts`. Duplicate paths confuse contributors.
-**Fix:** Move all staff helpers into `services/staffService.ts`. Make
-`lib/api.ts` a thin re-export only.
-**Risk:** small — touch every caller.
 
 ### M8. Realtime owner subscription is global (P3)
 **File(s):** `mobile/src/hooks/useRealtimeBookings.ts`,
@@ -520,7 +477,12 @@ the `ADMIN_API_TOKEN` env var.
 | 2026-05-25 | Pass 5 | Mobile: persistent login across swipe-kill — `secureStorage` now falls back to AsyncStorage on 2KB limit; `initializeAuth` trusts persisted token immediately, only clears on confirmed 401. |
 | 2026-05-25 | Pass 6 | Mobile: signup OTP flow routes to `VerifyOtp` screen. `authStore.verifyOtp` now uses `data.profile` (not raw `data.user`). `pendingSignupStore` stashes name+phone; `VerifyOtpScreen` PATCHes profile after verify. Backend: restored 5 missing endpoints (`/auth/me`, `/auth/profile`, `/auth/push-token`, `/auth/notification-preferences`, `/auth/account`). Profile save now works. |
 | 2026-05-25 | Pass 7 | Backend + Mobile: owner signup now lands on owner tabs. `VerifyOtpRequest` accepts `role`/`name`/`phone` hints; backend uses them only when no profile row exists (no escalation). Mobile reads from `pendingSignupStore` and passes them on signup verify. Added `.kiro/steering/production-rules.md` for the production posture. |
-| 2026-05-25 | Pass 8 | Repo: created `RULES.md` as the single source of truth for engineering rules. Mirrored to `.kiro/steering/production-rules.md` and `.cursorrules`. Pointed `CLAUDE.md`, `docs/PROGRESS.md`, `docs/REMAINING_ISSUES.md` at it. Reference apps named: Zomato, Blinkit, Zepto, Swiggy, Uber, Ola, Instagram, Facebook. |
+| 2026-06-14 | Pass 9 | Database: `reschedule_booking_atomic` validates staff active status, working hours, and conflicts (migration 45). |
+| 2026-06-14 | Pass 9 | Backend + Mobile + Web: unified email dispatch (Supabase primary, Resend fallback) & OTP flicker fixes. |
+| 2026-06-14 | Pass 9 | Backend: `httpx.AsyncClient` reused lazily to resolve performance bottleneck (B5). |
+| 2026-06-14 | Pass 9 | Backend: user profile TTLCache TTL reduced to 30s to resolve process inconsistency (B6). |
+| 2026-06-14 | Pass 9 | Mobile: removed duplicate dead staff helpers from `lib/api.ts` (M7). |
+| 2026-06-14 | Pass 9 | Mobile: Isolated countdown state into `ResendCountdownSection` to stop VerifyOtp layout flickering. Fixed optimistic error ignoring and safetyTimer toast transitions. Backend: Added startup config check for `RESEND_API_KEY` in `server.py`. |
 
 ---
 

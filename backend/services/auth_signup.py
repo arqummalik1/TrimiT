@@ -370,9 +370,13 @@ async def resend_confirmation_email(email: str) -> Tuple[int, Dict[str, Any]]:
         auth_user = await find_auth_user_by_email_admin(email_norm)
         if auth_user and auth_user.get("id"):
             meta = auth_user.get("user_metadata") or {}
+            # Password is unused — admin_confirm_user bypasses it. Use a
+            # long random placeholder so UserCreate's validator is happy
+            # without leaking a real credential if the repo is exposed.
+            import secrets
             salvage_user = UserCreate(
                 email=email_norm,
-                password="ResendSalvage1!",
+                password=secrets.token_urlsafe(32),
                 name=str(meta.get("name") or "User"),
                 phone=str(meta.get("phone") or "") or None,
                 role=UserRole.owner if meta.get("role") == "owner" else UserRole.customer,

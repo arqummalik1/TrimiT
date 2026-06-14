@@ -9,7 +9,7 @@ from services.user_profile import resolve_profile_for_user
 
 logger = logging.getLogger("trimit")
 
-user_profile_cache = TTLCache(maxsize=1000, ttl=300)
+user_profile_cache = TTLCache(maxsize=1000, ttl=30)
 
 
 def _build_cached_user_data(

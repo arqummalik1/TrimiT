@@ -124,11 +124,22 @@ export const SignupScreen: React.FC<SignupProps> = ({ navigation, route }) => {
       error: result.error,
     });
 
-    // Wire the actual result back to VerifyOtp screen
-    if (navigation.getState().routes[navigation.getState().routes.length - 1]?.name === 'VerifyOtp') {
-      navigation.setParams({
-        otpSendResult: result.success ? 'success' : 'error'
-      } as any);
+    // Check if the user is still in the OTP flow (did not navigate back/away)
+    const state = navigation.getState();
+    const isStillInOtpFlow = !state || state.routes.some(route => route.name === 'VerifyOtp');
+
+    if (isStillInOtpFlow) {
+      // Wire the actual result back to VerifyOtp screen via re-navigation with updated params using merge: true
+      navigation.navigate({
+        name: 'VerifyOtp',
+        params: {
+          email: normalizedEmail,
+          type: 'signup',
+          isPending: false,
+          otpSendResult: result.success ? 'success' : 'error'
+        },
+        merge: true
+      });
     }
 
     if (!result.success) {
