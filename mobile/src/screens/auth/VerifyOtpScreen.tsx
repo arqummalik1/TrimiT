@@ -35,6 +35,7 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
   const [localError, setLocalError] = useState<string | undefined>(undefined);
   const [sendingCode, setSendingCode] = useState(route.params.isPending === true);
   const [otpSendFailed, setOtpSendFailed] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
 
   // Refs for the 6 TextInput boxes
   const inputRefs = [
@@ -221,7 +222,12 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
   const handleResend = async () => {
     clearError();
     setLocalError(undefined);
+    setResendLoading(true);
+    
     const result = await sendOtp(email);
+    
+    setResendLoading(false);
+    
     if (result.success) {
       showToast('A new code has been sent to your email.', 'success');
       setResendTimer(30);
@@ -326,8 +332,13 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
                   Resend code in <Text style={styles.timerHighlight}>{resendTimer}s</Text>
                 </Text>
               ) : (
-                <TouchableOpacity onPress={handleResend} disabled={isLoading}>
-                  <Text style={styles.resendText}>Resend Code</Text>
+                <TouchableOpacity 
+                  onPress={handleResend} 
+                  disabled={isLoading || resendLoading}
+                >
+                  <Text style={styles.resendText}>
+                    {resendLoading ? 'Sending...' : 'Resend Code'}
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>

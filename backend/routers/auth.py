@@ -321,21 +321,11 @@ async def send_otp(request: Request, data: SendOtpRequest):
     email = _normalize_email(data.email)
     _enforce_otp_email_throttle(email)
 
-    # Try with create_user=False first (login flow for existing users)
+    # Use create_user=True for both new signups and existing logins
+    # Supabase handles both cases gracefully with this single call
     response = await supabase.request(
-        "POST", "auth/v1/otp", json={"email": email, "create_user": False}
+        "POST", "auth/v1/otp", json={"email": email, "create_user": True}
     )
-
-    # If Supabase returns 400 with "User not found" (or similar), try with create_user=True
-    # This allows the OTP flow to work for both new signups and existing logins.
-    if response.status_code == 400:
-        logger.info(
-            "send_otp: user not found with create_user=False, retrying with create_user=True for %s",
-            _mask_email(email),
-        )
-        response = await supabase.request(
-            "POST", "auth/v1/otp", json={"email": email, "create_user": True}
-        )
 
     if response.status_code in (200, 201):
         return {"message": "If the address is eligible, an OTP code has been sent"}
