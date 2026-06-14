@@ -47,14 +47,42 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
     useRef<TextInput>(null),
   ];
 
-  // Countdown timer for code resend
+  // Countdown timer for code resend — stable interval, no re-render cascade.
+  // The old pattern had `resendTimer` as a dep, which re-created the interval
+  // every second and caused the entire screen to re-render (flickering).
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
-    if (resendTimer === 0) return;
-    const interval = setInterval(() => {
-      setResendTimer((prev) => prev - 1);
+    // Clear any previous interval when resendTimer is reset (e.g. after resend)
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    if (resendTimer <= 0) return;
+
+    timerRef.current = setInterval(() => {
+      setResendTimer((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
-    return () => clearInterval(interval);
-  }, [resendTimer]);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+    // Only re-run when resendTimer is RESET to a new positive value (not on every tick)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resendTimer > 0 ? 'running' : 'stopped']);
 
   // Clear errors on mount/unmount
   useEffect(() => {
@@ -102,9 +130,6 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
         showToast('Verification code sent to your email.', 'success');
       }
     }, 5000);
-    
-    return () => clearTimeout(safetyTimer);
-  }, [route.params.isPending, sendingCode]);
     
     return () => clearTimeout(safetyTimer);
   }, [route.params.isPending, sendingCode]);
