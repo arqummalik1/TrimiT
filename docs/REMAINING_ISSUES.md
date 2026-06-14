@@ -482,6 +482,7 @@ the `ADMIN_API_TOKEN` env var.
 | 2026-06-14 | Pass 9 | Backend: `httpx.AsyncClient` reused lazily to resolve performance bottleneck (B5). |
 | 2026-06-14 | Pass 9 | Backend: user profile TTLCache TTL reduced to 30s to resolve process inconsistency (B6). |
 | 2026-06-14 | Pass 9 | Mobile: removed duplicate dead staff helpers from `lib/api.ts` (M7). |
+| 2026-06-14 | Pass 9 | Mobile: Isolated countdown state into `ResendCountdownSection` to stop VerifyOtp layout flickering. Fixed optimistic error ignoring and safetyTimer toast transitions. Backend: Added startup config check for `RESEND_API_KEY` in `server.py`. |
 
 ---
 

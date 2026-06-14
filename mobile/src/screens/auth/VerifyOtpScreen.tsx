@@ -8,6 +8,10 @@ import {
   Platform,
   ScrollView,
   TextInput,
+  NativeSyntheticEvent,
+  TextInputKeyPressEventData,
+  ViewStyle,
+  TextStyle,
 } from 'react-native';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,37 +27,39 @@ import { AuthScreenProps } from '../../navigation/types';
 
 type VerifyOtpProps = AuthScreenProps<'VerifyOtp'>;
 
-export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
-  const { email, type } = route.params;
-  const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+interface ResendCountdownSectionProps {
+  email: string;
+  sendOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
+  isLoading: boolean;
+  clearError: () => void;
+  setLocalError: (err: string | undefined) => void;
+  setCode: React.Dispatch<React.SetStateAction<string[]>>;
+  focusFirstInput: () => void;
+  theme: Theme;
+  styles: {
+    resendContainer: ViewStyle;
+    timerText: TextStyle;
+    timerHighlight: TextStyle;
+    resendText: TextStyle;
+  };
+}
 
-  const { verifyOtp, sendOtp, isLoading, error: authError, clearError } = useAuthStore();
-
-  const [code, setCode] = useState<string[]>(Array(6).fill(''));
+const ResendCountdownSection: React.FC<ResendCountdownSectionProps> = ({
+  email,
+  sendOtp,
+  isLoading,
+  clearError,
+  setLocalError,
+  setCode,
+  focusFirstInput,
+  theme,
+  styles,
+}) => {
   const [resendTimer, setResendTimer] = useState(30);
-  const [localError, setLocalError] = useState<string | undefined>(undefined);
-  const [sendingCode, setSendingCode] = useState(route.params.isPending === true);
-  const [otpSendFailed, setOtpSendFailed] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
-
-  // Refs for the 6 TextInput boxes
-  const inputRefs = [
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-  ];
-
-  // Countdown timer for code resend — stable interval, no re-render cascade.
-  // The old pattern had `resendTimer` as a dep, which re-created the interval
-  // every second and caused the entire screen to re-render (flickering).
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    // Clear any previous interval when resendTimer is reset (e.g. after resend)
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -80,9 +86,68 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
         timerRef.current = null;
       }
     };
-    // Only re-run when resendTimer is RESET to a new positive value (not on every tick)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resendTimer > 0 ? 'running' : 'stopped']);
+
+  const handleResend = async () => {
+    clearError();
+    setLocalError(undefined);
+    setResendLoading(true);
+    
+    const result = await sendOtp(email);
+    
+    setResendLoading(false);
+    
+    if (result.success) {
+      showToast('A new code has been sent to your email.', 'success');
+      setResendTimer(30);
+      setCode(Array(6).fill(''));
+      focusFirstInput();
+    } else {
+      showToast(result.error || 'Failed to resend code. Please try again.', 'error');
+    }
+  };
+
+  return (
+    <View style={styles.resendContainer}>
+      {resendTimer > 0 ? (
+        <Text style={styles.timerText}>
+          Resend code in <Text style={styles.timerHighlight}>{resendTimer}s</Text>
+        </Text>
+      ) : (
+        <TouchableOpacity 
+          onPress={handleResend} 
+          disabled={isLoading || resendLoading}
+        >
+          <Text style={styles.resendText}>
+            {resendLoading ? 'Sending...' : 'Resend Code'}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
+export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
+  const { email, type } = route.params;
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
+  const { verifyOtp, sendOtp, isLoading, error: authError, clearError } = useAuthStore();
+
+  const [code, setCode] = useState<string[]>(Array(6).fill(''));
+  const [localError, setLocalError] = useState<string | undefined>(undefined);
+  const [sendingCode, setSendingCode] = useState(route.params.isPending === true);
+  const [otpSendFailed, setOtpSendFailed] = useState(false);
+
+  // Refs for the 6 TextInput boxes
+  const inputRefs = [
+    useRef<TextInput>(null),
+    useRef<TextInput>(null),
+    useRef<TextInput>(null),
+    useRef<TextInput>(null),
+    useRef<TextInput>(null),
+    useRef<TextInput>(null),
+  ];
 
   // Clear errors on mount/unmount
   useEffect(() => {
@@ -95,43 +160,41 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
   useEffect(() => {
     const { otpSendResult, isPending } = route.params;
     
-    // Only act if we're currently in sending state (prevent duplicate actions)
-    if (!sendingCode) return;
-    
     if (otpSendResult === 'success') {
       // Background OTP send succeeded
       setSendingCode(false);
       setOtpSendFailed(false);
+      setLocalError(undefined);
       showToast('Verification code sent to your email.', 'success');
     } else if (otpSendResult === 'error') {
       // Background OTP send failed
       setSendingCode(false);
       setOtpSendFailed(true);
-      setLocalError('Failed to send verification code. Please try again.');
+      setLocalError('Failed to send verification code. Please check your network or try again.');
     } else if (isPending === false && !otpSendResult) {
       // isPending cleared but no explicit result — assume success
       setSendingCode(false);
       setOtpSendFailed(false);
+      setLocalError(undefined);
       showToast('Verification code sent to your email.', 'success');
     }
-  }, [route.params.otpSendResult, route.params.isPending, sendingCode]);
+  }, [route.params.otpSendResult, route.params.isPending]);
 
-  // SAFETY: If isPending but no result arrives within 5s, assume success and unblock UI
-  // This prevents the screen from being stuck forever if re-navigation fails
+  // SAFETY TIMEOUT: If isPending remains true for too long, unblock the UI and warn the user
   useEffect(() => {
     const { isPending } = route.params;
     if (!isPending || !sendingCode) return;
     
-    const safetyTimer = setTimeout(() => {
-      // Still in sending state after 5s — unblock the UI
+    const timeoutTimer = setTimeout(() => {
+      // Still in sending state after 15s — unblock the UI but do NOT assume success
       if (sendingCode) {
         setSendingCode(false);
-        setOtpSendFailed(false);
-        showToast('Verification code sent to your email.', 'success');
+        setOtpSendFailed(true);
+        setLocalError('Verification code delivery is taking longer than expected. Please check your inbox or try resending.');
       }
-    }, 5000);
+    }, 15000);
     
-    return () => clearTimeout(safetyTimer);
+    return () => clearTimeout(timeoutTimer);
   }, [route.params.isPending, sendingCode]);
 
   const handleTextChange = (text: string, index: number) => {
@@ -157,7 +220,7 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
     }
   };
 
-  const handleKeyPress = (e: any, index: number) => {
+  const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>, index: number) => {
     // Fallback focus to previous input box on backspace press
     if (e.nativeEvent.key === 'Backspace' && !code[index] && index > 0) {
       const newCode = [...code];
@@ -241,25 +304,6 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
       }
     } else {
       showToast(result.error || 'Verification failed. Please try again.', 'error');
-    }
-  };
-
-  const handleResend = async () => {
-    clearError();
-    setLocalError(undefined);
-    setResendLoading(true);
-    
-    const result = await sendOtp(email);
-    
-    setResendLoading(false);
-    
-    if (result.success) {
-      showToast('A new code has been sent to your email.', 'success');
-      setResendTimer(30);
-      setCode(Array(6).fill(''));
-      inputRefs[0].current?.focus();
-    } else {
-      showToast(result.error || 'Failed to resend code. Please try again.', 'error');
     }
   };
 
@@ -351,22 +395,17 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
             />
 
             {/* Resend Cooldown Section */}
-            <View style={styles.resendContainer}>
-              {resendTimer > 0 ? (
-                <Text style={styles.timerText}>
-                  Resend code in <Text style={styles.timerHighlight}>{resendTimer}s</Text>
-                </Text>
-              ) : (
-                <TouchableOpacity 
-                  onPress={handleResend} 
-                  disabled={isLoading || resendLoading}
-                >
-                  <Text style={styles.resendText}>
-                    {resendLoading ? 'Sending...' : 'Resend Code'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <ResendCountdownSection
+              email={email}
+              sendOtp={sendOtp}
+              isLoading={isLoading}
+              clearError={clearError}
+              setLocalError={setLocalError}
+              setCode={setCode}
+              focusFirstInput={() => inputRefs[0].current?.focus()}
+              theme={theme}
+              styles={styles}
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

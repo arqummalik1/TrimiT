@@ -6,6 +6,29 @@
 > Update this file after every meaningful prompt, code change, migration, deploy, or QA pass.
 
 ## Session log
+### 2026-06-14 — FIX: OTP flickering, state transitions & backend email check
+
+**Problem:**
+1. The `resendTimer` tick triggered screen-wide re-renders in `VerifyOtpScreen.tsx`, causing layout instability and text/button flickering.
+2. In the optimistic signup flow, the 5-second `safetyTimer` assumed success and cleared the sending state. If the request subsequently failed after 5 seconds, the route param listener returned early and ignored the error, keeping the screen stuck.
+3. If `RESEND_API_KEY` was missing in production, custom emails failed silently without any warning at startup.
+
+**Fixes & Optimizations:**
+1. **Isolated Countdown Timer State**: Created `ResendCountdownSection` inside `VerifyOtpScreen.tsx` to handle the interval and countdown timer, preventing parent-wide re-render flickering.
+2. **Fixed Param Listener & Timeout**: Corrected the route parameter check to process errors even after sending is timed out/cleared, and replaced the 5s success assumption with a 15s warning timeout.
+3. **Resend Key Startup Validation**: Added a startup check in `backend/server.py` to warn when `RESEND_API_KEY` is missing in production.
+
+**Verification:**
+- Run `npx tsc --noEmit` inside `mobile/` -> completed successfully.
+- Run Jest tests in `mobile/` -> passed successfully.
+
+**Files changed:**
+- `mobile/src/screens/auth/VerifyOtpScreen.tsx` (MODIFIED)
+- `backend/server.py` (MODIFIED)
+- `docs/PROGRESS.md` (MODIFIED)
+
+---
+
 ### 2026-06-14 — FIX: Monorepo audit, performance optimization & database rescheduling availability hardening
 
 **Problem:** 
