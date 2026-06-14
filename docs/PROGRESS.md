@@ -6,6 +6,24 @@
 > Update this file after every meaningful prompt, code change, migration, deploy, or QA pass.
 
 ## Session log
+### 2026-06-14 — CONFIG: Configured VS Code Python interpreter and import paths
+
+**Problem:**
+VS Code highlighted the backend Python files (such as `auth.py`) with red underlines and import resolution errors because it defaulted to the system Python interpreter and searched for imports relative to the root workspace folder rather than the `backend/` folder.
+
+**Fixes & Optimizations:**
+1. **Workspace Settings Update**: Added `python.defaultInterpreterPath` to point to `${workspaceFolder}/backend/venv/bin/python` and added `backend` to `python.analysis.extraPaths` in `.vscode/settings.json`.
+2. **Import Resolution**: The IDE now correctly resolves third-party packages (like `fastapi`) and local source directories (`core`, `config`, `models`, `services`, `dependencies`) from the virtual environment.
+
+**Verification:**
+- Verified backend import validity using the virtual environment's python directly: `./venv/bin/python3 -c "import routers.auth"`.
+
+**Files changed:**
+- `.vscode/settings.json` (MODIFIED)
+- `docs/PROGRESS.md` (MODIFIED)
+
+---
+
 ### 2026-06-14 — FEATURE: Enabled standard iOS/Android OTP autofill suggestions
 
 **Problem:**
