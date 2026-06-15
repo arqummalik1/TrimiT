@@ -19,11 +19,17 @@ from models.auth import (
     ResetPasswordRequest,
     SendOtpRequest,
     VerifyOtpRequest,
-    OtpType
+    OtpType,
+    CompleteProfileRequest,
 )
 from dependencies.auth import get_current_user, user_profile_cache
 from services.auth_errors import map_supabase_signup_error, safe_auth_response_json
-from services.user_profile import resolve_profile_for_user, upsert_user_profile, fetch_profile_service_role
+from services.user_profile import (
+    resolve_profile_for_user,
+    upsert_user_profile,
+    fetch_profile_service_role,
+    create_new_profile,
+)
 from services.auth_signup import (
     try_idempotent_signup,
     perform_supabase_signup,
@@ -204,6 +210,7 @@ async def signup(request: Request, user: UserCreate):
 
 
 
+@router.post("/login")
 @limiter.limit("20/minute")
 async def login(request: Request, data: UserLogin):
     """
@@ -321,12 +328,10 @@ async def send_otp(request: Request, data: SendOtpRequest):
     email = _normalize_email(data.email)
     _enforce_otp_email_throttle(email)
 
-    # Use create_user=False to prevent creating unconfirmed user rows in Supabase
-    # when users mistype their email during sign-in/login.
-    # Supabase will send the OTP to existing pending/unconfirmed users (from signup)
-    # and confirmed users, while returning 400 for non-existent users (handled below).
+    # Use create_user=True to allow creating unconfirmed user rows in Supabase
+    # when new users enter their email for passwordless signup.
     response = await supabase.request(
-        "POST", "auth/v1/otp", json={"email": email, "create_user": False}
+        "POST", "auth/v1/otp", json={"email": email, "create_user": True}
     )
 
     if response.status_code in (200, 201):
@@ -394,7 +399,17 @@ async def send_otp(request: Request, data: SendOtpRequest):
 @router.post("/verify-otp")
 @limiter.limit("10/minute")
 async def verify_otp(request: Request, data: VerifyOtpRequest):
-    """Verify numeric email OTP for signup, magiclink/login, or recovery/forgot-password"""
+    """
+    Verify numeric email OTP for login or recovery.
+
+    This endpoint NO LONGER creates a public.users profile row. Profile
+    creation is a separate, mandatory step via POST /auth/complete-profile.
+    This makes profile creation server-enforced and cross-device safe —
+    no client-side state (pendingSignupStore) is needed or trusted.
+
+    Response includes `profile_complete: bool` so the client can decide
+    whether to gate the user into CompleteProfileScreen.
+    """
     email = data.email.strip().lower()
     token = data.token.strip()
     otp_type = data.type.value if hasattr(data.type, "value") else str(data.type)
@@ -413,10 +428,8 @@ async def verify_otp(request: Request, data: VerifyOtpRequest):
                 alt_type,
                 _mask_email(email),
             )
-
             payload["type"] = alt_type
             alt_response = await supabase.request("POST", "auth/v1/verify", json=payload)
-
             if alt_response.status_code in (200, 201):
                 response = alt_response
 
@@ -463,46 +476,25 @@ async def verify_otp(request: Request, data: VerifyOtpRequest):
     access_token = auth_data.get("access_token")
 
     profile = None
-    is_new = False
+    profile_complete = False
+
     if user_id and access_token:
-        supabase_user = auth_data.get("user", {})
         user_profile_cache.pop(user_id, None)
         try:
-            existing_profile = await fetch_profile_service_role(user_id)
-            if not existing_profile:
-                is_new = True
-
-            # Build the metadata dict resolve_profile_for_user reads. For brand-
-            # new accounts (no profile row yet), merge the client's signup intent
-            # (role, name, phone) on top of whatever Supabase forwarded — Supabase
-            # does NOT reliably persist `options.data` from auth/v1/otp into
-            # user_metadata when the user is created via OTP, so we'd otherwise
-            # always default to role='customer'. Once a profile row exists, the
-            # client values are ignored (no role escalation possible).
-            merged_metadata: dict = dict(supabase_user.get("user_metadata") or {})
-            if is_new:
-                if data.role is not None:
-                    merged_metadata["role"] = data.role.value
-                if data.name:
-                    merged_metadata.setdefault("name", data.name)
-                if data.phone:
-                    merged_metadata.setdefault("phone", data.phone)
-
-            profile = await resolve_profile_for_user(
-                user_id,
-                supabase_user.get("email", data.email),
-                merged_metadata,
-                user_jwt=access_token,
-            )
+            profile = await fetch_profile_service_role(user_id)
+            profile_complete = profile is not None
             logger.info(
-                "OTP verify profile resolved user=%s role=%s is_new=%s client_role_hint=%s",
+                "verify_otp: user=%s profile_complete=%s",
                 user_id[:8],
-                profile.get("role"),
-                is_new,
-                (data.role.value if data.role else None),
+                profile_complete,
             )
-        except RuntimeError:
-            logger.error("OTP verify profile resolve failed for user %s", user_id)
+        except Exception as e:
+            logger.error(
+                "verify_otp: profile lookup failed for user=%s error=%s",
+                user_id[:8] if user_id else "?",
+                str(e),
+            )
+            # Non-fatal — client will hit /complete-profile gate
 
     return {
         "access_token": access_token,
@@ -511,8 +503,72 @@ async def verify_otp(request: Request, data: VerifyOtpRequest):
         "refresh_token": auth_data.get("refresh_token"),
         "user": auth_data.get("user"),
         "profile": profile,
-        "is_new_user": is_new,
+        "profile_complete": profile_complete,
     }
+
+
+@router.post("/complete-profile")
+@limiter.limit("10/minute")
+async def complete_profile(
+    request: Request,
+    data: CompleteProfileRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Create the public.users profile for a newly-authenticated user.
+
+    This is the mandatory second step after OTP verification for users who do
+    not yet have a profile row. It is idempotent — calling it twice for the
+    same user returns the existing profile without error (safe for retries).
+
+    Role assignment is enforced here, server-side. No role can be escalated
+    after the first successful call creates the row — subsequent calls return
+    the already-persisted row unchanged.
+
+    Requires: valid Bearer token from verify-otp.
+    """
+    user_id = current_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    email = current_user.get("email", "")
+
+    try:
+        profile = await create_new_profile(
+            user_id=user_id,
+            email=email,
+            role=data.role.value,
+            name=data.name,
+            phone=data.phone,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "INVALID_ROLE", "message": str(e)},
+        )
+    except RuntimeError as e:
+        logger.error(
+            "complete_profile: create_new_profile failed user=%s error=%s",
+            user_id[:8] if user_id else "?",
+            str(e),
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "PROFILE_CREATE_FAILED",
+                "message": "Could not create profile. Please try again.",
+            },
+        )
+
+    # Invalidate any cached profile so /auth/me returns fresh data immediately.
+    user_profile_cache.pop(user_id, None)
+
+    logger.info(
+        "complete_profile: profile created user=%s role=%s",
+        user_id[:8] if user_id else "?",
+        profile.get("role"),
+    )
+    return {"profile": profile, "message": "Profile created successfully"}
 
 
 @router.post("/validate-reset-token")
@@ -543,12 +599,20 @@ async def reset_password(data: ResetPasswordRequest):
 
 @router.get("/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
-    """Return the authenticated user with the resolved profile from public.users."""
+    """
+    Return the authenticated user with the resolved profile from public.users.
+
+    Includes `profile_complete: bool` so clients can detect broken/incomplete
+    accounts (auth.users row exists but no public.users row) and gate the user
+    into CompleteProfileScreen on app restart.
+    """
     profile = current_user.get("profile") or {}
+    profile_complete = bool(profile and profile.get("role") and profile.get("name"))
     return {
         "id": current_user.get("id"),
         "email": current_user.get("email"),
         "profile": profile,
+        "profile_complete": profile_complete,
         # Flatten common fields so older clients reading top-level still work.
         "name": profile.get("name"),
         "phone": profile.get("phone"),

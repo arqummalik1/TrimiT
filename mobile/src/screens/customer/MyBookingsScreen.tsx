@@ -9,7 +9,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -17,35 +17,38 @@ import {
   FlatList,
   Alert,
   RefreshControl,
-} from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../../lib/api';
-import { BookingCard } from '../../components/BookingCard';
-import { BookingListSkeleton } from '../../components/skeletons/BookingListSkeleton';
-import { ErrorState } from '../../components/ErrorState';
-import { EmptyState } from '../../components/EmptyState';
-import { handleApiError } from '../../lib/errorHandler';
-import { useMinLoadingTime } from '../../hooks/useMinLoadingTime';
-import { showToast } from '../../store/toastStore';
-import { Booking } from '../../types';
-import { typography, spacing, fonts } from '../../lib/utils';
-import { useTheme } from '../../theme/ThemeContext';
-import { Theme } from '../../theme/tokens';
-import { useAuthStore } from '../../store/authStore';
+} from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  ScreenWrapper,
+  TAB_BAR_BASE_HEIGHT,
+} from "../../components/ScreenWrapper";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { BookingCard } from "../../components/BookingCard";
+import { BookingListSkeleton } from "../../components/skeletons/BookingListSkeleton";
+import { ErrorState } from "../../components/ErrorState";
+import { EmptyState } from "../../components/EmptyState";
+import { handleApiError } from "../../lib/errorHandler";
+import { useMinLoadingTime } from "../../hooks/useMinLoadingTime";
+import { showToast } from "../../store/toastStore";
+import { Booking } from "../../types";
+import { bookingRepository } from "../../repositories/bookingRepository";
+import { typography, spacing, fonts } from "../../lib/utils";
+import { useTheme } from "../../theme/ThemeContext";
+import { Theme } from "../../theme/tokens";
+import { useAuthStore } from "../../store/authStore";
 import {
   subscribeToUserBookings,
   unsubscribeFromBookings,
-} from '../../lib/supabase';
-import type { RealtimeChannel } from '@supabase/supabase-js';
-import { logger } from '../../lib/logger';
+} from "../../lib/supabase";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import { logger } from "../../lib/logger";
 
-import { AppError } from '../../types/error';
-import { CustomerTabScreenProps } from '../../navigation/types';
+import { AppError } from "../../types/error";
+import { CustomerTabScreenProps } from "../../navigation/types";
 
-type MyBookingsProps = CustomerTabScreenProps<'Bookings'>;
+type MyBookingsProps = CustomerTabScreenProps<"Bookings">;
 
 export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
   const { theme } = useTheme();
@@ -62,14 +65,11 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
     refetch,
     isRefetching,
   } = useQuery<Booking[]>({
-    queryKey: ['myBookings'],
-    queryFn: async () => {
-      const response = await api.get('/bookings/');
-      return response.data;
-    },
+    queryKey: ["myBookings"],
+    queryFn: bookingRepository.getMyBookings,
     retry: (failureCount, error) => {
       const appErr = handleApiError(error);
-      if (appErr.kind === 'unauthorized') return false;
+      if (appErr.kind === "unauthorized") return false;
       return failureCount < 2;
     },
   });
@@ -79,8 +79,8 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
   // hadn't kicked in yet.
   useFocusEffect(
     React.useCallback(() => {
-      void queryClient.invalidateQueries({ queryKey: ['myBookings'] });
-    }, [queryClient])
+      void queryClient.invalidateQueries({ queryKey: ["myBookings"] });
+    }, [queryClient]),
   );
 
   // Realtime: instant refresh when the owner accepts/rejects/completes/reschedules
@@ -88,15 +88,18 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
   // another device. Subscribes only while we have a logged-in user id.
   useEffect(() => {
     if (!userId) return;
-    const channel: RealtimeChannel = subscribeToUserBookings(userId, (payload) => {
-      logger.debug('[MyBookings] realtime event', {
-        type: payload.eventType,
-        bookingId:
-          (payload.new as { id?: string } | null)?.id ??
-          (payload.old as { id?: string } | null)?.id,
-      });
-      void queryClient.invalidateQueries({ queryKey: ['myBookings'] });
-    });
+    const channel: RealtimeChannel = subscribeToUserBookings(
+      userId,
+      (payload) => {
+        logger.debug("[MyBookings] realtime event", {
+          type: payload.eventType,
+          bookingId:
+            (payload.new as { id?: string } | null)?.id ??
+            (payload.old as { id?: string } | null)?.id,
+        });
+        void queryClient.invalidateQueries({ queryKey: ["myBookings"] });
+      },
+    );
     return () => {
       unsubscribeFromBookings(channel);
     };
@@ -105,50 +108,48 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
   const showSkeleton = useMinLoadingTime(isLoading);
 
   const cancelMutation = useMutation({
-    mutationFn: async (bookingId: string) => {
-      await api.patch(`/bookings/${bookingId}/status`, { status: 'cancelled' });
-    },
+    mutationFn: bookingRepository.cancelBooking,
     onSuccess: (_data, cancelledBookingId) => {
-      queryClient.invalidateQueries({ queryKey: ['myBookings'] });
-      queryClient.invalidateQueries({ queryKey: ['slots'] });
-      void import('../../lib/notifications').then(({ cancelBookingReminder }) =>
-        cancelBookingReminder(cancelledBookingId)
+      queryClient.invalidateQueries({ queryKey: ["myBookings"] });
+      queryClient.invalidateQueries({ queryKey: ["slots"] });
+      void import("../../lib/notifications").then(({ cancelBookingReminder }) =>
+        cancelBookingReminder(cancelledBookingId),
       );
-      showToast('Booking cancelled successfully.', 'success');
+      showToast("Booking cancelled successfully.", "success");
     },
     onError: (error: unknown) => {
       const appErr = handleApiError(error);
-      showToast(appErr.message, 'error');
+      showToast(appErr.message, "error");
     },
   });
 
   const handleCancel = (bookingId: string) => {
     Alert.alert(
-      'Cancel Booking',
-      'Are you sure you want to cancel this booking? This action cannot be undone.',
+      "Cancel Booking",
+      "Are you sure you want to cancel this booking? This action cannot be undone.",
       [
-        { text: 'Keep Booking', style: 'cancel' },
+        { text: "Keep Booking", style: "cancel" },
         {
-          text: 'Yes, Cancel',
-          style: 'destructive',
+          text: "Yes, Cancel",
+          style: "destructive",
           onPress: () => cancelMutation.mutate(bookingId),
         },
-      ]
+      ],
     );
   };
 
   const handleReschedule = (booking: Booking) => {
     // Navigate to Discover stack which contains RescheduleBooking screen
-    navigation.navigate('Discover', {
-      screen: 'RescheduleBooking',
+    navigation.navigate("Discover", {
+      screen: "RescheduleBooking",
       params: {
         bookingId: booking.id,
         currentDate: booking.booking_date,
         currentSlot: booking.time_slot,
         salonId: booking.salon_id,
         serviceId: booking.service_id,
-        salonName: booking.salons?.name || 'Salon',
-        serviceName: booking.services?.name || 'Service',
+        salonName: booking.salons?.name || "Salon",
+        serviceName: booking.services?.name || "Service",
       },
     });
   };
@@ -190,17 +191,20 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
               onCancel={() => handleCancel(item.id)}
               onReschedule={() => handleReschedule(item)}
               onWriteReview={
-                item.status === 'completed'
+                item.status === "completed"
                   ? () =>
-                      navigation.navigate('Discover', {
-                        screen: 'WriteReview',
+                      navigation.navigate("Discover", {
+                        screen: "WriteReview",
                         params: { salonId: item.salon_id, bookingId: item.id },
                       })
                   : undefined
               }
             />
           )}
-          contentContainerStyle={[styles.listContent, { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }]}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 },
+          ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -217,8 +221,9 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
               message="You haven't made any bookings yet. Discover salons near you to get started."
               compact
               action={{
-                label: 'Discover Salons',
-                onPress: () => navigation.navigate('Discover', { screen: 'DiscoverMain' }),
+                label: "Discover Salons",
+                onPress: () =>
+                  navigation.navigate("Discover", { screen: "DiscoverMain" }),
               }}
             />
           }
@@ -228,31 +233,32 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
   );
 };
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    padding: spacing.xl,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  title: {
-    fontFamily: fonts.heading,
-    fontSize: 28,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: 4,
-  },
-  subtitle: {
-    ...typography.bodySmall,
-    color: theme.colors.textSecondary,
-  },
-  listContent: {
-    padding: spacing.xl,
-    flexGrow: 1,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    header: {
+      padding: spacing.xl,
+      backgroundColor: theme.colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    title: {
+      fontFamily: fonts.heading,
+      fontSize: 28,
+      fontWeight: "700",
+      color: theme.colors.text,
+      marginBottom: 4,
+    },
+    subtitle: {
+      ...typography.bodySmall,
+      color: theme.colors.textSecondary,
+    },
+    listContent: {
+      padding: spacing.xl,
+      flexGrow: 1,
+    },
+  });
 
 export default MyBookingsScreen;

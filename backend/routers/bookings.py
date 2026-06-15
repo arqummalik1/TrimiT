@@ -1,20 +1,27 @@
-from fastapi import APIRouter, Request, HTTPException, Depends, status, Query
-from fastapi.responses import JSONResponse
-from typing import List, Optional
-from datetime import datetime, date, timedelta, timezone
-import logging
 import json
+import logging
+from datetime import date, datetime, timedelta, timezone
+from typing import List, Optional
 
 from config import settings
-from core.supabase import supabase
-from core.limiter import limiter
 from core.idempotency import idempotency_required
+from core.limiter import limiter
+from core.supabase import supabase
 from dependencies.auth import get_current_user
 from dependencies.subscription import require_active_subscription
-from models.bookings import BookingCreate, BookingStatusUpdate, BookingStatus, ReviewCreate, SlotReserve
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse
+from models.bookings import (
+    BookingCreate,
+    BookingStatus,
+    BookingStatusUpdate,
+    ReviewCreate,
+    SlotReserve,
+)
 from models.promotions import PromoCodeValidate
 from models.reschedule import RescheduleRequest
 from services import booking_push
+
 logger = logging.getLogger("trimit")
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
@@ -35,7 +42,11 @@ async def list_bookings_for_salon(
         f"rest/v1/salons?id=eq.{salon_id}&select=owner_id",
         token=token,
     )
-    if own.status_code != 200 or not own.json() or own.json()[0].get("owner_id") != current_user.get("id"):
+    if (
+        own.status_code != 200
+        or not own.json()
+        or own.json()[0].get("owner_id") != current_user.get("id")
+    ):
         raise HTTPException(status_code=403, detail="Unauthorized")
     resp = await supabase.request(
         "GET",
@@ -106,13 +117,19 @@ async def update_booking_status(
             f"rest/v1/salons?id=eq.{booking['salon_id']}&select=owner_id",
             token=token,
         )
-        if salon.status_code != 200 or not salon.json() or salon.json()[0].get("owner_id") != uid:
+        if (
+            salon.status_code != 200
+            or not salon.json()
+            or salon.json()[0].get("owner_id") != uid
+        ):
             raise HTTPException(status_code=403, detail="Unauthorized")
     else:
         if booking.get("user_id") != uid:
             raise HTTPException(status_code=403, detail="Unauthorized")
         if body.status != BookingStatus.cancelled:
-            raise HTTPException(status_code=403, detail="Customers may only cancel bookings")
+            raise HTTPException(
+                status_code=403, detail="Customers may only cancel bookings"
+            )
 
     patch_json: dict = {"status": body.status.value}
 
@@ -143,11 +160,11 @@ async def update_booking_status(
         "PATCH",
         f"rest/v1/bookings?id=eq.{booking_id}",
         json=patch_json,
-        token=token,
+        service_role=True,
     )
     if patch.status_code not in (200, 201, 204):
         raise HTTPException(status_code=400, detail="Failed to update status")
-    
+
     try:
         ctx = await booking_push.fetch_booking_push_context(booking_id, token)
         if ctx:
@@ -160,7 +177,7 @@ async def update_booking_status(
             )
     except Exception as e:
         logger.error("[STATUS] push failed booking_id=%s err=%s", booking_id, str(e))
-    
+
     return {"message": "Status updated", "booking_id": booking_id}
 
 
@@ -184,7 +201,9 @@ def _parse_hh_mm_minutes(value: Optional[str]) -> Optional[int]:
         return None
 
 
-def _time_ranges_overlap(start_a: int, duration_a: int, start_b: int, duration_b: int) -> bool:
+def _time_ranges_overlap(
+    start_a: int, duration_a: int, start_b: int, duration_b: int
+) -> bool:
     return start_a < start_b + duration_b and start_b < start_a + duration_a
 
 
@@ -230,7 +249,9 @@ async def _reserve_slot_service_role_fallback(
         ("error", None) on configuration or persistence failure
     """
     if not settings.SUPABASE_SERVICE_ROLE_KEY:
-        logger.error("[RESERVE_FALLBACK] SUPABASE_SERVICE_ROLE_KEY missing — cannot insert hold")
+        logger.error(
+            "[RESERVE_FALLBACK] SUPABASE_SERVICE_ROLE_KEY missing — cannot insert hold"
+        )
         return "error", None
 
     norm = _slot_time_key(time_slot)
@@ -313,7 +334,11 @@ async def _reserve_slot_service_role_fallback(
         service_role=True,
     )
     if insert_resp.status_code not in (200, 201):
-        logger.error("[RESERVE_FALLBACK] insert failed %s %s", insert_resp.status_code, insert_resp.text)
+        logger.error(
+            "[RESERVE_FALLBACK] insert failed %s %s",
+            insert_resp.status_code,
+            insert_resp.text,
+        )
         return "error", None
     rows = insert_resp.json()
     if not rows:
@@ -321,7 +346,13 @@ async def _reserve_slot_service_role_fallback(
     row = rows[0] if isinstance(rows, list) else rows
     hold_id = str(row.get("id"))
     exp_out = row.get("expires_at") or expires_iso
-    logger.info("[RESERVE_FALLBACK] inserted hold id=%s salon=%s slot=%s user=%s", hold_id, salon_id, norm, user_id)
+    logger.info(
+        "[RESERVE_FALLBACK] inserted hold id=%s salon=%s slot=%s user=%s",
+        hold_id,
+        salon_id,
+        norm,
+        user_id,
+    )
     return "ok", {"hold_id": hold_id, "expires_at": exp_out}
 
 
@@ -332,7 +363,10 @@ async def get_available_slots(
     date_str: Optional[str] = None,
     date: Optional[str] = None,
     current_time: Optional[str] = None,
-    is_local_today: bool = Query(False, description="True when selected calendar day is today in the user's local timezone"),
+    is_local_today: bool = Query(
+        False,
+        description="True when selected calendar day is today in the user's local timezone",
+    ),
     staff_id: Optional[str] = Query(
         None,
         description="When set, hide slots where this staff member already has a booking at that time",
@@ -341,7 +375,10 @@ async def get_available_slots(
 ):
     effective_date = date_str or date
     if not effective_date:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="date or date_str is required")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="date or date_str is required",
+        )
 
     viewer_user_id = current_user.get("id")
 
@@ -353,7 +390,9 @@ async def get_available_slots(
             service_role=True,
         )
         if staff_chk.status_code != 200 or not staff_chk.json():
-            raise HTTPException(status_code=404, detail="Staff not found for this salon")
+            raise HTTPException(
+                status_code=404, detail="Staff not found for this salon"
+            )
         staff_bookings = await supabase.request(
             "GET",
             f"rest/v1/bookings?salon_id=eq.{salon_id}&booking_date=eq.{effective_date}&staff_id=eq.{staff_id}&status=neq.cancelled&select=time_slot",
@@ -366,14 +405,19 @@ async def get_available_slots(
                     staff_busy_slots.add(k)
 
     # 1. Fetch salon and service
-    salon_resp = await supabase.request("GET", f"rest/v1/salons?id=eq.{salon_id}&select=opening_time,closing_time,allow_multiple_bookings_per_slot,max_bookings_per_slot")
-    service_resp = await supabase.request("GET", f"rest/v1/services?id=eq.{service_id}&select=duration")
-    
+    salon_resp = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{salon_id}&select=opening_time,closing_time,allow_multiple_bookings_per_slot,max_bookings_per_slot",
+    )
+    service_resp = await supabase.request(
+        "GET", f"rest/v1/services?id=eq.{service_id}&select=duration"
+    )
+
     if salon_resp.status_code != 200 or not salon_resp.json():
         raise HTTPException(status_code=404, detail="Salon not found")
     if service_resp.status_code != 200 or not service_resp.json():
         raise HTTPException(status_code=404, detail="Service not found")
-    
+
     salon = salon_resp.json()[0]
     service = service_resp.json()[0]
 
@@ -454,10 +498,10 @@ async def get_available_slots(
     # `duration` was already resolved above the holds loop so it's safe here.
     allow_multiple = salon.get("allow_multiple_bookings_per_slot", False)
     max_bookings = salon.get("max_bookings_per_slot", 1)
-    
+
     slots = []
     curr = opening
-    
+
     # Past-slot filter for "today":
     # - Prefer client hint (is_local_today + current_time) so device-local calendar matches UX.
     # - Fallback: server UTC date == effective_date (legacy behaviour).
@@ -504,7 +548,9 @@ async def get_available_slots(
 
         if available:
             for blocked_start, blocked_dur in booking_blocked_ranges:
-                if _time_ranges_overlap(slot_minutes, duration, blocked_start, blocked_dur):
+                if _time_ranges_overlap(
+                    slot_minutes, duration, blocked_start, blocked_dur
+                ):
                     available = False
                     break
 
@@ -523,7 +569,13 @@ async def get_available_slots(
 
         curr += timedelta(minutes=30)
 
-    logger.info("[SLOTS] result salon=%s date=%s count=%s occupancy_keys=%s", salon_id, effective_date, len(slots), sorted(occupancy_counts.keys()))
+    logger.info(
+        "[SLOTS] result salon=%s date=%s count=%s occupancy_keys=%s",
+        salon_id,
+        effective_date,
+        len(slots),
+        sorted(occupancy_counts.keys()),
+    )
 
     return {
         "slots": slots,
@@ -557,7 +609,11 @@ async def get_booking(booking_id: str, current_user: dict = Depends(get_current_
             f"rest/v1/salons?id=eq.{booking['salon_id']}&select=owner_id",
             token=token,
         )
-        if salon.status_code != 200 or not salon.json() or salon.json()[0].get("owner_id") != uid:
+        if (
+            salon.status_code != 200
+            or not salon.json()
+            or salon.json()[0].get("owner_id") != uid
+        ):
             raise HTTPException(status_code=403, detail="Unauthorized")
     else:
         if booking.get("user_id") != uid:
@@ -567,10 +623,12 @@ async def get_booking(booking_id: str, current_user: dict = Depends(get_current_
 
 @router.post("/reserve")
 @limiter.limit("30/minute")
-async def reserve_slot(request: Request, data: SlotReserve, current_user: dict = Depends(get_current_user)):
+async def reserve_slot(
+    request: Request, data: SlotReserve, current_user: dict = Depends(get_current_user)
+):
     user_id = current_user.get("id")
     token = current_user.get("access_token")
-    
+
     # Call RPC to reserve slot
     rpc_payload = {
         "p_salon_id": data.salon_id,
@@ -578,24 +636,33 @@ async def reserve_slot(request: Request, data: SlotReserve, current_user: dict =
         "p_booking_date": data.booking_date,
         "p_time_slot": data.time_slot,
         "p_user_id": user_id,
-        "p_hold_duration_seconds": 90
+        "p_hold_duration_seconds": 90,
     }
-    
-    response = await supabase.request("POST", "rest/v1/rpc/reserve_slot_v1", json=rpc_payload, token=token)
+
+    response = await supabase.request(
+        "POST", "rest/v1/rpc/reserve_slot_v1", json=rpc_payload, token=token
+    )
 
     if response.status_code == 200:
         result = response.json()
         if not result.get("success"):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail={"code": result.get("error_code"), "message": result.get("message", "Slot is no longer available")},
+                detail={
+                    "code": result.get("error_code"),
+                    "message": result.get("message", "Slot is no longer available"),
+                },
             )
         return {
             "hold_id": result.get("hold_id"),
             "expires_at": result.get("expires_at"),
         }
 
-    logger.error("[RESERVE] reserve_slot_v1 HTTP error: %s %s", response.status_code, response.text)
+    logger.error(
+        "[RESERVE] reserve_slot_v1 HTTP error: %s %s",
+        response.status_code,
+        response.text,
+    )
     raise HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail={
@@ -604,30 +671,42 @@ async def reserve_slot(request: Request, data: SlotReserve, current_user: dict =
         },
     )
 
+
 @router.post("/")
 @limiter.limit("10/minute")
 @idempotency_required(required=True)
-async def create_booking(request: Request, data: BookingCreate, current_user: dict = Depends(get_current_user)):
+async def create_booking(
+    request: Request,
+    data: BookingCreate,
+    current_user: dict = Depends(get_current_user),
+):
     user_id = current_user.get("id")
     token = current_user.get("access_token")
-    
+
     # 1. Fetch details
-    salon_resp = await supabase.request("GET", f"rest/v1/salons?id=eq.{data.salon_id}", token=token)
-    service_resp = await supabase.request("GET", f"rest/v1/services?id=eq.{data.service_id}", token=token)
-    
+    salon_resp = await supabase.request(
+        "GET", f"rest/v1/salons?id=eq.{data.salon_id}", token=token
+    )
+    service_resp = await supabase.request(
+        "GET", f"rest/v1/services?id=eq.{data.service_id}", token=token
+    )
+
     if salon_resp.status_code != 200 or service_resp.status_code != 200:
         raise HTTPException(
-            status_code=404, 
-            detail={"code": "NOT_FOUND", "message": "Salon or Service not found"}
+            status_code=404,
+            detail={"code": "NOT_FOUND", "message": "Salon or Service not found"},
         )
-        
+
     salon = salon_resp.json()[0]
     service = service_resp.json()[0]
 
     # Phase 2: block bookings to salons whose owner subscription has lapsed.
     # No-op in Phase 1 (flag off). The salon flag is kept in sync by the
     # subscription triggers (migration 41).
-    if settings.SUBSCRIPTION_ENFORCEMENT_ENABLED and salon.get("subscription_active") is False:
+    if (
+        settings.SUBSCRIPTION_ENFORCEMENT_ENABLED
+        and salon.get("subscription_active") is False
+    ):
         raise HTTPException(
             status_code=403,
             detail={
@@ -645,13 +724,13 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
                 "message": "This salon does not accept the selected payment method.",
             },
         )
-    
+
     # Calculate amount (with promo if provided)
     original_amount = float(service.get("price", 0))
     final_amount = original_amount
     discount_amount = 0.0
     promo_code_upper = None
-    
+
     if data.promo_code:
         promo_code_upper = data.promo_code.upper()
         # Validate promo code
@@ -662,29 +741,37 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
                 "p_code": promo_code_upper,
                 "p_salon_id": data.salon_id,
                 "p_user_id": user_id,
-                "p_booking_amount": original_amount
-            }
+                "p_booking_amount": original_amount,
+            },
         )
-        
+
         if promo_response.status_code == 200:
             promo_result = promo_response.json()
             if promo_result.get("valid"):
                 discount_amount = float(promo_result.get("discount_amount", 0))
                 final_amount = float(promo_result.get("final_amount", original_amount))
-                logger.info(f"Promo {promo_code_upper} applied: discount={discount_amount}, final={final_amount}")
+                logger.info(
+                    f"Promo {promo_code_upper} applied: discount={discount_amount}, final={final_amount}"
+                )
             else:
                 # Invalid promo - return error
                 raise HTTPException(
                     status_code=400,
-                    detail={"code": "INVALID_PROMO", "message": promo_result.get("error", "Invalid promo code")}
+                    detail={
+                        "code": "INVALID_PROMO",
+                        "message": promo_result.get("error", "Invalid promo code"),
+                    },
                 )
         else:
             logger.error(f"Promo validation failed: {promo_response.text}")
             raise HTTPException(
                 status_code=400,
-                detail={"code": "PROMO_ERROR", "message": "Failed to validate promo code"}
+                detail={
+                    "code": "PROMO_ERROR",
+                    "message": "Failed to validate promo code",
+                },
             )
-    
+
     # Hold enforcement is handled atomically inside create_atomic_booking RPC
     # (migration 29 line 183: requires v_has_own_hold for single-booking salons).
     # Keep this layer thin — let the DB be the single source of truth.
@@ -698,7 +785,9 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
         "p_time_slot": data.time_slot,
         "p_status": "confirmed" if salon.get("auto_accept") else "pending",
         "p_payment_method": data.payment_method,
-        "p_payment_status": "paid" if data.payment_method == "salon_cash" else "pending",
+        "p_payment_status": "paid"
+        if data.payment_method == "salon_cash"
+        else "pending",
         "p_amount": final_amount,
         "p_promo_code": promo_code_upper,
         "p_discount_amount": discount_amount,
@@ -706,8 +795,10 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
         "p_staff_id": data.staff_id,
         "p_any_staff": data.any_staff,
     }
-    
-    response = await supabase.request("POST", "rest/v1/rpc/create_atomic_booking", json=rpc_payload, token=token)
+
+    response = await supabase.request(
+        "POST", "rest/v1/rpc/create_atomic_booking", json=rpc_payload, token=token
+    )
     if response.status_code != 200:
         logger.error(
             "[CREATE_BOOKING] create_atomic_booking failed: %s %s",
@@ -721,7 +812,7 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
                 "message": "Booking failed on server",
             },
         )
-        
+
     result = response.json()
     if not result.get("success"):
         error_msg = result.get("error", "Slot unavailable")
@@ -729,16 +820,18 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
         if "reservation" in lower or "hold" in lower:
             code = "HOLD_REQUIRED"
             user_msg = "Please tap your time slot again — your hold expired."
-        elif "taken" in lower or "occupied" in lower or "booked" in lower or "capacity" in lower:
+        elif (
+            "taken" in lower
+            or "occupied" in lower
+            or "booked" in lower
+            or "capacity" in lower
+        ):
             code = "SLOT_OCCUPIED"
             user_msg = "This slot was just taken. Please pick another time."
         else:
             code = "BOOKING_FAILED"
             user_msg = error_msg
-        raise HTTPException(
-            status_code=409,
-            detail={"code": code, "message": user_msg}
-        )
+        raise HTTPException(status_code=409, detail={"code": code, "message": user_msg})
 
     booking_id = result.get("booking_id")
     logger.info(
@@ -749,16 +842,18 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
         data.time_slot,
         booking_id,
     )
-    
+
     # 4. Clean up the hold after successful booking
     await supabase.request(
-        "DELETE", 
+        "DELETE",
         f"rest/v1/slot_holds?salon_id=eq.{data.salon_id}&booking_date=eq.{data.booking_date}&time_slot=eq.{data.time_slot}&user_id=eq.{user_id}",
-        token=token
+        token=token,
     )
-    
+
     try:
-        initial_status = result.get("status") or ("confirmed" if salon.get("auto_accept") else "pending")
+        initial_status = result.get("status") or (
+            "confirmed" if salon.get("auto_accept") else "pending"
+        )
         customer_name = await booking_push.fetch_user_name(user_id)
         is_premium = final_amount >= 500
         await booking_push.after_booking_created(
@@ -774,7 +869,9 @@ async def create_booking(request: Request, data: BookingCreate, current_user: di
             payment_method=data.payment_method,
         )
     except Exception as e:
-        logger.error("[CREATE_BOOKING] push failed booking_id=%s err=%s", booking_id, str(e))
+        logger.error(
+            "[CREATE_BOOKING] push failed booking_id=%s err=%s", booking_id, str(e)
+        )
 
     return JSONResponse(
         status_code=201,
@@ -788,7 +885,9 @@ def _unwrap_rpc_json_payload(raw: object) -> dict:
         return raw
     if isinstance(raw, list) and raw and isinstance(raw[0], dict):
         return raw[0]
-    logger.warning("[RESCHEDULE] Unexpected RPC JSON shape: type=%s", type(raw).__name__)
+    logger.warning(
+        "[RESCHEDULE] Unexpected RPC JSON shape: type=%s", type(raw).__name__
+    )
     return {}
 
 
@@ -862,13 +961,19 @@ async def reschedule_booking(
 
         if not result.get("success"):
             error_msg = result.get("error") or "Failed to reschedule booking"
-            logger.warning("[RESCHEDULE] rpc business_failure booking_id=%s error=%s", booking_id, error_msg)
+            logger.warning(
+                "[RESCHEDULE] rpc business_failure booking_id=%s error=%s",
+                booking_id,
+                error_msg,
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"code": "RESCHEDULE_REJECTED", "message": error_msg},
             )
 
-        logger.info("[RESCHEDULE] ok booking_id=%s by %s %s", booking_id, user_role, user_id)
+        logger.info(
+            "[RESCHEDULE] ok booking_id=%s by %s %s", booking_id, user_role, user_id
+        )
 
         try:
             bk = await supabase.request(
@@ -887,7 +992,9 @@ async def reschedule_booking(
                     service_name = "Service"
                 salons = row.get("salons") or {}
                 owner_id = salons.get("owner_id") if isinstance(salons, dict) else None
-                salon_name = salons.get("name", "Salon") if isinstance(salons, dict) else "Salon"
+                salon_name = (
+                    salons.get("name", "Salon") if isinstance(salons, dict) else "Salon"
+                )
                 await booking_push.after_reschedule(
                     booking_id=booking_id,
                     user_role=user_role,
@@ -902,7 +1009,11 @@ async def reschedule_booking(
                     ot=result.get("old_time_slot", ""),
                 )
         except Exception as push_exc:
-            logger.error("[RESCHEDULE] push failed booking_id=%s err=%s", booking_id, str(push_exc))
+            logger.error(
+                "[RESCHEDULE] push failed booking_id=%s err=%s",
+                booking_id,
+                str(push_exc),
+            )
 
         return result
 
@@ -912,7 +1023,10 @@ async def reschedule_booking(
         logger.exception("[RESCHEDULE] unexpected_error booking_id=%s", booking_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"code": "RESCHEDULE_INTERNAL", "message": "An error occurred while rescheduling"},
+            detail={
+                "code": "RESCHEDULE_INTERNAL",
+                "message": "An error occurred while rescheduling",
+            },
         ) from e
 
 
@@ -945,11 +1059,18 @@ async def get_reschedule_history(
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"code": "RESCHEDULE_HISTORY_FAILED", "message": "Failed to fetch reschedule history"},
+                detail={
+                    "code": "RESCHEDULE_HISTORY_FAILED",
+                    "message": "Failed to fetch reschedule history",
+                },
             )
 
         raw = response.json()
-        history = raw if isinstance(raw, list) else (raw.get("history") if isinstance(raw, dict) else [])
+        history = (
+            raw
+            if isinstance(raw, list)
+            else (raw.get("history") if isinstance(raw, dict) else [])
+        )
         return {"history": history or []}
 
     except HTTPException:
@@ -958,5 +1079,8 @@ async def get_reschedule_history(
         logger.exception("[RESCHEDULE_HISTORY] booking_id=%s", booking_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"code": "RESCHEDULE_HISTORY_INTERNAL", "message": "An error occurred while fetching history"},
+            detail={
+                "code": "RESCHEDULE_HISTORY_INTERNAL",
+                "message": "An error occurred while fetching history",
+            },
         ) from e

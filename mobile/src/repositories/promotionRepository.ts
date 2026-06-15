@@ -1,5 +1,5 @@
-import { promotionService } from '../services/promotionService';
-import { Promotion } from '../types';
+import { promotionService } from "../services/promotionService";
+import { Promotion } from "../types";
 
 export const promotionRepository = {
   async getOwnerPromotions(): Promise<Promotion[]> {
@@ -16,5 +16,18 @@ export const promotionRepository = {
 
   async deletePromotion(id: string): Promise<void> {
     return await promotionService.deletePromotion(id);
+  },
+
+  async validatePromoCode(data: {
+    code: string;
+    salon_id: string;
+    booking_amount: number;
+  }): Promise<{
+    valid: boolean;
+    discount_amount?: number;
+    final_amount?: number;
+    error?: string;
+  }> {
+    return await promotionService.validatePromoCode(data);
   },
 };

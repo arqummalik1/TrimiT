@@ -26,20 +26,19 @@ Historically some code built URLs as `host + '/api' + path` while other code use
 ## Authentication
 
 - Most routes expect **`Authorization: Bearer <Supabase access_token>`** after login.
-- **Auth** routes (`/api/v1/auth/signup`, `/api/v1/auth/login`) use the body for credentials; signup/login are exempt from request signing (see below).
+- **Auth** routes (`/api/v1/auth/signup`, `/api/v1/auth/login`) use the body for credentials.
 
-## Request signing (optional but enforced when configured)
+## Request security model
 
-When **`API_SIGNING_SECRET`** is set on the server, **mutating** requests (`POST`, `PUT`, `PATCH`, `DELETE`) to `/api/v1/...` must include:
+TrimiT does **not** use app-bundled request HMAC signing. A secret compiled into the mobile AAB or web bundle is recoverable and creates a false sense of security. Production protection is:
 
-| Header | Meaning |
-|--------|---------|
-| `X-Trimit-Timestamp` | Unix time in seconds (string) |
-| `X-Trimit-Signature` | HMAC-SHA256 hex of `METHOD\|PATH\|TIMESTAMP` using the shared secret |
+- TLS for transport security.
+- Supabase JWT bearer auth for user identity and role/tenant checks.
+- Backend authorization checks before every mutating operation.
+- Supabase RLS as the last line of defense.
+- Razorpay webhook signatures (`X-Razorpay-Signature`) for payment/subscription webhooks.
 
-- **`PATH`** must match the server’s path (e.g. `/api/v1/bookings/`). Signing is optional and disabled when `API_SIGNING_SECRET` is unset on the server.
-- **Exempt from signing:** `GET`, `OPTIONS`, and the explicit whitelist in `backend/core/middleware.py` (e.g. `/health`, `/api/v1/auth/signup`, `/api/v1/auth/login`).
-- If the secret is **unset** on the server, signing is not enforced.
+Do not reintroduce `X-Trimit-Signature` without an explicit server-issued nonce/session design.
 
 ## Route map (under `/api/v1`)
 

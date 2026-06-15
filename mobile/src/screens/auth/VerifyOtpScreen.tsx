@@ -18,7 +18,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { ErrorState } from '../../components/ErrorState';
 import { useAuthStore } from '../../store/authStore';
-import { usePendingSignupStore } from '../../store/pendingSignupStore';
 import { showToast } from '../../store/toastStore';
 import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
@@ -237,24 +236,7 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
       return;
     }
 
-    // For signup verifications, peek at the pending signup so we can pass the
-    // role hint (and name/phone) to the backend BEFORE the profile row is
-    // created. This is the only reliable way to land on the right tab — Supabase
-    // does not round-trip options.data through OTP. Peek (don't consume) here;
-    // we consume after the verify call succeeds.
-    let pendingExtras: { role?: 'customer' | 'owner'; name?: string; phone?: string } | undefined;
-    if (type === 'signup') {
-      const peek = usePendingSignupStore.getState().pending;
-      if (peek && peek.email.trim().toLowerCase() === email.trim().toLowerCase()) {
-        pendingExtras = {
-          role: peek.role,
-          name: peek.name || undefined,
-          phone: peek.phone || undefined,
-        };
-      }
-    }
-
-    const result = await verifyOtp(email, fullCode, type, pendingExtras);
+    const result = await verifyOtp(email, fullCode, type);
     if (result.success) {
       if (type === 'recovery') {
         // If recovery, navigate to ResetPassword with the retrieved token
@@ -268,36 +250,8 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
         const isNew = result.session?.is_new_user;
         const name = result.session?.profile?.name || email.split('@')[0];
 
-        // SIGNUP path: backend already received our role/name/phone hints, so
-        // the profile row was created with the correct role. Now consume the
-        // pending entry and PATCH name/phone defensively (covers any edge
-        // case where the backend dropped them).
-        if (type === 'signup') {
-          const pending = usePendingSignupStore.getState().consumePendingSignup(email);
-          if (pending && (pending.name || pending.phone)) {
-            try {
-              const { authService } = require('../../services/authService');
-              await authService.updateProfile({
-                name: pending.name || undefined,
-                phone: pending.phone || undefined,
-              });
-              const { useAuthStore: store } = require('../../store/authStore');
-              const current = store.getState().user;
-              if (current) {
-                store.setState({
-                  user: { ...current, name: pending.name || current.name, phone: pending.phone || current.phone },
-                });
-              }
-            } catch (e) {
-              // Non-fatal: user is already signed in. They can edit later from Profile.
-              // eslint-disable-next-line no-console
-              console.warn('[VerifyOtp] post-signup profile patch failed', e);
-            }
-          }
-        }
-
         if (isNew) {
-          showToast('Your new account has been created successfully!', 'success');
+          showToast("Welcome to TrimiT! Let's set up your profile.", 'success');
         } else {
           showToast(`Welcome back, ${name}!`, 'success');
         }

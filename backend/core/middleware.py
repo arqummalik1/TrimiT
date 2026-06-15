@@ -1,25 +1,12 @@
-from starlette.middleware.base import BaseHTTPMiddleware
-from fastapi import Request
-from fastapi.responses import JSONResponse
-import uuid
-import time
-import hmac
-import hashlib
-import logging
 import contextvars
-from config import settings
+import time
+import uuid
 
-logger = logging.getLogger("trimit")
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
+
 request_id_var = contextvars.ContextVar("request_id", default=None)
 
-# Emit the "signing disabled" notice once at import time instead of once per
-# request — repeating it on every call drowns the log stream and made the
-# real warnings harder to spot in Render.
-if not settings.API_SIGNING_SECRET:
-    logger.warning(
-        "API_SIGNING_SECRET not configured — signature validation disabled "
-        "for the lifetime of this process."
-    )
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -33,67 +20,3 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Process-Time"] = str(process_time)
         return response
-
-class SignatureMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        # Skip signature validation if API_SIGNING_SECRET is not configured.
-        # Startup-time warning above replaces the per-request log.
-        if not settings.API_SIGNING_SECRET:
-            return await call_next(request)
-        
-        # Exclude specific routes and non-mutating methods
-        if request.method in ["POST", "PATCH", "PUT", "DELETE"]:
-            # Standardize path for comparison
-            path = request.url.path
-            public_auth_paths = {
-                "/api/v1/auth/signup",
-                "/api/v1/auth/login",
-                "/api/v1/auth/forgot-password",
-                "/api/v1/auth/validate-reset-token",
-                "/api/v1/auth/reset-password",
-            }
-            if path in public_auth_paths or path.startswith("/api/v1/health") or path == "/health":
-                return await call_next(request)
-
-            signature = request.headers.get("X-Trimit-Signature")
-            timestamp_str = request.headers.get("X-Trimit-Timestamp")
-
-            if not signature or not timestamp_str:
-                logger.warning(f"Missing signature/timestamp for {request.method} {path}")
-                return JSONResponse(
-                    status_code=403,
-                    content={
-                        "detail": "Missing security signature",
-                        "hint": (
-                            "Mobile must send X-Trimit-Timestamp and X-Trimit-Signature (HMAC-SHA256 of "
-                            "METHOD|PATH|TIMESTAMP). Set EXPO_PUBLIC_API_SIGNING_SECRET to match "
-                            "API_SIGNING_SECRET on the server, or unset API_SIGNING_SECRET to disable enforcement."
-                        ),
-                    },
-                )
-
-            try:
-                request_ts = int(timestamp_str)
-                current_ts = int(time.time())
-                
-                # Tolerance: 5 minutes (300 seconds)
-                if abs(current_ts - request_ts) > 300:
-                    logger.warning(f"Signature expired. Request TS: {request_ts}, Server TS: {current_ts}, Diff: {abs(current_ts - request_ts)}s")
-                    return JSONResponse(status_code=403, content={"detail": "Security timestamp expired"})
-            except ValueError:
-                return JSONResponse(status_code=403, content={"detail": "Invalid timestamp format"})
-
-            # Reconstruct message for verification
-            message = f"{request.method}|{path}|{timestamp_str}"
-            expected = hmac.new(
-                settings.API_SIGNING_SECRET.encode(),
-                message.encode(),
-                hashlib.sha256
-            ).hexdigest()
-
-            if not hmac.compare_digest(signature, expected):
-                logger.error(f"Signature mismatch for {request.method} {path}")
-                logger.debug(f"Expected signature for payload '{message}' failed validation")
-                return JSONResponse(status_code=403, content={"detail": "Invalid signature"})
-
-        return await call_next(request)

@@ -1,51 +1,72 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import api from '../lib/api';
-import { clearPersistedAuth, AUTH_STORAGE_KEY } from '../lib/session';
-import { mapAuthApiError } from '../lib/authRateLimitMessages';
-import { SUPPORT_EMAIL } from '../config/contact';
-import { supabase } from '../lib/supabase';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import api from "../lib/api";
+import { clearPersistedAuth, AUTH_STORAGE_KEY } from "../lib/session";
+import { mapAuthApiError } from "../lib/authRateLimitMessages";
+import { SUPPORT_EMAIL } from "../config/contact";
+import { supabase } from "../lib/supabase";
 
-const translateAuthError = (error, context = 'generic') => {
+const translateAuthError = (error, context = "generic") => {
   const detail = error.response?.data?.detail;
   const rawMessage =
-    (typeof detail === 'object' && detail?.message) ||
-    (typeof detail === 'string' && detail) ||
+    (typeof detail === "object" && detail?.message) ||
+    (typeof detail === "string" && detail) ||
     error.message ||
-    '';
+    "";
 
   const lowerMessage = rawMessage.toLowerCase();
 
-  if (lowerMessage.includes('too many') || lowerMessage.includes('rate limit') || lowerMessage.includes('quota') || lowerMessage.includes('exceeded')) {
-    return 'You have made too many requests in a short time. Please wait a moment before trying again.';
+  if (
+    lowerMessage.includes("too many") ||
+    lowerMessage.includes("rate limit") ||
+    lowerMessage.includes("quota") ||
+    lowerMessage.includes("exceeded")
+  ) {
+    return "You have made too many requests in a short time. Please wait a moment before trying again.";
   }
 
-  if (lowerMessage.includes('invalid or expired otp') || lowerMessage.includes('invalid otp') || lowerMessage.includes('expired otp') || (lowerMessage.includes('token') && lowerMessage.includes('invalid'))) {
-    return 'The verification code you entered is invalid or has expired. Please check the code or request a new one.';
+  if (
+    lowerMessage.includes("invalid or expired otp") ||
+    lowerMessage.includes("invalid otp") ||
+    lowerMessage.includes("expired otp") ||
+    (lowerMessage.includes("token") && lowerMessage.includes("invalid"))
+  ) {
+    return "The verification code you entered is invalid or has expired. Please check the code or request a new one.";
   }
 
-  if (lowerMessage.includes('invalid login credentials') || (lowerMessage.includes('credentials') && lowerMessage.includes('invalid')) || lowerMessage.includes('incorrect') || lowerMessage.includes('not found')) {
-    return 'The email address or password you entered is incorrect. Please verify and try again.';
+  if (
+    lowerMessage.includes("invalid login credentials") ||
+    (lowerMessage.includes("credentials") &&
+      lowerMessage.includes("invalid")) ||
+    lowerMessage.includes("incorrect") ||
+    lowerMessage.includes("not found")
+  ) {
+    return "The email address or password you entered is incorrect. Please verify and try again.";
   }
 
-  if (lowerMessage.includes('network error') || lowerMessage.includes('timeout') || lowerMessage.includes('connecting') || lowerMessage.includes('failed to fetch')) {
-    return 'We are having trouble connecting to our servers. Please check your internet connection and try again.';
+  if (
+    lowerMessage.includes("network error") ||
+    lowerMessage.includes("timeout") ||
+    lowerMessage.includes("connecting") ||
+    lowerMessage.includes("failed to fetch")
+  ) {
+    return "We are having trouble connecting to our servers. Please check your internet connection and try again.";
   }
 
-  if (context === 'login') {
-    return 'We could not sign you in. Please check your credentials and try again.';
+  if (context === "login") {
+    return "We could not sign you in. Please check your credentials and try again.";
   }
-  if (context === 'signup') {
-    return 'We could not create your account. Please check the details you entered and try again.';
+  if (context === "signup") {
+    return "We could not create your account. Please check the details you entered and try again.";
   }
-  if (context === 'send-otp') {
-    return 'We failed to send the verification code to your email. Please verify your email address and try again.';
+  if (context === "send-otp") {
+    return "We failed to send the verification code to your email. Please verify your email address and try again.";
   }
-  if (context === 'verify-otp') {
-    return 'The verification code check failed. Please request a new code and try again.';
+  if (context === "verify-otp") {
+    return "The verification code check failed. Please request a new code and try again.";
   }
 
-  return rawMessage || 'Something went wrong. Please try again.';
+  return rawMessage || "Something went wrong. Please try again.";
 };
 
 export const useAuthStore = create(
@@ -62,58 +83,59 @@ export const useAuthStore = create(
       error: null,
 
       setUser: (user, profile, token, refreshToken = null) => {
-        set({ 
-          user, 
-          profile, 
-          token, 
+        set({
+          user,
+          profile,
+          token,
           refreshToken,
           isAuthenticated: !!user,
-          error: null 
+          error: null,
         });
         if (token) {
-          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
         }
       },
 
       login: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.post('/auth/login', { email, password });
+          const response = await api.post("/auth/login", { email, password });
           const { user, access_token, refresh_token, profile } = response.data;
-          
-          api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+
+          api.defaults.headers.common["Authorization"] =
+            `Bearer ${access_token}`;
           if (refresh_token) {
             await supabase.auth.setSession({
               access_token,
               refresh_token,
             });
           }
-          
+
           // Check if owner has a salon
           let hasSalon = false;
-          if (profile?.role === 'owner') {
+          if (profile?.role === "owner") {
             try {
-              const salonRes = await api.get('/owner/salon');
+              const salonRes = await api.get("/owner/salon");
               hasSalon = !!salonRes.data;
             } catch (e) {
               hasSalon = false;
             }
           }
-          
-          set({ 
-            user, 
+
+          set({
+            user,
             profile: profile || null,
-            token: access_token, 
+            token: access_token,
             refreshToken: refresh_token ?? null,
             isAuthenticated: true,
             isLoading: false,
             hasSalon,
-            error: null
+            error: null,
           });
-          
+
           return { success: true, profile, hasSalon };
         } catch (error) {
-          const message = translateAuthError(error, 'login');
+          const message = translateAuthError(error, "login");
           set({ isLoading: false, error: message });
           return { success: false, error: message };
         }
@@ -122,7 +144,7 @@ export const useAuthStore = create(
       signup: async (email, password, name, phone, role) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.post('/auth/signup', {
+          const response = await api.post("/auth/signup", {
             email,
             password,
             name,
@@ -132,7 +154,7 @@ export const useAuthStore = create(
 
           if (
             response.status === 202 ||
-            response.data?.code === 'EMAIL_CONFIRMATION_REQUIRED'
+            response.data?.code === "EMAIL_CONFIRMATION_REQUIRED"
           ) {
             set({ isLoading: false, error: null });
             return {
@@ -145,7 +167,8 @@ export const useAuthStore = create(
           const { user, session } = response.data;
 
           if (session?.access_token) {
-            api.defaults.headers.common['Authorization'] = `Bearer ${session.access_token}`;
+            api.defaults.headers.common["Authorization"] =
+              `Bearer ${session.access_token}`;
             if (session.refresh_token) {
               await supabase.auth.setSession({
                 access_token: session.access_token,
@@ -169,10 +192,10 @@ export const useAuthStore = create(
           set({ isLoading: false });
           return {
             success: false,
-            error: 'Account created but could not log you in. Please sign in.',
+            error: "Account created but could not log you in. Please sign in.",
           };
         } catch (error) {
-          const message = translateAuthError(error, 'signup');
+          const message = translateAuthError(error, "signup");
           set({ isLoading: false, error: message });
           return {
             success: false,
@@ -185,15 +208,15 @@ export const useAuthStore = create(
         delete api.defaults.headers.common.Authorization;
         clearPersistedAuth();
         void supabase.auth.signOut();
-        set({ 
-          user: null, 
+        set({
+          user: null,
           profile: null,
-          token: null, 
+          token: null,
           refreshToken: null,
           isAuthenticated: false,
           isInitializing: false,
           hasSalon: false,
-          error: null
+          error: null,
         });
       },
 
@@ -205,71 +228,93 @@ export const useAuthStore = create(
         const state = get();
 
         if (!state.token) {
-          set({ isInitializing: false });
+          set({ isInitializing: false, isAuthenticated: false });
           return;
         }
 
-        set({ isInitializing: true });
-        api.defaults.headers.common['Authorization'] = `Bearer ${state.token}`;
+        // Production rule: trust persisted auth immediately on cold start. A
+        // Render cold start, 5xx, DNS issue, or flaky mobile network must never
+        // log out a real user. Only a confirmed 401 below clears the session.
+        api.defaults.headers.common["Authorization"] = `Bearer ${state.token}`;
+        set({ isInitializing: false, isAuthenticated: true, error: null });
 
         try {
           if (state.refreshToken) {
-            await supabase.auth.setSession({
-              access_token: state.token,
-              refresh_token: state.refreshToken,
-            });
-          }
-          // Validate token by fetching current user
-          const response = await api.get('/auth/me');
-          const userData = response.data;
-
-          // Check if owner has a salon
-          let hasSalon = false;
-          if (userData.profile?.role === 'owner') {
-            try {
-              const salonRes = await api.get('/owner/salon');
-              hasSalon = !!salonRes.data;
-            } catch (e) {
-              hasSalon = false;
+            const { data, error: sessionError } =
+              await supabase.auth.setSession({
+                access_token: state.token,
+                refresh_token: state.refreshToken,
+              });
+            if (!sessionError && data.session?.access_token) {
+              const nextAccessToken = data.session.access_token;
+              const nextRefreshToken =
+                data.session.refresh_token || state.refreshToken;
+              api.defaults.headers.common["Authorization"] =
+                `Bearer ${nextAccessToken}`;
+              set({ token: nextAccessToken, refreshToken: nextRefreshToken });
             }
           }
 
-          set({ 
+          const response = await api.get("/auth/me");
+          const userData = response.data;
+          const resolvedProfile = userData.profile || state.profile || null;
+
+          let hasSalon = state.hasSalon || false;
+          if (resolvedProfile?.role === "owner") {
+            try {
+              const salonRes = await api.get("/owner/salon");
+              hasSalon = !!salonRes.data;
+            } catch (e) {
+              // Do not mark the owner as salon-less because of a transient fetch
+              // failure. Preserve the last known value until a later refresh.
+              hasSalon = state.hasSalon || false;
+            }
+          } else {
+            hasSalon = false;
+          }
+
+          set({
             user: userData,
-            profile: userData.profile,
+            profile: resolvedProfile,
             isAuthenticated: true,
             isInitializing: false,
-            hasSalon
+            hasSalon,
+            error: null,
           });
         } catch (error) {
-          // Token invalid or expired - clear auth
-          clearPersistedAuth();
-          delete api.defaults.headers.common.Authorization;
-          set({
-            user: null,
-            profile: null,
-            token: null,
-            refreshToken: null,
-            isAuthenticated: false,
-            isInitializing: false,
-            hasSalon: false,
-          });
+          if (error.response?.status === 401) {
+            clearPersistedAuth();
+            delete api.defaults.headers.common.Authorization;
+            void supabase.auth.signOut();
+            set({
+              user: null,
+              profile: null,
+              token: null,
+              refreshToken: null,
+              isAuthenticated: false,
+              isInitializing: false,
+              hasSalon: false,
+            });
+            return;
+          }
+
+          set({ isInitializing: false, isAuthenticated: true });
         }
       },
 
       // Forgot Password - Request reset link
       forgotPassword: async (email) => {
         try {
-          const response = await api.post('/auth/forgot-password', { email });
+          const response = await api.post("/auth/forgot-password", { email });
           return { success: true, data: response.data };
         } catch (error) {
           const detail = error.response?.data?.detail;
-          const mapped = mapAuthApiError(detail, 'forgot');
+          const mapped = mapAuthApiError(detail, "forgot");
           const message =
             mapped.message ||
-            (typeof detail === 'object' && detail?.message) ||
-            (typeof detail === 'string' && detail) ||
-            'Failed to send reset email';
+            (typeof detail === "object" && detail?.message) ||
+            (typeof detail === "string" && detail) ||
+            "Failed to send reset email";
           return {
             success: false,
             error: message,
@@ -282,10 +327,13 @@ export const useAuthStore = create(
       // Validate Reset Token
       validateResetToken: async (token) => {
         try {
-          const response = await api.post('/auth/validate-reset-token', { token });
+          const response = await api.post("/auth/validate-reset-token", {
+            token,
+          });
           return { valid: true, data: response.data };
         } catch (error) {
-          const message = error.response?.data?.detail || 'Invalid or expired token';
+          const message =
+            error.response?.data?.detail || "Invalid or expired token";
           return { valid: false, error: message };
         }
       },
@@ -293,13 +341,14 @@ export const useAuthStore = create(
       // Reset Password with token
       resetPassword: async (token, newPassword) => {
         try {
-          const response = await api.post('/auth/reset-password', {
+          const response = await api.post("/auth/reset-password", {
             token,
             password: newPassword,
           });
           return { success: true, data: response.data };
         } catch (error) {
-          const message = error.response?.data?.detail || 'Failed to reset password';
+          const message =
+            error.response?.data?.detail || "Failed to reset password";
           return { success: false, error: message };
         }
       },
@@ -307,15 +356,15 @@ export const useAuthStore = create(
       deleteAccount: async () => {
         set({ isLoading: true, error: null });
         try {
-          await api.delete('/auth/account');
+          await api.delete("/auth/account");
           get().logout();
           set({ isLoading: false });
           return { success: true };
         } catch (error) {
           const detail = error.response?.data?.detail;
           const message =
-            (typeof detail === 'object' && detail?.message) ||
-            (typeof detail === 'string' && detail) ||
+            (typeof detail === "object" && detail?.message) ||
+            (typeof detail === "string" && detail) ||
             `Could not delete your account. Please try again or contact ${SUPPORT_EMAIL}.`;
           set({ isLoading: false, error: message });
           return { success: false, error: message };
@@ -325,11 +374,11 @@ export const useAuthStore = create(
       sendOtp: async (email) => {
         set({ isLoading: true, error: null });
         try {
-          await api.post('/auth/send-otp', { email });
+          await api.post("/auth/send-otp", { email });
           set({ isLoading: false });
           return { success: true };
         } catch (error) {
-          const message = translateAuthError(error, 'send-otp');
+          const message = translateAuthError(error, "send-otp");
           set({ isLoading: false, error: message });
           return { success: false, error: message };
         }
@@ -344,10 +393,11 @@ export const useAuthStore = create(
           if (extras.role) body.role = extras.role;
           if (extras.name) body.name = extras.name;
           if (extras.phone) body.phone = extras.phone;
-          const response = await api.post('/auth/verify-otp', body);
+          const response = await api.post("/auth/verify-otp", body);
           const { user, access_token, refresh_token, profile } = response.data;
 
-          api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+          api.defaults.headers.common["Authorization"] =
+            `Bearer ${access_token}`;
           if (refresh_token) {
             await supabase.auth.setSession({
               access_token,
@@ -356,9 +406,9 @@ export const useAuthStore = create(
           }
 
           let hasSalon = false;
-          if (profile?.role === 'owner') {
+          if (profile?.role === "owner") {
             try {
-              const salonRes = await api.get('/owner/salon');
+              const salonRes = await api.get("/owner/salon");
               hasSalon = !!salonRes.data;
             } catch (e) {
               hasSalon = false;
@@ -373,12 +423,12 @@ export const useAuthStore = create(
             isAuthenticated: true,
             isLoading: false,
             hasSalon,
-            error: null
+            error: null,
           });
 
           return { success: true, profile, hasSalon, session: response.data };
         } catch (error) {
-          const message = translateAuthError(error, 'verify-otp');
+          const message = translateAuthError(error, "verify-otp");
           set({ isLoading: false, error: message });
           return { success: false, error: message };
         }
@@ -386,14 +436,14 @@ export const useAuthStore = create(
     }),
     {
       name: AUTH_STORAGE_KEY,
-      partialize: (state) => ({ 
-        user: state.user, 
+      partialize: (state) => ({
+        user: state.user,
         profile: state.profile,
         token: state.token,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
-        hasSalon: state.hasSalon
+        hasSalon: state.hasSalon,
       }),
-    }
-  )
+    },
+  ),
 );
