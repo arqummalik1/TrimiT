@@ -9,6 +9,7 @@ import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { RootScreenProps } from '../../navigation/types';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 
 const profileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -70,10 +71,11 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <ScreenWrapper variant="auth">
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
         <View style={styles.header}>
           <Text style={styles.title}>Almost there!</Text>
@@ -201,18 +203,18 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </ScreenWrapper>
   );
 }
 
 const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     flexGrow: 1,
     padding: theme.spacing.xl,
-    paddingTop: Platform.OS === 'ios' ? 60 : theme.spacing.xl,
+    paddingTop: theme.spacing.xl,
   },
   header: {
     marginBottom: theme.spacing.xxl,
