@@ -1,14 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
-import { getEnv } from '../config/env';
+import { createClient } from "@supabase/supabase-js";
+import { getEnv } from "../config/env";
 
 let supabaseClient = null;
 
 function requireSupabaseConfig() {
-  const supabaseUrl = getEnv('SUPABASE_URL');
-  const supabaseAnonKey = getEnv('SUPABASE_ANON_KEY');
+  const supabaseUrl = getEnv("SUPABASE_URL");
+  const supabaseAnonKey = getEnv("SUPABASE_ANON_KEY");
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(
-      'SUPABASE_URL and SUPABASE_ANON_KEY must be set (REACT_APP_* or VITE_*). Copy frontend/env.example to .env.local.'
+      "SUPABASE_URL and SUPABASE_ANON_KEY must be set (REACT_APP_* or VITE_*). Copy frontend/env.example to .env.local.",
     );
   }
   return { supabaseUrl, supabaseAnonKey };
@@ -30,9 +30,9 @@ export const supabase = new Proxy(
     get(_target, prop) {
       const client = getSupabase();
       const value = client[prop];
-      return typeof value === 'function' ? value.bind(client) : value;
+      return typeof value === "function" ? value.bind(client) : value;
     },
-  }
+  },
 );
 
 // Create authenticated client for realtime subscriptions
@@ -60,18 +60,21 @@ export const subscribeToBookings = (salonId, date, onChange) => {
   const channel = supabase
     .channel(`bookings:${salonId}:${date}`)
     .on(
-      'postgres_changes',
+      "postgres_changes",
       {
-        event: '*',
-        schema: 'public',
-        table: 'bookings',
+        event: "*",
+        schema: "public",
+        table: "bookings",
         filter: `salon_id=eq.${salonId}`,
       },
       (payload) => {
-        if (payload.new?.booking_date === date || payload.old?.booking_date === date) {
+        if (
+          payload.new?.booking_date === date ||
+          payload.old?.booking_date === date
+        ) {
           onChange(payload);
         }
-      }
+      },
     )
     .subscribe();
 
@@ -92,16 +95,16 @@ export const subscribeToSalonBookings = (salonId, onChange, token = null) => {
   const channel = client
     .channel(channelName)
     .on(
-      'postgres_changes',
+      "postgres_changes",
       {
-        event: '*',
-        schema: 'public',
-        table: 'bookings',
+        event: "*",
+        schema: "public",
+        table: "bookings",
         filter: `salon_id=eq.${salonId}`,
       },
       (payload) => {
         onChange(payload);
-      }
+      },
     )
     .subscribe();
 
@@ -118,16 +121,16 @@ export const subscribeToUserBookings = (userId, onChange) => {
   const channel = supabase
     .channel(`user-bookings:${userId}`)
     .on(
-      'postgres_changes',
+      "postgres_changes",
       {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'bookings',
+        event: "*",
+        schema: "public",
+        table: "bookings",
         filter: `user_id=eq.${userId}`,
       },
       (payload) => {
         onChange(payload);
-      }
+      },
     )
     .subscribe();
 
@@ -150,25 +153,25 @@ export const unsubscribeFromChannel = (channel) => {
  * @param {string} bucket - The storage bucket name (default: 'salon-images')
  * @returns {Promise<string>} - The public URL of the uploaded image
  */
-export const uploadImage = async (file, bucket = 'salon-images') => {
-  if (!file) throw new Error('No file provided');
+export const uploadImage = async (file, bucket = "salon-images") => {
+  if (!file) throw new Error("No file provided");
 
-  const fileExt = file.name.split('.').pop();
+  const fileExt = file.name.split(".").pop();
   const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
   const filePath = `${fileName}`;
 
   const { data, error } = await supabase.storage
     .from(bucket)
     .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false
+      cacheControl: "3600",
+      upsert: false,
     });
 
   if (error) throw error;
 
-  const { data: { publicUrl } } = supabase.storage
-    .from(bucket)
-    .getPublicUrl(filePath);
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(bucket).getPublicUrl(filePath);
 
   return publicUrl;
 };
@@ -178,16 +181,14 @@ export const uploadImage = async (file, bucket = 'salon-images') => {
  * @param {string} url - The public URL of the image to delete
  * @param {string} bucket - The storage bucket name (default: 'salon-images')
  */
-export const deleteImage = async (url, bucket = 'salon-images') => {
+export const deleteImage = async (url, bucket = "salon-images") => {
   if (!url) return;
 
   const urlObj = new URL(url);
-  const pathParts = urlObj.pathname.split('/');
+  const pathParts = urlObj.pathname.split("/");
   const filePath = pathParts[pathParts.length - 1];
 
   if (!filePath) return;
 
-  await supabase.storage
-    .from(bucket)
-    .remove([filePath]);
+  await supabase.storage.from(bucket).remove([filePath]);
 };

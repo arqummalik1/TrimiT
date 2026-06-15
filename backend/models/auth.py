@@ -66,13 +66,27 @@ class SendOtpRequest(BaseModel):
     email: EmailStr
 
 class VerifyOtpRequest(BaseModel):
+    """
+    OTP verification payload.
+
+    role / name / phone have been intentionally removed. Profile creation
+    now happens in a dedicated POST /auth/complete-profile step after the
+    user is authenticated. This eliminates the brittle pendingSignupStore
+    pattern and makes profile creation server-enforced and cross-device safe.
+    """
     email: EmailStr
     token: str
     type: OtpType
-    # Signup-only: client's intended role from the SignupScreen. Used ONLY when
-    # the user does not yet have a public.users row — i.e. account creation.
-    # Once a profile exists, the server ignores this field (no escalation).
-    role: Optional[UserRole] = None
-    name: Optional[str] = None
-    phone: Optional[str] = None
 
+
+class CompleteProfileRequest(BaseModel):
+    """
+    Payload for POST /auth/complete-profile.
+
+    Called immediately after OTP verification when no public.users row
+    exists for the authenticated user. Role is required — there is no
+    server-side default. Name is required (min 1 char). Phone is optional.
+    """
+    role: UserRole = Field(..., description="User role: 'customer' or 'owner'. Required.")
+    name: str = Field(..., min_length=1, max_length=100, description="Full display name.")
+    phone: Optional[str] = Field(None, max_length=20, description="Phone number (optional).")

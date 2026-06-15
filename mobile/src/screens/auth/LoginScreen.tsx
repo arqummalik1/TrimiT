@@ -300,13 +300,7 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account?</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('RoleSelect')} disabled={isLoading}>
-              <Text style={styles.linkText}>Sign up</Text>
-            </TouchableOpacity>
-          </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenWrapper>

@@ -25,8 +25,11 @@ interface AuthState {
   error: string | null;
   requiresEmailConfirmation: boolean;
   queryClient: QueryClient | null;
+  /** True when the backend confirms the public.users profile exists. */
+  profileComplete: boolean;
 
   setUser: (user: User | null, token: string | null) => void;
+  setProfileComplete: (val: boolean) => void;
   setHydrated: (val: boolean) => void;
   setQueryClient: (qc: QueryClient) => void;
   clearSession: (options?: { sessionExpired?: boolean; errorMessage?: string }) => Promise<void>;
@@ -54,6 +57,11 @@ interface AuthState {
   sendOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
   isOnboardingCompleted: boolean;
   completeOnboarding: () => void;
+  completeProfile: (data: {
+    role: 'customer' | 'owner';
+    name: string;
+    phone?: string;
+  }) => Promise<{ success: boolean; error?: string }>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -70,15 +78,25 @@ export const useAuthStore = create<AuthState>()(
       sessionExpired: false,
       error: null,
       isOnboardingCompleted: false,
+      profileComplete: false,
       completeOnboarding: () => set({ isOnboardingCompleted: true }),
       requiresEmailConfirmation: false,
       queryClient: null,
 
       setUser: (user, token) => {
-        set({ user, token, isAuthenticated: !!user, error: null, sessionExpired: false });
+        set({
+          user,
+          token,
+          isAuthenticated: !!user,
+          profileComplete: !!user,
+          error: null,
+          sessionExpired: false,
+        });
         setAuthToken(token);
         void syncSupabaseAuthSession(token, get().refreshToken);
       },
+
+      setProfileComplete: (val) => set({ profileComplete: val }),
 
       setHydrated: (val) => set({ isHydrated: val }),
 
@@ -109,6 +127,7 @@ export const useAuthStore = create<AuthState>()(
           token: null,
           refreshToken: null,
           isAuthenticated: false,
+          profileComplete: false,
           isLoading: false,
           sessionExpired: options?.sessionExpired === true,
           error: options?.errorMessage ?? null,
@@ -143,6 +162,7 @@ export const useAuthStore = create<AuthState>()(
           token: result.token,
           refreshToken: result.refreshToken ?? null,
           isAuthenticated: true,
+          profileComplete: true,
           isLoading: false,
           error: null,
           requiresEmailConfirmation: false,
@@ -181,6 +201,7 @@ export const useAuthStore = create<AuthState>()(
           token: result.token,
           refreshToken: result.refreshToken ?? null,
           isAuthenticated: true,
+          profileComplete: true,
           isLoading: false,
           error: null,
           requiresEmailConfirmation: false,
@@ -315,12 +336,16 @@ export const useAuthStore = create<AuthState>()(
           try {
             const { authService } = require('../services/authService');
             const meResponse = await authService.getMe();
-            const fresh: User | null =
-              normalizeAuthUser(meResponse.data as { profile?: User }) ?? get().user;
+            const responseData = meResponse.data as { profile?: User; profile_complete?: boolean };
+            
+            const fresh: User | null = normalizeAuthUser(responseData) ?? get().user;
+            
             if (fresh) {
-              set({ user: fresh });
+              set({ user: fresh, profileComplete: responseData.profile_complete ?? true });
+            } else if (responseData.profile_complete === false) {
+              set({ profileComplete: false });
             }
-            logger.info('[Auth] initializeAuth profile refreshed', { role: fresh?.role });
+            logger.info('[Auth] initializeAuth profile refreshed', { role: fresh?.role, profileComplete: responseData.profile_complete });
           } catch (err) {
             // ONLY a confirmed 401 from the server should clear the session.
             // Network errors, 5xx, timeouts → keep the user logged in. The
@@ -339,47 +364,65 @@ export const useAuthStore = create<AuthState>()(
         })();
       },
 
-      verifyOtp: async (email, token, type, extras) => {
+      verifyOtp: async (email, token, type) => {
         set({ isLoading: true, error: null });
-        try {
-          const { authService } = require('../services/authService');
-          const response = await authService.verifyOtp(email, token, type, extras);
-          const data = response.data;
-          
-          if (!data || !data.access_token) {
-            throw new Error('Invalid verification response');
-          }
+        const result = await authRepository.verifyOtp(email, token, type);
+        
+        if (!result.token) {
+          set({ isLoading: false, error: result.error ?? 'Verification failed' });
+          return { success: false, error: result.error ?? 'Verification failed' };
+        }
 
-          // Backend returns the resolved profile from public.users in `data.profile`.
-          // Use that — NOT the raw Supabase auth user (`data.user`) which only has
-          // {id, email}, so the local store would render "User" / "Not set".
-          const normalized = normalizeAuthUser({
-            ...((data.profile ?? {}) as Record<string, unknown>),
-            id: data.profile?.id ?? data.user?.id,
-            email: data.profile?.email ?? data.user?.email,
-          } as Parameters<typeof normalizeAuthUser>[0]);
+        // Verification successful, session established
+        setAuthToken(result.token);
+        void syncSupabaseAuthSession(result.token, result.refreshToken);
 
+        if (!result.profileComplete) {
+          // Gate the user: authenticated, but no public.users row yet.
           set({
-            user: normalized,
-            token: data.access_token,
-            refreshToken: data.refresh_token ?? null,
             isAuthenticated: true,
+            profileComplete: false,
+            token: result.token,
+            refreshToken: result.refreshToken,
             isLoading: false,
             error: null,
             authBootstrapComplete: true,
           });
-          setAuthToken(data.access_token);
-          const { syncSupabaseAuthSession } = require('../lib/supabase');
-          void syncSupabaseAuthSession(data.access_token, data.refresh_token ?? null);
-          
-          return { success: true, session: data };
-        } catch (err) {
-          set({ isLoading: false });
-          const { parseAuthFailure } = require('../repositories/authRepository');
-          const { message } = parseAuthFailure(err);
-          set({ error: message });
-          return { success: false, error: message };
+          // Include rawSession here so VerifyOtpScreen can still extract token
+          // for 'recovery' resets if needed before the profile is completed.
+          return { success: true, session: { ...result.rawSession, is_new_user: true } };
         }
+
+        // Returning user — direct to tabs
+        set({
+          user: result.profile,
+          isAuthenticated: true,
+          profileComplete: true,
+          token: result.token,
+          refreshToken: result.refreshToken,
+          isLoading: false,
+          error: null,
+          authBootstrapComplete: true,
+        });
+        return { success: true, session: result.rawSession };
+      },
+
+      completeProfile: async (data) => {
+        set({ isLoading: true, error: null });
+        const result = await authRepository.completeProfile(data);
+        
+        if (!result.success || !result.profile) {
+          set({ isLoading: false, error: result.error ?? 'Profile creation failed' });
+          return { success: false, error: result.error };
+        }
+
+        set({
+          user: result.profile,
+          profileComplete: true,
+          isLoading: false,
+          error: null,
+        });
+        return { success: true };
       },
 
       sendOtp: async (email) => {
@@ -425,6 +468,7 @@ export const useAuthStore = create<AuthState>()(
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
         isOnboardingCompleted: state.isOnboardingCompleted,
+        profileComplete: state.profileComplete,
       }),
     }
   )

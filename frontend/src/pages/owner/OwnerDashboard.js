@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { 
-  CurrencyInr, 
-  CalendarCheck, 
-  ChartLineUp, 
+import React, { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import {
+  CurrencyInr,
+  CalendarCheck,
+  ChartLineUp,
   Clock,
   Users,
   Storefront,
@@ -13,15 +13,19 @@ import {
   CheckCircle,
   XCircle,
   Hourglass,
-  Gear
-} from '@phosphor-icons/react';
-import api from '../../lib/api';
-import { formatPrice } from '../../lib/utils';
-import { useToastStore } from '../../store/toastStore';
-import { useNotificationStore } from '../../store/notificationStore';
-import { useAuthStore } from '../../store/authStore';
-import { subscribeToSalonBookings, unsubscribeFromChannel } from '../../lib/supabase';
-import NotificationBell from '../../components/NotificationBell';
+  Gear,
+} from "@phosphor-icons/react";
+import { bookingRepository } from "../../repositories/bookingRepository";
+import { ownerRepository } from "../../repositories/ownerRepository";
+import { formatPrice } from "../../lib/utils";
+import { useToastStore } from "../../store/toastStore";
+import { useNotificationStore } from "../../store/notificationStore";
+import { useAuthStore } from "../../store/authStore";
+import {
+  subscribeToSalonBookings,
+  unsubscribeFromChannel,
+} from "../../lib/supabase";
+import NotificationBell from "../../components/NotificationBell";
 
 const OwnerDashboard = () => {
   const queryClient = useQueryClient();
@@ -31,65 +35,65 @@ const OwnerDashboard = () => {
   const [activeChannel, setActiveChannel] = useState(null);
 
   const { data: salon, isLoading: salonLoading } = useQuery({
-    queryKey: ['ownerSalon'],
-    queryFn: async () => {
-      const response = await api.get('/owner/salon');
-      return response.data;
-    },
+    queryKey: ["ownerSalon"],
+    queryFn: ownerRepository.getOwnerSalon,
   });
 
   // Handle new booking notification - payload contains {new, old, eventType}
-  const handleNewBooking = useCallback(async (payload) => {
-    const booking = payload.new || payload;
-    const eventType = payload.eventType || 'INSERT';
+  const handleNewBooking = useCallback(
+    async (payload) => {
+      const booking = payload.new || payload;
+      const eventType = payload.eventType || "INSERT";
 
-    if (!booking || !booking.id) return;
+      if (!booking || !booking.id) return;
 
-    // Only process new bookings (INSERT events)
-    if (eventType !== 'INSERT' && !payload.new) return;
+      // Only process new bookings (INSERT events)
+      if (eventType !== "INSERT" && !payload.new) return;
 
-    // Fetch full booking details (realtime only sends raw row data, not joined data)
-    let fullBooking = booking;
-    try {
-      const response = await api.get('/bookings/');
-      if (response.data && Array.isArray(response.data)) {
-        const matchingBooking = response.data.find(b => b.id === booking.id);
-        if (matchingBooking) {
-          fullBooking = matchingBooking;
-        }
+      // Fetch only the changed booking (not the entire bookings list) so busy
+      // salons don't pay an O(total bookings) cost for each realtime INSERT.
+      let fullBooking = booking;
+      try {
+        fullBooking = await bookingRepository.getBookingById(booking.id);
+      } catch (err) {
+        // Use raw realtime data if the detail fetch fails; cache invalidation below
+        // still updates dashboard counts when the network recovers.
       }
-    } catch (err) {
-      // Use raw data if full fetch fails
-    }
 
-    const customerName = fullBooking.users?.name || fullBooking.user_name || 'A customer';
-    const serviceName = fullBooking.services?.name || fullBooking.service_name || 'a service';
-    const bookingTime = fullBooking.time_slot || fullBooking.booking_time || 'today';
+      const customerName =
+        fullBooking.users?.name || fullBooking.user_name || "A customer";
+      const serviceName =
+        fullBooking.services?.name || fullBooking.service_name || "a service";
+      const bookingTime =
+        fullBooking.time_slot || fullBooking.booking_time || "today";
 
-    // Add to notification store (persistent)
-    addNotification({
-      type: 'booking_created',
-      title: 'New Booking Received',
-      message: `${customerName} booked ${serviceName} for ${bookingTime}`,
-      data: {
-        bookingId: booking.id,
-        customerId: booking.user_id,
-        serviceName: serviceName,
-        bookingTime: bookingTime,
-      },
-    });
+      // Add to notification store (persistent)
+      addNotification({
+        type: "booking_created",
+        title: "New Booking Received",
+        message: `${customerName} booked ${serviceName} for ${bookingTime}`,
+        data: {
+          bookingId: booking.id,
+          customerId: booking.user_id,
+          serviceName: serviceName,
+          bookingTime: bookingTime,
+        },
+      });
 
-    // Show toast notification (temporary)
-    newBooking(
-      'New Booking Received',
-      `${customerName} booked ${serviceName} for ${bookingTime}`,
-      { type: 'new-booking' }
-    );
+      // Show toast notification (temporary)
+      newBooking(
+        "New Booking Received",
+        `${customerName} booked ${serviceName} for ${bookingTime}`,
+        { type: "new-booking" },
+      );
 
-    // Refresh dashboard data
-    queryClient.invalidateQueries(['ownerSalon']);
-    queryClient.invalidateQueries(['ownerAnalytics']);
-  }, [addNotification, newBooking, queryClient]);
+      // Refresh dashboard data
+      queryClient.invalidateQueries({ queryKey: ["ownerSalon"] });
+      queryClient.invalidateQueries({ queryKey: ["ownerAnalytics"] });
+      queryClient.invalidateQueries({ queryKey: ["ownerBookings"] });
+    },
+    [addNotification, newBooking, queryClient],
+  );
 
   // Subscribe to real-time bookings
   useEffect(() => {
@@ -105,52 +109,67 @@ const OwnerDashboard = () => {
   }, [salon?.id, handleNewBooking, token]);
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
-    queryKey: ['ownerAnalytics'],
-    queryFn: async () => {
-      const response = await api.get('/owner/analytics');
-      return response.data;
-    },
+    queryKey: ["ownerAnalytics"],
+    queryFn: ownerRepository.getOwnerAnalytics,
   });
 
   const statCards = [
     {
-      title: 'Total Earnings',
+      title: "Total Earnings",
       value: formatPrice(analytics?.total_earnings || 0),
       icon: CurrencyInr,
-      color: 'bg-emerald-100 text-emerald-800',
-      iconColor: 'text-emerald-600',
+      color: "bg-emerald-100 text-emerald-800",
+      iconColor: "text-emerald-600",
     },
     {
-      title: 'Total Bookings',
+      title: "Total Bookings",
       value: analytics?.total_bookings || 0,
       icon: CalendarCheck,
-      color: 'bg-blue-100 text-blue-800',
-      iconColor: 'text-blue-600',
+      color: "bg-blue-100 text-blue-800",
+      iconColor: "text-blue-600",
     },
     {
       title: "Today's Bookings",
       value: analytics?.today_bookings || 0,
       icon: Clock,
-      color: 'bg-orange-100 text-orange-800',
-      iconColor: 'text-orange-600',
+      color: "bg-orange-100 text-orange-800",
+      iconColor: "text-orange-600",
     },
     {
-      title: 'Pending',
+      title: "Pending",
       value: analytics?.pending_bookings || 0,
       icon: Hourglass,
-      color: 'bg-yellow-100 text-yellow-800',
-      iconColor: 'text-yellow-600',
+      color: "bg-yellow-100 text-yellow-800",
+      iconColor: "text-yellow-600",
     },
   ];
 
   const quickActions = [
-    { title: 'Manage Salon', icon: Storefront, href: '/owner/salon', color: 'bg-orange-800' },
-    { title: 'View Bookings', icon: CalendarCheck, href: '/owner/bookings', color: 'bg-emerald-800' },
-    { title: 'Settings', icon: Gear, href: '/owner/settings', color: 'bg-blue-800' },
+    {
+      title: "Manage Salon",
+      icon: Storefront,
+      href: "/owner/salon",
+      color: "bg-orange-800",
+    },
+    {
+      title: "View Bookings",
+      icon: CalendarCheck,
+      href: "/owner/bookings",
+      color: "bg-emerald-800",
+    },
+    {
+      title: "Settings",
+      icon: Gear,
+      href: "/owner/settings",
+      color: "bg-blue-800",
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-stone-50 pb-12" data-testid="owner-dashboard">
+    <div
+      className="min-h-screen bg-stone-50 pb-12"
+      data-testid="owner-dashboard"
+    >
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <motion.div
@@ -179,18 +198,21 @@ const OwnerDashboard = () => {
             {/* Header shimmer */}
             <div className="h-8 bg-stone-200 rounded w-48 mb-2" />
             <div className="h-4 bg-stone-200 rounded w-64 mb-8" />
-            
+
             {/* Stats grid shimmer */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-white rounded-2xl border border-stone-200 p-5">
+                <div
+                  key={i}
+                  className="bg-white rounded-2xl border border-stone-200 p-5"
+                >
                   <div className="h-10 w-10 bg-stone-200 rounded-xl mb-3" />
                   <div className="h-3 bg-stone-200 rounded w-24 mb-2" />
                   <div className="h-8 bg-stone-200 rounded w-16" />
                 </div>
               ))}
             </div>
-            
+
             {/* Two column shimmer */}
             <div className="grid md:grid-cols-2 gap-6 mb-8">
               <div className="bg-white rounded-2xl border border-stone-200 p-6">
@@ -220,15 +242,20 @@ const OwnerDashboard = () => {
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-2xl border border-stone-200 p-12 text-center"
           >
-            <Storefront size={64} weight="duotone" className="mx-auto text-stone-300 mb-4" />
+            <Storefront
+              size={64}
+              weight="duotone"
+              className="mx-auto text-stone-300 mb-4"
+            />
             <h2 className="font-heading text-2xl font-bold text-stone-700 mb-3">
               Create Your Salon
             </h2>
             <p className="text-stone-500 mb-6 max-w-md mx-auto">
-              Start by setting up your salon profile. Add your business details, services, and start accepting bookings.
+              Start by setting up your salon profile. Add your business details,
+              services, and start accepting bookings.
             </p>
-            <Link 
-              to="/owner/salon" 
+            <Link
+              to="/owner/salon"
               data-testid="create-salon-btn"
               className="btn-primary inline-flex items-center gap-2"
             >
@@ -250,12 +277,16 @@ const OwnerDashboard = () => {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <span className={`p-2 rounded-xl ${stat.color}`}>
-                      <stat.icon size={22} weight="bold" className={stat.iconColor} />
+                      <stat.icon
+                        size={22}
+                        weight="bold"
+                        className={stat.iconColor}
+                      />
                     </span>
                   </div>
                   <p className="text-sm text-stone-500 mb-1">{stat.title}</p>
                   <p className="font-heading text-2xl font-bold text-stone-900">
-                    {analyticsLoading ? '...' : stat.value}
+                    {analyticsLoading ? "..." : stat.value}
                   </p>
                 </motion.div>
               ))}
@@ -327,12 +358,19 @@ const OwnerDashboard = () => {
                       className="flex items-center justify-between p-4 rounded-xl bg-stone-50 hover:bg-stone-100 transition-colors group"
                     >
                       <div className="flex items-center gap-3">
-                        <span className={`p-2 rounded-xl ${action.color} text-white`}>
+                        <span
+                          className={`p-2 rounded-xl ${action.color} text-white`}
+                        >
                           <action.icon size={20} weight="bold" />
                         </span>
-                        <span className="font-medium text-stone-700">{action.title}</span>
+                        <span className="font-medium text-stone-700">
+                          {action.title}
+                        </span>
                       </div>
-                      <ArrowRight size={18} className="text-stone-400 group-hover:text-stone-600 transition-colors" />
+                      <ArrowRight
+                        size={18}
+                        className="text-stone-400 group-hover:text-stone-600 transition-colors"
+                      />
                     </Link>
                   ))}
                 </div>
@@ -351,8 +389,8 @@ const OwnerDashboard = () => {
                   <h2 className="font-heading text-lg font-bold text-stone-900">
                     Your Services
                   </h2>
-                  <Link 
-                    to="/owner/services" 
+                  <Link
+                    to="/owner/services"
                     className="text-sm text-orange-800 font-medium hover:underline"
                   >
                     Manage All
@@ -360,13 +398,17 @@ const OwnerDashboard = () => {
                 </div>
                 <div className="grid gap-3">
                   {salon.services.slice(0, 4).map((service) => (
-                    <div 
+                    <div
                       key={service.id}
                       className="flex items-center justify-between p-3 bg-stone-50 rounded-xl"
                     >
                       <div>
-                        <p className="font-medium text-stone-900">{service.name}</p>
-                        <p className="text-sm text-stone-500">{service.duration} mins</p>
+                        <p className="font-medium text-stone-900">
+                          {service.name}
+                        </p>
+                        <p className="text-sm text-stone-500">
+                          {service.duration} mins
+                        </p>
                       </div>
                       <span className="font-semibold text-orange-800">
                         {formatPrice(service.price)}

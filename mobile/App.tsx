@@ -1,54 +1,62 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, StyleSheet, Text, Image, InteractionManager } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import * as Font from 'expo-font';
-import * as Notifications from 'expo-notifications';
+import React, { useEffect, useState, useCallback } from "react";
+import { StatusBar } from "expo-status-bar";
+import {
+  ActivityIndicator,
+  View,
+  StyleSheet,
+  Text,
+  Image,
+  InteractionManager,
+} from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { NavigationContainer } from "@react-navigation/native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as Font from "expo-font";
+import * as Notifications from "expo-notifications";
 import {
   Manrope_400Regular,
   Manrope_500Medium,
   Manrope_600SemiBold,
   Manrope_700Bold,
-} from '@expo-google-fonts/manrope';
+} from "@expo-google-fonts/manrope";
 import {
   Inter_400Regular,
   Inter_500Medium,
   Inter_600SemiBold,
   Inter_700Bold,
   Inter_800ExtraBold,
-} from '@expo-google-fonts/inter';
+} from "@expo-google-fonts/inter";
 import {
   CormorantGaramond_400Regular,
   CormorantGaramond_600SemiBold,
   CormorantGaramond_700Bold,
-} from '@expo-google-fonts/cormorant-garamond';
+} from "@expo-google-fonts/cormorant-garamond";
 
-import { lightPalette } from './src/theme/colors';
-import { useTheme } from './src/theme/ThemeContext';
-import RootNavigator, { navigationRef } from './src/navigation/index';
-import { useAuthStore } from './src/store/authStore';
-import { SessionExpiredModal } from './src/components/SessionExpiredModal';
-import { SigningOutOverlay } from './src/components/SigningOutOverlay';
-import { handleNotificationNavigation } from './src/lib/notificationNavigation';
+import { lightPalette } from "./src/theme/colors";
+import { useTheme } from "./src/theme/ThemeContext";
+import RootNavigator, { navigationRef } from "./src/navigation/index";
+import { useAuthStore } from "./src/store/authStore";
+import { SessionExpiredModal } from "./src/components/SessionExpiredModal";
+import { SigningOutOverlay } from "./src/components/SigningOutOverlay";
+import { handleNotificationNavigation } from "./src/lib/notificationNavigation";
 import {
   getLastNotificationResponse,
   handleOwnerForegroundPush,
   setupPushNotifications,
-} from './src/lib/notifications';
-import { ThemeProvider } from './src/theme/ThemeContext';
-import { logger } from './src/lib/logger';
-import ErrorBoundary from './src/components/ErrorBoundary';
-import OfflineBanner from './src/components/OfflineBanner';
-import Toast from './src/components/Toast';
-import { initSentryIfNeeded } from './src/lib/startupGuards';
-import { analytics } from './src/lib/analytics';
-import { getReleaseConfigIssues } from './src/lib/buildConfig';
+} from "./src/lib/notifications";
+import { ThemeProvider } from "./src/theme/ThemeContext";
+import { logger } from "./src/lib/logger";
+import ErrorBoundary from "./src/components/ErrorBoundary";
+import OfflineBanner from "./src/components/OfflineBanner";
+import Toast from "./src/components/Toast";
+import { PermissionPrimer } from "./src/components/PermissionPrimer";
+import { initSentryIfNeeded } from "./src/lib/startupGuards";
+import { analytics } from "./src/lib/analytics";
+import { getReleaseConfigIssues } from "./src/lib/buildConfig";
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { persistQueryClient } from '@tanstack/react-query-persist-client';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import { persistQueryClient } from "@tanstack/react-query-persist-client";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -81,15 +89,17 @@ const CUSTOM_FONTS = {
 };
 
 const configIssues = getReleaseConfigIssues();
+const NOTIFICATION_PRIMER_DISMISSED_KEY =
+  "trimit_notification_primer_dismissed_v1";
 
 const linking = {
-  prefixes: ['trimit://', 'https://trimit.online'],
+  prefixes: ["trimit://", "https://trimit.online"],
   config: {
     screens: {
       Auth: {
-        path: '',
+        path: "",
         screens: {
-          ResetPassword: 'reset-password',
+          ResetPassword: "reset-password",
         },
       },
     },
@@ -98,27 +108,50 @@ const linking = {
 
 function AppContent() {
   const { isDark } = useTheme();
-  const { isAuthenticated, isHydrated, authBootstrapComplete, setQueryClient, user } =
-    useAuthStore();
+  const {
+    isAuthenticated,
+    isHydrated,
+    authBootstrapComplete,
+    setQueryClient,
+    user,
+  } = useAuthStore();
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
+  const [showNotificationPrimer, setShowNotificationPrimer] = useState(false);
 
   if (configIssues.length > 0) {
     return (
       <View style={styles.splash}>
         <Text style={styles.splashTitle}>TrimiT</Text>
-        <Text style={[styles.splashTitle, { fontSize: 16, marginTop: 16, fontWeight: '600' }]}>
+        <Text
+          style={[
+            styles.splashTitle,
+            { fontSize: 16, marginTop: 16, fontWeight: "600" },
+          ]}
+        >
           This build is missing configuration
         </Text>
         {configIssues.map((issue) => (
           <Text
             key={issue.key}
-            style={{ marginTop: 8, color: lightPalette.textSecondary, textAlign: 'center', fontSize: 13 }}
+            style={{
+              marginTop: 8,
+              color: lightPalette.textSecondary,
+              textAlign: "center",
+              fontSize: 13,
+            }}
           >
             • {issue.message}
           </Text>
         ))}
-        <Text style={{ marginTop: 16, color: lightPalette.textSecondary, textAlign: 'center', fontSize: 12 }}>
+        <Text
+          style={{
+            marginTop: 16,
+            color: lightPalette.textSecondary,
+            textAlign: "center",
+            fontSize: 12,
+          }}
+        >
           Rebuild with mobile/.env loaded: npm run build:apk:local
         </Text>
       </View>
@@ -129,7 +162,7 @@ function AppContent() {
     try {
       await Font.loadAsync(CUSTOM_FONTS);
     } catch (e) {
-      console.warn('[App] Font loading failed — using system fonts', e);
+      console.warn("[App] Font loading failed — using system fonts", e);
     } finally {
       setFontsLoaded(true);
     }
@@ -156,13 +189,13 @@ function AppContent() {
               maxAge: 1000 * 60 * 60 * 24,
             });
           } catch (e) {
-            console.warn('[App] Query cache persist skipped', e);
+            console.warn("[App] Query cache persist skipped", e);
           }
         });
       } catch (e) {
-        console.error('[App] Boot failed', e);
+        console.error("[App] Boot failed", e);
         if (!cancelled) {
-          setBootError(e instanceof Error ? e.message : 'Startup failed');
+          setBootError(e instanceof Error ? e.message : "Startup failed");
           useAuthStore.getState().setHydrated(true);
           useAuthStore.setState({ authBootstrapComplete: true });
           setFontsLoaded(true);
@@ -181,7 +214,10 @@ function AppContent() {
       const currentUser = useAuthStore.getState().user;
       if (currentUser) {
         logger.setUser(currentUser.id, currentUser.email, currentUser.name);
-        analytics.identify(currentUser.id, { email: currentUser.email, name: currentUser.name });
+        analytics.identify(currentUser.id, {
+          email: currentUser.email,
+          name: currentUser.name,
+        });
       }
     } else {
       logger.clearUser();
@@ -193,34 +229,65 @@ function AppContent() {
       return;
     }
 
-    void setupPushNotifications();
+    void (async () => {
+      try {
+        const perms = await Notifications.getPermissionsAsync();
+        if (perms.status === "granted") {
+          await setupPushNotifications();
+          return;
+        }
+        if (perms.status === "denied" && perms.canAskAgain === false) {
+          return;
+        }
+        const dismissed = await AsyncStorage.getItem(
+          NOTIFICATION_PRIMER_DISMISSED_KEY,
+        );
+        if (dismissed === "true") {
+          return;
+        }
+        setShowNotificationPrimer(true);
+      } catch (e) {
+        logger.warn("[Notifications] Primer check failed", { error: e });
+      }
+    })();
 
     const onResponse = async (response: Notifications.NotificationResponse) => {
       const reqId = response.notification.request.identifier;
-      const lastHandled = await AsyncStorage.getItem('trimit_last_handled_notification_id');
+      const lastHandled = await AsyncStorage.getItem(
+        "trimit_last_handled_notification_id",
+      );
       if (lastHandled === reqId) {
         return;
       }
-      await AsyncStorage.setItem('trimit_last_handled_notification_id', reqId);
-      const data = response.notification.request.content.data as Record<string, string | undefined>;
+      await AsyncStorage.setItem("trimit_last_handled_notification_id", reqId);
+      const data = response.notification.request.content.data as Record<
+        string,
+        string | undefined
+      >;
       handleNotificationNavigation(navigationRef.current, data, user?.role);
       await Notifications.clearLastNotificationResponseAsync().catch(() => {});
     };
 
-    const responseSub = Notifications.addNotificationResponseReceivedListener((r) => {
-      void onResponse(r);
-    });
+    const responseSub = Notifications.addNotificationResponseReceivedListener(
+      (r) => {
+        void onResponse(r);
+      },
+    );
 
-    const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
-      if (user?.role !== 'owner') {
-        return;
-      }
-      void import('./src/lib/realtimeOwnerGuard').then(({ isOwnerRealtimeSubscribed }) => {
-        if (!isOwnerRealtimeSubscribed()) {
-          void handleOwnerForegroundPush(notification);
+    const receivedSub = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        if (user?.role !== "owner") {
+          return;
         }
-      });
-    });
+        void import("./src/lib/realtimeOwnerGuard").then(
+          ({ isOwnerRealtimeSubscribed }) => {
+            if (!isOwnerRealtimeSubscribed()) {
+              void handleOwnerForegroundPush(notification);
+            }
+          },
+        );
+      },
+    );
 
     void getLastNotificationResponse().then((last) => {
       if (last) {
@@ -234,14 +301,36 @@ function AppContent() {
     };
   }, [isAuthenticated, authBootstrapComplete, user?.role]);
 
+  const handleAllowNotifications = useCallback(() => {
+    setShowNotificationPrimer(false);
+    void AsyncStorage.setItem(NOTIFICATION_PRIMER_DISMISSED_KEY, "true");
+    void setupPushNotifications();
+  }, []);
+
+  const handleDenyNotifications = useCallback(() => {
+    setShowNotificationPrimer(false);
+    void AsyncStorage.setItem(NOTIFICATION_PRIMER_DISMISSED_KEY, "true");
+  }, []);
+
   if (bootError) {
     return (
       <View style={styles.splash}>
         <Text style={styles.splashTitle}>TrimiT</Text>
-        <Text style={[styles.splashTitle, { fontSize: 14, marginTop: 12, fontWeight: '400' }]}>
+        <Text
+          style={[
+            styles.splashTitle,
+            { fontSize: 14, marginTop: 12, fontWeight: "400" },
+          ]}
+        >
           {bootError}
         </Text>
-        <Text style={{ marginTop: 8, color: lightPalette.textSecondary, textAlign: 'center' }}>
+        <Text
+          style={{
+            marginTop: 8,
+            color: lightPalette.textSecondary,
+            textAlign: "center",
+          }}
+        >
           Try clearing app storage in Settings, then reopen.
         </Text>
       </View>
@@ -253,12 +342,21 @@ function AppContent() {
       <View style={styles.splash}>
         <View style={styles.splashLogo}>
           <Image
-            source={require('./assets/logo.png')}
-            style={{ width: 40, height: 40, resizeMode: 'contain', tintColor: '#FFFFFF' }}
+            source={require("./assets/logo.png")}
+            style={{
+              width: 40,
+              height: 40,
+              resizeMode: "contain",
+              tintColor: "#FFFFFF",
+            }}
           />
         </View>
         <Text style={styles.splashTitle}>TrimiT</Text>
-        <ActivityIndicator size="large" color={lightPalette.primary} style={{ marginTop: 24 }} />
+        <ActivityIndicator
+          size="large"
+          color={lightPalette.primary}
+          style={{ marginTop: 24 }}
+        />
       </View>
     );
   }
@@ -270,7 +368,15 @@ function AppContent() {
       <SessionExpiredModal />
       <OfflineBanner />
       <Toast />
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <PermissionPrimer
+        isVisible={showNotificationPrimer}
+        title="Stay updated on bookings"
+        message="TrimiT sends booking confirmations, cancellations, reminders, and owner alerts. You can change this later in Settings."
+        icon="notifications-outline"
+        onAllow={handleAllowNotifications}
+        onDeny={handleDenyNotifications}
+      />
+      <StatusBar style={isDark ? "light" : "dark"} />
     </NavigationContainer>
   );
 }
@@ -295,8 +401,8 @@ const styles = StyleSheet.create({
   splash: {
     flex: 1,
     backgroundColor: lightPalette.background,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 24,
   },
   splashLogo: {
@@ -304,13 +410,13 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 20,
     backgroundColor: lightPalette.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 16,
   },
   splashTitle: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: "700",
     color: lightPalette.text,
   },
 });

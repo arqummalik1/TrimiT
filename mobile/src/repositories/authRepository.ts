@@ -21,6 +21,7 @@ export type AuthErrorCode =
   | 'WEAK_PASSWORD'
   | 'INVALID_EMAIL'
   | 'PROFILE_CREATION_FAILED'
+  | 'PROFILE_CREATE_FAILED'
   | 'LOGIN_FAILED'
   | 'SIGNUP_FAILED'
   | 'NETWORK_ERROR'
@@ -88,6 +89,26 @@ export interface AuthResult {
   error?: string;
   /** Machine-readable error code */
   errorCode?: AuthErrorCode | string;
+}
+
+export interface VerifyOtpResult {
+  /** Supabase access token. Present on success. */
+  token: string | null;
+  /** Supabase refresh token. */
+  refreshToken: string | null;
+  /** The resolved profile from public.users. Null when profile_complete=false. */
+  profile: User | null;
+  /**
+   * True  → existing user. Navigate to tabs.
+   * False → new user or broken account. Gate into CompleteProfileScreen.
+   */
+  profileComplete: boolean;
+  /** Friendly error message for display. Present on failure. */
+  error?: string;
+  /** Machine-readable error code. */
+  errorCode?: AuthErrorCode | string;
+  /** Raw Supabase user object. Useful for recovery flow (access_token as reset token). */
+  rawSession?: Record<string, unknown>;
 }
 
 /**
@@ -317,5 +338,84 @@ export const authRepository = {
       };
     }
   },
-};
 
+  /**
+   * Verify an OTP token.
+   *
+   * Returns a `profileComplete` flag — if false, the user must be directed
+   * to CompleteProfileScreen before accessing the app. If true, the user's
+   * profile is already in `profile` and the app can route to tabs.
+   */
+  async verifyOtp(
+    email: string,
+    token: string,
+    type: 'signup' | 'recovery' | 'magiclink',
+  ): Promise<VerifyOtpResult> {
+    try {
+      const response = await authService.verifyOtp(email, token, type);
+      const data = response.data as {
+        access_token?: string;
+        refresh_token?: string;
+        user?: Record<string, unknown>;
+        profile?: Record<string, unknown> | null;
+        profile_complete?: boolean;
+      };
+
+      const accessToken = data.access_token ?? null;
+      const refreshToken = data.refresh_token ?? null;
+      const profileComplete = data.profile_complete ?? false;
+      const profile = profileComplete
+        ? normalizeAuthUser(data.profile as Parameters<typeof normalizeAuthUser>[0])
+        : null;
+
+      return {
+        token: accessToken,
+        refreshToken,
+        profile,
+        profileComplete,
+        rawSession: data as Record<string, unknown>,
+      };
+    } catch (err: unknown) {
+      const { message, code } = parseAuthFailure(err);
+      return {
+        token: null,
+        refreshToken: null,
+        profile: null,
+        profileComplete: false,
+        error: message,
+        errorCode: code,
+      };
+    }
+  },
+
+  /**
+   * Create the user's public profile after OTP verification.
+   *
+   * Called when verifyOtp returns profileComplete=false. Idempotent — safe
+   * to retry on network failure. The backend enforces role assignment.
+   */
+  async completeProfile(data: {
+    role: 'customer' | 'owner';
+    name: string;
+    phone?: string;
+  }): Promise<{ success: boolean; profile?: User; error?: string; errorCode?: string }> {
+    try {
+      const response = await authService.completeProfile(data);
+      const responseData = response.data as { profile?: Record<string, unknown> };
+      const profile = normalizeAuthUser(
+        responseData.profile as Parameters<typeof normalizeAuthUser>[0]
+      );
+      if (!profile) {
+        return {
+          success: false,
+          error: 'Profile was created but could not be loaded. Please restart the app.',
+          errorCode: 'PROFILE_CREATE_FAILED',
+        };
+      }
+      return { success: true, profile };
+    } catch (err: unknown) {
+      const { message, code } = parseAuthFailure(err);
+      return { success: false, error: message, errorCode: code };
+    }
+  },
+};

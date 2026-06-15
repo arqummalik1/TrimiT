@@ -1,12 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { format } from 'date-fns';
-import { 
-  CalendarCheck, 
-  Clock, 
-  MapPin, 
+import React, { useEffect, useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { format } from "date-fns";
+import {
+  CalendarCheck,
+  Clock,
+  MapPin,
   Phone,
   XCircle,
   CheckCircle,
@@ -14,14 +14,22 @@ import {
   Hourglass,
   Spinner,
   Bell,
-} from '@phosphor-icons/react';
-import api from '../../lib/api';
-import { formatPrice, formatTime, getStatusColor, getPaymentStatusColor } from '../../lib/utils';
-import { useToastStore } from '../../store/toastStore';
-import { useNotificationStore } from '../../store/notificationStore';
-import { subscribeToUserBookings, unsubscribeFromChannel } from '../../lib/supabase';
-import { useAuthStore } from '../../store/authStore';
-import NotificationBell from '../../components/NotificationBell';
+} from "@phosphor-icons/react";
+import { bookingRepository } from "../../repositories/bookingRepository";
+import {
+  formatPrice,
+  formatTime,
+  getStatusColor,
+  getPaymentStatusColor,
+} from "../../lib/utils";
+import { useToastStore } from "../../store/toastStore";
+import { useNotificationStore } from "../../store/notificationStore";
+import {
+  subscribeToUserBookings,
+  unsubscribeFromChannel,
+} from "../../lib/supabase";
+import { useAuthStore } from "../../store/authStore";
+import NotificationBell from "../../components/NotificationBell";
 
 const MyBookings = () => {
   const queryClient = useQueryClient();
@@ -32,11 +40,8 @@ const MyBookings = () => {
   const [statusUpdates, setStatusUpdates] = useState([]);
 
   const { data: rawBookings, isLoading } = useQuery({
-    queryKey: ['myBookings'],
-    queryFn: async () => {
-      const response = await api.get('/bookings/');
-      return response.data;
-    },
+    queryKey: ["myBookings"],
+    queryFn: bookingRepository.getMyBookings,
   });
 
   // Sort bookings by booking date and time slot - newest first
@@ -47,73 +52,80 @@ const MyBookings = () => {
       const dateA = new Date(a.booking_date || 0);
       const dateB = new Date(b.booking_date || 0);
       if (dateB - dateA !== 0) return dateB - dateA;
-      
+
       // Then sort by time_slot (newest first)
-      const timeA = a.time_slot || '';
-      const timeB = b.time_slot || '';
+      const timeA = a.time_slot || "";
+      const timeB = b.time_slot || "";
       return timeB.localeCompare(timeA);
     });
   }, [rawBookings]);
 
-  // Handle booking status update
-  const handleBookingUpdate = useCallback((payload) => {
-    if (payload.eventType === 'UPDATE') {
-      const oldBooking = payload.old;
-      const newBooking = payload.new;
-      
-      // Only notify if status changed
-      if (oldBooking.status !== newBooking.status) {
-        const statusMessages = {
-          confirmed: {
-            title: 'Booking Confirmed!',
-            message: `Your appointment at ${newBooking.salon?.name || 'the salon'} has been confirmed.`,
-            type: 'booking_accepted'
-          },
-          cancelled: {
-            title: 'Booking Cancelled',
-            message: `Your appointment at ${newBooking.salon?.name || 'the salon'} has been cancelled.`,
-            type: 'booking_cancelled'
-          },
-          completed: {
-            title: 'Service Completed',
-            message: `Your appointment at ${newBooking.salon?.name || 'the salon'} has been completed.`,
-            type: 'booking_completed'
-          }
-        };
-        
-        const statusUpdate = statusMessages[newBooking.status];
-        if (statusUpdate) {
-          // Add to notification store (persistent)
-          addNotification({
-            type: statusUpdate.type,
-            title: statusUpdate.title,
-            message: statusUpdate.message,
-            data: {
-              bookingId: newBooking.id,
-              salonId: newBooking.salon_id,
-              serviceName: newBooking.service_name,
-            },
-          });
-          
-          // Show toast notification (temporary)
-          success(statusUpdate.message, {
-            title: statusUpdate.title,
-            duration: 6000
-          });
-          
-          // Add to status updates list
-          setStatusUpdates(prev => [{
+  // Handle booking changes. Supabase postgres_changes payloads contain raw
+  // table rows only (no joined salons/services), so keep notification copy
+  // generic and let React Query refetch the joined booking list.
+  const handleBookingUpdate = useCallback(
+    (payload) => {
+      const oldBooking = payload.old || {};
+      const newBooking = payload.new || {};
+
+      queryClient.invalidateQueries({ queryKey: ["myBookings"] });
+
+      if (
+        payload.eventType !== "UPDATE" ||
+        oldBooking.status === newBooking.status
+      ) {
+        return;
+      }
+
+      const statusMessages = {
+        confirmed: {
+          title: "Booking Confirmed!",
+          message: "Your booking has been confirmed.",
+          type: "booking_accepted",
+        },
+        cancelled: {
+          title: "Booking Cancelled",
+          message: "Your booking has been cancelled.",
+          type: "booking_cancelled",
+        },
+        completed: {
+          title: "Service Completed",
+          message: "Your service has been marked complete.",
+          type: "booking_completed",
+        },
+      };
+
+      const statusUpdate = statusMessages[newBooking.status];
+      if (!statusUpdate) return;
+
+      addNotification({
+        type: statusUpdate.type,
+        title: statusUpdate.title,
+        message: statusUpdate.message,
+        data: {
+          bookingId: newBooking.id,
+          salonId: newBooking.salon_id,
+        },
+      });
+
+      success(statusUpdate.message, {
+        title: statusUpdate.title,
+        duration: 6000,
+      });
+
+      setStatusUpdates((prev) =>
+        [
+          {
             id: newBooking.id,
             status: newBooking.status,
-            timestamp: Date.now()
-          }, ...prev].slice(0, 5));
-        }
-        
-        // Refresh bookings list
-        queryClient.invalidateQueries(['myBookings']);
-      }
-    }
-  }, [addNotification, success, queryClient]);
+            timestamp: Date.now(),
+          },
+          ...prev,
+        ].slice(0, 5),
+      );
+    },
+    [addNotification, success, queryClient],
+  );
 
   // Subscribe to real-time booking status updates
   useEffect(() => {
@@ -129,24 +141,34 @@ const MyBookings = () => {
   }, [profile?.id, handleBookingUpdate]);
 
   const cancelMutation = useMutation({
-    mutationFn: async (bookingId) => {
-      await api.patch(`/bookings/${bookingId}/status`, { status: 'cancelled' });
-    },
+    mutationFn: bookingRepository.cancelBooking,
     onSuccess: () => {
-      success('Booking cancelled successfully!', { title: 'Success' });
-      queryClient.invalidateQueries(['myBookings']);
+      success("Booking cancelled successfully!", { title: "Success" });
+      queryClient.invalidateQueries({ queryKey: ["myBookings"] });
     },
     onError: (err) => {
-      error(err.response?.data?.detail || 'Failed to cancel booking', { title: 'Error' });
+      error(err.response?.data?.detail || "Failed to cancel booking", {
+        title: "Error",
+      });
     },
   });
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'confirmed': return <CheckCircle size={18} weight="fill" className="text-blue-600" />;
-      case 'completed': return <CheckCircle size={18} weight="fill" className="text-green-600" />;
-      case 'cancelled': return <XCircle size={18} weight="fill" className="text-red-600" />;
-      default: return <Hourglass size={18} weight="fill" className="text-yellow-600" />;
+      case "confirmed":
+        return (
+          <CheckCircle size={18} weight="fill" className="text-blue-600" />
+        );
+      case "completed":
+        return (
+          <CheckCircle size={18} weight="fill" className="text-green-600" />
+        );
+      case "cancelled":
+        return <XCircle size={18} weight="fill" className="text-red-600" />;
+      default:
+        return (
+          <Hourglass size={18} weight="fill" className="text-yellow-600" />
+        );
     }
   };
 
@@ -172,9 +194,10 @@ const MyBookings = () => {
           <div className="max-w-3xl mx-auto flex items-center gap-2">
             <Bell size={16} className="text-orange-600" />
             <span className="text-sm text-orange-800">
-              <strong>{statusUpdates.length}</strong> booking status update{statusUpdates.length > 1 ? 's' : ''} received
+              <strong>{statusUpdates.length}</strong> booking status update
+              {statusUpdates.length > 1 ? "s" : ""} received
             </span>
-            <button 
+            <button
               onClick={() => setStatusUpdates([])}
               className="ml-auto text-xs text-orange-600 hover:text-orange-800 underline"
             >
@@ -183,7 +206,7 @@ const MyBookings = () => {
           </div>
         </div>
       )}
-      
+
       {/* Header */}
       <div className="max-w-4xl mx-auto px-4 py-8">
         <motion.div
@@ -216,14 +239,16 @@ const MyBookings = () => {
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h3 className="font-heading text-lg font-bold text-stone-900 mb-1">
-                        {booking.services?.name || 'Service'}
+                        {booking.services?.name || "Service"}
                       </h3>
                       <p className="text-stone-600 font-medium">
-                        {booking.salons?.name || 'Salon'}
+                        {booking.salons?.name || "Salon"}
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}
+                      >
                         {getStatusIcon(booking.status)}
                         <span className="capitalize">{booking.status}</span>
                       </span>
@@ -233,7 +258,7 @@ const MyBookings = () => {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div className="flex items-center gap-2 text-sm text-stone-600">
                       <CalendarCheck size={18} className="text-stone-400" />
-                      {format(new Date(booking.booking_date), 'EEE, d MMM')}
+                      {format(new Date(booking.booking_date), "EEE, d MMM")}
                     </div>
                     <div className="flex items-center gap-2 text-sm text-stone-600">
                       <Clock size={18} className="text-stone-400" />
@@ -241,7 +266,9 @@ const MyBookings = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-stone-600">
                       <MapPin size={18} className="text-stone-400" />
-                      <span className="truncate">{booking.salons?.address}</span>
+                      <span className="truncate">
+                        {booking.salons?.address}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-stone-600">
                       <Phone size={18} className="text-stone-400" />
@@ -251,7 +278,9 @@ const MyBookings = () => {
 
                   <div className="flex items-center justify-between pt-4 border-t border-stone-100">
                     <div className="flex items-center gap-3">
-                      <span className={`px-2.5 py-1 rounded-lg text-xs font-medium ${getPaymentStatusColor(booking.payment_status)}`}>
+                      <span
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium ${getPaymentStatusColor(booking.payment_status)}`}
+                      >
                         Payment: {booking.payment_status}
                       </span>
                       <span className="font-bold text-orange-800">
@@ -259,7 +288,7 @@ const MyBookings = () => {
                       </span>
                     </div>
 
-                    {booking.status === 'pending' && (
+                    {booking.status === "pending" && (
                       <button
                         onClick={() => cancelMutation.mutate(booking.id)}
                         disabled={cancelMutation.isPending}
@@ -271,7 +300,7 @@ const MyBookings = () => {
                         ) : (
                           <XCircle size={18} />
                         )}
-                        {cancelMutation.isPending ? 'Cancelling...' : 'Cancel'}
+                        {cancelMutation.isPending ? "Cancelling..." : "Cancel"}
                       </button>
                     )}
                   </div>
@@ -285,14 +314,22 @@ const MyBookings = () => {
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-2xl border border-stone-200 p-12 text-center"
           >
-            <CalendarCheck size={64} weight="duotone" className="mx-auto text-stone-300 mb-4" />
+            <CalendarCheck
+              size={64}
+              weight="duotone"
+              className="mx-auto text-stone-300 mb-4"
+            />
             <h3 className="font-heading text-xl font-bold text-stone-700 mb-2">
               No Bookings Yet
             </h3>
             <p className="text-stone-500 mb-6">
-              You haven't made any bookings yet. Start by exploring salons near you.
+              You haven't made any bookings yet. Start by exploring salons near
+              you.
             </p>
-            <Link to="/discover" className="btn-primary inline-flex items-center gap-2">
+            <Link
+              to="/discover"
+              className="btn-primary inline-flex items-center gap-2"
+            >
               Discover Salons
             </Link>
           </motion.div>

@@ -99,6 +99,7 @@ export type OwnerTabParamList = {
 export type RootStackParamList = {
   Onboarding: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList>;
+  CompleteProfile: { prefilledName?: string; prefilledPhone?: string; prefilledRole?: 'customer' | 'owner' } | undefined;
   CustomerTabs: NavigatorScreenParams<CustomerTabParamList>;
   OwnerTabs: NavigatorScreenParams<OwnerTabParamList>;
 };
