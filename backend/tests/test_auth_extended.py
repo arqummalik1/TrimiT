@@ -5,6 +5,7 @@ write via service_role (no user token) and bust the in-process user_profile_cach
 Login proxies Supabase /auth/v1/token (login_with_password).
 """
 
+import pytest
 from fastapi import status
 from httpx import Response
 
@@ -167,4 +168,35 @@ def test_complete_profile_success(client, mock_supabase):
         assert "message" in data
     finally:
         app.dependency_overrides = {}
+
+
+@pytest.mark.asyncio
+async def test_resolve_profile_for_user_missing_returns_none(mock_supabase):
+    # Mock GET /rest/v1/users returning empty list (meaning profile missing)
+    mock_supabase.get("/rest/v1/users").return_value = Response(200, json=[])
+    
+    from services.user_profile import resolve_profile_for_user
+    result = await resolve_profile_for_user(
+        user_id="missing_user",
+        email="missing@example.com",
+    )
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_profile_for_user_exists_returns_row(mock_supabase):
+    # Mock GET /rest/v1/users returning the existing profile
+    mock_supabase.get("/rest/v1/users").return_value = Response(
+        200, json=[{"id": "existing_user", "role": "owner", "name": "Existing Owner"}]
+    )
+    
+    from services.user_profile import resolve_profile_for_user
+    result = await resolve_profile_for_user(
+        user_id="existing_user",
+        email="existing@example.com",
+    )
+    assert result is not None
+    assert result["role"] == "owner"
+    assert result["name"] == "Existing Owner"
+
 
