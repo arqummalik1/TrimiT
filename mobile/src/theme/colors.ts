@@ -14,6 +14,8 @@ export const lightPalette = {
   surface:          '#FFFFFF', // white — card background
   surfaceSecondary: '#F5F5F4', // stone-100 — nested cards
   surfaceRaised:    '#FFFFFF', // white — elevated/modal
+  surfaceElevated:  '#FFFFFF', // Elevated container with light shadow
+  surfaceFloating:  '#FFFFFF', // Floating/Modal sheet container
   surfaceHighlight: '#E2E8F0', // stone-200 — selector backgrounds
 
   // Text
@@ -48,6 +50,25 @@ export const lightPalette = {
   infoLight:    '#EFF6FF', // blue-50
   star:         '#F59E0B', // amber-400
 
+  // Booking Status Color System (Light Mode)
+  statusPending:       '#B45309', // Amber-700
+  statusPendingBg:     '#FEF3C7', // Amber-100
+  statusConfirmed:     '#1D4ED8', // Blue-700
+  statusConfirmedBg:   '#DBEAFE', // Blue-100
+  statusCompleted:     '#047857', // Emerald-700
+  statusCompletedBg:   '#D1FAE5', // Emerald-100
+  statusCancelled:     '#B91C1C', // Red-700
+  statusCancelledBg:   '#FEE2E2', // Red-100
+  statusRescheduled:   '#6D28D9', // Purple-700
+  statusRescheduledBg: '#EDE9FE', // Purple-100
+  statusInProgress:    '#C2410C', // Orange-700
+  statusInProgressBg:  '#FFEDD5', // Orange-100
+
+  // Premium Orange Gradients (Stops)
+  gradientPrimary:   ['#EA580C', '#9A3412'] as readonly string[], // Orange-600 to Orange-800
+  gradientPremium:   ['#F59E0B', '#EA580C', '#9A3412'] as readonly string[], // Amber-500 to Orange-600 to Orange-800
+  gradientHighlight: ['#FFF7ED', '#FFEDD5'] as readonly string[], // Soft Orange-50 to Orange-100
+
   // Misc
   overlay:     'rgba(0,0,0,0.45)',
   shimmer:     '#F5F5F4',
@@ -68,6 +89,8 @@ export const darkPalette = {
   surface:          '#1A1C19', // Obsidian Elevate 1
   surfaceSecondary: '#242622', // Obsidian Elevate 2
   surfaceRaised:    '#1A1C19', // Elevated / modal
+  surfaceElevated:  '#242622', // Tonal surface 2
+  surfaceFloating:  '#2D2F2A', // Elevated bottom sheets and overlays
   surfaceHighlight: '#2D2F2A', // Tonal Highlight
 
   // Text
@@ -101,6 +124,25 @@ export const darkPalette = {
   info:         '#85C1E9',
   infoLight:    '#1A242D',
   star:         '#f1d18d',
+
+  // Booking Status Color System (Dark Mode)
+  statusPending:       '#F7DC6F',
+  statusPendingBg:     '#2D2D1A',
+  statusConfirmed:     '#85C1E9',
+  statusConfirmedBg:   '#1A242D',
+  statusCompleted:     '#82E0AA',
+  statusCompletedBg:   '#1A2D22',
+  statusCancelled:     '#FF5F5F',
+  statusCancelledBg:   '#2D1A1A',
+  statusRescheduled:   '#BB8FCE',
+  statusRescheduledBg: '#1A1A2D',
+  statusInProgress:    '#F97316',
+  statusInProgressBg:  '#2E160D',
+
+  // Premium Orange Gradients (Stops)
+  gradientPrimary:   ['#9A3412', '#7C2D12'] as readonly string[],
+  gradientPremium:   ['#f1d18d', '#C2410C', '#9A3412'] as readonly string[],
+  gradientHighlight: ['#2E160D', '#121411'] as readonly string[],
 
   // Misc
   overlay:     'rgba(0,0,0,0.85)',

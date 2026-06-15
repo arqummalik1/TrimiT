@@ -43,15 +43,23 @@ export default function CustomerTabs() {
         tabBarStyle: {
           backgroundColor: colors.tabBar,
           borderTopColor: colors.tabBarBorder,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          height: 56 + insets.bottom,
-          paddingBottom: insets.bottom,
-          paddingTop: 6,
+          borderTopWidth: 1,
+          height: 62 + insets.bottom,
+          paddingBottom: insets.bottom + 6,
+          paddingTop: 8,
+          // Subtle premium shadow for elevation depth
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.04,
+          shadowRadius: 8,
+          elevation: 8,
         },
         tabBarLabelStyle: {
-          fontFamily: fonts.bodyMedium,
+          fontFamily: theme.fonts.bodyMedium,
           fontSize: 11,
+          fontWeight: '600',
           letterSpacing: 0.3,
+          marginTop: 2,
         },
       }}
     >

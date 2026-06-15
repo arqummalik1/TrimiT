@@ -151,16 +151,23 @@ export default function OwnerTabs() {
           tabBarStyle: {
             backgroundColor: colors.tabBar,
             borderTopColor: colors.tabBarBorder,
-            borderTopWidth: StyleSheet.hairlineWidth,
-            // Dynamic height: base chrome (56) + system bottom inset.
-            // This prevents clipping on Android gesture nav and iPhone home indicator.
-            height: 56 + insets.bottom,
-            paddingBottom: insets.bottom,
-            paddingTop: 6,
+            borderTopWidth: 1,
+            height: 62 + insets.bottom,
+            paddingBottom: insets.bottom + 6,
+            paddingTop: 8,
+            // Subtle premium shadow for elevation depth
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -3 },
+            shadowOpacity: 0.04,
+            shadowRadius: 8,
+            elevation: 8,
           },
           tabBarLabelStyle: {
-            fontSize: 12,
+            fontFamily: theme.fonts.bodyMedium,
+            fontSize: 11,
             fontWeight: '600',
+            letterSpacing: 0.3,
+            marginTop: 2,
           },
         }}
       >
