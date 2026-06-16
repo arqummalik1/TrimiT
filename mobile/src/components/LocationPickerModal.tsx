@@ -35,9 +35,9 @@ import {
   KeyboardAvoidingView,
   Alert,
   Modal,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { MapPressEvent } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -73,12 +73,15 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const mapRef = useRef<MapView>(null);
+  const insets = useSafeAreaInsets();
 
   const [selectedCoords, setSelectedCoords] = useState<Coordinates>(initialCoordinates);
   const [searchText, setSearchText] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  // Hint banner — shown on open, user can dismiss to see more map
+  const [showHint, setShowHint] = useState(true);
 
   // ─── Map press handler ──────────────────────────────────────────
   const handleMapPress = useCallback((event: MapPressEvent) => {
@@ -88,16 +91,18 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   }, []);
 
   // ─── "Use My Location" ──────────────────────────────────────────
-  const handleUseMyLocation = useCallback(async () => {
+  const handleUseMyLocation = useCallback(async (showAlertOnError = true) => {
     setIsLocating(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
-          'Permission Denied',
-          'Location permission is required to use this feature. Please enable it in your device Settings.',
-          [{ text: 'OK' }]
-        );
+        if (showAlertOnError) {
+          Alert.alert(
+            'Permission Denied',
+            'Location permission is required to use this feature. Please enable it in your device Settings.',
+            [{ text: 'OK' }]
+          );
+        }
         return;
       }
 
@@ -115,11 +120,34 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       // Animate camera to device location
       mapRef.current?.animateToRegion(buildLocationPickerRegion(coords), 600);
     } catch {
-      Alert.alert('Error', 'Could not retrieve your location. Please try again.');
+      if (showAlertOnError) {
+        Alert.alert('Error', 'Could not retrieve your location. Please try again.');
+      }
     } finally {
       setIsLocating(false);
     }
   }, []);
+
+  // Auto-locate user on mount if coordinates are still at default, or snap map to initialCoordinates on open
+  React.useEffect(() => {
+    if (visible) {
+      // Always reset the hint banner when the modal opens
+      setShowHint(true);
+
+      const isDefault =
+        Math.abs(initialCoordinates.latitude - 28.6139) < 0.0001 &&
+        Math.abs(initialCoordinates.longitude - 77.2090) < 0.0001;
+
+      if (isDefault) {
+        void handleUseMyLocation(false);
+      } else {
+        setSelectedCoords(initialCoordinates);
+        setTimeout(() => {
+          mapRef.current?.animateToRegion(buildLocationPickerRegion(initialCoordinates), 100);
+        }, 300);
+      }
+    }
+  }, [visible, initialCoordinates, handleUseMyLocation]);
 
   // ─── Address search ─────────────────────────────────────────────
   const handleSearchAddress = useCallback(async () => {
@@ -154,6 +182,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   }, [selectedCoords, onConfirm]);
 
   // ─── Render ─────────────────────────────────────────────────────
+  const statusBarHeight = insets.top > 0 ? insets.top : (Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 44);
+
   return (
     <Modal
       visible={visible}
@@ -162,11 +192,11 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       statusBarTranslucent
       onRequestClose={onDismiss}
     >
-      <SafeAreaView style={styles.root}>
+      <View style={styles.root}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.surface} />
 
         {/* ── Top bar ─────────────────────────────────────────── */}
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, { paddingTop: Math.max(statusBarHeight, spacing.md) + spacing.xs }]}>
           <TouchableOpacity onPress={onDismiss} style={styles.closeBtn} hitSlop={8}>
             <Ionicons name="close" size={24} color={theme.colors.text} />
           </TouchableOpacity>
@@ -252,25 +282,40 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           {/* "Use My Location" FAB */}
           <TouchableOpacity
             style={styles.myLocationFab}
-            onPress={handleUseMyLocation}
+            onPress={() => handleUseMyLocation(true)}
             disabled={isLocating}
           >
             {isLocating ? (
               <ActivityIndicator size="small" color={theme.colors.primary} />
             ) : (
-              <Ionicons name="locate" size={22} color={theme.colors.primary} />
+              <Ionicons name="locate" size={18} color={theme.colors.primary} />
             )}
+            <Text style={styles.myLocationFabText}>Use Current Location</Text>
           </TouchableOpacity>
 
-          {/* Tap hint */}
-          <View style={styles.tapHint} pointerEvents="none">
-            <Ionicons name="information-circle-outline" size={14} color={theme.colors.textSecondary} />
-            <Text style={styles.tapHintText}>Tap the map to move the pin</Text>
-          </View>
+          {/* Tap hint banner — dismissable */}
+          {showHint ? (
+            <View style={styles.tapHint}>
+              <View style={styles.tapHintIconBg}>
+                <Ionicons name="map-outline" size={16} color={theme.colors.primary} />
+              </View>
+              <Text style={styles.tapHintText}>
+                Tap anywhere on the map to pin your salon's exact location, or drag the marker to fine-tune.
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowHint(false)}
+                hitSlop={10}
+                style={styles.tapHintClose}
+                accessibilityLabel="Dismiss hint"
+              >
+                <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          ) : null}
         </View>
 
         {/* ── Coordinate display + Confirm ─────────────────────── */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
           <View style={styles.coordsRow}>
             <Ionicons name="location" size={16} color={theme.colors.primary} />
             <Text style={styles.coordsLabel}>Selected Location</Text>
@@ -284,7 +329,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             <Text style={styles.confirmBtnText}>Confirm Location</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 };
@@ -382,37 +427,78 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     position: 'absolute',
     bottom: 16,
     right: 16,
-    width: 48,
-    height: 48,
+    paddingHorizontal: 16,
+    height: 44,
     backgroundColor: theme.colors.surface,
-    borderRadius: 24,
+    borderRadius: 22,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
-    // iOS shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
-    // Android
     elevation: 4,
+    gap: 8,
+  },
+  myLocationFabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.primary,
+    fontFamily: theme.fonts.bodyMedium,
   },
   tapHint: {
     position: 'absolute',
-    bottom: 16,
-    alignSelf: 'center',
+    top: 16,
+    left: 20,
+    right: 20,
+    backgroundColor: theme.colors.surface,
+    paddingVertical: 10,
+    paddingLeft: 14,
+    paddingRight: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: theme.colors.surfaceSecondary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  tapHintClose: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 4,
+  },
+  tapHintIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   tapHintText: {
-    ...typography.caption,
-    color: theme.colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '500',
+    color: theme.colors.text,
+    fontFamily: theme.fonts.bodyMedium,
+    flex: 1,
+    lineHeight: 18,
+  },
+  tapHintClose: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
 
   // Footer

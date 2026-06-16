@@ -28,6 +28,7 @@ import { navigateOwnerToServices, resetOwnerDashboardToMain } from '../../lib/ow
 import { useOwnerOnboardingStore } from '../../store/ownerOnboardingStore';
 import { uploadServiceImage } from '../../services/uploadService';
 import { normalizeSalon } from '../../lib/salonImage';
+import { salonSchema } from '../../lib/validations';
 import { OwnerDashboardScreenProps, OwnerSettingsScreenProps } from '../../navigation/types';
 import { LocationPickerModal } from '../../components/LocationPickerModal';
 import { SalonMapMarker } from '../../components/SalonMapMarker';
@@ -147,15 +148,35 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       return;
     }
 
-    if (!formData.name || !formData.address || !formData.city || !formData.phone) {
-      showToast('Please fill in all required fields', 'error');
+    const lat = parseFloat(formData.latitude);
+    const lng = parseFloat(formData.longitude);
+
+    const parseResult = salonSchema.safeParse({
+      name: formData.name,
+      address: formData.address,
+      city: formData.city,
+      phone: formData.phone.replace(/\s+/g, ''),
+      latitude: lat,
+      longitude: lng,
+      opening_time: formData.opening_time,
+      closing_time: formData.closing_time,
+    });
+
+    if (!parseResult.success) {
+      showToast(parseResult.error.errors[0].message, 'error');
       return;
     }
 
     const payload = {
       ...formData,
-      latitude: parseFloat(formData.latitude),
-      longitude: parseFloat(formData.longitude),
+      name: parseResult.data.name,
+      address: parseResult.data.address,
+      city: parseResult.data.city,
+      phone: parseResult.data.phone,
+      latitude: parseResult.data.latitude,
+      longitude: parseResult.data.longitude,
+      opening_time: parseResult.data.opening_time,
+      closing_time: parseResult.data.closing_time,
       image_url: formData.images[0] || null,
     };
 

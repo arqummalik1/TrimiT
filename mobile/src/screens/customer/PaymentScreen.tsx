@@ -16,6 +16,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { formatPrice, formatTime } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
+import { Button } from '../../components/Button';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
@@ -76,7 +77,13 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
         // App came back to foreground during payment
         setVerifying(true);
         try {
-          const res = await api.get(`/payments/status?order_id=${order.order_id}`);
+          // Wrap in a promise race to timeout after 8 seconds
+          const statusPromise = api.get(`/payments/status?order_id=${order.order_id}`);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), 8000)
+          );
+          const res = await Promise.race([statusPromise, timeoutPromise]);
+
           if (res.data.status === 'paid') {
             queryClient.invalidateQueries({ queryKey: ['bookings'] });
             Alert.alert('Payment Successful', 'Your booking has been confirmed.', [
@@ -88,7 +95,14 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
           }
         } catch (err) {
           setVerifying(false);
-          console.warn('[Payment] Status check failed:', err);
+          const errorMessage = err instanceof Error && err.message === 'timeout'
+            ? 'The server took too long to respond.'
+            : handleApiError(err).message;
+          Alert.alert(
+            'Verification Error',
+            `We couldn't verify your payment status: ${errorMessage}. Please check your bookings tab to confirm if the appointment went through.`,
+            [{ text: 'OK' }]
+          );
         }
       }
     };
@@ -165,7 +179,7 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
       if (!verifyIdempotencyKeyRef.current) {
         verifyIdempotencyKeyRef.current = await createIdempotencyKey();
       }
-      const res = await api.post(
+      const verifyPromise = api.post(
         '/payments/verify',
         {
           booking_id: bookingId,
@@ -177,6 +191,12 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
           headers: { 'Idempotency-Key': verifyIdempotencyKeyRef.current },
         }
       );
+      
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 8000)
+      );
+
+      const res = await Promise.race([verifyPromise, timeoutPromise]);
       return res.data;
     },
     onSuccess: () => {
@@ -189,8 +209,10 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
       ]);
     },
     onError: (err: unknown) => {
-      const appErr = handleApiError(err);
-      Alert.alert('Verification Failed', appErr.message);
+      const errorMessage = err instanceof Error && err.message === 'timeout'
+        ? 'The server took too long to respond. Check your bookings to see if payment was confirmed.'
+        : handleApiError(err).message;
+      Alert.alert('Verification Failed', errorMessage);
     },
     onSettled: () => setVerifying(false),
   });
@@ -238,9 +260,19 @@ const PaymentScreen: React.FC<Props> = ({ navigation, route }) => {
       </View>
 
       {orderError ? (
-        <View style={styles.errorBox}>
-          <Ionicons name="alert-circle" size={20} color={theme.colors.error} />
-          <Text style={styles.errorText}>{orderError}</Text>
+        <View style={{ gap: 12 }}>
+          <View style={styles.errorBox}>
+            <Ionicons name="alert-circle" size={20} color={theme.colors.error} />
+            <Text style={styles.errorText}>{orderError}</Text>
+          </View>
+          <Button
+            title="Retry Payment"
+            onPress={() => {
+              setOrderError(null);
+              createOrderMutation.mutate();
+            }}
+            style={{ marginHorizontal: 20 }}
+          />
         </View>
       ) : !order ? (
         <View style={styles.center}>

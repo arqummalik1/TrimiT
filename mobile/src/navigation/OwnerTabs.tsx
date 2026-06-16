@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AppState, StyleSheet } from 'react-native';
+import { AppState } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { OwnerTabParamList, OwnerSettingsStackParamList } from './types';
 import { useTheme } from '../theme/ThemeContext';
+import { FloatingTabBar } from '../components/FloatingTabBar';
 import { salonRepository } from '../repositories/salonRepository';
 import { queryKeys } from '../lib/queryKeys';
 import { resetOwnerDashboardToMain } from '../lib/ownerNavigation';
@@ -97,7 +98,7 @@ export default function OwnerTabs() {
         queryClient.refetchQueries({ queryKey: ['ownerBookings'] }),
         queryClient.refetchQueries({ queryKey: ['recentBookings'] }),
         queryClient.refetchQueries({ queryKey: ['ownerAnalytics'] }),
-      ]).catch(() => {});
+      ]).catch(() => { });
     },
   });
 
@@ -134,7 +135,7 @@ export default function OwnerTabs() {
         queryClient.refetchQueries({ queryKey: ['ownerBookings'] }),
         queryClient.refetchQueries({ queryKey: ['recentBookings'] }),
         queryClient.refetchQueries({ queryKey: ['ownerAnalytics'] }),
-      ]).catch(() => {});
+      ]).catch(() => { });
     });
     return () => sub.remove();
   }, [queryClient, salon?.id]);
@@ -147,29 +148,10 @@ export default function OwnerTabs() {
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textSecondary,
-          tabBarStyle: {
-            backgroundColor: colors.tabBar,
-            borderTopColor: colors.tabBarBorder,
-            borderTopWidth: 1,
-            height: 62 + insets.bottom,
-            paddingBottom: insets.bottom + 6,
-            paddingTop: 8,
-            // Subtle premium shadow for elevation depth
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -3 },
-            shadowOpacity: 0.04,
-            shadowRadius: 8,
-            elevation: 8,
-          },
-          tabBarLabelStyle: {
-            fontFamily: theme.fonts.bodyMedium,
-            fontSize: 11,
-            fontWeight: '600',
-            letterSpacing: 0.3,
-            marginTop: 2,
-          },
+          tabBarStyle: undefined,
+          // Custom floating glass tab bar — see FloatingTabBar.tsx
         }}
+        tabBar={(props) => <FloatingTabBar {...props} />}
       >
         <Tab.Screen
           name="Dashboard"

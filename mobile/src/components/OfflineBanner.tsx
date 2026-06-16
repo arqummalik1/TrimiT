@@ -11,33 +11,54 @@ export default function OfflineBanner() {
   const [showBanner, setShowBanner] = useState(false);
   const insets = useSafeAreaInsets();
   const opacity = React.useRef(new Animated.Value(0)).current;
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isOfflineRef = React.useRef(false);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
       const offline = !(state.isConnected && state.isInternetReachable !== false);
-      setIsOffline(offline);
 
       if (offline) {
+        isOfflineRef.current = true;
+        setIsOffline(true);
         setShowBanner(true);
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
         Animated.timing(opacity, {
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
         }).start();
-      } else if (showBanner) {
+      } else if (isOfflineRef.current) {
         // Show "Back online" briefly then hide
-        setTimeout(() => {
+        isOfflineRef.current = false;
+        setIsOffline(false);
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+        }
+        timerRef.current = setTimeout(() => {
           Animated.timing(opacity, {
             toValue: 0,
             duration: 300,
             useNativeDriver: true,
-          }).start(() => setShowBanner(false));
+          }).start(({ finished }) => {
+            if (finished) setShowBanner(false);
+          });
         }, 2000);
       }
     });
 
-    return () => unsubscribe();
-  }, [showBanner]);
+    return () => {
+      unsubscribe();
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      opacity.stopAnimation();
+    };
+  }, [opacity]);
 
   if (!showBanner) return null;
 

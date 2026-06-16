@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { Booking } from '../types';
 import { formatPrice, formatDate, formatTime } from '../lib/utils';
 import { useTheme } from '../theme/ThemeContext';
-import { getLightStatusColors, getDarkStatusColors, getLightPaymentColors, getDarkPaymentColors, Theme } from '../theme/tokens';
+import { getLightStatusColors, getDarkStatusColors, getLightPaymentColors, getDarkPaymentColors, Theme, typography } from '../theme/tokens';
 import { openNativeDirections } from '../lib/maps';
 import { getBookingServiceImageUri, getServiceDisplayName } from '../lib/bookingDisplay';
 
@@ -230,7 +230,7 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       padding: 16,
       borderWidth: 1,
       borderColor: theme.colors.border,
@@ -255,7 +255,7 @@ const createStyles = (theme: Theme) =>
     thumbnailWrap: {
       width: 44,
       height: 44,
-      borderRadius: 12,
+      borderRadius: theme.borderRadius.md,
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: theme.colors.border,
@@ -266,27 +266,24 @@ const createStyles = (theme: Theme) =>
       height: 44,
     },
     serviceName: {
-      fontSize: 16,
-      fontWeight: '700',
+      ...typography.bodySemiBold,
       color: theme.colors.text,
       marginBottom: 2,
     },
     salonName: {
-      fontSize: 14,
+      ...typography.bodySmallMedium,
       color: theme.colors.textSecondary,
-      fontWeight: '500',
     },
     statusBadge: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 10,
       paddingVertical: 6,
-      borderRadius: 20,
+      borderRadius: theme.borderRadius.pill,
       gap: 4,
     },
     statusText: {
-      fontSize: 12,
-      fontWeight: '600',
+      ...typography.captionMedium,
     },
     details: {
       flexDirection: 'row',
@@ -303,7 +300,7 @@ const createStyles = (theme: Theme) =>
       gap: 6,
     },
     detailText: {
-      fontSize: 13,
+      ...typography.bodySmall,
       color: theme.colors.textSecondary,
     },
     footer: {
@@ -321,16 +318,15 @@ const createStyles = (theme: Theme) =>
     paymentBadge: {
       paddingHorizontal: 8,
       paddingVertical: 4,
-      borderRadius: 6,
+      borderRadius: theme.borderRadius.sm,
     },
     paymentText: {
-      fontSize: 11,
-      fontWeight: '600',
+      ...typography.overline,
       textTransform: 'capitalize',
+      letterSpacing: 0,
     },
     amountText: {
-      fontSize: 16,
-      fontWeight: '700',
+      ...typography.bodySemiBold,
       color: theme.colors.primary,
     },
     actions: {
@@ -350,21 +346,19 @@ const createStyles = (theme: Theme) =>
       gap: 4,
     },
     cancelText: {
-      fontSize: 14,
-      fontWeight: '500',
+      ...typography.bodySmallMedium,
       color: theme.colors.error,
     },
     rescheduleButton: {
       paddingHorizontal: 14,
       paddingVertical: 8,
-      borderRadius: 10,
+      borderRadius: theme.borderRadius.md,
       backgroundColor: theme.colors.primary + '18',
       borderWidth: 1,
       borderColor: theme.colors.primary + '44',
     },
     rescheduleText: {
-      fontSize: 14,
-      fontWeight: '600',
+      ...typography.bodySmallMedium,
       color: theme.colors.primary,
     },
     reviewButton: {
@@ -372,15 +366,14 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       paddingHorizontal: 14,
       paddingVertical: 8,
-      borderRadius: 10,
+      borderRadius: theme.borderRadius.md,
       backgroundColor: theme.colors.primary + '18',
       borderWidth: 1,
       borderColor: theme.colors.primary + '44',
       gap: 4,
     },
     reviewText: {
-      fontSize: 14,
-      fontWeight: '600',
+      ...typography.bodySmallMedium,
       color: theme.colors.primary,
     },
     directionsIconButton: {
@@ -389,7 +382,7 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.primary,
       width: 40,
       height: 40,
-      borderRadius: 10,
+      borderRadius: theme.borderRadius.md,
     },
     confirmButton: {
       flexDirection: 'row',
@@ -397,12 +390,11 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.successLight,
       paddingHorizontal: 12,
       paddingVertical: 8,
-      borderRadius: 8,
+      borderRadius: theme.borderRadius.md,
       gap: 4,
     },
     confirmText: {
-      fontSize: 13,
-      fontWeight: '600',
+      ...typography.captionMedium,
       color: theme.colors.success,
     },
     rejectButton: {
@@ -411,12 +403,11 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.errorLight,
       paddingHorizontal: 12,
       paddingVertical: 8,
-      borderRadius: 8,
+      borderRadius: theme.borderRadius.md,
       gap: 4,
     },
     rejectText: {
-      fontSize: 13,
-      fontWeight: '600',
+      ...typography.captionMedium,
       color: theme.colors.error,
     },
     completeButton: {
@@ -426,14 +417,13 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.infoLight,
       paddingHorizontal: 12,
       paddingVertical: 8,
-      borderRadius: 8,
+      borderRadius: theme.borderRadius.md,
       gap: 4,
       minWidth: 168,
       minHeight: 36,
     },
     completeText: {
-      fontSize: 13,
-      fontWeight: '600',
+      ...typography.captionMedium,
       color: theme.colors.info,
     },
   });

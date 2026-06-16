@@ -30,8 +30,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Service } from '../types';
 import { useTheme } from '../theme/ThemeContext';
-import { Theme } from '../theme/tokens';
-import { fonts, spacing, borderRadius, shadows, formatPrice } from '../lib/utils';
+import { Theme, typography } from '../theme/tokens';
+import { spacing, borderRadius, shadows, formatPrice } from '../lib/utils';
 import { resolveServiceImage } from '../lib/serviceImage';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -207,7 +207,7 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     card: {
       backgroundColor: theme.colors.surface,
-      borderRadius: borderRadius.xl,
+      borderRadius: theme.borderRadius.lg,
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: theme.colors.border,
@@ -238,8 +238,7 @@ const createStyles = (theme: Theme) =>
       borderRadius: borderRadius.full,
     },
     popularText: {
-      fontFamily: fonts.bodyBold,
-      fontSize: 10,
+      ...typography.overline,
       color: '#fff',
       letterSpacing: 0.3,
     },
@@ -250,8 +249,7 @@ const createStyles = (theme: Theme) =>
       borderRadius: borderRadius.full,
     },
     offerText: {
-      fontFamily: fonts.bodyBold,
-      fontSize: 10,
+      ...typography.overline,
       color: '#fff',
       letterSpacing: 0.3,
     },
@@ -268,8 +266,7 @@ const createStyles = (theme: Theme) =>
       borderRadius: borderRadius.full,
     },
     durationPillText: {
-      fontFamily: fonts.bodyMedium,
-      fontSize: 10,
+      ...typography.captionMedium,
       color: '#fff',
     },
     body: {
@@ -286,13 +283,11 @@ const createStyles = (theme: Theme) =>
       gap: 2,
     },
     serviceName: {
-      fontFamily: fonts.bodySemiBold,
-      fontSize: 15,
+      ...typography.bodySemiBold,
       color: theme.colors.text,
     },
     serviceDesc: {
-      fontFamily: fonts.body,
-      fontSize: 12,
+      ...typography.caption,
       color: theme.colors.textSecondary,
       lineHeight: 17,
     },
@@ -314,14 +309,12 @@ const createStyles = (theme: Theme) =>
       marginTop: spacing.xs,
     },
     originalPrice: {
-      fontFamily: fonts.body,
-      fontSize: 11,
+      ...typography.caption,
       color: theme.colors.textTertiary,
       textDecorationLine: 'line-through',
     },
     price: {
-      fontFamily: fonts.bodyBold,
-      fontSize: 16,
+      ...typography.bodyBold,
       color: theme.colors.primary,
     },
     bookCta: {
@@ -334,8 +327,7 @@ const createStyles = (theme: Theme) =>
       borderRadius: borderRadius.full,
     },
     bookCtaText: {
-      fontFamily: fonts.bodySemiBold,
-      fontSize: 13,
+      ...typography.bodySmallMedium,
       color: theme.colors.background,
     },
     ownerDurationBadge: {
@@ -344,8 +336,7 @@ const createStyles = (theme: Theme) =>
       gap: 4,
     },
     ownerDurationText: {
-      fontFamily: fonts.bodyMedium,
-      fontSize: 12,
+      ...typography.captionMedium,
       color: theme.colors.textSecondary,
     },
   });

@@ -59,7 +59,7 @@ describe('CompleteProfileScreen', () => {
     expect(screen.getByText('Customer')).toBeTruthy();
     expect(screen.getByText('Salon Owner')).toBeTruthy();
     expect(screen.getByPlaceholderText('John Doe')).toBeTruthy();
-    expect(screen.getByPlaceholderText('+1 (555) 000-0000')).toBeTruthy();
+    expect(screen.getByPlaceholderText('98765 43210')).toBeTruthy();
     expect(screen.getByText('Complete Setup')).toBeTruthy();
     expect(screen.getByText('Sign Out & Cancel')).toBeTruthy();
   });
@@ -87,8 +87,8 @@ describe('CompleteProfileScreen', () => {
     const nameInput = screen.getByPlaceholderText('John Doe');
     fireEvent.changeText(nameInput, 'Alice Test');
 
-    const phoneInput = screen.getByPlaceholderText('+1 (555) 000-0000');
-    fireEvent.changeText(phoneInput, '+1234567890');
+    const phoneInput = screen.getByPlaceholderText('98765 43210');
+    fireEvent.changeText(phoneInput, '9876543210');
 
     // Select Owner role card
     const ownerCard = screen.getByText('Salon Owner');
@@ -106,7 +106,7 @@ describe('CompleteProfileScreen', () => {
     await waitFor(() => {
       expect(mockCompleteProfile).toHaveBeenCalledWith({
         name: 'Alice Test',
-        phone: '+1234567890',
+        phone: '+919876543210',
         role: 'owner',
       });
     });

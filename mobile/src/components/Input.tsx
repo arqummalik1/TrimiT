@@ -14,6 +14,7 @@ interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   icon?: React.ReactNode;
+  prefix?: string;
   containerStyle?: ViewStyle;
 }
 
@@ -21,6 +22,7 @@ export const Input: React.FC<InputProps> = ({
   label,
   error,
   icon,
+  prefix,
   containerStyle,
   style,
   ...props
@@ -33,8 +35,18 @@ export const Input: React.FC<InputProps> = ({
       {label && <Text style={styles.label}>{label}</Text>}
       <View style={[styles.inputContainer, error ? styles.inputError : undefined]}>
         {icon && <View style={styles.iconContainer}>{icon}</View>}
+        {prefix && (
+          <View style={styles.prefixContainer}>
+            <Text style={styles.prefixText}>{prefix}</Text>
+          </View>
+        )}
         <TextInput
-          style={[styles.input, icon ? styles.inputWithIcon : undefined, style]}
+          style={[
+            styles.input,
+            icon ? styles.inputWithIcon : undefined,
+            prefix ? styles.inputWithPrefix : undefined,
+            style
+          ]}
           placeholderTextColor={theme.colors.textSecondary}
           {...props}
         />
@@ -70,6 +82,21 @@ const createStyles = (theme: Theme) =>
     iconContainer: {
       paddingLeft: 16,
     },
+    prefixContainer: {
+      paddingLeft: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRightWidth: 1,
+      borderRightColor: theme.colors.border,
+      paddingRight: 12,
+      alignSelf: 'stretch',
+    },
+    prefixText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+      fontFamily: theme.fonts.bodyMedium,
+    },
     input: {
       flex: 1,
       paddingVertical: 14,
@@ -78,6 +105,9 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.text,
     },
     inputWithIcon: {
+      paddingLeft: 12,
+    },
+    inputWithPrefix: {
       paddingLeft: 12,
     },
     errorText: {

@@ -11,9 +11,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { RootScreenProps } from '../../navigation/types';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 
+const phoneRegex = /^[6-9]\d{9}$/;
 const profileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  phone: z.string().optional().or(z.literal('')),
+  phone: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine((val) => !val || phoneRegex.test(val), {
+      message: 'Phone number must be a valid 10-digit number (e.g. 9876543210)',
+    }),
   role: z.enum(['customer', 'owner']),
   termsAccepted: z.boolean().refine((val) => val === true, {
     message: 'You must accept the terms and conditions',
@@ -41,7 +48,7 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
     resolver: zodResolver(profileSchema),
     defaultValues: {
       name: prefilled.prefilledName || '',
-      phone: prefilled.prefilledPhone || '',
+      phone: prefilled.prefilledPhone ? prefilled.prefilledPhone.replace(/^\+91/, '') : '',
       role: prefilled.prefilledRole || 'customer',
       termsAccepted: false,
     },
@@ -55,9 +62,11 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
     setLocalError(null);
     setIsSubmitting(true);
     
+    const formattedPhone = data.phone ? `+91${data.phone}` : undefined;
+    
     const result = await completeProfile({
       name: data.name,
-      phone: data.phone || undefined,
+      phone: formattedPhone,
       role: data.role,
     });
     
@@ -154,12 +163,14 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
               render={({ field: { onChange, onBlur, value } }) => (
                 <Input
                   label="Phone Number (Optional)"
-                  placeholder="+1 (555) 000-0000"
+                  placeholder="98765 43210"
+                  prefix="+91"
                   value={value}
                   onChangeText={onChange}
                   onBlur={onBlur}
                   error={errors.phone?.message}
                   keyboardType="phone-pad"
+                  maxLength={10}
                 />
               )}
             />

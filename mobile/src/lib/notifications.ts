@@ -229,45 +229,53 @@ export async function handleOwnerForegroundPush(
     return;
   }
 
-  const data = notification.request.content.data as Record<string, unknown> | undefined;
-  const eventType = typeof data?.type === 'string' ? data.type : 'new_booking';
-
-  // Broadcasts (Zomato/Blinkit-style marketing pushes) are not booking events
-  // and must not pop the new-booking modal. The system tray notification still
-  // shows on the promotions channel; tap → handleNotificationNavigation routes.
-  if (eventType === 'broadcast') {
-    return;
-  }
-
-  const roleHint = typeof data?.role_hint === 'string' ? data.role_hint : '';
-  if (roleHint && roleHint !== 'owner') {
-    return;
-  }
-
-  const bookingId =
-    (typeof data?.booking_id === 'string' && data.booking_id) ||
-    (typeof data?.bookingId === 'string' && data.bookingId) ||
-    null;
-
-  if (!bookingId) {
-    return;
-  }
-
-  const modalType =
-    eventType === 'booking_cancelled' || eventType === 'booking_cancelled_by_owner'
-      ? 'cancellation'
-      : eventType === 'new_booking' || eventType === 'payment_received'
-        ? 'new_booking'
-        : 'status_change';
-
   try {
+    const data = notification.request.content.data as Record<string, unknown> | undefined;
+    const eventType = typeof data?.type === 'string' ? data.type : 'new_booking';
+
+    // Broadcasts (Zomato/Blinkit-style marketing pushes) are not booking events
+    // and must not pop the new-booking modal. The system tray notification still
+    // shows on the promotions channel; tap → handleNotificationNavigation routes.
+    if (eventType === 'broadcast') {
+      return;
+    }
+
+    // Authenticated user role check takes priority over client-supplied role_hint
+    const { useAuthStore } = await import('../store/authStore');
+    const user = useAuthStore.getState().user;
+    if (!user) {
+      logger.warn('[Notifications] Ignored owner foreground push: no authenticated user session');
+      return;
+    }
+    if (user.role !== 'owner') {
+      logger.warn('[Notifications] Ignored owner foreground push: authenticated user is not an owner', { role: user.role });
+      return;
+    }
+
+    const bookingId =
+      (typeof data?.booking_id === 'string' && data.booking_id) ||
+      (typeof data?.bookingId === 'string' && data.bookingId) ||
+      null;
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!bookingId || !uuidRegex.test(bookingId)) {
+      logger.warn('[Notifications] Ignored owner foreground push: missing or invalid booking UUID', { bookingId });
+      return;
+    }
+
+    const modalType =
+      eventType === 'booking_cancelled' || eventType === 'booking_cancelled_by_owner'
+        ? 'cancellation'
+        : eventType === 'new_booking' || eventType === 'payment_received'
+          ? 'new_booking'
+          : 'status_change';
+
     const { bookingService } = await import('../services/bookingService');
     const { useNotificationStore } = await import('../store/notificationStore');
     const booking = await bookingService.getBooking(bookingId);
     useNotificationStore.getState().addNotification(booking, modalType);
   } catch (error) {
-    logger.warn('[Notifications] Foreground owner push handling failed', {
-      bookingId,
+    logger.error('[Notifications] Foreground owner push handling failed', {
       error: String(error),
     });
   }
@@ -289,10 +297,40 @@ export async function scheduleBookingReminder(params: {
     if (!params.date || !params.time) {
       return;
     }
-    const [year, month, day] = params.date.split('-').map(Number);
-    const [hour, minute] = params.time.split(':').map(Number);
+
+    const dateParts = params.date.split('-');
+    const timeParts = params.time.split(':');
+
+    if (dateParts.length !== 3 || timeParts.length !== 2) {
+      logger.warn('[Notifications] Invalid date/time format for reminder', { date: params.date, time: params.time });
+      return;
+    }
+
+    const year = Number(dateParts[0]);
+    const month = Number(dateParts[1]);
+    const day = Number(dateParts[2]);
+    const hour = Number(timeParts[0]);
+    const minute = Number(timeParts[1]);
+
+    if (
+      isNaN(year) || isNaN(month) || isNaN(day) ||
+      isNaN(hour) || isNaN(minute) ||
+      year < 2026 || year > 2100 ||
+      month < 1 || month > 12 ||
+      day < 1 || day > 31 ||
+      hour < 0 || hour > 23 ||
+      minute < 0 || minute > 59
+    ) {
+      logger.warn('[Notifications] Date/time out of bounds for reminder', { year, month, day, hour, minute });
+      return;
+    }
 
     const bookingDate = new Date(year, month - 1, day, hour, minute);
+    if (isNaN(bookingDate.getTime())) {
+      logger.warn('[Notifications] Constructed date is invalid', { year, month, day, hour, minute });
+      return;
+    }
+
     const reminderDate = new Date(bookingDate.getTime() - 60 * 60 * 1000);
 
     const reminderId = `reminder-${params.bookingId}`;

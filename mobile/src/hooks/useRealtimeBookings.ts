@@ -3,8 +3,9 @@
  * Real-time subscription for booking rows (owner dashboard + notifications).
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useRef, useCallback } from 'react';
 import { AppState } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { subscribeToSalonBookings, syncSupabaseAuthSession, unsubscribeFromBookings } from '../lib/supabase';
@@ -143,49 +144,51 @@ export function useRealtimeBookings({
   const handleBookingChangeRef = useRef(handleBookingChange);
   handleBookingChangeRef.current = handleBookingChange;
 
-  useEffect(() => {
-    if (!enabled || !salonId) {
-      setOwnerRealtimeSubscribed(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    void (async () => {
-      const { token, refreshToken } = useAuthStore.getState();
-      if (token) {
-        await syncSupabaseAuthSession(token, refreshToken);
-      }
-      if (cancelled) {
+  useFocusEffect(
+    useCallback(() => {
+      if (!enabled || !salonId) {
+        setOwnerRealtimeSubscribed(false);
         return;
       }
 
-      logger.debug('[RealtimeBookings] Subscribing', { salonId, enabled });
+      let cancelled = false;
 
-      const channel = subscribeToSalonBookings(salonId, (payload) => {
-        handleBookingChangeRef.current(payload);
-      });
-      if (cancelled) {
-        unsubscribeFromBookings(channel);
-        return;
-      }
-      channelRef.current = channel;
-      setOwnerRealtimeSubscribed(true);
-    })();
+      void (async () => {
+        const { token, refreshToken } = useAuthStore.getState();
+        if (token) {
+          await syncSupabaseAuthSession(token, refreshToken);
+        }
+        if (cancelled) {
+          return;
+        }
 
-    return () => {
-      cancelled = true;
-      setOwnerRealtimeSubscribed(false);
-      if (invalidateTimerRef.current) {
-        clearTimeout(invalidateTimerRef.current);
-        invalidateTimerRef.current = null;
-      }
-      if (channelRef.current) {
-        unsubscribeFromBookings(channelRef.current);
-        channelRef.current = null;
-      }
-    };
-  }, [salonId, enabled]);
+        logger.debug('[RealtimeBookings] Subscribing', { salonId, enabled });
+
+        const channel = subscribeToSalonBookings(salonId, (payload) => {
+          handleBookingChangeRef.current(payload);
+        });
+        if (cancelled) {
+          unsubscribeFromBookings(channel);
+          return;
+        }
+        channelRef.current = channel;
+        setOwnerRealtimeSubscribed(true);
+      })();
+
+      return () => {
+        cancelled = true;
+        setOwnerRealtimeSubscribed(false);
+        if (invalidateTimerRef.current) {
+          clearTimeout(invalidateTimerRef.current);
+          invalidateTimerRef.current = null;
+        }
+        if (channelRef.current) {
+          unsubscribeFromBookings(channelRef.current);
+          channelRef.current = null;
+        }
+      };
+    }, [salonId, enabled])
+  );
 
   return {
     isSubscribed: !!channelRef.current,

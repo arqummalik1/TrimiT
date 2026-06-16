@@ -1,9 +1,9 @@
 {
   "productName": "TrimiT",
-  "version": "1.0.0",
-  "versionShort": "1.0",
+  "version": "1.1.0",
+  "versionShort": "1.1",
   "releaseChannel": "Production",
   "copyrightYear": 2026,
-  "androidVersionCode": 1,
-  "iosBuildNumber": "1"
+  "androidVersionCode": 2,
+  "iosBuildNumber": "2"
 }

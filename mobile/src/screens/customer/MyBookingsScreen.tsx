@@ -85,25 +85,29 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
 
   // Realtime: instant refresh when the owner accepts/rejects/completes/reschedules
   // any of the customer's bookings, or when this customer creates a new one from
-  // another device. Subscribes only while we have a logged-in user id.
-  useEffect(() => {
-    if (!userId) return;
-    const channel: RealtimeChannel = subscribeToUserBookings(
-      userId,
-      (payload) => {
-        logger.debug("[MyBookings] realtime event", {
-          type: payload.eventType,
-          bookingId:
-            (payload.new as { id?: string } | null)?.id ??
-            (payload.old as { id?: string } | null)?.id,
-        });
-        void queryClient.invalidateQueries({ queryKey: ["myBookings"] });
-      },
-    );
-    return () => {
-      unsubscribeFromBookings(channel);
-    };
-  }, [userId, queryClient]);
+  // another device. Subscribes only while focused.
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!userId) return;
+
+      const channel: RealtimeChannel = subscribeToUserBookings(
+        userId,
+        (payload) => {
+          logger.debug("[MyBookings] realtime event", {
+            type: payload.eventType,
+            bookingId:
+              (payload.new as { id?: string } | null)?.id ??
+              (payload.old as { id?: string } | null)?.id,
+          });
+          void queryClient.invalidateQueries({ queryKey: ["myBookings"] });
+        },
+      );
+
+      return () => {
+        unsubscribeFromBookings(channel);
+      };
+    }, [userId, queryClient]),
+  );
 
   const showSkeleton = useMinLoadingTime(isLoading);
 

@@ -47,6 +47,11 @@ function renderScreen(route: any) {
 
 const acceptTerms = () => fireEvent.press(screen.getByText(/I agree to the/));
 
+// react-hook-form + zodResolver + themed render is heavy; under full-suite
+// parallel CPU contention the first render can exceed the 5s default. Give
+// these async submit tests headroom (logic is fast — this only guards flakiness).
+jest.setTimeout(20000);
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockStore.error = null;

@@ -40,14 +40,31 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [name, setName] = useState(user?.name || '');
-  const [phone, setPhone] = useState(user?.phone || '');
+  const [phone, setPhone] = useState(user?.phone || '+91 ');
 
   const handleSave = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      showToast('Name cannot be empty', 'error');
+      return;
+    }
+
+    const trimmedPhone = phone.trim();
+    const finalPhone = (trimmedPhone === '+91' || trimmedPhone === '') ? null : trimmedPhone;
+
+    if (finalPhone) {
+      const phoneClean = finalPhone.replace(/\s+/g, '');
+      if (!/^(?:\+91|91)?[6-9]\d{9}$/.test(phoneClean)) {
+        showToast('Please enter a valid 10-digit Indian phone number', 'error');
+        return;
+      }
+    }
+
     setIsLoading(true);
     try {
-      await api.patch('/auth/profile', { name, phone });
+      await api.patch('/auth/profile', { name: trimmedName, phone: finalPhone });
       if (user) {
-        setUser({ ...user, name, phone }, token);
+        setUser({ ...user, name: trimmedName, phone: finalPhone || undefined }, token);
       }
       setIsEditing(false);
       showToast('Profile updated successfully', 'success');
@@ -140,7 +157,17 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
               <Input
                 label="Phone Number"
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(text) => {
+                  if (text === '' || text === '+9' || text === '+' || text === '+91') {
+                    setPhone('+91 ');
+                  } else if (!text.startsWith('+91 ')) {
+                    const digits = text.replace(/\D/g, '');
+                    const cleanDigits = digits.startsWith('91') ? digits.slice(2) : digits;
+                    setPhone('+91 ' + cleanDigits);
+                  } else {
+                    setPhone(text);
+                  }
+                }}
                 placeholder="+91 98765 43210"
                 keyboardType="phone-pad"
                 icon={<Ionicons name="call-outline" size={20} color={theme.colors.textSecondary} />}
@@ -152,7 +179,7 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
                   onPress={() => {
                     setIsEditing(false);
                     setName(user?.name || '');
-                    setPhone(user?.phone || '');
+                    setPhone(user?.phone || '+91 ');
                   }}
                   style={{ flex: 1 }}
                 />
