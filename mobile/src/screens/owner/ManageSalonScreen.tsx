@@ -163,7 +163,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     });
 
     if (!parseResult.success) {
-      showToast(parseResult.error.errors[0].message, 'error');
+      showToast(parseResult.error.issues[0].message, 'error');
       return;
     }
 

@@ -64,7 +64,7 @@ export default function WriteReviewScreen({ navigation, route }: CustomerDiscove
     });
 
     if (!parseResult.success) {
-      showToast(parseResult.error.errors[0].message, 'error');
+      showToast(parseResult.error.issues[0].message, 'error');
       return;
     }
 

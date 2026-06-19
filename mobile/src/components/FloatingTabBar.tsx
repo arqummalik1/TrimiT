@@ -16,7 +16,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import {
   Animated,
   Dimensions,
@@ -32,6 +32,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../theme/ThemeContext';
+import { Theme } from '../theme/tokens';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,7 @@ export function FloatingTabBar({
   navigation,
 }: BottomTabBarProps) {
   const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
 
   const totalTabs = state.routes.length;
@@ -329,7 +331,7 @@ export function FloatingTabBar({
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   outerContainer: {
     position: 'absolute',
   },

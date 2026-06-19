@@ -475,6 +475,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     top: 8,
     right: 8,
     padding: 4,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   tapHintIconBg: {
     width: 32,
@@ -492,13 +497,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontFamily: theme.fonts.bodyMedium,
     flex: 1,
     lineHeight: 18,
-  },
-  tapHintClose: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
   },
 
   // Footer

@@ -41,7 +41,7 @@ export const serviceSchema = z.object({
 
 export const promoSchema = z.object({
   code: z.string().min(1, 'Promo code is required').regex(/^[A-Z0-9_-]+$/i, 'Promo code must be alphanumeric (allowing dashes/underscores)').trim(),
-  discount_type: z.enum(['percent', 'fixed']),
+  discount_type: z.enum(['percent', 'flat']),
   discount_value: z.number().positive('Discount value must be a positive number'),
   max_discount: z.number().positive('Max discount must be a positive number').optional().nullable(),
   min_order_value: z.number().min(0, 'Minimum order value must be 0 or greater').optional().nullable(),

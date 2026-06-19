@@ -314,7 +314,7 @@ const createStyles = (theme: Theme) =>
       textDecorationLine: 'line-through',
     },
     price: {
-      ...typography.bodyBold,
+      ...typography.bodySemiBold,
       color: theme.colors.primary,
     },
     bookCta: {
