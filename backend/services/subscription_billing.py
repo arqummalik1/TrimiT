@@ -1,4 +1,4 @@
-Give me an app idea in 2026 which I mean can build the app and will list on the Google Play Store and user will download it and I will put ads on it. What kind of apps do you suggest in 2026?"""
+"""
 Subscription billing stubs.
 Payment Gateway is being updated.
 """
