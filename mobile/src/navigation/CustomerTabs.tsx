@@ -1,12 +1,13 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+
 import { CustomerTabParamList, ProfileStackParamList } from './types';
-import { fonts } from '../lib/utils';
+
 import { useTheme } from '../theme/ThemeContext';
+import { FloatingTabBar } from '../components/FloatingTabBar';
 
 import CustomerStack from './CustomerStack';
 import MyBookingsScreen from '../screens/customer/MyBookingsScreen';
@@ -32,7 +33,6 @@ function ProfileStackScreen() {
 export default function CustomerTabs() {
   const { theme } = useTheme();
   const { colors } = theme;
-  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -40,47 +40,20 @@ export default function CustomerTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
-        tabBarStyle: {
-          backgroundColor: colors.tabBar,
-          borderTopColor: colors.tabBarBorder,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          height: 56 + insets.bottom,
-          paddingBottom: insets.bottom,
-          paddingTop: 6,
-        },
-        tabBarLabelStyle: {
-          fontFamily: fonts.bodyMedium,
-          fontSize: 11,
-          letterSpacing: 0.3,
-        },
       }}
+      tabBar={(props) => <FloatingTabBar {...props} />}
     >
       <Tab.Screen
         name="Discover"
         component={CustomerStack}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="search" size={size} color={color} />
-          ),
-        }}
       />
       <Tab.Screen
         name="Bookings"
         component={MyBookingsScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar" size={size} color={color} />
-          ),
-        }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileStackScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
-          ),
-        }}
       />
     </Tab.Navigator>
   );

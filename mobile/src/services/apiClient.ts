@@ -99,13 +99,12 @@ apiClient.interceptors.request.use(
 
     const method = (config.method || 'get').toLowerCase();
     if (method === 'post' && pathRequiresIdempotencyKey(config.url)) {
-      const headers = config.headers ?? {};
-      const existing =
-        (headers['Idempotency-Key'] as string | undefined) ??
-        (headers['idempotency-key'] as string | undefined);
+      if (!config.headers) {
+        config.headers = new axios.AxiosHeaders();
+      }
+      const existing = config.headers.get('Idempotency-Key') || config.headers.get('idempotency-key');
       if (!existing) {
-        headers['Idempotency-Key'] = await createIdempotencyKey();
-        config.headers = headers;
+        config.headers.set('Idempotency-Key', await createIdempotencyKey());
       }
     }
 
@@ -164,8 +163,10 @@ apiClient.interceptors.response.use(
             });
             setAuthToken(nextAccessToken);
             config._retryAfterRefresh = true;
-            config.headers = config.headers ?? {};
-            config.headers.Authorization = `Bearer ${nextAccessToken}`;
+            if (!config.headers) {
+              config.headers = new axios.AxiosHeaders();
+            }
+            config.headers.set('Authorization', `Bearer ${nextAccessToken}`);
             return apiClient.request(config);
           }
         }

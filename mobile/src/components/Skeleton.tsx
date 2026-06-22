@@ -35,6 +35,7 @@ interface SkeletonProps {
   height: number;
   borderRadius?: number;
   style?: ViewStyle;
+  testID?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────

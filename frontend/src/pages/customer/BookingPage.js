@@ -35,6 +35,7 @@ const BookingPage = () => {
   const [timeLeft, setTimeLeft] = useState(null);
   const [bookingComplete, setBookingComplete] = useState(false);
   const [bookingData, setBookingData] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('salon_cash');
 
   const idempotencyKeyRef = useRef(null);
   const timerRef = useRef(null);
@@ -218,7 +219,7 @@ const BookingPage = () => {
           service_id: serviceId,
           booking_date: selectedDate,
           time_slot: slotKey,
-          payment_method: 'salon_cash',
+          payment_method: paymentMethod,
         },
         {
           headers: { 'Idempotency-Key': idempotencyKeyRef.current },
@@ -231,6 +232,22 @@ const BookingPage = () => {
       idempotencyKeyRef.current = null;
       clearHoldTimer();
       setBookingData(data);
+      
+      const bookingId = data.booking_id || data.id;
+      
+      if (paymentMethod === 'online' && bookingId) {
+        navigate(`/payment/${bookingId}`, { 
+          state: { 
+            amount: service?.price,
+            salonName: salon?.name,
+            serviceName: service?.name,
+            bookingDate: selectedDate,
+            timeSlot: selectedSlot
+          } 
+        });
+        return;
+      }
+
       setBookingComplete(true);
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['slots', salonId, serviceId, selectedDate] });
@@ -611,11 +628,52 @@ const BookingPage = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl border border-stone-200 p-5"
+            className="space-y-6"
           >
-            <h3 className="font-heading text-lg font-bold text-stone-900 mb-4">
-              Booking Summary
-            </h3>
+            {/* Payment Method */}
+            <div className="bg-white rounded-2xl border border-stone-200 p-5">
+              <h3 className="font-heading text-lg font-bold text-stone-900 mb-4 flex items-center gap-2">
+                <CreditCard size={22} weight="duotone" />
+                Payment Method
+              </h3>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => setPaymentMethod('salon_cash')}
+                  className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
+                    paymentMethod === 'salon_cash'
+                      ? 'border-orange-800 bg-orange-50'
+                      : 'border-stone-200 bg-white hover:border-orange-300'
+                  }`}
+                >
+                  <CurrencyInr size={28} className={paymentMethod === 'salon_cash' ? 'text-orange-800' : 'text-stone-400'} />
+                  <span className={`font-semibold mt-2 ${paymentMethod === 'salon_cash' ? 'text-orange-900' : 'text-stone-700'}`}>
+                    Cash at Salon
+                  </span>
+                  <span className="text-xs text-stone-500 mt-1 text-center">Pay after service</span>
+                </button>
+                
+                <button
+                  onClick={() => setPaymentMethod('online')}
+                  className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
+                    paymentMethod === 'online'
+                      ? 'border-orange-800 bg-orange-50'
+                      : 'border-stone-200 bg-white hover:border-orange-300'
+                  }`}
+                >
+                  <CreditCard size={28} className={paymentMethod === 'online' ? 'text-orange-800' : 'text-stone-400'} />
+                  <span className={`font-semibold mt-2 ${paymentMethod === 'online' ? 'text-orange-900' : 'text-stone-700'}`}>
+                    Pay Online
+                  </span>
+                  <span className="text-xs text-stone-500 mt-1 text-center">Secure online payment</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-stone-200 p-5">
+              <h3 className="font-heading text-lg font-bold text-stone-900 mb-4">
+                Booking Summary
+              </h3>
             {timeLeft != null && timeLeft > 0 && (
               <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
                 Slot held for {timeLeft}s — confirm before it expires.
@@ -677,6 +735,7 @@ const BookingPage = () => {
                 {getApiErrorMessage(bookingMutation.error, 'Failed to create booking')}
               </p>
             )}
+            </div>
           </motion.div>
         )}
       </div>

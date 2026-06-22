@@ -6,6 +6,43 @@
 > Update this file after every meaningful prompt, code change, migration, deploy, or QA pass.
 
 ## Session log
+### 2026-06-16 — FIX: Solved Priorities 2, 3, 5, and 7/H-6 (Zustand Storage Split, Android Backup, Form Validations, Timer Leaks)
+
+**Problem:**
+1. The entire Zustand auth store was persisted inside SecureStore, which exceeded the ~2KB iOS/OEM key limit on real production devices. This triggered a silent fallback to unencrypted AsyncStorage, leaving sensitive access/refresh tokens in plaintext.
+2. Android allowed backup of local sandbox storage (AsyncStorage, query cache, etc.) via ADB or Google Drive, creating data extraction risks (H-1).
+3. Critical forms on both owner and customer sides lacked client-side bounds checking and input validation (coordinates, times, discount %, name, phone, review references), relying entirely on backend rejections.
+4. Timer leaks in Toast and OfflineBanner could trigger setState calls on unmounted components or cause overlapping double-dismiss animations.
+
+**Fixes & Optimizations:**
+1. **Zustand Split-Storage (H-2)**: Rewrote `safeAuthStorage.ts` to implement a split-storage engine. Security-sensitive tokens (`token`, `refreshToken`) are saved in encrypted `SecureStore` (well within 2KB limit), while bulk user profile metadata is saved in unencrypted `AsyncStorage`. Added an automatic backward-compatible migration path that reads, splits, and clears legacy unified storage blobs.
+2. **Android Backup Disabled (H-1)**: Added `allowBackup: false` inside the Android configuration object in `mobile/app.config.js` to restrict backups at the native manifest level.
+3. **Client-side Form Validation (H-3)**:
+   - `ManageSalonScreen`: Validated coordinates range, 24h opening/closing times format, verified closing time is after opening time, and verified 10-digit Indian phone number format.
+   - `ManageServicesScreen`: Validated that service discount percentage is strictly between 1 and 100 inclusive when `is_on_offer` is true.
+   - `PromoManagementScreen`: Added comprehensive checks for coupon code format, positive discount value bounds, maximum uses, and future expiry dates.
+   - `ProfileScreen`: Validated non-empty name and Indian phone number format.
+   - `WriteReviewScreen`: Added safety checks to prevent submission if salonId or bookingId are missing.
+4. **Timer Leaks Resolution (H-6)**: Cleaned up timeout scheduling in `OfflineBanner.tsx` and `Toast.tsx` by clearing active timeout refs during effect unmounting and before scheduling new animations.
+
+**Verification:**
+- Ran `npm run typecheck` inside `mobile/` -> completed successfully.
+- Ran `npm test -- --watchman=false` inside `mobile/` -> 167 tests passed successfully.
+
+**Files changed:**
+- `mobile/app.config.js` (MODIFIED)
+- `mobile/src/lib/safeAuthStorage.ts` (MODIFIED)
+- `mobile/src/screens/owner/ManageSalonScreen.tsx` (MODIFIED)
+- `mobile/src/screens/owner/ManageServicesScreen.tsx` (MODIFIED)
+- `mobile/src/screens/owner/PromoManagementScreen.tsx` (MODIFIED)
+- `mobile/src/screens/customer/ProfileScreen.tsx` (MODIFIED)
+- `mobile/src/screens/customer/WriteReviewScreen.tsx` (MODIFIED)
+- `mobile/src/components/OfflineBanner.tsx` (MODIFIED)
+- `mobile/src/components/Toast.tsx` (MODIFIED)
+- `docs/PROGRESS.md` (MODIFIED)
+
+---
+
 ### 2026-06-14 — CONFIG: Configured VS Code Python interpreter and import paths
 
 **Problem:**

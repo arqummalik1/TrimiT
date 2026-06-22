@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AppState, StyleSheet } from 'react-native';
+import { AppState } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { OwnerTabParamList, OwnerSettingsStackParamList } from './types';
 import { useTheme } from '../theme/ThemeContext';
+import { FloatingTabBar } from '../components/FloatingTabBar';
 import { salonRepository } from '../repositories/salonRepository';
 import { queryKeys } from '../lib/queryKeys';
 import { resetOwnerDashboardToMain } from '../lib/ownerNavigation';
@@ -30,6 +31,7 @@ import ManageSalonScreen from '../screens/owner/ManageSalonScreen';
 import SubscriptionScreen from '../screens/owner/SubscriptionScreen';
 import SubscriptionCheckoutScreen from '../screens/owner/SubscriptionCheckoutScreen';
 import PaymentHistoryScreen from '../screens/owner/PaymentHistoryScreen';
+import { BankAccountScreen } from '../screens/owner/BankAccountScreen';
 import PrivacyPolicyScreen from '../screens/legal/PrivacyPolicyScreen';
 import TermsScreen from '../screens/legal/TermsScreen';
 import ContactScreen from '../screens/legal/ContactScreen';
@@ -48,6 +50,7 @@ function SettingsStackScreen() {
       <SettingsStack.Screen name="Subscription" component={SubscriptionScreen} />
       <SettingsStack.Screen name="SubscriptionCheckout" component={SubscriptionCheckoutScreen} />
       <SettingsStack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
+      <SettingsStack.Screen name="BankAccount" component={BankAccountScreen} />
       <SettingsStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <SettingsStack.Screen name="Terms" component={TermsScreen} />
       <SettingsStack.Screen name="Contact" component={ContactScreen} />
@@ -97,7 +100,7 @@ export default function OwnerTabs() {
         queryClient.refetchQueries({ queryKey: ['ownerBookings'] }),
         queryClient.refetchQueries({ queryKey: ['recentBookings'] }),
         queryClient.refetchQueries({ queryKey: ['ownerAnalytics'] }),
-      ]).catch(() => {});
+      ]).catch(() => { });
     },
   });
 
@@ -134,7 +137,7 @@ export default function OwnerTabs() {
         queryClient.refetchQueries({ queryKey: ['ownerBookings'] }),
         queryClient.refetchQueries({ queryKey: ['recentBookings'] }),
         queryClient.refetchQueries({ queryKey: ['ownerAnalytics'] }),
-      ]).catch(() => {});
+      ]).catch(() => { });
     });
     return () => sub.remove();
   }, [queryClient, salon?.id]);
@@ -147,22 +150,10 @@ export default function OwnerTabs() {
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textSecondary,
-          tabBarStyle: {
-            backgroundColor: colors.tabBar,
-            borderTopColor: colors.tabBarBorder,
-            borderTopWidth: StyleSheet.hairlineWidth,
-            // Dynamic height: base chrome (56) + system bottom inset.
-            // This prevents clipping on Android gesture nav and iPhone home indicator.
-            height: 56 + insets.bottom,
-            paddingBottom: insets.bottom,
-            paddingTop: 6,
-          },
-          tabBarLabelStyle: {
-            fontSize: 12,
-            fontWeight: '600',
-          },
+          tabBarStyle: undefined,
+          // Custom floating glass tab bar — see FloatingTabBar.tsx
         }}
+        tabBar={(props) => <FloatingTabBar {...props} />}
       >
         <Tab.Screen
           name="Dashboard"

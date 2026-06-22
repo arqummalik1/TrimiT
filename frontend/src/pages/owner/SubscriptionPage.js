@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Star, Lock, Receipt, CheckCircle } from '@phosphor-icons/react';
+import { ArrowLeft, Star, Lock, Receipt, CheckCircle, WarningCircle } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useSubscription,
   usePaymentHistory,
   useCancelSubscription,
 } from '../../hooks/useSubscription';
-import { subscriptionRepository } from '../../repositories/subscriptionRepository';
-import { loadRazorpay } from '../../lib/razorpay';
 import { useAuthStore } from '../../store/authStore';
 
 const STATUS_LABEL = {
@@ -61,64 +59,7 @@ const SubscriptionPage = () => {
   const { data: sub, isLoading } = useSubscription();
   const { data: history } = usePaymentHistory();
   const cancelMutation = useCancelSubscription();
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-
-  const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['subscription'] });
-    queryClient.invalidateQueries({ queryKey: ['subscriptionStatus'] });
-    queryClient.invalidateQueries({ queryKey: ['subscriptionHistory'] });
-  };
-
-  const startCheckout = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const created = await subscriptionRepository.create();
-      if (created.already_active) {
-        refresh();
-        setBusy(false);
-        return;
-      }
-      const Razorpay = await loadRazorpay();
-      const rzp = new Razorpay({
-        key: created.key_id,
-        subscription_id: created.subscription_id,
-        name: 'TrimiT Pro',
-        description: '₹299 / month subscription',
-        recurring: 1,
-        prefill: {
-          name: profile?.name || '',
-          email: profile?.email || '',
-          contact: profile?.phone || '',
-        },
-        theme: { color: '#0F766E' },
-        handler: async (response) => {
-          try {
-            await subscriptionRepository.verify({
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_subscription_id: response.razorpay_subscription_id,
-              razorpay_signature: response.razorpay_signature,
-            });
-            refresh();
-          } catch (e) {
-            setError('Payment verification failed. If charged, contact support.');
-          } finally {
-            setBusy(false);
-          }
-        },
-        modal: { ondismiss: () => setBusy(false) },
-      });
-      rzp.on('payment.failed', () => {
-        setError('Payment failed. Please try again.');
-        setBusy(false);
-      });
-      rzp.open();
-    } catch (e) {
-      setError(e?.response?.data?.detail?.message || 'Could not start checkout.');
-      setBusy(false);
-    }
-  };
 
   const onCancel = () => {
     if (!window.confirm('Cancel at the end of the current billing cycle?')) return;
@@ -219,14 +160,12 @@ const SubscriptionPage = () => {
 
       {/* Actions */}
       {showSubscribe && (
-        <button
-          onClick={startCheckout}
-          disabled={busy}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-teal-700 text-white font-semibold py-4 disabled:opacity-60"
-        >
-          <Lock size={18} />
-          {busy ? 'Opening checkout…' : sub.status === 'trial' ? 'Subscribe to TrimiT Pro' : 'Renew subscription'}
-        </button>
+        <div className="mb-4 bg-yellow-50 text-yellow-800 p-4 rounded-xl border border-yellow-200 flex gap-3">
+          <WarningCircle size={24} className="shrink-0 text-yellow-600" />
+          <p className="text-sm">
+            Our payment gateway is currently being updated. Subscriptions cannot be purchased or renewed online right now. We will notify you once the new payment gateway is live!
+          </p>
+        </div>
       )}
 
       {showCancel && (

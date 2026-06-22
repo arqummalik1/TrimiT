@@ -15,7 +15,7 @@ We collect the following categories of information:
 - **Profile information**: profile photo, role (customer or salon owner), and any additional details you choose to provide.
 - **Salon information** (owners only): salon name, address, location coordinates, services, pricing, hours, and uploaded images.
 - **Booking information**: services booked, dates, times, status, and payment records.
-- **Payment information**: handled by our payment processor (Razorpay). We do not store full card details on our servers.
+- **Payment information**: handled by our payment processor. We do not store full card details on our servers.
 - **Device & usage data**: device type, OS, IP address, app version, and aggregated usage metrics.
 - **Location data** (optional): approximate location used to surface nearby salons. You may disable this in your device settings.
 
@@ -35,7 +35,7 @@ We do not sell your personal information.
 We share information only as needed:
 
 - **With salons** you book with — they receive your name, contact details, and booking information so they can serve you.
-- **With service providers** (Supabase for hosting and database, Razorpay for payments, Google Maps for location features) who process data on our behalf under contractual obligations.
+- **With service providers** (Supabase for hosting and database, Google Maps for location features) who process data on our behalf under contractual obligations.
 - **For legal reasons** — when required by law, court order, or to protect the rights, safety, or property of TrimiT, our users, or the public.
 
 ## 4. Data Storage & Security
@@ -92,7 +92,7 @@ You may register only one role per account. Salon owners are independent busines
 ## 4. Bookings & Payments
 
 - Prices, availability, and service details are set by salon owners. TrimiT does not guarantee the accuracy of salon-provided content.
-- Payments are processed by Razorpay. Payment to TrimiT does not by itself confirm a booking — confirmation depends on the salon's acceptance and capacity rules.
+- Payments are processed by our payment processor. Payment to TrimiT does not by itself confirm a booking — confirmation depends on the salon's acceptance and capacity rules.
 - Refunds and cancellations follow the policy of the salon you booked with, subject to applicable law. Disputes should first be raised with the salon; we will assist where reasonable.
 
 ## 5. Salon Owner Obligations

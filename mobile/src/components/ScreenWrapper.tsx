@@ -32,8 +32,12 @@ import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 
 // ─── Shared constant — keep in sync with tab navigator height ────────────────
-/** Visible chrome height of the tab bar (excluding bottom inset). */
-export const TAB_BAR_BASE_HEIGHT = 56;
+/**
+ * Visible chrome height of the floating tab bar (excluding bottom inset).
+ * = 64px (bar height) + 16px (bottom margin) + 10px (center button lift overhang).
+ * Used in contentContainerStyle paddingBottom to ensure list items clear the bar.
+ */
+export const TAB_BAR_BASE_HEIGHT = 90;
 
 // ─── Edge maps per variant ───────────────────────────────────────────────────
 

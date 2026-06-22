@@ -9,10 +9,18 @@ import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { RootScreenProps } from '../../navigation/types';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 
+const phoneRegex = /^[6-9]\d{9}$/;
 const profileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  phone: z.string().optional().or(z.literal('')),
+  phone: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine((val) => !val || phoneRegex.test(val), {
+      message: 'Phone number must be a valid 10-digit number (e.g. 9876543210)',
+    }),
   role: z.enum(['customer', 'owner']),
   termsAccepted: z.boolean().refine((val) => val === true, {
     message: 'You must accept the terms and conditions',
@@ -40,7 +48,7 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
     resolver: zodResolver(profileSchema),
     defaultValues: {
       name: prefilled.prefilledName || '',
-      phone: prefilled.prefilledPhone || '',
+      phone: prefilled.prefilledPhone ? prefilled.prefilledPhone.replace(/^\+91/, '') : '',
       role: prefilled.prefilledRole || 'customer',
       termsAccepted: false,
     },
@@ -54,9 +62,11 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
     setLocalError(null);
     setIsSubmitting(true);
     
+    const formattedPhone = data.phone ? `+91${data.phone}` : undefined;
+    
     const result = await completeProfile({
       name: data.name,
-      phone: data.phone || undefined,
+      phone: formattedPhone,
       role: data.role,
     });
     
@@ -70,10 +80,11 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <ScreenWrapper variant="auth">
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
         <View style={styles.header}>
           <Text style={styles.title}>Almost there!</Text>
@@ -97,14 +108,14 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
               <View style={[styles.iconContainer, selectedRole === 'customer' && styles.iconContainerActive]}>
                 <Ionicons 
                   name="cut-outline" 
-                  color={selectedRole === 'customer' ? theme.colors.primary : theme.colors.textSecondary} 
+                  color={selectedRole === 'customer' ? (theme.isDark ? theme.colors.textInverse : theme.colors.text) : theme.colors.textSecondary} 
                   size={24} 
                 />
               </View>
               <Text style={[styles.roleTitle, selectedRole === 'customer' && styles.roleTitleActive]}>
                 Customer
               </Text>
-              <Text style={styles.roleDesc}>Looking for grooming services</Text>
+              <Text style={[styles.roleDesc, selectedRole === 'customer' && styles.roleDescActive]}>Looking for grooming services</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -115,14 +126,14 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
               <View style={[styles.iconContainer, selectedRole === 'owner' && styles.iconContainerActive]}>
                 <Ionicons 
                   name="storefront-outline" 
-                  color={selectedRole === 'owner' ? theme.colors.primary : theme.colors.textSecondary} 
+                  color={selectedRole === 'owner' ? (theme.isDark ? theme.colors.textInverse : theme.colors.text) : theme.colors.textSecondary} 
                   size={24} 
                 />
               </View>
               <Text style={[styles.roleTitle, selectedRole === 'owner' && styles.roleTitleActive]}>
                 Salon Owner
               </Text>
-              <Text style={styles.roleDesc}>Managing my business</Text>
+              <Text style={[styles.roleDesc, selectedRole === 'owner' && styles.roleDescActive]}>Managing my business</Text>
             </TouchableOpacity>
           </View>
           {errors.role && <Text style={styles.fieldErrorText}>{errors.role.message}</Text>}
@@ -152,12 +163,14 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
               render={({ field: { onChange, onBlur, value } }) => (
                 <Input
                   label="Phone Number (Optional)"
-                  placeholder="+1 (555) 000-0000"
+                  placeholder="98765 43210"
+                  prefix="+91"
                   value={value}
                   onChangeText={onChange}
                   onBlur={onBlur}
                   error={errors.phone?.message}
                   keyboardType="phone-pad"
+                  maxLength={10}
                 />
               )}
             />
@@ -201,18 +214,18 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </ScreenWrapper>
   );
 }
 
 const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     flexGrow: 1,
     padding: theme.spacing.xl,
-    paddingTop: Platform.OS === 'ios' ? 60 : theme.spacing.xl,
+    paddingTop: theme.spacing.xl,
   },
   header: {
     marginBottom: theme.spacing.xxl,
@@ -280,12 +293,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     marginBottom: theme.spacing.xs,
   },
   roleTitleActive: {
-    color: theme.colors.primary,
+    color: theme.isDark ? theme.colors.textInverse : theme.colors.text,
   },
   roleDesc: {
     ...theme.typography.caption,
     color: theme.colors.textSecondary,
     textAlign: 'center',
+  },
+  roleDescActive: {
+    color: theme.isDark ? theme.colors.textInverse : theme.colors.text,
   },
   inputGroup: {
     marginBottom: theme.spacing.lg,

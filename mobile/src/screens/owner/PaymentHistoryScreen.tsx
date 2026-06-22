@@ -8,7 +8,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ScreenWrapper } from '../../components/ScreenWrapper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { OwnerSettingsScreenProps } from '../../navigation/types';
@@ -29,6 +30,7 @@ const STATUS_COLORS: Record<string, string> = {
 const PaymentHistoryScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const { data, isLoading } = usePaymentHistory();
 
   const renderItem = ({ item }: { item: SubscriptionPayment }) => {
@@ -67,7 +69,7 @@ const PaymentHistoryScreen: React.FC<Props> = ({ navigation }) => {
           data={data?.payments ?? []}
           keyExtractor={(p) => p.id}
           renderItem={renderItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }]}
           ListHeaderComponent={
             (data?.payments?.length ?? 0) > 0 ? (
               <View style={styles.totalCard}>

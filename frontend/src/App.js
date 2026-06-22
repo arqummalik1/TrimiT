@@ -20,6 +20,7 @@ import VerifyOtpPage from "./pages/VerifyOtpPage";
 import EmailConfirmedPage from "./pages/EmailConfirmedPage";
 import SalonDetail from "./pages/customer/SalonDetail";
 import BookingPage from "./pages/customer/BookingPage";
+import PaymentPage from "./pages/customer/PaymentPage";
 import MyBookings from "./pages/customer/MyBookings";
 import OwnerDashboard from "./pages/owner/OwnerDashboard";
 import ManageSalon from "./pages/owner/ManageSalon";
@@ -27,6 +28,7 @@ import ManageServices from "./pages/owner/ManageServices";
 import ManageBookings from "./pages/owner/ManageBookings";
 import SettingsPage from "./pages/owner/SettingsPage";
 import SubscriptionPage from "./pages/owner/SubscriptionPage";
+import BankAccountPage from "./pages/owner/BankAccountPage";
 import PrivacyPage from "./pages/legal/PrivacyPage";
 import TermsPage from "./pages/legal/TermsPage";
 import ContactPage from "./pages/legal/ContactPage";
@@ -187,6 +189,14 @@ function App() {
             }
           />
           <Route
+            path="/payment/:bookingId"
+            element={
+              <ProtectedRoute allowedRoles={["customer"]}>
+                <PaymentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/my-bookings"
             element={
               <ProtectedRoute allowedRoles={["customer"]}>
@@ -249,6 +259,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["owner"]}>
                 <SubscriptionPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/owner/bank-account"
+            element={
+              <ProtectedRoute allowedRoles={["owner"]}>
+                <BankAccountPage />
               </ProtectedRoute>
             }
           />

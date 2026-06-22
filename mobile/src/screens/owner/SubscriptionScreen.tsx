@@ -9,7 +9,8 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ScreenWrapper } from '../../components/ScreenWrapper';
+import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { OwnerSettingsScreenProps } from '../../navigation/types';
@@ -46,6 +47,7 @@ const PRO_FEATURES: { icon: keyof typeof import('@expo/vector-icons').Ionicons.g
 const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const { data: sub, isLoading, isError, refetch } = useSubscription();
   const cancelMutation = useCancelSubscription();
 
@@ -213,6 +215,7 @@ const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
             )}
           </TouchableOpacity>
         )}
+        <View style={{ height: TAB_BAR_BASE_HEIGHT + insets.bottom + 40 }} />
       </ScrollView>
     </ScreenWrapper>
   );

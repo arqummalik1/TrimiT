@@ -22,7 +22,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography, spacing, borderRadius } from '../lib/utils';
+import { useTheme } from '../theme/ThemeContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,10 +51,13 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   compact = false,
   style,
 }) => {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={[compact ? styles.compactContainer : styles.container, style]}>
       <View style={styles.iconContainer}>
-        <Ionicons name={icon} size={compact ? 40 : 56} color={colors.textTertiary} />
+        <Ionicons name={icon} size={compact ? 40 : 56} color={theme.colors.textTertiary} />
       </View>
 
       <Text style={[styles.title, compact && styles.titleCompact]}>{title}</Text>
@@ -78,59 +81,60 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.xxxl,
-    paddingVertical: spacing.xxxxl,
+    paddingHorizontal: theme.spacing.xxl,
+    paddingVertical: theme.spacing.xxxxl,
   },
   compactContainer: {
     alignItems: 'center',
-    paddingHorizontal: spacing.xxxl,
-    paddingVertical: spacing.xxxxl,
+    paddingHorizontal: theme.spacing.xxl,
+    paddingVertical: theme.spacing.xxxxl,
   },
   iconContainer: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: theme.colors.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: theme.spacing.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
   },
   title: {
-    ...typography.h4,
-    color: colors.text,
+    ...theme.typography.h4,
+    color: theme.colors.text,
     textAlign: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: theme.spacing.sm,
   },
   titleCompact: {
     fontSize: 16,
   },
   message: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+    ...theme.typography.bodySmall,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: spacing.xxl,
+    marginBottom: theme.spacing.xxl,
   },
   messageCompact: {
-    marginBottom: spacing.xl,
+    marginBottom: theme.spacing.xl,
   },
   actionButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xxxl,
-    borderRadius: borderRadius.pill,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xxl,
+    borderRadius: theme.borderRadius.pill,
   },
   actionText: {
-    ...typography.buttonSmall,
-    color: colors.textInverse,
+    ...theme.typography.buttonSmall,
+    color: theme.colors.textInverse,
   },
 });
 
 export default EmptyState;
+

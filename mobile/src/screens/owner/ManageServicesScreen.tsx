@@ -25,6 +25,8 @@ import { ServiceCard } from '../../components/ServiceCard';
 import { ServiceListSkeleton } from '../../components/skeletons/ServiceListSkeleton';
 import { ImageUploadField } from '../../components/ImageUploadField';
 import { OwnerSetupBanner } from '../../components/OwnerSetupBanner';
+import { serviceSchema } from '../../lib/validations';
+import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme, Theme } from '../../theme/ThemeContext';
@@ -56,6 +58,15 @@ function buildServicePayload(data: typeof EMPTY_FORM) {
   if (!data.name.trim() || Number.isNaN(price) || price <= 0 || Number.isNaN(duration) || duration <= 0) {
     return null;
   }
+  let discount: number | null = null;
+  if (data.is_on_offer) {
+    if (!data.discount_percentage) return null;
+    const parsedDiscount = parseInt(data.discount_percentage, 10);
+    if (Number.isNaN(parsedDiscount) || parsedDiscount < 1 || parsedDiscount > 100) {
+      return null;
+    }
+    discount = parsedDiscount;
+  }
   return {
     name: data.name.trim(),
     description: data.description.trim() || undefined,
@@ -63,10 +74,7 @@ function buildServicePayload(data: typeof EMPTY_FORM) {
     duration,
     image_url: data.image_url || null,
     is_on_offer: data.is_on_offer,
-    discount_percentage:
-      data.is_on_offer && data.discount_percentage
-        ? parseInt(data.discount_percentage, 10)
-        : null,
+    discount_percentage: discount,
   };
 }
 
@@ -191,7 +199,29 @@ export default function ManageServicesScreen() {
   });
 
   const handleSubmit = () => {
-    const payload = buildServicePayload(formData);
+    const duration = parseInt(formData.duration, 10);
+    const discount = formData.discount_percentage ? parseInt(formData.discount_percentage, 10) : undefined;
+
+    const parseResult = serviceSchema.safeParse({
+      name: formData.name,
+      price: parseFloat(formData.price),
+      duration: duration,
+      is_on_offer: formData.is_on_offer,
+      discount_percentage: discount,
+    });
+
+    if (!parseResult.success) {
+      showToast(parseResult.error.issues[0].message, 'error');
+      return;
+    }
+
+    const payload = buildServicePayload({
+      ...formData,
+      name: parseResult.data.name,
+      price: parseResult.data.price.toString(),
+      duration: parseResult.data.duration.toString(),
+      discount_percentage: parseResult.data.discount_percentage?.toString() || '',
+    });
     if (!payload) {
       showToast('Please fill in name, price, and duration', 'error');
       return;
@@ -549,7 +579,7 @@ const createStyles = (theme: Theme) =>
     },
     offerSection: {
       backgroundColor: theme.colors.surfaceSecondary,
-      borderRadius: borderRadius.lg,
+      borderRadius: theme.borderRadius.lg,
       padding: spacing.lg,
       marginBottom: spacing.md,
       gap: spacing.md,

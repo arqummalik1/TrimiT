@@ -9,18 +9,19 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  RefreshControl,
   Animated,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
-import { ScreenWrapper } from '../../components/ScreenWrapper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { salonRepository } from '../../repositories/salonRepository';
@@ -28,6 +29,7 @@ import { bookingRepository } from '../../repositories/bookingRepository';
 import { Salon, Analytics, Booking } from '../../types';
 import { formatPrice, spacing } from '../../lib/utils';
 import { useTheme, Theme } from '../../theme/ThemeContext';
+import { typography } from '../../theme/tokens';
 import { navigateToOwnerBookings } from '../../lib/navigationHelpers';
 import { DashboardSkeleton } from '../../components/skeletons/DashboardSkeleton';
 import { ErrorState } from '../../components/ErrorState';
@@ -165,7 +167,8 @@ const AnimatedStatCard: React.FC<StatCardProps> = ({ title, value, icon, color, 
 
 export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation }) => {
   const { theme } = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('today');
   const [showCharts, setShowCharts] = useState(false);
 
@@ -281,22 +284,22 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
     { 
       title: selectedPeriod === 'all' ? 'Total Earnings' : 'Earnings', 
       value: formatPrice(analytics?.total_earnings || 0), 
-      icon: 'wallet-outline', color: '#10B981', iconColor: '#10B981' 
+      icon: 'wallet-outline', color: theme.colors.success, iconColor: theme.colors.success 
     },
     { 
       title: selectedPeriod === 'all' ? 'Total Bookings' : 'Bookings', 
       value: analytics?.total_bookings || 0, 
-      icon: 'calendar-outline', color: '#3B82F6', iconColor: '#3B82F6' 
+      icon: 'calendar-outline', color: theme.colors.info, iconColor: theme.colors.info 
     },
     { 
       title: "Today's", 
       value: analytics?.today_bookings || 0, 
-      icon: 'today-outline', color: '#F97316', iconColor: '#F97316' 
+      icon: 'today-outline', color: theme.colors.warning, iconColor: theme.colors.warning 
     },
     { 
       title: 'Pending', 
       value: analytics?.pending_bookings || 0, 
-      icon: 'hourglass-outline', color: '#F59E0B', iconColor: '#F59E0B' 
+      icon: 'hourglass-outline', color: theme.colors.warning, iconColor: theme.colors.warning 
     },
   ];
 
@@ -321,6 +324,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
   return (
     <ScreenWrapper variant="tab">
       <ScrollView
+        contentContainerStyle={{ paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -341,7 +345,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
                 activeOpacity={0.85}
                 onPress={openSubscription}
               >
-                <Ionicons name="time" size={13} color="#FFFFFF" />
+                <Ionicons name="time" size={13} color={theme.colors.background} />
                 <Text style={styles.trialPillText}>
                   {subscriptionStatus.trial_days_remaining > 0
                     ? `${subscriptionStatus.trial_days_remaining} day${
@@ -490,8 +494,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     padding: spacing.xxl,
     paddingBottom: spacing.lg,
   },
-  welcomeText: { fontSize: 14, color: theme.colors.textSecondary, fontWeight: '500' },
-  salonTitle: { fontSize: 24, fontWeight: '800', color: theme.colors.text, letterSpacing: -0.5 },
+  welcomeText: { ...typography.bodySmallMedium, color: theme.colors.textSecondary },
+  salonTitle: { ...typography.h3, fontWeight: '800', color: theme.colors.text, letterSpacing: -0.5 },
   headerLeft: { flex: 1, paddingRight: 12 },
   trialPill: {
     flexDirection: 'row',
@@ -501,23 +505,23 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 20,
+    borderRadius: theme.borderRadius.pill,
   },
-  trialPillText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', letterSpacing: 0.2 },
+  trialPillText: { ...typography.captionMedium, color: theme.colors.background, fontWeight: '800', letterSpacing: 0.2 },
   notificationBell: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.surface,
+    width: 44, height: 44, borderRadius: theme.borderRadius.full, backgroundColor: theme.colors.surface,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: theme.colors.border,
   },
   bellDot: {
     position: 'absolute', top: 12, right: 12,
-    width: 8, height: 8, borderRadius: 4,
+    width: 8, height: 8, borderRadius: theme.borderRadius.full,
     backgroundColor: theme.colors.primary, borderWidth: 2, borderColor: theme.colors.surface,
   },
   periodRow: { flexDirection: 'row', paddingHorizontal: spacing.xxl, marginBottom: spacing.xl, gap: spacing.sm },
-  periodTab: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: theme.colors.surfaceHighlight },
+  periodTab: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: theme.borderRadius.pill, backgroundColor: theme.colors.surfaceHighlight },
   periodTabActive: { backgroundColor: theme.colors.text },
-  periodTabText: { fontSize: 12, fontWeight: '600', color: theme.colors.textSecondary },
+  periodTabText: { ...typography.captionMedium, color: theme.colors.textSecondary },
   periodTabTextActive: { color: theme.colors.background },
   compactStatsGrid: {
     flexDirection: 'row',
@@ -530,30 +534,30 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     width: '48%',
     backgroundColor: theme.colors.surface,
     padding: spacing.md,
-    borderRadius: 16,
+    borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: theme.colors.border,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: theme.colors.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
   compactStatTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  compactStatIcon: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  compactStatLabel: { fontSize: 11, fontWeight: '600', color: theme.colors.textSecondary },
-  compactStatValue: { fontSize: 20, fontWeight: '700', color: theme.colors.text, letterSpacing: -0.5 },
+  compactStatIcon: { width: 28, height: 28, borderRadius: theme.borderRadius.sm, alignItems: 'center', justifyContent: 'center' },
+  compactStatLabel: { ...typography.captionMedium, fontSize: 11, color: theme.colors.textSecondary },
+  compactStatValue: { ...typography.h3, fontWeight: '700', color: theme.colors.text, letterSpacing: -0.5 },
   section: { paddingHorizontal: spacing.xxl, marginBottom: spacing.xxl },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.text },
-  seeAllText: { fontSize: 14, color: theme.colors.primary, fontWeight: '600' },
-  peakHoursCard: { backgroundColor: theme.colors.surface, borderRadius: 20, padding: spacing.xl, borderWidth: 1, borderColor: theme.colors.border, gap: spacing.lg },
+  sectionTitle: { ...typography.h4, color: theme.colors.text },
+  seeAllText: { ...typography.bodySmallMedium, color: theme.colors.primary, fontWeight: '600' },
+  peakHoursCard: { backgroundColor: theme.colors.surface, borderRadius: theme.borderRadius.lg, padding: spacing.xl, borderWidth: 1, borderColor: theme.colors.border, gap: spacing.lg },
   peakHourRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  peakHourTimeText: { fontSize: 13, fontWeight: '600', color: theme.colors.text, width: 45 },
-  peakHourBar: { flex: 1, height: 6, backgroundColor: theme.colors.surfaceHighlight, borderRadius: 3, overflow: 'hidden' },
-  peakHourFill: { height: '100%', backgroundColor: theme.colors.primary, borderRadius: 3 },
-  peakHourCount: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, width: 25, textAlign: 'right' },
+  peakHourTimeText: { ...typography.captionMedium, fontSize: 13, color: theme.colors.text, width: 45 },
+  peakHourBar: { flex: 1, height: 6, backgroundColor: theme.colors.surfaceHighlight, borderRadius: theme.borderRadius.pill, overflow: 'hidden' },
+  peakHourFill: { height: '100%', backgroundColor: theme.colors.primary, borderRadius: theme.borderRadius.pill },
+  peakHourCount: { ...typography.captionMedium, color: theme.colors.textSecondary, width: 25, textAlign: 'right' },
   pulseContainer: {
     width: 14,
     height: 14,

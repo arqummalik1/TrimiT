@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
+import { promoSchema } from '../../lib/validations';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
@@ -137,14 +138,36 @@ export default function PromoManagementScreen() {
   }, []);
 
   const handleSubmit = useCallback(() => {
-    if (!formData.code || !formData.discount_value) {
-      showToast('Please fill in code and discount value', 'error');
+    const parseResult = promoSchema.safeParse({
+      code: formData.code,
+      discount_type: formData.discount_type,
+      discount_value: parseFloat(formData.discount_value),
+      max_discount: formData.max_discount ? parseFloat(formData.max_discount) : undefined,
+      min_order_value: formData.min_order_value ? parseFloat(formData.min_order_value) : undefined,
+      max_uses: formData.max_uses ? parseInt(formData.max_uses, 10) : undefined,
+      expires_at: formData.expires_at || undefined,
+    });
+
+    if (!parseResult.success) {
+      showToast(parseResult.error.issues[0].message, 'error');
       return;
     }
+
+    const payload = {
+      ...formData,
+      code: parseResult.data.code,
+      discount_type: parseResult.data.discount_type,
+      discount_value: parseResult.data.discount_value.toString(),
+      max_discount: parseResult.data.max_discount?.toString() || '',
+      min_order_value: parseResult.data.min_order_value?.toString() || '',
+      max_uses: parseResult.data.max_uses?.toString() || '',
+      expires_at: parseResult.data.expires_at || '',
+    };
+
     if (editingPromo) {
-      updateMutation.mutate({ id: editingPromo.id, data: formData });
+      updateMutation.mutate({ id: editingPromo.id, data: payload });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate(payload);
     }
   }, [formData, editingPromo, createMutation, updateMutation]);
 

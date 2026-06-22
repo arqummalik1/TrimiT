@@ -22,6 +22,7 @@ import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
 import { SUPPORT_EMAIL } from '../../lib/contactInfo';
+import { reviewSchema } from '../../lib/validations';
 
 export default function WriteReviewScreen({ navigation, route }: CustomerDiscoverScreenProps<'WriteReview'>) {
   const { theme } = useTheme();
@@ -52,10 +53,21 @@ export default function WriteReviewScreen({ navigation, route }: CustomerDiscove
   });
 
   const handleSubmit = () => {
-    if (rating === 0) {
-      showToast('Please select a rating', 'error');
+    if (!salonId || !bookingId) {
+      showToast('Invalid salon or booking reference', 'error');
       return;
     }
+
+    const parseResult = reviewSchema.safeParse({
+      rating,
+      comment: comment.trim() || undefined,
+    });
+
+    if (!parseResult.success) {
+      showToast(parseResult.error.issues[0].message, 'error');
+      return;
+    }
+
     mutation.mutate();
   };
 

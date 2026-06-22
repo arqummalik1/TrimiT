@@ -153,6 +153,7 @@ module.exports = ({ config }) => {
       android: {
         versionCode: appVersion.androidVersionCode,
         package: 'com.trimit.app',
+        allowBackup: false,
         notification: {
           icon: './assets/adaptive-icon.png',
           color: '#000000',

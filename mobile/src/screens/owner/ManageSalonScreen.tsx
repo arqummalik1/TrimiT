@@ -9,9 +9,10 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { ScreenWrapper } from '../../components/ScreenWrapper';
+import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { showSalonImageSourcePicker } from '../../lib/imageUploadPrep';
 import { Input } from '../../components/Input';
@@ -28,6 +29,7 @@ import { navigateOwnerToServices, resetOwnerDashboardToMain } from '../../lib/ow
 import { useOwnerOnboardingStore } from '../../store/ownerOnboardingStore';
 import { uploadServiceImage } from '../../services/uploadService';
 import { normalizeSalon } from '../../lib/salonImage';
+import { salonSchema } from '../../lib/validations';
 import { OwnerDashboardScreenProps, OwnerSettingsScreenProps } from '../../navigation/types';
 import { LocationPickerModal } from '../../components/LocationPickerModal';
 import { SalonMapMarker } from '../../components/SalonMapMarker';
@@ -52,6 +54,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
 
   const { data: salon, isLoading } = useQuery<Salon | null>({
     queryKey: queryKeys.ownerSalon,
@@ -147,15 +150,35 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       return;
     }
 
-    if (!formData.name || !formData.address || !formData.city || !formData.phone) {
-      showToast('Please fill in all required fields', 'error');
+    const lat = parseFloat(formData.latitude);
+    const lng = parseFloat(formData.longitude);
+
+    const parseResult = salonSchema.safeParse({
+      name: formData.name,
+      address: formData.address,
+      city: formData.city,
+      phone: formData.phone.replace(/\s+/g, ''),
+      latitude: lat,
+      longitude: lng,
+      opening_time: formData.opening_time,
+      closing_time: formData.closing_time,
+    });
+
+    if (!parseResult.success) {
+      showToast(parseResult.error.issues[0].message, 'error');
       return;
     }
 
     const payload = {
       ...formData,
-      latitude: parseFloat(formData.latitude),
-      longitude: parseFloat(formData.longitude),
+      name: parseResult.data.name,
+      address: parseResult.data.address,
+      city: parseResult.data.city,
+      phone: parseResult.data.phone,
+      latitude: parseResult.data.latitude,
+      longitude: parseResult.data.longitude,
+      opening_time: parseResult.data.opening_time,
+      closing_time: parseResult.data.closing_time,
       image_url: formData.images[0] || null,
     };
 
@@ -402,8 +425,9 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
           onPress={handleSubmit}
           loading={isSaving}
           disabled={isUploading}
-          style={{ marginTop: spacing.lg, marginBottom: spacing.xxxxl }}
+          style={{ marginTop: spacing.lg }}
         />
+        <View style={{ height: TAB_BAR_BASE_HEIGHT + insets.bottom + 40 }} />
       </ScrollView>
     </ScreenWrapper>
   );

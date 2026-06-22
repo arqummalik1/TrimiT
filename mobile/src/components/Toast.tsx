@@ -36,6 +36,10 @@ export default function Toast() {
 
   useEffect(() => {
     if (visible) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+
       Animated.spring(translateY, {
         toValue: 0,
         useNativeDriver: true,
@@ -49,17 +53,25 @@ export default function Toast() {
     }
 
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      translateY.stopAnimation();
     };
   }, [current]);
 
   const dismissToast = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
     Animated.timing(translateY, {
       toValue: -100,
       duration: 200,
       useNativeDriver: true,
-    }).start(() => {
-      dismiss();
+    }).start(({ finished }) => {
+      if (finished) dismiss();
     });
   };
 
