@@ -18,7 +18,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ScreenWrapper } from '../../components/ScreenWrapper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { fonts, borderRadius, formatPrice } from '../../lib/utils';
@@ -41,6 +42,7 @@ type SortType = 'rating' | 'bookings' | 'name';
 const StaffManagementScreen: React.FC<StaffManagementScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
   // State
@@ -407,7 +409,7 @@ const StaffManagementScreen: React.FC<StaffManagementScreenProps> = ({ navigatio
           data={filteredAndSortedStaff}
           renderItem={renderStaffCard}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }]}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmpty}
           refreshControl={
@@ -422,7 +424,11 @@ const StaffManagementScreen: React.FC<StaffManagementScreenProps> = ({ navigatio
       )}
 
       {/* FAB - Add Staff */}
-      <TouchableOpacity style={styles.fab} onPress={handleAddStaff} activeOpacity={0.8}>
+      <TouchableOpacity 
+        style={[styles.fab, { bottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 20 }]} 
+        onPress={handleAddStaff} 
+        activeOpacity={0.8}
+      >
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
 
@@ -480,7 +486,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   listContent: {
     padding: 20,
-    paddingBottom: 100,
   },
   headerContainer: {
     marginBottom: 20,

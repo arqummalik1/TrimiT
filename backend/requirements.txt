@@ -17,7 +17,6 @@ cryptography==47.0.0
 cachetools==5.5.2
 
 # Payments
-razorpay==2.0.1
 
 # Utils
 pydantic==2.12.5

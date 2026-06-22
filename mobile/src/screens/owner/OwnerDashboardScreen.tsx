@@ -9,18 +9,19 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  RefreshControl,
   Animated,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
-import { ScreenWrapper } from '../../components/ScreenWrapper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { salonRepository } from '../../repositories/salonRepository';
@@ -166,7 +167,8 @@ const AnimatedStatCard: React.FC<StatCardProps> = ({ title, value, icon, color, 
 
 export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation }) => {
   const { theme } = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('today');
   const [showCharts, setShowCharts] = useState(false);
 
@@ -322,6 +324,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
   return (
     <ScreenWrapper variant="tab">
       <ScrollView
+        contentContainerStyle={{ paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

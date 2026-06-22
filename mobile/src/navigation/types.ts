@@ -81,6 +81,7 @@ export type OwnerSettingsStackParamList = {
   Subscription: undefined;
   SubscriptionCheckout: undefined;
   PaymentHistory: undefined;
+  BankAccount: undefined;
   PrivacyPolicy: undefined;
   Terms: undefined;
   Contact: undefined;

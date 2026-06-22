@@ -63,6 +63,73 @@ def test_create_order_rejects_other_users_booking(client, mock_supabase):
         app.dependency_overrides = {}
 
 
+def test_create_order_success_with_split_payment(client, mock_supabase, monkeypatch):
+    from dependencies.auth import get_current_user
+    import razorpay
+
+    app = client.app
+    app.dependency_overrides[get_current_user] = lambda: {
+        "id": "cust1",
+        "access_token": "tok",
+    }
+
+    class MockOrderAPI:
+        def create(self, payload):
+            self.last_payload = payload
+            return {"id": "ord_mocked"}
+
+    class MockRazorpayClient:
+        def __init__(self, auth):
+            self.order = MockOrderAPI()
+
+    monkeypatch.setattr("routers.payments._razorpay_client", lambda: MockRazorpayClient(auth=("k", "s")))
+    client_instance = MockRazorpayClient(auth=("k", "s"))
+    monkeypatch.setattr("routers.payments._razorpay_client", lambda: client_instance)
+
+    try:
+        # Mock booking fetch
+        mock_supabase.get("/rest/v1/bookings").return_value = Response(
+            200,
+            json=[{
+                "id": "b1", 
+                "user_id": "cust1", 
+                "amount": 100, 
+                "payment_status": "pending",
+                "salon_id": "s1",
+                "salons": {"id": "s1", "platform_fee_percentage": 2.0}
+            }],
+        )
+        
+        # Mock bank account fetch
+        mock_supabase.get(
+            url__regex=r".*rest/v1/salon_bank_accounts.*"
+        ).return_value = Response(200, json=[{"razorpay_linked_account_id": "acc_linked"}])
+
+        mock_supabase.patch(
+            url__regex=r".*rest/v1/bookings.*"
+        ).return_value = Response(200)
+
+        response = client.post(
+            "/api/v1/payments/create-order", json={"booking_id": "b1"}
+        )
+        
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["order_id"] == "ord_mocked"
+        
+        # Verify transfer was added
+        payload = client_instance.order.last_payload
+        assert "transfers" in payload
+        assert len(payload["transfers"]) == 1
+        transfer = payload["transfers"][0]
+        assert transfer["account"] == "acc_linked"
+        # 100 INR = 10000 paise. 2% fee = 200 paise. Transfer = 9800 paise.
+        assert transfer["amount"] == 9800
+        assert transfer["on_hold"] == 0
+
+    finally:
+        app.dependency_overrides = {}
+
+
 # ---------------------------------------------------------------------------
 # webhook
 # ---------------------------------------------------------------------------

@@ -29,13 +29,8 @@ class Settings(BaseSettings):
 
     # Payment Providers
     STRIPE_SECRET_KEY: Optional[str] = None
-    RAZORPAY_KEY_ID: Optional[str] = None
-    RAZORPAY_KEY_SECRET: Optional[str] = None
 
     # ── Subscriptions (TrimiT Pro) ──────────────────────────────────────────
-    # Razorpay recurring plan id + webhook secret. Set these in Render/.env.
-    RAZORPAY_PLAN_ID: Optional[str] = None
-    RAZORPAY_WEBHOOK_SECRET: Optional[str] = None
     # Phase 2 enforcement. Default ON (app launched fresh with subscription-aware
     # clients). Set to false in env to revert to observe-only.
     SUBSCRIPTION_ENFORCEMENT_ENABLED: bool = True

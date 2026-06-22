@@ -31,6 +31,7 @@ import ManageSalonScreen from '../screens/owner/ManageSalonScreen';
 import SubscriptionScreen from '../screens/owner/SubscriptionScreen';
 import SubscriptionCheckoutScreen from '../screens/owner/SubscriptionCheckoutScreen';
 import PaymentHistoryScreen from '../screens/owner/PaymentHistoryScreen';
+import { BankAccountScreen } from '../screens/owner/BankAccountScreen';
 import PrivacyPolicyScreen from '../screens/legal/PrivacyPolicyScreen';
 import TermsScreen from '../screens/legal/TermsScreen';
 import ContactScreen from '../screens/legal/ContactScreen';
@@ -49,6 +50,7 @@ function SettingsStackScreen() {
       <SettingsStack.Screen name="Subscription" component={SubscriptionScreen} />
       <SettingsStack.Screen name="SubscriptionCheckout" component={SubscriptionCheckoutScreen} />
       <SettingsStack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
+      <SettingsStack.Screen name="BankAccount" component={BankAccountScreen} />
       <SettingsStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <SettingsStack.Screen name="Terms" component={TermsScreen} />
       <SettingsStack.Screen name="Contact" component={ContactScreen} />

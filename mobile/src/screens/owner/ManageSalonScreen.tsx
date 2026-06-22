@@ -9,9 +9,10 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { ScreenWrapper } from '../../components/ScreenWrapper';
+import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { showSalonImageSourcePicker } from '../../lib/imageUploadPrep';
 import { Input } from '../../components/Input';
@@ -53,6 +54,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
 
   const { data: salon, isLoading } = useQuery<Salon | null>({
     queryKey: queryKeys.ownerSalon,
@@ -423,8 +425,9 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
           onPress={handleSubmit}
           loading={isSaving}
           disabled={isUploading}
-          style={{ marginTop: spacing.lg, marginBottom: spacing.xxxxl }}
+          style={{ marginTop: spacing.lg }}
         />
+        <View style={{ height: TAB_BAR_BASE_HEIGHT + insets.bottom + 40 }} />
       </ScrollView>
     </ScreenWrapper>
   );

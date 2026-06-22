@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets, EdgeInsets } from 'react-native-safe-area-context';
-import { ScreenWrapper } from '../../components/ScreenWrapper';
+import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
@@ -211,7 +211,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
   if (!salon) {
     // Allow access to settings even without salon - show limited options
     return (
-      <ScreenWrapper variant="stack">
+      <ScreenWrapper variant="tab">
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerRight} />
@@ -219,7 +219,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
           <View style={styles.headerRight} />
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 16 }}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 16, paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }}>
           {/* No Salon Card */}
           <View style={styles.section}>
             <View style={styles.cardGroup}>
@@ -259,7 +259,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
                       <Ionicons 
                         name={mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'phone-portrait'} 
                         size={18} 
-                        color={themeMode === mode ? '#FFFFFF' : theme.colors.textSecondary} 
+                        color={themeMode === mode ? (theme.isDark ? theme.colors.textInverse : '#FFFFFF') : theme.colors.textSecondary} 
                       />
                       <Text style={[
                         styles.themeOptionText,
@@ -370,7 +370,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
         <View style={styles.headerRight} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 16 }}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 16, paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }}>
         {/* Salon Info Card */}
         <View style={styles.section}>
           <View style={styles.cardGroup}>
@@ -429,7 +429,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
                     <Ionicons 
                       name={mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'phone-portrait'} 
                       size={18} 
-                      color={themeMode === mode ? '#FFFFFF' : theme.colors.textSecondary} 
+                      color={themeMode === mode ? (theme.isDark ? theme.colors.textInverse : '#FFFFFF') : theme.colors.textSecondary} 
                     />
                     <Text style={[
                       styles.themeOptionText,
@@ -537,6 +537,19 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
 
             <TouchableOpacity
               style={styles.cardGroupItem}
+              onPress={() => navigation.navigate('BankAccount')}
+            >
+              <View style={[styles.cardGroupIconContainer, { backgroundColor: theme.colors.success }]}>
+                <Ionicons name="card" size={16} color={theme.colors.white} />
+              </View>
+              <View style={[styles.cardGroupTextContainer, { marginLeft: 12 }]}>
+                <Text style={styles.cardGroupTitle}>Bank Account details</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.border} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cardGroupItem}
               onPress={() => navigation.navigate('ManageSalon')}
             >
               <View style={[styles.cardGroupIconContainer, { backgroundColor: theme.colors.primary }]}>
@@ -554,7 +567,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
                 onPress={() => navigation.navigate('StaffManagement')}
                 disabled={!salon}
               >
-                <View style={[styles.cardGroupIconContainer, { backgroundColor: theme.colors.success }, !salon && { opacity: 0.5 }]}>
+                <View style={[styles.cardGroupIconContainer, { backgroundColor: theme.colors.info }, !salon && { opacity: 0.5 }]}>
                   <Ionicons name="people" size={16} color={theme.colors.white} />
                 </View>
                 <View style={[styles.cardGroupTextContainer, { marginLeft: 12 }]}>
@@ -836,7 +849,7 @@ const createStyles = (theme: Theme, insets: EdgeInsets) => StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   themeOptionTextActive: {
-    color: '#FFFFFF',
+    color: theme.isDark ? theme.colors.textInverse : '#FFFFFF',
   },
   footer: {
     padding: 20,

@@ -133,7 +133,7 @@ const SettingsPage = () => {
         {ENABLE_SUBSCRIPTIONS && (
           <Link
             to="/owner/subscription"
-            className="flex items-center gap-3 bg-white rounded-2xl p-4 mb-6 border border-stone-200 hover:border-teal-400 transition-colors"
+            className="flex items-center gap-3 bg-white rounded-2xl p-4 mb-4 border border-stone-200 hover:border-teal-400 transition-colors"
           >
             <div className="w-11 h-11 rounded-xl bg-teal-50 flex items-center justify-center">
               <Star size={22} weight="fill" className="text-teal-700" />
@@ -145,6 +145,20 @@ const SettingsPage = () => {
             <span className="text-stone-400">›</span>
           </Link>
         )}
+
+        <Link
+          to="/owner/bank-account"
+          className="flex items-center gap-3 bg-white rounded-2xl p-4 mb-6 border border-stone-200 hover:border-teal-400 transition-colors"
+        >
+          <div className="w-11 h-11 rounded-xl bg-green-50 flex items-center justify-center">
+            <span className="text-green-700 text-xl font-bold">₹</span>
+          </div>
+          <div className="flex-1">
+            <div className="font-semibold text-stone-900">Bank Account Details</div>
+            <div className="text-sm text-stone-500">Link your bank account to receive payments</div>
+          </div>
+          <span className="text-stone-400">›</span>
+        </Link>
 
         {/* Success Message */}
         {showSuccess && (
