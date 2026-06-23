@@ -36,6 +36,16 @@ export const salonService = {
     return response.data;
   },
 
+  getBankDetails: async () => {
+    const response = await apiClient.get('/owner/bank-details');
+    return response.data;
+  },
+
+  updateBankDetails: async (payload: { bank_account_number?: string; bank_ifsc?: string; bank_account_holder_name?: string }) => {
+    const response = await apiClient.patch('/owner/bank-details', payload);
+    return response.data;
+  },
+
   createService: async (
     salonId: string,
     payload: {

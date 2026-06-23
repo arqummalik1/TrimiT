@@ -54,6 +54,14 @@ export const salonRepository = {
     return await salonService.getNearbySalons({ latitude, longitude, radius });
   },
 
+  async getBankDetails() {
+    return await salonService.getBankDetails();
+  },
+
+  async updateBankDetails(payload: { bank_account_number?: string; bank_ifsc?: string; bank_account_holder_name?: string }) {
+    return await salonService.updateBankDetails(payload);
+  },
+
   async createService(
     salonId: string,
     payload: Parameters<typeof salonService.createService>[1]

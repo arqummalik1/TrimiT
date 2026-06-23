@@ -11,12 +11,12 @@ export const ENABLE_OWNER_PROMO_MANAGEMENT =
   import.meta.env.VITE_ENABLE_PROMO_MANAGEMENT === 'true' ||
   import.meta.env.VITE_ENABLE_PROMO_MANAGEMENT === '1';
 
-/** TrimiT Pro subscriptions (owner). Default ON to surface trial + billing. */
+/** TrimiT Pro subscriptions (owner). Disabled until payment gateway is integrated. */
 export const ENABLE_SUBSCRIPTIONS =
-  import.meta.env.VITE_ENABLE_SUBSCRIPTIONS !== 'false' &&
-  import.meta.env.VITE_ENABLE_SUBSCRIPTIONS !== '0';
+  import.meta.env.VITE_ENABLE_SUBSCRIPTIONS === 'true' ||
+  import.meta.env.VITE_ENABLE_SUBSCRIPTIONS === '1';
 
-/** Phase 2 client enforcement: grey out lapsed salons for customers. Default ON. */
+/** Phase 2 client enforcement: grey out lapsed salons. Disabled until payment gateway is integrated. */
 export const ENABLE_SUBSCRIPTION_ENFORCEMENT =
-  import.meta.env.VITE_ENABLE_SUBSCRIPTION_ENFORCEMENT !== 'false' &&
-  import.meta.env.VITE_ENABLE_SUBSCRIPTION_ENFORCEMENT !== '0';
+  import.meta.env.VITE_ENABLE_SUBSCRIPTION_ENFORCEMENT === 'true' ||
+  import.meta.env.VITE_ENABLE_SUBSCRIPTION_ENFORCEMENT === '1';

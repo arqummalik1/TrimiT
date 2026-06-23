@@ -124,6 +124,8 @@ export default function ManageServicesScreen() {
     const fromStore = useOwnerOnboardingStore.getState().consumePostSalonCreate();
     const fromRoute = route.params?.openAddService === true;
     if (fromStore || fromRoute) {
+      // Set the next step pending
+      useOwnerOnboardingStore.getState().setBankDetailsPending(true);
       setShowSetupBanner(true);
       openModal();
       navigation.setParams({ openAddService: undefined });
@@ -157,6 +159,11 @@ export default function ManageServicesScreen() {
       setShowSetupBanner(false);
       closeModal();
       showToast('Service created!', 'success');
+
+      // If they just created their first service during onboarding, guide to Bank Details
+      if (useOwnerOnboardingStore.getState().bankDetailsPending) {
+        navigation.navigate('Settings', { screen: 'BankDetails' });
+      }
     },
     onError: (err: unknown) => {
       showToast(getUserFacingMessage(err), 'error');

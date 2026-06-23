@@ -1,5 +1,10 @@
-from pydantic import BaseModel, Field
+import re
+
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
+
+# IFSC: 4 uppercase letters + '0' + 6 alphanumeric chars
+_IFSC_RE = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
 
 class SalonCreate(BaseModel):
     name: str
@@ -17,6 +22,20 @@ class SalonCreate(BaseModel):
     auto_accept: bool = False
     allow_multiple_bookings_per_slot: bool = False
     max_bookings_per_slot: int = 1
+    # Banking details — collected during onboarding for future PayU settlement
+    bank_account_number: Optional[str] = None
+    bank_ifsc: Optional[str] = None
+    bank_account_holder_name: Optional[str] = None
+
+    @field_validator("bank_ifsc")
+    @classmethod
+    def validate_ifsc(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or v == "":
+            return None
+        v = v.strip().upper()
+        if not _IFSC_RE.match(v):
+            raise ValueError("Invalid IFSC code format. Expected: 4 letters + 0 + 6 alphanumeric (e.g. SBIN0001234)")
+        return v
 
 class SalonUpdate(BaseModel):
     name: Optional[str] = None
@@ -35,6 +54,20 @@ class SalonUpdate(BaseModel):
     allow_multiple_bookings_per_slot: Optional[bool] = None
     max_bookings_per_slot: Optional[int] = None
     show_offers: Optional[bool] = None
+    # Banking details
+    bank_account_number: Optional[str] = None
+    bank_ifsc: Optional[str] = None
+    bank_account_holder_name: Optional[str] = None
+
+    @field_validator("bank_ifsc")
+    @classmethod
+    def validate_ifsc(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or v == "":
+            return None
+        v = v.strip().upper()
+        if not _IFSC_RE.match(v):
+            raise ValueError("Invalid IFSC code format. Expected: 4 letters + 0 + 6 alphanumeric (e.g. SBIN0001234)")
+        return v
 
 class ServiceCreate(BaseModel):
     name: str

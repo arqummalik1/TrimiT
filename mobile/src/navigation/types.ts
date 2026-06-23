@@ -85,6 +85,7 @@ export type OwnerSettingsStackParamList = {
   PrivacyPolicy: undefined;
   Terms: undefined;
   Contact: undefined;
+  BankDetails: undefined;
 };
 
 export type OwnerTabParamList = {

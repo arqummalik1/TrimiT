@@ -35,6 +35,7 @@ import { BankAccountScreen } from '../screens/owner/BankAccountScreen';
 import PrivacyPolicyScreen from '../screens/legal/PrivacyPolicyScreen';
 import TermsScreen from '../screens/legal/TermsScreen';
 import ContactScreen from '../screens/legal/ContactScreen';
+import BankDetailsScreen from '../screens/owner/BankDetailsScreen';
 
 const Tab = createBottomTabNavigator<OwnerTabParamList>();
 
@@ -54,6 +55,7 @@ function SettingsStackScreen() {
       <SettingsStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <SettingsStack.Screen name="Terms" component={TermsScreen} />
       <SettingsStack.Screen name="Contact" component={ContactScreen} />
+      <SettingsStack.Screen name="BankDetails" component={BankDetailsScreen} />
     </SettingsStack.Navigator>
   );
 }

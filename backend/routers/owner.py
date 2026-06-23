@@ -2,6 +2,9 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 import logging
+import re
+
+from pydantic import BaseModel, field_validator
 
 from core.supabase import supabase
 from config import settings
@@ -10,7 +13,33 @@ from dependencies.subscription import require_active_subscription
 
 logger = logging.getLogger("trimit")
 
+# IFSC: 4 uppercase letters + '0' + 6 alphanumeric chars
+_IFSC_RE = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
+
 router = APIRouter(prefix="/owner", tags=["Owner"])
+
+
+class BankDetailsUpdate(BaseModel):
+    bank_account_number: Optional[str] = None
+    bank_ifsc: Optional[str] = None
+    bank_account_holder_name: Optional[str] = None
+
+    @field_validator("bank_ifsc")
+    @classmethod
+    def validate_ifsc(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or v == "":
+            return None
+        v = v.strip().upper()
+        if not _IFSC_RE.match(v):
+            raise ValueError("Invalid IFSC code format (e.g. SBIN0001234)")
+        return v
+
+
+def _mask_account_number(acct: Optional[str]) -> Optional[str]:
+    """Return only last 4 digits: ****1234."""
+    if not acct or len(acct) < 4:
+        return acct
+    return "*" * (len(acct) - 4) + acct[-4:]
 
 @router.get("/salon")
 async def get_owner_salon(current_user: dict = Depends(get_current_user)):
@@ -178,3 +207,62 @@ async def get_owner_analytics(period: str = "today", current_user: dict = Depend
     }
     
     return analytics_data
+
+
+# ── Bank details \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+async def _get_owner_salon_id(current_user: dict) -> str:
+    """Fetch the owner's salon ID or raise 404."""
+    resp = await supabase.request(
+        "GET",
+        f"rest/v1/salons?owner_id=eq.{current_user.get('id')}&select=id",
+        token=current_user.get("access_token"),
+    )
+    if resp.status_code != 200 or not resp.json():
+        raise HTTPException(status_code=404, detail="No salon found for this owner")
+    return resp.json()[0]["id"]
+
+
+@router.get("/bank-details")
+async def get_bank_details(current_user: dict = Depends(get_current_user)):
+    """Return (masked) bank details for the owner's salon."""
+    salon_id = await _get_owner_salon_id(current_user)
+    resp = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{salon_id}&select=bank_account_number,bank_ifsc,bank_account_holder_name",
+        token=current_user.get("access_token"),
+    )
+    if resp.status_code != 200 or not resp.json():
+        raise HTTPException(status_code=500, detail="Failed to fetch bank details")
+
+    row = resp.json()[0]
+    return {
+        "bank_account_number_masked": _mask_account_number(row.get("bank_account_number")),
+        "bank_ifsc": row.get("bank_ifsc"),
+        "bank_account_holder_name": row.get("bank_account_holder_name"),
+        "has_bank_details": bool(row.get("bank_account_number") and row.get("bank_ifsc")),
+    }
+
+
+@router.patch("/bank-details")
+async def update_bank_details(
+    data: BankDetailsUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Update bank details for the owner's salon."""
+    salon_id = await _get_owner_salon_id(current_user)
+    update_payload = {k: v for k, v in data.model_dump().items() if v is not None}
+    if not update_payload:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    resp = await supabase.request(
+        "PATCH",
+        f"rest/v1/salons?id=eq.{salon_id}",
+        json=update_payload,
+        token=current_user.get("access_token"),
+    )
+    if resp.status_code not in (200, 204):
+        logger.error("[update_bank_details] failed: %s %s", resp.status_code, resp.text)
+        raise HTTPException(status_code=400, detail="Failed to update bank details")
+
+    return {"message": "Bank details updated successfully"}

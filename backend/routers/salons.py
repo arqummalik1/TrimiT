@@ -16,6 +16,16 @@ logger = logging.getLogger("trimit")
 
 router = APIRouter(prefix="/salons", tags=["Salons"])
 
+# ── Sensitive field stripping ───────────────────────────────────────────────
+_BANK_FIELDS = ("bank_account_number", "bank_ifsc", "bank_account_holder_name")
+
+
+def _strip_bank_details(salon: dict) -> dict:
+    """Remove banking details from salon dicts before returning to customers."""
+    for key in _BANK_FIELDS:
+        salon.pop(key, None)
+    return salon
+
 
 def _sync_salon_image_fields(data: dict) -> dict:
     """Keep images[] and image_url aligned for list cards and RPC consumers."""
@@ -129,6 +139,7 @@ async def get_salons(
 
     for s in salons:
         _sync_salon_image_fields(s)
+        _strip_bank_details(s)
         d = s.get("distance")
         if isinstance(d, (int, float)) and d is not None:
             s["distance"] = round(float(d), 1)
@@ -156,7 +167,7 @@ async def get_salon(salon_id: str):
     if not response.json():
         raise HTTPException(status_code=404, detail="Salon not found")
     
-    salon = _sync_salon_image_fields(response.json()[0])
+    salon = _strip_bank_details(_sync_salon_image_fields(response.json()[0]))
     reviews = salon.get("reviews", [])
     if reviews:
         salon["avg_rating"] = round(sum(r["rating"] for r in reviews) / len(reviews), 1)

@@ -23,17 +23,18 @@ export const ENABLE_OWNER_PROMO_MANAGEMENT =
   process.env.EXPO_PUBLIC_ENABLE_PROMO_MANAGEMENT === '1';
 
 /**
- * TrimiT Pro subscriptions. Phase 1: show subscription UI (status, banners,
- * screens) without blocking. Default ON so owners see their trial.
+ * TrimiT Pro subscriptions. Disabled until payment gateway is integrated.
+ * Set EXPO_PUBLIC_ENABLE_SUBSCRIPTIONS=true to re-enable.
  */
 export const ENABLE_SUBSCRIPTIONS =
-  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTIONS !== 'false' &&
-  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTIONS !== '0';
+  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTIONS === 'true' ||
+  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTIONS === '1';
 
 /**
  * Phase 2 client enforcement: freeze the owner app + grey out lapsed salons
- * for customers. Default ON; set the env to 'false' to revert to observe-only.
+ * for customers. Disabled until payment gateway is integrated.
+ * Set EXPO_PUBLIC_ENABLE_SUBSCRIPTION_ENFORCEMENT=true to re-enable.
  */
 export const ENABLE_SUBSCRIPTION_ENFORCEMENT =
-  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTION_ENFORCEMENT !== 'false' &&
-  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTION_ENFORCEMENT !== '0';
+  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTION_ENFORCEMENT === 'true' ||
+  process.env.EXPO_PUBLIC_ENABLE_SUBSCRIPTION_ENFORCEMENT === '1';
