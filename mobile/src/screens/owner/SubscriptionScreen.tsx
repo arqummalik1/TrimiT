@@ -194,12 +194,10 @@ const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* Actions */}
         {showSubscribe && (
-          <TouchableOpacity style={styles.primaryBtn} onPress={goCheckout}>
-            <Ionicons name="card" size={18} color="#FFFFFF" />
-            <Text style={styles.primaryBtnText}>
-              {sub.status === 'trial' ? 'Subscribe to TrimiT Pro' : 'Renew Subscription'}
-            </Text>
-          </TouchableOpacity>
+          <View style={[styles.primaryBtn, { opacity: 0.6 }]}>
+            <Ionicons name="time" size={18} color="#FFFFFF" />
+            <Text style={styles.primaryBtnText}>Coming Soon</Text>
+          </View>
         )}
 
         {showCancel && (
