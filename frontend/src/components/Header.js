@@ -202,7 +202,7 @@ const Header = () => {
                 <Link
                   to="/login"
                   data-testid="login-btn"
-                  className="nav-glass-pill nav-glass-pill--idle text-sm"
+                  className="nav-glass-pill nav-glass-pill--idle text-sm hidden xl:inline-flex"
                 >
                   Sign in
                 </Link>
