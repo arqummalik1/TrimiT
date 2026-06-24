@@ -37,8 +37,10 @@ export default function BlogPreviewSection() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.06 }}
               >
-                <motion.div className="aspect-[16/10] bg-gradient-to-br from-orange-100 to-stone-100" />
-                <div className="p-5">
+                <motion.div className="aspect-[16/10] bg-gradient-to-br from-orange-100 to-stone-100 flex items-center justify-center text-orange-400 group-hover:scale-105 transition-transform duration-500">
+                  {post.icon}
+                </motion.div>
+                <div className="p-5 relative bg-white z-10">
                   <p className="text-xs text-stone-500 mb-2">{post.date}</p>
                   <h3 className="font-heading font-bold text-stone-900 group-hover:text-orange-800 transition-colors">
                     {post.title}
