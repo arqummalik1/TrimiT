@@ -174,6 +174,31 @@ export default function HeroSection() {
                 {isOfferActive() ? PROMO.ctaLabel : 'List your salon free'}
               </Link>
             </motion.div>
+
+            {isOfferActive() && (
+              <motion.div
+                custom={6}
+                initial="hidden"
+                animate="show"
+                variants={stagger}
+                className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl"
+              >
+                <div className="flex items-start gap-3 px-4 py-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-400/25 backdrop-blur-sm">
+                  <span className="text-xl shrink-0">✅</span>
+                  <div>
+                    <p className="text-sm font-bold text-white">Free for Customers</p>
+                    <p className="text-xs text-stone-300 mt-0.5">Download & book salons. Always free.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 px-4 py-3.5 rounded-2xl bg-orange-500/15 border border-orange-400/25 backdrop-blur-sm">
+                  <span className="text-xl shrink-0">🏪</span>
+                  <div>
+                    <p className="text-sm font-bold text-white">Free Onboarding for Salons</p>
+                    <p className="text-xs text-stone-300 mt-0.5">₹0 setup. 30 days free trial. No credit card.</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </div>
 
           <motion.div
