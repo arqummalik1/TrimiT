@@ -40,7 +40,7 @@ const Footer = () => {
               className="mb-4"
             />
             <p className="text-sm text-stone-400 leading-relaxed">
-              Premium salon booking in Jammu & Kashmir. Discover, book, and manage appointments
+              Premium salon booking in Jammu &amp; Kashmir. Discover, book, and manage appointments
               online.
             </p>
             <p className="mt-4 text-xs text-stone-500">{formatVersionLine()}</p>
@@ -78,7 +78,7 @@ const Footer = () => {
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-stone-200 mb-4">Services in Jammu</p>
+            <p className="text-sm font-semibold text-stone-200 mb-4">Services in J&amp;K</p>
             <nav className="flex flex-col gap-2 text-sm" aria-label="Services">
               {LOCAL_SEO_SECTIONS.map((s) => (
                 <Link

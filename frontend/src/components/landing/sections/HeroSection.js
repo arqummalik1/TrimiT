@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { Sparkle, Storefront, Users, ArrowRight, MagnifyingGlass, MapPin } from '@phosphor-icons/react';
+import { Sparkle, Storefront, Users, ArrowRight, MagnifyingGlass, MapPin, Timer } from '@phosphor-icons/react';
 import { LazyImage } from '../../ui/LazyImage';
 import { LANDING_HERO } from '../../../lib/landingAssets';
 import { HeroAccentIllustration } from '../LandingIllustrations';
 import PhoneMockup from '../mockups/PhoneMockup';
 import AnimatedCounter from '../AnimatedCounter';
 import { JAMMU_CITY, explorePath } from '../../../config/jammu';
+import { PROMO, isOfferActive } from '../../../config/promotions';
 
 export default function HeroSection() {
   const navigate = useNavigate();
@@ -140,6 +141,12 @@ export default function HeroSection() {
                   {badge}
                 </span>
               ))}
+              {isOfferActive() && (
+                <span className="px-3 py-1 rounded-full bg-orange-500/30 border border-orange-400/40 text-orange-200 font-semibold flex items-center gap-1">
+                  <Timer size={11} weight="fill" />
+                  30 Days Free for Salons
+                </span>
+              )}
             </motion.div>
 
             <motion.div
@@ -159,14 +166,39 @@ export default function HeroSection() {
                 <ArrowRight size={20} weight="bold" />
               </Link>
               <Link
-                to="/signup?role=owner"
+                to={PROMO.ctaPath}
                 data-testid="hero-list-salon"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-base px-8 py-4 rounded-full font-semibold text-white bg-white/10 border border-white/25 backdrop-blur-md hover:bg-white/20 transition-all"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-base px-8 py-4 rounded-full font-bold text-white bg-white/10 border border-white/25 backdrop-blur-md hover:bg-white/20 transition-all"
               >
                 <Storefront size={22} weight="duotone" />
-                List your salon free
+                {isOfferActive() ? PROMO.ctaLabel : 'List your salon free'}
               </Link>
             </motion.div>
+
+            {isOfferActive() && (
+              <motion.div
+                custom={6}
+                initial="hidden"
+                animate="show"
+                variants={stagger}
+                className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl"
+              >
+                <div className="flex items-start gap-3 px-4 py-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-400/25 backdrop-blur-sm">
+                  <span className="text-xl shrink-0">✅</span>
+                  <div>
+                    <p className="text-sm font-bold text-white">Free for Customers</p>
+                    <p className="text-xs text-stone-300 mt-0.5">Download & book salons. Always free.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 px-4 py-3.5 rounded-2xl bg-orange-500/15 border border-orange-400/25 backdrop-blur-sm">
+                  <span className="text-xl shrink-0">🏪</span>
+                  <div>
+                    <p className="text-sm font-bold text-white">Free Onboarding for Salons</p>
+                    <p className="text-xs text-stone-300 mt-0.5">₹0 setup. 30 days free trial. No credit card.</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </div>
 
           <motion.div

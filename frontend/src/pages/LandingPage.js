@@ -28,7 +28,7 @@ const LandingPage = () => (
     <OffersSection />
     <FeaturedSalonsSection
       title="Nearby salons"
-      subtitle="Sorted by distance from Jammu — enable location on explore for best results."
+      subtitle="Discover salons near you across Jammu &amp; Kashmir — enable location for best results."
       sort="distance"
     />
     <OwnerGrowthSection />
