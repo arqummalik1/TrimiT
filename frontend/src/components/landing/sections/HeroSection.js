@@ -8,7 +8,7 @@ import { HeroAccentIllustration } from '../LandingIllustrations';
 import PhoneMockup from '../mockups/PhoneMockup';
 import AnimatedCounter from '../AnimatedCounter';
 import { JAMMU_CITY, explorePath } from '../../../config/jammu';
-import { isOfferActive } from '../../../config/promotions';
+import { isOfferActive, PROMO } from '../../../config/promotions';
 
 export default function HeroSection() {
   const navigate = useNavigate();
