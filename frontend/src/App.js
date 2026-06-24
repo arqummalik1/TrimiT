@@ -47,6 +47,7 @@ import Footer from "./components/Footer";
 import Toast from "./components/Toast";
 import SeoHead from "./components/SeoHead";
 import GoogleAnalytics from "./components/GoogleAnalytics";
+import PromoBanner from "./components/PromoBanner";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -145,6 +146,7 @@ function App() {
     <div className="min-h-screen bg-stone-50">
       <SeoHead />
       <GoogleAnalytics />
+      {!isAuthCallbackPage && <PromoBanner />}
       {!isAuthCallbackPage && <Header />}
       {!isAuthCallbackPage && <MobileBreadcrumbs />}
       <main>

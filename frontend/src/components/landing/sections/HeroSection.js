@@ -8,6 +8,7 @@ import { HeroAccentIllustration } from '../LandingIllustrations';
 import PhoneMockup from '../mockups/PhoneMockup';
 import AnimatedCounter from '../AnimatedCounter';
 import { JAMMU_CITY, explorePath } from '../../../config/jammu';
+import { isOfferActive } from '../../../config/promotions';
 
 export default function HeroSection() {
   const navigate = useNavigate();
@@ -79,7 +80,7 @@ export default function HeroSection() {
               className="font-heading text-3xl sm:text-5xl md:text-6xl font-extrabold text-white leading-[1.05] tracking-tight mt-6 mb-5"
             >
               Book premium salons in{' '}
-              <span className="text-orange-400">{JAMMU_CITY.label}</span> within minutes
+              <span className="text-orange-400">{JAMMU_CITY.region}</span> within minutes
             </motion.h1>
 
             <motion.p
@@ -90,7 +91,7 @@ export default function HeroSection() {
               className="text-base sm:text-lg text-stone-200/95 max-w-xl leading-relaxed mb-6"
             >
               Discover verified salons, check live slots, and get instant appointment confirmation —
-              haircut, beard grooming, spa, and bridal services across Jammu.
+              haircut, beard grooming, spa, and bridal services across Jammu &amp; Kashmir.
             </motion.p>
 
             <motion.form
@@ -167,6 +168,33 @@ export default function HeroSection() {
                 List your salon free
               </Link>
             </motion.div>
+
+            {isOfferActive() && (
+              <motion.div
+                custom={6}
+                initial="hidden"
+                animate="show"
+                variants={stagger}
+                className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 max-w-xl"
+              >
+                <span className="flex items-center gap-1.5 text-xs text-stone-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                  Free onboarding for salons
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-stone-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                  30 days free trial
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-stone-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                  No credit card required
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-stone-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                  Zero rupees setup
+                </span>
+              </motion.div>
+            )}
           </div>
 
           <motion.div

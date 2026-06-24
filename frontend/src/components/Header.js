@@ -13,6 +13,7 @@ import {
 import DownloadAppButton from './DownloadAppButton';
 import TrimitLogo from './brand/TrimitLogo';
 import { PLAY_STORE_URL } from '../config/storeLinks';
+import { PROMO, isOfferActive } from '../config/promotions';
 
 const MARKETING_LINKS = [
   { to: '/explore', label: 'Explore' },
@@ -206,11 +207,14 @@ const Header = () => {
                   Sign in
                 </Link>
                 <Link
-                  to="/signup"
+                  to={PROMO.ctaPath}
                   data-testid="signup-btn"
-                  className="btn-primary text-sm px-5 py-2.5"
+                  className="promo-cta-btn group relative inline-flex shrink-0"
                 >
-                  Sign up
+                  <span className="promo-cta-btn__ring" aria-hidden="true" />
+                  <span className="relative z-10 inline-flex items-center justify-center gap-2 rounded-full bg-orange-800 px-5 py-2 text-sm font-bold text-white transition-all duration-200 group-hover:bg-orange-700">
+                    {isOfferActive() ? 'Start Free Trial' : 'Sign up free'}
+                  </span>
                 </Link>
               </div>
             )}
@@ -335,11 +339,11 @@ const Header = () => {
                       Sign in
                     </Link>
                     <Link
-                      to="/signup"
-                      className="w-full text-center btn-primary py-3"
+                      to={PROMO.ctaPath}
+                      className="w-full text-center btn-primary py-3 font-bold"
                       onClick={() => setMenuOpen(false)}
                     >
-                      Sign up
+                      {isOfferActive() ? 'Start Free Trial' : 'Sign up free'}
                     </Link>
                   </>
                 )}

@@ -240,6 +240,37 @@ h1, h2, h3, h4, h5, h6 {
   outline-offset: 3px;
 }
 
+/* Header "Start Free Trial" CTA — same clockwise ring as download-app-btn */
+.promo-cta-btn {
+  border-radius: 9999px;
+  padding: 2px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.promo-cta-btn__ring {
+  position: absolute;
+  inset: -120%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg 250deg,
+    rgba(234, 88, 12, 0.25) 265deg,
+    #ea580c 280deg,
+    #fdba74 295deg,
+    #fff7ed 305deg,
+    #ea580c 320deg,
+    rgba(234, 88, 12, 0.3) 335deg,
+    transparent 350deg 360deg
+  );
+  animation: download-app-border-spin 2.2s linear infinite;
+  pointer-events: none;
+}
+
+.promo-cta-btn:focus-visible {
+  outline: 2px solid #ea580c;
+  outline-offset: 3px;
+}
+
 /* Card styles */
 .card {
   @apply bg-white rounded-2xl border border-stone-200 transition-all duration-300;
