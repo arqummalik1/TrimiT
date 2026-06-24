@@ -18,54 +18,66 @@ const ContactPage = () => (
         <p className="text-stone-600 text-sm mb-4">
           Reach our team for bookings, salon listings, or account help.
         </p>
-        <div className="flex flex-col gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex flex-col gap-2">
-              <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Email Support</h2>
-              <a
-                href={`mailto:${SUPPORT_EMAIL}`}
-                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-orange-800 text-white font-medium hover:bg-orange-900 transition-colors w-full"
-              >
-                <EnvelopeSimple size={20} weight="bold" />
-                {SUPPORT_EMAIL}
-              </a>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Email Card */}
+          <a
+            href={`mailto:${SUPPORT_EMAIL}`}
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-orange-200 hover:shadow-sm transition-all text-center group"
+          >
+            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-orange-100 text-orange-800 group-hover:scale-110 transition-transform">
+              <EnvelopeSimple size={24} weight="duotone" />
             </div>
+            <div>
+              <h2 className="text-sm font-semibold text-stone-900">Email Support</h2>
+              <p className="text-sm text-stone-500 mt-1">{SUPPORT_EMAIL}</p>
+            </div>
+          </a>
 
-            <div className="flex flex-col gap-2">
-              <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Call Us</h2>
-              <a
-                href={`tel:${SUPPORT_PHONE}`}
-                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-stone-200 text-stone-800 font-medium hover:bg-stone-50 transition-colors w-full"
-              >
-                <Phone size={20} weight="bold" />
-                {SUPPORT_PHONE_DISPLAY}
-              </a>
+          {/* Phone Card */}
+          <a
+            href={`tel:${SUPPORT_PHONE}`}
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-orange-200 hover:shadow-sm transition-all text-center group"
+          >
+            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-emerald-100 text-emerald-800 group-hover:scale-110 transition-transform">
+              <Phone size={24} weight="duotone" />
             </div>
-          </div>
+            <div>
+              <h2 className="text-sm font-semibold text-stone-900">Call Us</h2>
+              <p className="text-sm text-stone-500 mt-1">{SUPPORT_PHONE_DISPLAY}</p>
+            </div>
+          </a>
 
-          <div className="flex flex-col gap-2 pt-6 border-t border-stone-100">
-            <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Social Media</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <a
-                href={SOCIAL_INSTAGRAM}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-stone-200 text-stone-800 font-medium hover:bg-stone-50 transition-colors w-full"
-              >
-                <InstagramLogo size={20} weight="bold" />
-                Instagram
-              </a>
-              <a
-                href={SOCIAL_FACEBOOK}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-stone-200 text-stone-800 font-medium hover:bg-stone-50 transition-colors w-full"
-              >
-                <FacebookLogo size={20} weight="bold" />
-                Facebook
-              </a>
+          {/* Instagram Card */}
+          <a
+            href={SOCIAL_INSTAGRAM}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-orange-200 hover:shadow-sm transition-all text-center group"
+          >
+            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-pink-100 text-pink-600 group-hover:scale-110 transition-transform">
+              <InstagramLogo size={24} weight="duotone" />
             </div>
-          </div>
+            <div>
+              <h2 className="text-sm font-semibold text-stone-900">Instagram</h2>
+              <p className="text-sm text-stone-500 mt-1">@trimit.online</p>
+            </div>
+          </a>
+
+          {/* Facebook Card */}
+          <a
+            href={SOCIAL_FACEBOOK}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-orange-200 hover:shadow-sm transition-all text-center group"
+          >
+            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 group-hover:scale-110 transition-transform">
+              <FacebookLogo size={24} weight="duotone" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-stone-900">Facebook</h2>
+              <p className="text-sm text-stone-500 mt-1">Follow us</p>
+            </div>
+          </a>
         </div>
       </div>
       <MarkdownView content={CONTACT_MD} />
