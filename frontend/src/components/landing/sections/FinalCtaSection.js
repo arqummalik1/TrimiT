@@ -21,7 +21,7 @@ export default function FinalCtaSection() {
         </h2>
         <p className="text-orange-100 text-lg mb-8 max-w-2xl mx-auto">
           {isOfferActive()
-            ? 'Customers book for free. Salon owners get 30 days free. Offer ends June 30 — don't wait.'
+            ? `Customers book for free. Salon owners get 30 days free. Offer ends June 30 — don't wait.`
             : 'Join customers and owners across Jammu & Kashmir who book smarter with TrimiT.'}
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">

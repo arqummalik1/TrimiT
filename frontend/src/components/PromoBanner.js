@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Sparkle } from '@phosphor-icons/react';
-import { isOfferActive, PROMO } from '../../config/promotions';
+import { isOfferActive, PROMO } from '../config/promotions';
 
 const STORAGE_KEY = 'trimit_promo_dismissed';
 
