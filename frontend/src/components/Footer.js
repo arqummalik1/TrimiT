@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { InstagramLogo, FacebookLogo } from '@phosphor-icons/react';
 import StoreDownloadLinks from './StoreDownloadLinks';
 import TrimitLogo from './brand/TrimitLogo';
 import { LOCAL_SEO_SECTIONS } from '../config/localSeoSections';
@@ -11,6 +12,7 @@ import {
   formatCopyright,
   formatVersionLine,
 } from '../config/appVersion';
+import { SOCIAL_INSTAGRAM, SOCIAL_FACEBOOK } from '../config/contact';
 
 const MARKETING_ROUTES = [
   { to: '/explore', label: 'Explore salons' },
@@ -42,6 +44,26 @@ const Footer = () => {
               online.
             </p>
             <p className="mt-4 text-xs text-stone-500">{formatVersionLine()}</p>
+            <div className="flex items-center gap-4 mt-6">
+              <a 
+                href={SOCIAL_INSTAGRAM}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-stone-400 hover:text-orange-300 transition-colors"
+                aria-label="Instagram"
+              >
+                <InstagramLogo size={24} weight="fill" />
+              </a>
+              <a 
+                href={SOCIAL_FACEBOOK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-stone-400 hover:text-orange-300 transition-colors"
+                aria-label="Facebook"
+              >
+                <FacebookLogo size={24} weight="fill" />
+              </a>
+            </div>
           </div>
 
           <div>
