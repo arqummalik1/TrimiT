@@ -18,35 +18,39 @@ const ContactPage = () => (
         <p className="text-stone-600 text-sm mb-4">
           Reach our team for bookings, salon listings, or account help.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="flex flex-col gap-3">
-            <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1">Email Support</h2>
-            <a
-              href={`mailto:${SUPPORT_EMAIL}`}
-              className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-orange-800 text-white font-medium hover:bg-orange-900 transition-colors"
-            >
-              <EnvelopeSimple size={20} weight="bold" />
-              {SUPPORT_EMAIL}
-            </a>
+        <div className="flex flex-col gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-2">
+              <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Email Support</h2>
+              <a
+                href={`mailto:${SUPPORT_EMAIL}`}
+                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-orange-800 text-white font-medium hover:bg-orange-900 transition-colors w-full"
+              >
+                <EnvelopeSimple size={20} weight="bold" />
+                {SUPPORT_EMAIL}
+              </a>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Call Us</h2>
+              <a
+                href={`tel:${SUPPORT_PHONE}`}
+                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-stone-200 text-stone-800 font-medium hover:bg-stone-50 transition-colors w-full"
+              >
+                <Phone size={20} weight="bold" />
+                {SUPPORT_PHONE_DISPLAY}
+              </a>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1">Call Us</h2>
-            <a
-              href={`tel:${SUPPORT_PHONE}`}
-              className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-stone-200 text-stone-800 font-medium hover:bg-stone-50 transition-colors"
-            >
-              <Phone size={20} weight="bold" />
-              {SUPPORT_PHONE_DISPLAY}
-            </a>
-
-            <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mt-3 mb-1">Social Media</h2>
-            <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col gap-2 pt-6 border-t border-stone-100">
+            <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Social Media</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <a
                 href={SOCIAL_INSTAGRAM}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-stone-200 text-stone-800 font-medium hover:bg-stone-50 transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-stone-200 text-stone-800 font-medium hover:bg-stone-50 transition-colors w-full"
               >
                 <InstagramLogo size={20} weight="bold" />
                 Instagram
@@ -55,7 +59,7 @@ const ContactPage = () => (
                 href={SOCIAL_FACEBOOK}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-stone-200 text-stone-800 font-medium hover:bg-stone-50 transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-stone-200 text-stone-800 font-medium hover:bg-stone-50 transition-colors w-full"
               >
                 <FacebookLogo size={20} weight="bold" />
                 Facebook
