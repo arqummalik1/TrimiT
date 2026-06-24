@@ -6,6 +6,7 @@ import OwnerGrowthSection from '../components/landing/sections/OwnerGrowthSectio
 import DashboardMockup from '../components/landing/mockups/DashboardMockup';
 import FaqSection from '../components/landing/sections/FaqSection';
 import { OWNER_TESTIMONIALS } from '../config/testimonials';
+import { PROMO, isOfferActive } from '../config/promotions';
 
 const OWNER_FAQ = [
   {
@@ -18,7 +19,7 @@ const OWNER_FAQ = [
   },
   {
     q: 'How do customers find my salon?',
-    a: 'Customers searching for salon booking in Jammu and related services discover your profile on TrimiT and book available slots.',
+    a: 'Customers searching for salon booking in Jammu & Kashmir and related services discover your profile on TrimiT and book available slots.',
   },
 ];
 
@@ -45,13 +46,18 @@ export default function ForSalonsPage() {
             </h1>
             <p className="text-stone-300 text-lg leading-relaxed mb-8">
               Get more bookings, accept appointments 24/7, and manage your salon digitally. Join
-              India&apos;s modern salon booking platform — list your salon for free in Jammu.
+              India&apos;s modern salon booking platform — list your salon for free in Jammu &amp; Kashmir.
+              {isOfferActive() && (
+                <span className="block mt-3 text-orange-300 font-semibold text-base">
+                  🎉 Limited Offer: First 30 days completely free. Offer ends June 30.
+                </span>
+              )}
             </p>
             <Link
-              to="/signup?role=owner"
+              to={PROMO.ctaPath}
               className="inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-900 rounded-full font-bold hover:bg-orange-50"
             >
-              List your salon free
+              {isOfferActive() ? PROMO.ctaLabel : 'List your salon free'}
               <ArrowRight size={20} weight="bold" />
             </Link>
           </motion.div>
@@ -105,13 +111,13 @@ export default function ForSalonsPage() {
 
       <section className="py-16 px-4 bg-orange-800 text-center">
         <h2 className="font-heading text-3xl font-bold text-white mb-6">
-          Ready to get discovered in Jammu?
+          Ready to get discovered in Jammu &amp; Kashmir?
         </h2>
         <Link
-          to="/signup?role=owner"
+          to={PROMO.ctaPath}
           className="inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-800 rounded-full font-bold"
         >
-          Start free today
+          {isOfferActive() ? PROMO.ctaLabel : 'Start free today'}
           <ArrowRight size={20} weight="bold" />
         </Link>
       </section>
