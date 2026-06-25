@@ -17,6 +17,7 @@ const SignupPage = () => {
   const { sendOtp, isLoading, error, clearError } = useAuthStore();
 
   const [email, setEmail] = useState('');
+  const [fieldError, setFieldError] = useState(null);
   const [resendTimer, setResendTimer] = useState(0);
 
   useEffect(() => {
@@ -28,8 +29,9 @@ const SignupPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
+    setFieldError(null);
     if (!email.trim() || !EMAIL_REGEX.test(email.trim())) {
-      useAuthStore.setState({ error: 'Please enter a valid email address.' });
+      setFieldError('Please enter a valid email address.');
       return;
     }
     const result = await sendOtp(email.trim());
@@ -57,7 +59,7 @@ const SignupPage = () => {
 
         <div className="bg-white rounded-3xl shadow-xl p-8 border border-stone-200">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
+            {(fieldError || error) && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -65,7 +67,7 @@ const SignupPage = () => {
                 data-testid="signup-error"
                 role="alert"
               >
-                {error}
+                {fieldError || error}
               </motion.div>
             )}
 
@@ -81,7 +83,10 @@ const SignupPage = () => {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (fieldError) setFieldError(null);
+                  }}
                   data-testid="signup-email"
                   className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
                   placeholder="you@example.com"

@@ -436,7 +436,18 @@ export const useAuthStore = create(
             }
           }
 
+          // Keep `user` consistent with the freshly-created profile. The
+          // existing `user` (from verify-otp) only holds auth identity; merge
+          // the profile fields the server just persisted so the two never
+          // drift (e.g. name/phone/role read off `user` elsewhere).
+          const currentUser = get().user;
+          const syncedUser =
+            currentUser && profile
+              ? { ...currentUser, ...profile }
+              : profile || currentUser;
+
           set({
+            user: syncedUser,
             profile,
             isAuthenticated: true,
             isLoading: false,

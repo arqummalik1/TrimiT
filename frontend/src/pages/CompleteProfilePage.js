@@ -5,13 +5,19 @@ import { User, Phone, Storefront, Users } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
+import {
+  sanitizePhoneInput,
+  isValidNationalPhone,
+  toE164,
+  phoneValidationHint,
+  phoneDialCode,
+} from '../config/phone';
 
 // Web mirror of mobile CompleteProfileScreen.tsx.
 // Shown after OTP verification when the user has no public.users row yet.
 // Here the user picks their role (customer/owner) + name (+ optional phone),
 // and the backend creates the profile. Role is decided AFTER OTP — same as
 // the mobile app.
-const PHONE_REGEX = /^[6-9]\d{9}$/;
 
 const CompleteProfilePage = () => {
   const navigate = useNavigate();
@@ -66,8 +72,8 @@ const CompleteProfilePage = () => {
       setFieldError('Please enter your full name (at least 2 characters).');
       return;
     }
-    if (phone && !PHONE_REGEX.test(phone.trim())) {
-      setFieldError('Phone must be a valid 10-digit number (e.g. 9876543210).');
+    if (phone && !isValidNationalPhone(phone)) {
+      setFieldError(phoneValidationHint());
       return;
     }
     if (!acceptedTerms) {
@@ -78,7 +84,7 @@ const CompleteProfilePage = () => {
     const result = await completeProfile({
       role,
       name: name.trim(),
-      phone: phone ? `+91${phone.trim()}` : undefined,
+      phone: phone ? toE164(phone) : undefined,
     });
 
     if (result.success) {
@@ -199,12 +205,18 @@ const CompleteProfilePage = () => {
                   size={20}
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400"
                 />
+                <span className="absolute left-11 top-1/2 -translate-y-1/2 text-stone-500 text-sm pointer-events-none">
+                  {phoneDialCode()}
+                </span>
                 <input
                   type="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
+                  onChange={(e) => {
+                    setPhone(sanitizePhoneInput(e.target.value));
+                    if (fieldError) setFieldError(null);
+                  }}
                   data-testid="complete-phone"
-                  className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
+                  className="w-full pl-20 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
                   placeholder="98765 43210"
                 />
               </div>
