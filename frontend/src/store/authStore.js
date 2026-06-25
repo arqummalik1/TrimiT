@@ -80,6 +80,9 @@ export const useAuthStore = create(
       isLoading: false,
       isInitializing: false,
       hasSalon: false,
+      // Mirrors mobile: false → new/broken account that must finish
+      // CompleteProfile (pick role + name) before accessing the app.
+      profileComplete: false,
       error: null,
 
       setUser: (user, profile, token, refreshToken = null) => {
@@ -130,6 +133,7 @@ export const useAuthStore = create(
             isAuthenticated: true,
             isLoading: false,
             hasSalon,
+            profileComplete: true,
             error: null,
           });
 
@@ -138,69 +142,6 @@ export const useAuthStore = create(
           const message = translateAuthError(error, "login");
           set({ isLoading: false, error: message });
           return { success: false, error: message };
-        }
-      },
-
-      signup: async (email, password, name, phone, role) => {
-        set({ isLoading: true, error: null });
-        try {
-          const response = await api.post("/auth/signup", {
-            email,
-            password,
-            name,
-            phone,
-            role,
-          });
-
-          if (
-            response.status === 202 ||
-            response.data?.code === "EMAIL_CONFIRMATION_REQUIRED"
-          ) {
-            set({ isLoading: false, error: null });
-            return {
-              success: true,
-              requiresEmailConfirmation: true,
-              message: response.data?.message,
-            };
-          }
-
-          const { user, session } = response.data;
-
-          if (session?.access_token) {
-            api.defaults.headers.common["Authorization"] =
-              `Bearer ${session.access_token}`;
-            if (session.refresh_token) {
-              await supabase.auth.setSession({
-                access_token: session.access_token,
-                refresh_token: session.refresh_token,
-              });
-            }
-
-            set({
-              user,
-              profile: { name, phone, role, email },
-              token: session.access_token,
-              refreshToken: session.refresh_token ?? null,
-              isAuthenticated: true,
-              isLoading: false,
-              hasSalon: false,
-              error: null,
-            });
-            return { success: true, user, hasSalon: false };
-          }
-
-          set({ isLoading: false });
-          return {
-            success: false,
-            error: "Account created but could not log you in. Please sign in.",
-          };
-        } catch (error) {
-          const message = translateAuthError(error, "signup");
-          set({ isLoading: false, error: message });
-          return {
-            success: false,
-            error: message,
-          };
         }
       },
 
@@ -216,6 +157,7 @@ export const useAuthStore = create(
           isAuthenticated: false,
           isInitializing: false,
           hasSalon: false,
+          profileComplete: false,
           error: null,
         });
       },
@@ -279,6 +221,8 @@ export const useAuthStore = create(
             isAuthenticated: true,
             isInitializing: false,
             hasSalon,
+            profileComplete:
+              userData.profile_complete ?? !!resolvedProfile?.role,
             error: null,
           });
         } catch (error) {
@@ -384,17 +328,21 @@ export const useAuthStore = create(
         }
       },
 
-      verifyOtp: async (email, token, type, extras = {}) => {
+      verifyOtp: async (email, token, type) => {
         set({ isLoading: true, error: null });
         try {
-          const body = { email, token, type };
-          // Signup-only hints so a new account gets the right role. Backend
-          // ignores them once a profile row exists.
-          if (extras.role) body.role = extras.role;
-          if (extras.name) body.name = extras.name;
-          if (extras.phone) body.phone = extras.phone;
-          const response = await api.post("/auth/verify-otp", body);
-          const { user, access_token, refresh_token, profile } = response.data;
+          const response = await api.post("/auth/verify-otp", {
+            email,
+            token,
+            type,
+          });
+          const {
+            user,
+            access_token,
+            refresh_token,
+            profile,
+            profile_complete,
+          } = response.data;
 
           api.defaults.headers.common["Authorization"] =
             `Bearer ${access_token}`;
@@ -405,6 +353,30 @@ export const useAuthStore = create(
             });
           }
 
+          // New / broken account (no public.users row yet). Mirror mobile:
+          // authenticate the session but gate the user into CompleteProfile
+          // where they pick role (customer/owner) + name. The backend creates
+          // the profile via /auth/complete-profile — role is decided AFTER OTP.
+          if (!profile_complete) {
+            set({
+              user: user || null,
+              profile: null,
+              token: access_token,
+              refreshToken: refresh_token ?? null,
+              isAuthenticated: true,
+              isLoading: false,
+              hasSalon: false,
+              profileComplete: false,
+              error: null,
+            });
+            return {
+              success: true,
+              profileComplete: false,
+              session: response.data,
+            };
+          }
+
+          // Existing user — profile already resolved.
           let hasSalon = false;
           if (profile?.role === "owner") {
             try {
@@ -423,12 +395,62 @@ export const useAuthStore = create(
             isAuthenticated: true,
             isLoading: false,
             hasSalon,
+            profileComplete: true,
             error: null,
           });
 
-          return { success: true, profile, hasSalon, session: response.data };
+          return {
+            success: true,
+            profileComplete: true,
+            profile,
+            hasSalon,
+            session: response.data,
+          };
         } catch (error) {
           const message = translateAuthError(error, "verify-otp");
+          set({ isLoading: false, error: message });
+          return { success: false, error: message };
+        }
+      },
+
+      // Mandatory second step after OTP for new users. Creates the
+      // public.users row with the chosen role. Idempotent server-side —
+      // role cannot be escalated once the row exists.
+      completeProfile: async ({ role, name, phone }) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await api.post("/auth/complete-profile", {
+            role,
+            name,
+            phone,
+          });
+          const profile = response.data?.profile || null;
+
+          let hasSalon = false;
+          if (profile?.role === "owner") {
+            try {
+              const salonRes = await api.get("/owner/salon");
+              hasSalon = !!salonRes.data;
+            } catch (e) {
+              hasSalon = false;
+            }
+          }
+
+          set({
+            profile,
+            isAuthenticated: true,
+            isLoading: false,
+            hasSalon,
+            profileComplete: true,
+            error: null,
+          });
+          return { success: true, profile, hasSalon };
+        } catch (error) {
+          const detail = error.response?.data?.detail;
+          const message =
+            (typeof detail === "object" && detail?.message) ||
+            (typeof detail === "string" && detail) ||
+            translateAuthError(error, "generic");
           set({ isLoading: false, error: message });
           return { success: false, error: message };
         }
@@ -443,6 +465,7 @@ export const useAuthStore = create(
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
         hasSalon: state.hasSalon,
+        profileComplete: state.profileComplete,
       }),
     },
   ),

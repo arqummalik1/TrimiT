@@ -11,15 +11,7 @@ export default function VerifyOtpPage() {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const email = queryParams.get('email') || '';
-  const type = queryParams.get('type') || 'signup'; // signup, recovery, magiclink
-  // Signup role/name/phone hints — forwarded to the backend so a NEW account is
-  // created with the correct role (owner vs customer). Ignored server-side once
-  // a profile row exists (no escalation).
-  // role is a non-PII routing hint (URL-safe). name/phone are PII and arrive via
-  // short-lived navigation state so they never land in the URL/history/logs.
-  const signupRole = queryParams.get('role') || undefined;
-  const signupName = location.state?.name || undefined;
-  const signupPhone = location.state?.phone || undefined;
+  const type = queryParams.get('type') || 'magiclink'; // signup, recovery, magiclink
 
   const { verifyOtp, sendOtp, isLoading, error: authError, clearError } = useAuthStore();
 
@@ -132,34 +124,37 @@ export default function VerifyOtpPage() {
       return;
     }
 
-    const result = await verifyOtp(email, fullCode, type, {
-      role: signupRole,
-      name: signupName,
-      phone: signupPhone,
-    });
+    const result = await verifyOtp(email, fullCode, type);
     if (result.success) {
       if (type === 'recovery') {
         const token = result.session?.access_token;
         navigate(`/reset-password?token=${token}`);
-      } else {
-        const isNew = result.session?.is_new_user;
-        const name = result.profile?.name || email.split('@')[0];
-        
-        setIsNewUser(isNew);
-        setUserName(name);
-
-        // Redirect to appropriate dashboard based on role.
-        // New owners (no salon yet) go to the salon setup/onboarding form.
-        let redirectPath = '/';
-        const role = result.profile?.role;
-        if (role === 'owner') {
-          redirectPath = result.hasSalon ? '/owner/dashboard' : '/owner/salon';
-        } else {
-          redirectPath = '/explore';
-        }
-        setTargetRedirect(redirectPath);
-        setShowSuccessModal(true);
+        return;
       }
+
+      // New / broken account → finish profile (pick role + name). Mirrors
+      // the mobile app: role is decided AFTER OTP on CompleteProfile.
+      if (result.profileComplete === false) {
+        navigate('/complete-profile', { replace: true });
+        return;
+      }
+
+      // Existing user — route to role-based dashboard.
+      const isNew = result.session?.is_new_user;
+      const name = result.profile?.name || email.split('@')[0];
+
+      setIsNewUser(isNew);
+      setUserName(name);
+
+      let redirectPath = '/';
+      const role = result.profile?.role;
+      if (role === 'owner') {
+        redirectPath = result.hasSalon ? '/owner/dashboard' : '/owner/salon';
+      } else {
+        redirectPath = '/explore';
+      }
+      setTargetRedirect(redirectPath);
+      setShowSuccessModal(true);
     }
   };
 

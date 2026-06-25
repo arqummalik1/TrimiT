@@ -17,6 +17,7 @@ import SignupPage from "./pages/SignupPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import VerifyOtpPage from "./pages/VerifyOtpPage";
+import CompleteProfilePage from "./pages/CompleteProfilePage";
 import EmailConfirmedPage from "./pages/EmailConfirmedPage";
 import SalonDetail from "./pages/customer/SalonDetail";
 import BookingPage from "./pages/customer/BookingPage";
@@ -74,8 +75,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
+  // Authenticated but no profile row yet (new user mid-signup, or a broken
+  // account). Force them through CompleteProfile before any protected page —
+  // same gate as the mobile app.
   if (!profile?.role) {
-    return children;
+    return <Navigate to="/complete-profile" replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(profile.role)) {
@@ -135,6 +139,7 @@ function App() {
   // Redirect based on role and salon existence
   const getHomeRoute = () => {
     if (!isAuthenticated) return "/";
+    if (isAuthenticated && !profile?.role) return "/complete-profile";
     if (profile?.role === "owner") {
       // If owner has no salon, redirect to create salon page
       return hasSalon ? "/owner/dashboard" : "/owner/salon";
@@ -158,6 +163,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-otp" element={<VerifyOtpPage />} />
+          <Route path="/complete-profile" element={<CompleteProfilePage />} />
           <Route
             path="/auth/email-confirmed"
             element={<EmailConfirmedPage />}

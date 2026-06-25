@@ -1,112 +1,46 @@
-import React, { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  EnvelopeSimple, 
-  Lock, 
-  Eye, 
-  EyeSlash, 
-  User, 
-  Phone, 
-  Storefront,
-  Users
-} from '@phosphor-icons/react';
+import { EnvelopeSimple } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
 
+// Email-only OTP signup — identical flow to the mobile app and to LoginPage.
+// The user enters only their email, receives a 6-digit OTP, verifies it, and
+// (if new) finishes on CompleteProfile where they pick their role. Role is
+// decided AFTER OTP. There is no upfront role/name/phone form anymore.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const SignupPage = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { signup, isLoading, error, clearError } = useAuthStore();
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    role: searchParams.get('role') || '',
-  });
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [emailConfirmationSent, setEmailConfirmationSent] = useState(false);
-  const [confirmedEmail, setConfirmedEmail] = useState('');
-  const [rateLimitTitle, setRateLimitTitle] = useState(null);
+  const { sendOtp, isLoading, error, clearError } = useAuthStore();
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const [email, setEmail] = useState('');
+  const [resendTimer, setResendTimer] = useState(0);
 
-  const handleRoleSelect = (role) => {
-    setFormData({ ...formData, role });
-  };
+  useEffect(() => {
+    if (resendTimer === 0) return;
+    const interval = setInterval(() => setResendTimer((t) => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
-    setRateLimitTitle(null);
-    
-    if (!formData.role) {
+    if (!email.trim() || !EMAIL_REGEX.test(email.trim())) {
+      useAuthStore.setState({ error: 'Please enter a valid email address.' });
       return;
     }
-
-    if (!acceptedTerms) {
-      return;
-    }
-    
-    const result = await signup(
-      formData.email, 
-      null, 
-      formData.name, 
-      formData.phone, 
-      formData.role
-    );
-    
+    const result = await sendOtp(email.trim());
     if (result.success) {
-      if (result.requiresEmailConfirmation) {
-        useToastStore.getState().success('Verification OTP code sent to your email.');
-        // Only the email + non-PII routing hints go in the URL (survive refresh).
-        // name/phone are PII — pass them via short-lived navigation state so they
-        // never leak into browser history, server logs, analytics, or referrers.
-        const params = new URLSearchParams({
-          email: formData.email.trim().toLowerCase(),
-          type: 'signup',
-          role: formData.role,
-        });
-        navigate(`/verify-otp?${params.toString()}`, {
-          state: { name: formData.name || undefined, phone: formData.phone || undefined },
-        });
-        return;
-      }
-      if (formData.role === 'owner') {
-        navigate('/owner/salon');
-      } else {
-        navigate('/discover');
-      }
-    } else if (result.rateLimitTitle) {
-      setRateLimitTitle(result.rateLimitTitle);
+      useToastStore.getState().success('Verification OTP code sent to your email.');
+      setResendTimer(60);
+      navigate(
+        `/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}&type=magiclink`
+      );
     }
   };
-
-  if (emailConfirmationSent) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="min-h-screen flex items-center justify-center px-4 py-12 bg-stone-50"
-      >
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 border border-stone-200 text-center">
-          <h1 className="font-heading text-2xl font-bold text-stone-900 mb-3">Check your email</h1>
-          <p className="text-stone-600 mb-6">
-            We sent a confirmation link to <strong>{confirmedEmail}</strong>. Open it in your
-            browser — you&apos;ll see an &quot;Email verified&quot; page — then sign in here with the
-            same email and password.
-          </p>
-          <Link to="/login" className="btn-primary inline-block">
-            Go to Sign In
-          </Link>
-        </div>
-      </motion.div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-stone-50">
@@ -116,212 +50,67 @@ const SignupPage = () => {
         className="w-full max-w-md"
       >
         <AuthBrandMark />
-        <div className="text-center mb-8">
-          <h1 className="font-heading text-3xl font-bold text-stone-900 mb-2">
-            Join TrimiT
-          </h1>
-          <p className="text-stone-500">
-            Create your account to get started
-          </p>
+        <div className="text-center mb-8 -mt-4">
+          <h1 className="font-heading text-3xl font-bold text-stone-900 mb-2">Join TrimiT</h1>
+          <p className="text-stone-500">Enter your email to receive a 6-digit code</p>
         </div>
 
-        {/* Form */}
         <div className="bg-white rounded-3xl shadow-xl p-8 border border-stone-200">
-          {/* Role Selection */}
-          {!formData.role && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="mb-8"
-            >
-              <h2 className="font-heading text-xl font-bold text-stone-900 mb-4 text-center">
-                I am a...
-              </h2>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => handleRoleSelect('customer')}
-                  data-testid="role-customer"
-                  className="p-6 border-2 border-stone-200 rounded-2xl hover:border-orange-800 hover:bg-orange-50 transition-all group"
-                >
-                  <Users 
-                    size={40} 
-                    weight="duotone" 
-                    className="mx-auto mb-3 text-stone-400 group-hover:text-orange-800 transition-colors" 
-                  />
-                  <span className="block font-semibold text-stone-900">Customer</span>
-                  <span className="text-xs text-stone-500">Book appointments</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRoleSelect('owner')}
-                  data-testid="role-owner"
-                  className="p-6 border-2 border-stone-200 rounded-2xl hover:border-orange-800 hover:bg-orange-50 transition-all group"
-                >
-                  <Storefront 
-                    size={40} 
-                    weight="duotone" 
-                    className="mx-auto mb-3 text-stone-400 group-hover:text-orange-800 transition-colors" 
-                  />
-                  <span className="block font-semibold text-stone-900">Salon Owner</span>
-                  <span className="text-xs text-stone-500">List your business</span>
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Registration Form */}
-          {formData.role && (
-            <motion.form 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              onSubmit={handleSubmit} 
-              className="space-y-5"
-            >
-              {/* Selected Role Badge */}
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm text-stone-500">Signing up as:</span>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: '' })}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-orange-100 text-orange-800 rounded-full text-sm font-medium hover:bg-orange-200 transition-colors"
-                >
-                  {formData.role === 'customer' ? (
-                    <Users size={16} weight="bold" />
-                  ) : (
-                    <Storefront size={16} weight="bold" />
-                  )}
-                  <span className="capitalize">{formData.role}</span>
-                  <span className="text-orange-600">×</span>
-                </button>
-              </div>
-
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`p-4 rounded-xl text-sm ${
-                    rateLimitTitle
-                      ? 'bg-amber-50 border border-amber-200 text-amber-950'
-                      : 'bg-red-50 border border-red-200 text-red-700'
-                  }`}
-                  data-testid="signup-error"
-                  role="alert"
-                >
-                  {rateLimitTitle ? (
-                    <p className="font-semibold text-amber-900 mb-2">{rateLimitTitle}</p>
-                  ) : null}
-                  <p className="whitespace-pre-line leading-relaxed">{error}</p>
-                </motion.div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <User 
-                    size={20} 
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" 
-                  />
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    data-testid="signup-name"
-                    className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
-                    placeholder="John Doe"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <EnvelopeSimple 
-                    size={20} 
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" 
-                  />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    data-testid="signup-email"
-                    className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
-                    placeholder="you@example.com"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">
-                  Phone Number
-                </label>
-                <div className="relative">
-                  <Phone 
-                    size={20} 
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" 
-                  />
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    data-testid="signup-phone"
-                    className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
-                    placeholder="+91 98765 43210"
-                  />
-                </div>
-              </div>
-
-
-
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={acceptedTerms}
-                  onChange={(e) => setAcceptedTerms(e.target.checked)}
-                  className="mt-1 rounded border-stone-300 text-orange-800 focus:ring-orange-800"
-                  data-testid="signup-terms"
-                />
-                <span className="text-sm text-stone-600">
-                  I agree to the{' '}
-                  <Link to="/terms" className="text-orange-800 font-medium hover:underline">
-                    Terms of Service
-                  </Link>{' '}
-                  and{' '}
-                  <Link to="/privacy" className="text-orange-800 font-medium hover:underline">
-                    Privacy Policy
-                  </Link>
-                </span>
-              </label>
-
-              <button
-                type="submit"
-                disabled={isLoading || !acceptedTerms}
-                data-testid="signup-submit"
-                className="w-full btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm"
+                data-testid="signup-error"
+                role="alert"
               >
-                {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  'Create Account'
-                )}
-              </button>
-            </motion.form>
-          )}
+                {error}
+              </motion.div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-2">
+                Email Address
+              </label>
+              <div className="relative">
+                <EnvelopeSimple
+                  size={20}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400"
+                />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  data-testid="signup-email"
+                  className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
+                  placeholder="you@example.com"
+                  required
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading || resendTimer > 0}
+              data-testid="signup-submit"
+              className="w-full btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : resendTimer > 0 ? (
+                `Resend in ${resendTimer}s`
+              ) : (
+                'Send Verification Code'
+              )}
+            </button>
+          </form>
 
           <div className="mt-6 text-center">
             <p className="text-stone-500 text-sm">
               Already have an account?{' '}
-              <Link 
-                to="/login" 
+              <Link
+                to="/login"
                 className="text-orange-800 font-semibold hover:underline"
                 data-testid="login-link"
               >
