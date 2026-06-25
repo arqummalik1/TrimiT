@@ -6,6 +6,36 @@
 > Update this file after every meaningful prompt, code change, migration, deploy, or QA pass.
 
 ## Session log
+### 2026-06-25 — FIX: Web auth flow now mirrors mobile (email-only OTP + CompleteProfile, role decided after OTP)
+
+**Problem:**
+Web signup diverged from the mobile app. Mobile uses email-only OTP for both sign in and sign up: enter email → 6-digit OTP → if new, CompleteProfile picks role (customer/owner). Web instead asked for role+name+phone upfront, called `/auth/signup` (which only sends an OTP and stuffs role/name/phone into Supabase user_metadata), then on `verify-otp` it **never** called `/auth/complete-profile` and ignored `profile_complete`. The backend `verify-otp` does not read role/name/phone and no DB trigger creates `public.users` from metadata, so **new web users ended up authenticated with no profile row** (orphaned/broken account, no role).
+
+**Root cause:** Web `verifyOtp` store action did not honor the backend `profile_complete` flag and there was no web CompleteProfile step. Role was being guessed client-side instead of created server-side via `/auth/complete-profile`.
+
+**Fix (web frontend only — no backend, DB, or mobile change; API contract unchanged):**
+1. `frontend/src/store/authStore.js`: `verifyOtp` now reads `profile_complete`; new/broken accounts get an authenticated session but `profileComplete=false` and route to CompleteProfile. Added a `completeProfile()` action calling `POST /auth/complete-profile`. Added `profileComplete` to state, partialize, login (true), logout (false), and `initializeAuth` (from `/auth/me`). Removed the now-dead `signup` action.
+2. `frontend/src/pages/CompleteProfilePage.js` (NEW): web mirror of mobile `CompleteProfileScreen` — role picker + name + optional phone + terms → `completeProfile`. Self-guards (redirects to /login if unauthenticated, to home if already complete).
+3. `frontend/src/pages/VerifyOtpPage.js`: dropped role/name/phone signup hints; routes new users to `/complete-profile`, existing users to role-based home. Default `type` now `magiclink`.
+4. `frontend/src/pages/SignupPage.js`: simplified to email-only OTP (identical to LoginPage / mobile). No upfront role/name/phone form.
+5. `frontend/src/App.js`: added `/complete-profile` route; `ProtectedRoute` and `getHomeRoute` now gate authenticated-but-no-role users into CompleteProfile.
+
+Email+password login remains available on LoginPage as a secondary option; OTP is the default for both login and signup, matching mobile.
+
+**Verification:**
+- `get_diagnostics` on all 5 changed files → clean.
+- `npm run build` in `frontend/` → exit 0 (Vite build + SEO prerender succeeded). Pre-existing chunk-size warning only.
+
+**Migration state:** No new SQL. No migrations needed.
+
+**Files changed:**
+- `frontend/src/store/authStore.js` (MODIFIED)
+- `frontend/src/pages/CompleteProfilePage.js` (NEW)
+- `frontend/src/pages/VerifyOtpPage.js` (MODIFIED)
+- `frontend/src/pages/SignupPage.js` (MODIFIED)
+- `frontend/src/App.js` (MODIFIED)
+
+
 ### 2026-06-16 — FIX: Solved Priorities 2, 3, 5, and 7/H-6 (Zustand Storage Split, Android Backup, Form Validations, Timer Leaks)
 
 **Problem:**

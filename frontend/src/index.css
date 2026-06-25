@@ -240,30 +240,24 @@ h1, h2, h3, h4, h5, h6 {
   outline-offset: 3px;
 }
 
-/* Header "Start Free Trial" CTA — same clockwise ring as download-app-btn */
+/* Header "Start Free Trial" CTA */
 .promo-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   border-radius: 9999px;
-  padding: 2px;
-  overflow: hidden;
-  isolation: isolate;
+  background-color: #9a3412;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.promo-cta-btn__ring {
-  position: absolute;
-  inset: -120%;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg 250deg,
-    rgba(234, 88, 12, 0.25) 265deg,
-    #ea580c 280deg,
-    #fdba74 295deg,
-    #fff7ed 305deg,
-    #ea580c 320deg,
-    rgba(234, 88, 12, 0.3) 335deg,
-    transparent 350deg 360deg
-  );
-  animation: download-app-border-spin 2.2s linear infinite;
-  pointer-events: none;
+.promo-cta-btn:hover {
+  background-color: #c2410c;
 }
 
 .promo-cta-btn:focus-visible {
