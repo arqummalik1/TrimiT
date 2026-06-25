@@ -1,4 +1,11 @@
-import { CalendarCheck, Scissors, Drop } from '@phosphor-icons/react';
+import {
+  CalendarCheck,
+  Scissors,
+  Drop,
+  Star,
+  Sparkle,
+  MapPin,
+} from '@phosphor-icons/react';
 
 export const BLOG_POSTS = [
   {
@@ -7,6 +14,7 @@ export const BLOG_POSTS = [
     excerpt:
       'How to pick the right salon, compare slots, and get the best grooming experience in Jammu with TrimiT.',
     date: 'May 2026',
+    datePublished: '2026-05-10',
     icon: <CalendarCheck size={48} weight="duotone" />,
     body: `Booking a salon in Jammu does not have to mean endless phone calls. With TrimiT you can compare salons by rating and distance, see live availability, and confirm your appointment in minutes.
 
@@ -26,6 +34,7 @@ export const BLOG_POSTS = [
     excerpt:
       'Haircuts, beard shaping, and grooming packages — a quick guide for men\'s salons in Jammu.',
     date: 'May 2026',
+    datePublished: '2026-05-15',
     icon: <Scissors size={48} weight="duotone" />,
     body: `Jammu has excellent men's salons for haircuts, beard grooming, and full grooming packages. On TrimiT you can filter by service and book men's salon appointments online.
 
@@ -37,6 +46,7 @@ Popular services include fades and classic cuts, beard trim and hot towel shave,
     excerpt:
       'Massages, facials, and wellness treatments — how to find spa services in Jammu.',
     date: 'May 2026',
+    datePublished: '2026-05-20',
     icon: <Drop size={48} weight="duotone" />,
     body: `Spa and wellness centres in Jammu offer head massages, body treatments, and couple packages. TrimiT lets you browse spa services in Jammu, compare prices, and reserve your slot without waiting on hold.
 

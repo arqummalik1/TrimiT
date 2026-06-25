@@ -209,12 +209,9 @@ const Header = () => {
                 <Link
                   to={PROMO.ctaPath}
                   data-testid="signup-btn"
-                  className="promo-cta-btn group relative inline-flex shrink-0"
+                  className="promo-cta-btn shrink-0"
                 >
-                  <span className="promo-cta-btn__ring" aria-hidden="true" />
-                  <span className="relative z-10 inline-flex items-center justify-center gap-2 rounded-full bg-orange-800 px-5 py-2 text-sm font-bold text-white transition-all duration-200 group-hover:bg-orange-700">
-                    {isOfferActive() ? 'Start Free Trial' : 'Sign up free'}
-                  </span>
+                  {isOfferActive() ? 'Start Free Trial' : 'Sign up free'}
                 </Link>
               </div>
             )}
