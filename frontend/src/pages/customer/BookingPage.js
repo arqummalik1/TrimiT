@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { format, addDays, isBefore, startOfToday, isSameDay, parse } from 'date-fns';
@@ -11,7 +11,8 @@ import {
   CheckCircle,
   Timer,
   Warning,
-  CreditCard
+  CreditCard,
+  ShieldCheck
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import { formatPrice, formatTime, normalizeSlotTimeToHHMM, getApiErrorMessage } from '../../lib/utils';
@@ -668,6 +669,16 @@ const BookingPage = () => {
                   <span className="text-xs text-stone-500 mt-1 text-center">Secure online payment</span>
                 </button>
               </div>
+
+              <p className="mt-4 flex items-center gap-1.5 text-xs text-stone-500">
+                <ShieldCheck size={14} weight="fill" className="text-green-600 shrink-0" />
+                <span>
+                  Payments are secure and encrypted.{' '}
+                  <Link to="/help/payments" className="text-orange-800 hover:underline">
+                    How payments work
+                  </Link>
+                </span>
+              </p>
             </div>
 
             <div className="bg-white rounded-2xl border border-stone-200 p-5">

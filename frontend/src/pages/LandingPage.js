@@ -7,6 +7,7 @@ import LocalSeoSections from '../components/landing/sections/LocalSeoSections';
 import WhyTrimitSection from '../components/landing/sections/WhyTrimitSection';
 import HowItWorksSection from '../components/landing/sections/HowItWorksSection';
 import OffersSection from '../components/landing/sections/OffersSection';
+import PaymentTrustSection from '../components/landing/sections/PaymentTrustSection';
 import OwnerGrowthSection from '../components/landing/sections/OwnerGrowthSection';
 import SocialProofSection from '../components/landing/sections/SocialProofSection';
 import AppDownloadSection from '../components/landing/sections/AppDownloadSection';
@@ -26,6 +27,7 @@ const LandingPage = () => (
     <WhyTrimitSection />
     <HowItWorksSection />
     <OffersSection />
+    <PaymentTrustSection />
     <FeaturedSalonsSection
       title="Nearby salons"
       subtitle="Discover salons near you across Jammu &amp; Kashmir — enable location for best results."

@@ -5,7 +5,155 @@
 > Living handoff file for humans and AI tools.
 > Update this file after every meaningful prompt, code change, migration, deploy, or QA pass.
 
+## 📊 Payments rollout — status dashboard (updated 2026-06-26)
+
+> Quick at-a-glance checklist of the commission-based payments work. `[x]` = done,
+> `[ ]` = pending. Newest detail lives in the session log below.
+
+### Product / business model
+- [x] Decision: **commission-based**, free for owners (no subscription)
+- [x] Subscription + trial UI hidden for owners (mobile), reversible via flag
+- [x] Owners never blocked after trial (`SUBSCRIPTION_ENFORCEMENT_ENABLED=false`)
+- [x] Commission economics set: 5% TrimiT + 2% gateway = ~7%, owner keeps ~93%
+
+### Backend (FastAPI / Render)
+- [x] PayU split-payment endpoints built (create-order, verify, webhook, status, refund)
+- [x] Bank/KYC collection + Fernet field encryption (`FIELD_ENCRYPTION_KEY` set)
+- [x] Commission split math (exact paise reconciliation) + admin commission override
+- [x] Owner earnings endpoint (settled vs pending)
+- [x] All gated behind `PAYU_PAYOUTS_ENABLED` (currently **false** = safe/off)
+- [x] DB migration `database/48_salon_bank_accounts_payu.sql` applied to prod
+- [ ] PayU **vendor registration** real contract (needs PayU split product live — TODO)
+- [ ] PayU **settlement webhook** exact field shape confirmed (TODO pending activation)
+
+### Frontend (web / Vercel)
+- [x] Payments Help Center page at `/help/payments` (+ SEO + sitemap)
+- [x] Owner payment messaging on `/for-salons` (free, paid to bank, ~7%)
+- [x] Customer payment band on landing `/`
+- [x] "Payments are secure" note on checkout (`BookingPage`)
+- [x] Footer link to Payments Help
+- [x] `VITE_ENABLE_ONLINE_PAY` switch placeholder (currently **false**)
+
+### Mobile (Expo / Play Store)
+- [x] Payments Help screen (Customer Profile + Owner Settings)
+- [x] "Payments are secure" note on `BookingScreen`
+- [x] Online checkout screens exist (`OnlinePaymentScreen`, `PayuCheckoutScreen` WebView)
+- [x] `EXPO_PUBLIC_ENABLE_ONLINE_PAY` switch (currently **true** in env; reaches users only via new build)
+- [ ] New Play Store build shipped with the latest payment UI (pending)
+
+### Keys / environment variables
+- [x] **Test merchant key** — entered in `backend/.env` (`PAYU_TEST_MERCHANT_KEY=WZlGgs`)
+- [x] **Test merchant salt** — entered in `backend/.env` (`PAYU_TEST_MERCHANT_SALT`)
+- [x] `FIELD_ENCRYPTION_KEY` — set in `backend/.env`
+- [x] Live key/salt **placeholders** created with comments (`PAYU_MERCHANT_KEY` / `PAYU_MERCHANT_SALT`, blank)
+- [x] Web + mobile env files commented: **no PayU keys client-side**, switch only
+- [ ] Test key + salt set on **Render** (production backend) — user to confirm
+- [ ] `FIELD_ENCRYPTION_KEY` set on **Render** (same value) — user to confirm
+- [ ] **Live merchant key** — fill at go-live (backend `.env` + Render)
+- [ ] **Live merchant salt** — fill at go-live (backend `.env` + Render)
+- [ ] `PAYU_MODE` switched `test` → `live` at go-live
+- [ ] `PAYU_PAYOUTS_ENABLED` flipped `false` → `true` at go-live
+
+### Testing
+- [ ] Local backend PayU test suite run by user
+- [ ] Sandbox transaction (test mode) — needs a salon set `vendor_status='active'` manually
+- [ ] First real live transaction (after PayU split approval)
+
+### Go-live (blocked on PayU split-settlement approval)
+- [ ] PayU **split settlement** product approved on the account
+- [ ] Real owners show `vendor_status = active`
+- [ ] Live keys + `PAYU_MODE=live` + `PAYU_PAYOUTS_ENABLED=true`
+- [ ] Client switches on (`VITE_ENABLE_ONLINE_PAY=true` + new mobile build)
+- [ ] Confirm a salon's money reaches their bank (`settlement_status=settled`)
+
 ## Session log
+### 2026-06-26 — CHANGE: Hide subscription + trial for owners (commission-based, free for owners)
+**Context:** Product decision — TrimiT goes commission-based. Owners pay ₹0, app is free for them. Temporarily hide ALL subscription/trial UI and ensure owners are never blocked. Fully reversible (flag flip), no code/DB deleted.
+**What changed (mobile, additive/flag-gated only):**
+- `OwnerDashboardScreen.tsx`: gated the trial countdown pill **and** the `SubscriptionBanner` behind `ENABLE_SUBSCRIPTIONS` (was always-on). Now hidden.
+- `featureFlags.ts`: `ENABLE_SUBSCRIPTIONS = false` already set (hides Settings "TrimiT Pro" card + nav). Left as-is.
+**Already safe (no change needed):**
+- Backend `SUBSCRIPTION_ENFORCEMENT_ENABLED=false` (config + .env) → `require_active_subscription` is a no-op pass-through; owners are NEVER blocked after trial. Booking gate also no-ops.
+- Mobile `SubscriptionGate` returns null when `ENABLE_SUBSCRIPTION_ENFORCEMENT` is off (env, default false).
+- Web has no owner subscription/trial UI.
+**Trial length:** not changed. With enforcement off + UI hidden, trial_end is inert and invisible, so no DB edit was needed (safest path). Trial extension to 30d unnecessary while owners are free.
+**Verification:** diagnostics clean on `OwnerDashboardScreen.tsx`.
+**Migration state:** no SQL. **Reach to users:** backend/web auto-deploy from `main`; mobile UI change reaches users only via a new Play Store build.
+
+### 2026-06-26 — FEATURE: Payment messaging + Payments Help Center (web + mobile)
+**Context:** Commission-based launch. Tell users plainly: free for owners, money to your bank, ~7% per online booking; and give everyone a self-serve place for payment questions (failed payment, refunds, how payouts work). All additive — no API/DB/auth/booking changes.
+**Web (`frontend/`):**
+- NEW `content/paymentsHelp.js` — single source of payments copy + fee constants (5% + 2% = ~7%, owner nets ~93%).
+- NEW `pages/PaymentsHelpPage.js` at route `/help/payments` (topics + FAQ + support CTA). Wired in `App.js`.
+- `Footer.js`: added "Payments Help" link.
+- `ForSalonsPage.js`: new Payments band (free to join, paid to your bank, ~7% only) + "Direct bank payouts" feature + link to help center.
+- `config/seo-data.json`: added `/help/payments` SEO entry + STATIC_ROUTE (prerendered + in sitemap).
+**Mobile (`mobile/`):**
+- NEW `screens/legal/PaymentsHelpScreen.tsx` (reuses `LegalScreen` + `PAYMENTS_HELP_MD` added to `legal/content.ts`).
+- Registered `PaymentsHelp` route in CustomerStack, CustomerTabs (Profile), OwnerTabs (Settings) + `navigation/types.ts`.
+- Added "Payments Help" menu row to customer `ProfileScreen` and owner `SettingsScreen` (both legal blocks).
+**Fees kept consistent** with `BankAccountPage.js` disclosure and `backend/services/commission.py`.
+**Verification:** web `npm run build` OK (`/help/payments` prerendered); mobile `npx tsc --noEmit` 0 errors; diagnostics clean on all touched files; Phosphor icon names verified against installed package.
+**Migration state:** no SQL. **Reach to users:** web auto-deploys from `main`; mobile screen + menu reach users only via a new Play Store build.
+
+**Follow-up (same day):** Added customer-facing trust UI — NEW `components/landing/sections/PaymentTrustSection.js` on the landing page (`/`, after Offers): secure payments / pay your way / easy refunds + link to `/help/payments`. Added a small "Payments are secure and encrypted" note with a "How payments work" link on web `BookingPage.js` (payment-method card) and a matching lock note on mobile `BookingScreen.tsx` (presentational only — no booking-flow logic touched). Mobile `OnlinePaymentScreen.tsx` already had a PayU secure note. Web build + mobile tsc clean.
+
+### 2026-06-26 — FEATURE: PayU split-payments (spec `payu-split-payments`) — Phase 1 + Phase 2 complete, all behind a flag
+
+**Context:** New marketplace payments feature. Goal: customers pay online, money auto-splits to each salon's bank (TrimiT 5% commission + ~2% PayU fee = ~7% disclosed; salon nets ~93%). PayU split product not yet activated, so the whole charge/split path ships **disabled** behind `PAYU_PAYOUTS_ENABLED` (default false) and is verified in PayU test mode. Built two layers: **A** (collect+store bank/KYC, works today) and **B** (charge/split, gated).
+
+**Also fixed a pre-existing bug:** `bank_account_service.py` wrote to a `salon_bank_accounts` table that had **no migration** and only stored `account_number_last4` — the bank feature was silently broken. Now a real table stores full, encrypted bank+KYC.
+
+**Backend (all additive, structured `{code,message}` errors, integer paise, no secrets/PII logged):**
+- `database/48_salon_bank_accounts_payu.sql` (NEW migration — **applied to prod by user**): `salon_bank_accounts` (encrypted account/PAN/GSTIN + KYC + vendor lifecycle, RLS owner-scoped), `payments` (split breakdown + `payment_status`/`settlement_status`, CHECK reconciles), `refunds`, `payu_webhook_logs` (append-only, unique event id), `app_settings` (seeds `commission_percent=5`).
+- `core/crypto.py` (Fernet field encryption, fails closed without key), `core/feature_flags.py`, `services/commission.py` (Decimal half-up split, exact reconciliation), `services/payu_service.py` (SHA-512 request/response/webhook hashing, test/live env, order+split, vendor reg, refund — split/vendor/refund PayU contracts carry TODOs pending activation).
+- `routers/payments.py` rebuilt from 501 stubs: `create-order` (flag+vendor-active+idempotency+server-side amount+retry cap), `verify` (callback hash→confirm booking), `webhook` (authoritative, dedupe by event id, settlement status), `status` (caller-scoped + can_retry), `refund` (full/partial, idempotent).
+- `routers/bank_accounts.py` hardened (owner-only, masked, server-resolved salon). `routers/admin.py` += `GET/PUT /admin/commission-rate`. `routers/owner_earnings.py` (NEW, `GET /owner/earnings`, settled vs pending separated). Vendor registration wired into bank save (non-fatal, flag-gated).
+- `core/exceptions.py`: validation handler now JSON-encodes Pydantic v2 ctx (a custom-validator ValueError previously 500'd instead of 422). **Shared handler — affects all endpoints' validation errors; strictly more robust.**
+
+**Mobile + Web (additive, themed, via repositories, no `any` in TS):**
+- Owner payout-details KYC screens (mobile `BankAccountScreen`, web `BankAccountPage`) with ~7% deduction disclosure + payout-status badge; onboarding repointed to the canonical screen (old `BankDetailsScreen` kept, not deleted). Dashboard payout badge (mobile + web).
+- Customer payment UI (mobile `OnlinePaymentScreen` + `PayuCheckoutScreen` WebView auto-submit; web form auto-submit + `PaymentCallbackPage`), gated by client `ENABLE_ONLINE_PAY` (off) and the server flag — falls back to pay-at-salon on `ONLINE_PAYMENT_DISABLED`.
+
+**Verification:** payments/PayU/bank test suite **151 passed**; `import server` OK; mobile `npx tsc --noEmit` 0 errors; diagnostics clean. `FIELD_ENCRYPTION_KEY` generated and set in local `.env`.
+
+**Migration state:** `database/48_...` authored and **already applied to production Supabase by the user**. No other SQL.
+
+**Action items before/at release:** (1) set `FIELD_ENCRYPTION_KEY` on Render (same value as local). (2) Keep `PAYU_PAYOUTS_ENABLED` false. (3) Mobile UI reaches users only via a new Play Store build (backend/web auto-deploy from `main`). (4) Paste PayU test key/salt into `.env`/Render to test Layer B in PayU test mode.
+
+**Files changed:** `database/48_salon_bank_accounts_payu.sql`, `backend/core/{crypto,feature_flags,exceptions}.py`, `backend/config.py`, `backend/services/{commission,payu_service,bank_account_service}.py`, `backend/routers/{payments,bank_accounts,admin,owner_earnings}.py`, `backend/models/{bank_accounts,payments}.py`, `backend/server.py`, 14 backend test files, mobile `src/{services,repositories,hooks,screens/customer,screens/owner,navigation,types,components}` payout+payment files, web `frontend/src/{services,repositories,hooks,pages/customer,pages/owner,lib,App.js}`. Spec: `.kiro/specs/payu-split-payments/{requirements,design,tasks}.md` (all 20 tasks complete).
+
+### 2026-06-25 — FOLLOW-UP: Address web-auth PR review comments + repo doc cleanup
+
+**Context:** Code-review feedback on the web email-OTP auth PR (branch `fix/web-auth-otp-flow-parity`), plus a working-tree cleanup the user asked to ship on the same branch.
+
+**Review fixes (web frontend only):**
+1. `frontend/src/pages/SignupPage.js`: email validation now uses local component state (`fieldError`) instead of mutating the shared auth store via `useAuthStore.setState`. Error banner shows `fieldError || error`; clears on typing.
+2. `frontend/src/config/phone.js` (NEW): centralized, region-aware phone validation/formatting (defaults to IN / +91). Exposes `sanitizePhoneInput`, `isValidNationalPhone`, `toE164`, `phoneValidationHint`, `phoneDialCode`. `CompleteProfilePage.js` now uses these instead of an inlined regex and hardcoded `+91`.
+3. `frontend/src/store/authStore.js` → `completeProfile`: merges the server-returned profile into the `user` object so `user` and `profile` state stay consistent.
+
+**Repo cleanup (no runtime impact):**
+- Moved `RULES.md` → `Rules/RULES.md` (100% rename; content preserved).
+- Removed stale root-level docs/reports and a one-off `RUN_THIS_FIX.sql`.
+- Minor unrelated tweaks already in the working tree: `Header.js`, `content/blog/posts.js`, `index.css`.
+
+**Verification:**
+- `get_diagnostics` on all changed files → clean.
+- `npm run build` in `frontend/` → exit 0.
+
+**Migration state:** No new SQL. No migrations needed.
+
+**Open follow-up:** `.kiro/steering/production-rules.md` still references `/RULES.md`; the file now lives at `Rules/RULES.md`. Not updated (left per user instruction).
+
+**Commits:** `3e8dc7bb` (review fixes), `865137cb` (doc relocation/cleanup) on `fix/web-auth-otp-flow-parity`.
+
+**Files changed:**
+- `frontend/src/pages/SignupPage.js` (MODIFIED)
+- `frontend/src/config/phone.js` (NEW)
+- `frontend/src/pages/CompleteProfilePage.js` (MODIFIED)
+- `frontend/src/store/authStore.js` (MODIFIED)
+- `RULES.md` → `Rules/RULES.md` (RENAMED) + stale root docs removed
+
 ### 2026-06-25 — FIX: Web auth flow now mirrors mobile (email-only OTP + CompleteProfile, role decided after OTP)
 
 **Problem:**

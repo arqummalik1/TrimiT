@@ -23,10 +23,11 @@ export const ENABLE_OWNER_PROMO_MANAGEMENT =
   process.env.EXPO_PUBLIC_ENABLE_PROMO_MANAGEMENT === '1';
 
 /**
- * TrimiT Pro subscriptions. Disabled until payment gateway is integrated.
- * Set EXPO_PUBLIC_ENABLE_SUBSCRIPTIONS=true to re-enable.
+ * TrimiT Pro subscriptions. Temporarily OFF: TrimiT is commission-based and
+ * free for owners, so all subscription/trial UI is hidden (Settings card,
+ * dashboard trial pill, subscription banner). Flip back to `true` to restore.
  */
-export const ENABLE_SUBSCRIPTIONS = true;
+export const ENABLE_SUBSCRIPTIONS = false;
 
 /**
  * Phase 2 client enforcement: freeze the owner app + grey out lapsed salons

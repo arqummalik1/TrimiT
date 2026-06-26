@@ -23,6 +23,12 @@ interface BookingCardProps {
   onComplete?: () => void;
   onReschedule?: () => void;
   onWriteReview?: () => void;
+  /**
+   * Customer online-payment entry (PayU, Layer B). Additive: when provided AND
+   * the booking is customer-side, pending, and unpaid, a "Pay online" action is
+   * shown. Left undefined (the default) keeps the pay-at-salon flow unchanged.
+   */
+  onPayOnline?: () => void;
 }
 
 const BookingCardComponent: React.FC<BookingCardProps> = ({
@@ -37,6 +43,7 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
   onComplete,
   onReschedule,
   onWriteReview,
+  onPayOnline,
 }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -123,6 +130,22 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
           </View>
 
           <View style={styles.actions}>
+            {/* Customer: pay online (PayU). Only when enabled + pending + unpaid. */}
+            {!isOwner &&
+              booking.status === 'pending' &&
+              booking.payment_status !== 'paid' &&
+              onPayOnline && (
+                <TouchableOpacity
+                  style={styles.payOnlineButton}
+                  onPress={onPayOnline}
+                  accessibilityRole="button"
+                  accessibilityLabel="Pay online"
+                >
+                  <Ionicons name="card-outline" size={16} color={theme.colors.textInverse} />
+                  <Text style={styles.payOnlineText}>Pay online</Text>
+                </TouchableOpacity>
+              )}
+
             {/* Customer: reschedule (pending or confirmed) */}
             {!isOwner &&
               (booking.status === 'pending' || booking.status === 'confirmed') &&
@@ -360,6 +383,19 @@ const createStyles = (theme: Theme) =>
     rescheduleText: {
       ...typography.bodySmallMedium,
       color: theme.colors.primary,
+    },
+    payOnlineButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.primary,
+      gap: 4,
+    },
+    payOnlineText: {
+      ...typography.bodySmallMedium,
+      color: theme.colors.textInverse,
     },
     reviewButton: {
       flexDirection: 'row',

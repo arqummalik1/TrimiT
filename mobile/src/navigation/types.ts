@@ -1,6 +1,7 @@
 import type { NavigatorScreenParams, CompositeScreenProps } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { PayuParams, PayuMode } from '../types/payment';
 
 // =============================================================================
 // AUTH STACK
@@ -46,10 +47,27 @@ export type CustomerDiscoverStackParamList = {
     bookingDate: string;
     timeSlot: string;
   };
+  // PayU online payment (Layer B, flag-gated). Additive — pay-at-salon
+  // (the `Payment` screen above) is unchanged.
+  OnlinePayment: {
+    bookingId: string;
+    /** Total payable in rupees (display only; server derives the charged amount). */
+    amount: number;
+    salonName: string;
+    serviceName: string;
+  };
+  PayuCheckout: {
+    payu: PayuParams;
+    bookingId: string;
+    paymentId: string;
+    amountPaise: number;
+    mode?: PayuMode;
+  };
   WriteReview: { salonId: string; bookingId: string };
   PrivacyPolicy: undefined;
   Terms: undefined;
   Contact: undefined;
+  PaymentsHelp: undefined;
 };
 
 export type ProfileStackParamList = {
@@ -57,6 +75,7 @@ export type ProfileStackParamList = {
   PrivacyPolicy: undefined;
   Terms: undefined;
   Contact: undefined;
+  PaymentsHelp: undefined;
 };
 
 export type CustomerTabParamList = {
@@ -85,6 +104,7 @@ export type OwnerSettingsStackParamList = {
   PrivacyPolicy: undefined;
   Terms: undefined;
   Contact: undefined;
+  PaymentsHelp: undefined;
   BankDetails: undefined;
 };
 

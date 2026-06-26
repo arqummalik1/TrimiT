@@ -160,9 +160,10 @@ export default function ManageServicesScreen() {
       closeModal();
       showToast('Service created!', 'success');
 
-      // If they just created their first service during onboarding, guide to Bank Details
+      // If they just created their first service during onboarding, guide to the
+      // canonical Payout Details screen (BankAccount → /owner/bank-accounts).
       if (useOwnerOnboardingStore.getState().bankDetailsPending) {
-        navigation.navigate('Settings', { screen: 'BankDetails' });
+        navigation.navigate('Settings', { screen: 'BankAccount' });
       }
     },
     onError: (err: unknown) => {

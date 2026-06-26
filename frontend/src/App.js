@@ -22,6 +22,7 @@ import EmailConfirmedPage from "./pages/EmailConfirmedPage";
 import SalonDetail from "./pages/customer/SalonDetail";
 import BookingPage from "./pages/customer/BookingPage";
 import PaymentPage from "./pages/customer/PaymentPage";
+import PaymentCallbackPage from "./pages/customer/PaymentCallbackPage";
 import MyBookings from "./pages/customer/MyBookings";
 import OwnerDashboard from "./pages/owner/OwnerDashboard";
 import ManageSalon from "./pages/owner/ManageSalon";
@@ -36,6 +37,7 @@ import ContactPage from "./pages/legal/ContactPage";
 import AccountPage from "./pages/customer/AccountPage";
 import ExplorePage from "./pages/ExplorePage";
 import ForSalonsPage from "./pages/ForSalonsPage";
+import PaymentsHelpPage from "./pages/PaymentsHelpPage";
 import SeoCategoryPage from "./pages/seo/SeoCategoryPage";
 import BlogIndexPage from "./pages/blog/BlogIndexPage";
 import BlogPostPage from "./pages/blog/BlogPostPage";
@@ -173,6 +175,7 @@ function App() {
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/explore" element={<ExplorePage />} />
           <Route path="/for-salons" element={<ForSalonsPage />} />
+          <Route path="/help/payments" element={<PaymentsHelpPage />} />
           <Route path="/blog" element={<BlogIndexPage />} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
           {SEO_PAGE_PATHS.map((path) => (
@@ -201,6 +204,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["customer"]}>
                 <PaymentPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* PayU online-payment return/callback (Layer B, flag-gated). Polls
+              /payments/status; pay-at-salon (/payment/:bookingId) is unchanged. */}
+          <Route
+            path="/payment/callback"
+            element={
+              <ProtectedRoute allowedRoles={["customer"]}>
+                <PaymentCallbackPage />
               </ProtectedRoute>
             }
           />

@@ -24,6 +24,7 @@ const MARKETING_ROUTES = [
 const LEGAL_LINKS = [
   { to: '/terms', label: 'Terms & Conditions' },
   { to: '/privacy', label: 'Privacy Policy' },
+  { to: '/help/payments', label: 'Payments Help' },
   { to: '/contact', label: 'Contact' },
 ];
 

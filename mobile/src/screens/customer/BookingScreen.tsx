@@ -1435,6 +1435,13 @@ export const BookingScreen: React.FC<
               Pay at the salon after your service. Online payment coming soon.
             </Text>
           )}
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12 }}>
+            <Ionicons name="lock-closed" size={12} color={theme.colors.textSecondary} />
+            <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+              Payments are secure and encrypted.
+            </Text>
+          </View>
         </View>
 
         {/* Promo Code Section */}

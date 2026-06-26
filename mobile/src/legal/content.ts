@@ -202,3 +202,64 @@ India
 
 We don't accept walk-ins — please reach out by phone or email and we'll route your message to the right team.
 `;
+
+// Payments Help Center (mirrors web /help/payments). Fees: 5% TrimiT + 2%
+// gateway = ~7% total, owner nets ~93%. Keep in sync with
+// frontend/src/content/paymentsHelp.js and backend/services/commission.py.
+export const PAYMENTS_HELP_MD = `# Payments Help
+
+Everything about paying on TrimiT — how it works, failed payments, refunds, fees, and how salon owners get paid.
+
+## How payments work
+
+- Pay online while booking, or pay directly at the salon — your choice.
+- Online payments are processed securely by our payment partner (PayU).
+- Once your payment succeeds, your booking is confirmed instantly.
+- The salon receives the money directly in their own bank account — TrimiT never holds it.
+
+## Pay online or pay at the salon
+
+- **Pay at salon**: book now, pay by cash or card when you visit. Nothing is charged online.
+- **Pay online**: pay securely while booking using UPI, cards, net banking, or wallets.
+- Both options confirm your slot. Pick whatever is convenient.
+
+## My payment failed or money was deducted
+
+- If a payment fails, your booking is not confirmed and you are not charged.
+- If money was deducted but the booking did not confirm, don't worry — failed-payment amounts are auto-reversed by your bank, usually within **5–7 working days**.
+- You can simply try booking again, or choose "Pay at salon" instead.
+- Still seeing an issue after 7 days? Contact us with your booking date and the amount.
+
+## Refunds and cancellations
+
+- Refunds go back to the same method you paid with.
+- Refunds typically reach your account within **5–7 working days** after approval.
+- Eligibility depends on the salon's cancellation policy and how close to the appointment you cancel.
+- You'll get a notification when your refund is initiated.
+
+## For salon owners — getting paid
+
+- Listing your salon and taking bookings is **completely free**. No monthly subscription.
+- When a customer pays online, the money settles directly to your registered bank account.
+- We only deduct a small commission of about **7%** per online booking (5% TrimiT + 2% payment gateway). You keep about **93%**.
+- Add your bank and KYC details once in **Payout Details** to activate automatic settlements.
+
+## Fees and charges
+
+- **Customers**: no extra TrimiT charges. You pay the salon's listed price.
+- **Salon owners**: free to join, no monthly fees. A ~7% commission applies only on online payments you actually receive.
+- No hidden charges. The deduction is shown clearly on your Payout Details screen.
+
+## Is paying on TrimiT safe?
+
+- Yes. Online payments are handled by PCI-DSS compliant partners.
+- TrimiT never stores your full card number or banking credentials.
+- Every transaction is encrypted and verified before your booking is confirmed.
+
+## Still need help?
+
+Share your booking date and the amount, and our team will trace it for you.
+
+- **Phone**: +91 70060 82958
+- **Email**: contact@trimit.online
+`;

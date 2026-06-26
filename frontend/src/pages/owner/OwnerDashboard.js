@@ -14,6 +14,7 @@ import {
   XCircle,
   Hourglass,
   Gear,
+  CreditCard,
 } from "@phosphor-icons/react";
 import { bookingRepository } from "../../repositories/bookingRepository";
 import { ownerRepository } from "../../repositories/ownerRepository";
@@ -21,6 +22,7 @@ import { formatPrice } from "../../lib/utils";
 import { useToastStore } from "../../store/toastStore";
 import { useNotificationStore } from "../../store/notificationStore";
 import { useAuthStore } from "../../store/authStore";
+import { useBankAccount } from "../../hooks/useBankAccount";
 import {
   subscribeToSalonBookings,
   unsubscribeFromChannel,
@@ -112,6 +114,17 @@ const OwnerDashboard = () => {
     queryKey: ["ownerAnalytics"],
     queryFn: ownerRepository.getOwnerAnalytics,
   });
+
+  // Payout activation status (Req 17.6, 3.5). Surface a banner whenever the owner
+  // has no bank/KYC record yet OR their PayU vendor is not yet active. Hidden once
+  // vendor_status === 'active'. Don't flash while the first load is in flight.
+  const { data: bankAccount, isLoading: bankAccountLoading } = useBankAccount();
+  const payoutVendorStatus = bankAccount?.vendor_status ?? "not_registered";
+  const showPayoutBanner =
+    !bankAccountLoading && payoutVendorStatus !== "active";
+  const payoutBannerMessage = bankAccount
+    ? "Verify your bank details to start receiving booking payouts."
+    : "Add your bank details to start receiving booking payouts.";
 
   const statCards = [
     {
@@ -265,6 +278,36 @@ const OwnerDashboard = () => {
           </motion.div>
         ) : (
           <>
+            {/* Payout activation banner (Req 17.6, 3.5) */}
+            {showPayoutBanner && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6"
+              >
+                <Link
+                  to="/owner/bank-account"
+                  className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 transition-colors hover:bg-amber-100 group"
+                >
+                  <span className="p-2 rounded-xl bg-amber-100 text-amber-700">
+                    <CreditCard size={22} weight="bold" />
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold text-amber-800">
+                      Payouts: pending activation
+                    </p>
+                    <p className="text-sm text-amber-700">
+                      {payoutBannerMessage}
+                    </p>
+                  </div>
+                  <ArrowRight
+                    size={18}
+                    className="text-amber-500 group-hover:text-amber-700 transition-colors"
+                  />
+                </Link>
+              </motion.div>
+            )}
+
             {/* Stats Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               {statCards.map((stat, index) => (

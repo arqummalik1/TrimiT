@@ -1,12 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Calendar, ChartBar, Bell, Tag, Storefront, ListChecks } from '@phosphor-icons/react';
+import { ArrowRight, Calendar, ChartBar, Bell, Tag, Storefront, ListChecks, Bank, CheckCircle } from '@phosphor-icons/react';
 import OwnerGrowthSection from '../components/landing/sections/OwnerGrowthSection';
 import DashboardMockup from '../components/landing/mockups/DashboardMockup';
 import FaqSection from '../components/landing/sections/FaqSection';
 import { OWNER_TESTIMONIALS } from '../config/testimonials';
 import { PROMO, isOfferActive } from '../config/promotions';
+import { PAYMENTS_FEES } from '../content/paymentsHelp';
 
 const OWNER_FAQ = [
   {
@@ -28,6 +29,7 @@ const FEATURES = [
   { icon: ListChecks, title: 'Service management', text: 'Add services, prices, and durations easily.' },
   { icon: Bell, title: 'Notifications', text: 'Get alerted when customers book or cancel.' },
   { icon: ChartBar, title: 'Analytics', text: 'Track bookings and revenue trends.' },
+  { icon: Bank, title: 'Direct bank payouts', text: 'Online payments settle straight to your bank account.' },
   { icon: Tag, title: 'Offers', text: 'Highlight promotions on your profile.' },
   { icon: Storefront, title: 'Digital profile', text: 'Photos, hours, and location for customers.' },
 ];
@@ -90,6 +92,57 @@ export default function ForSalonsPage() {
       </section>
 
       <OwnerGrowthSection compact />
+
+      {/* Payments band — commission-based, free to join, paid to your bank */}
+      <section className="py-20 px-4 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <span className="text-xs font-bold tracking-[0.2em] uppercase text-orange-700">
+              Payments
+            </span>
+            <h2 className="font-heading text-3xl font-bold text-stone-900 mt-3 mb-3">
+              Free to join. Get paid straight to your bank.
+            </h2>
+            <p className="text-stone-600 max-w-2xl mx-auto">
+              No monthly subscription, no setup fees. We only earn when you do — a small
+              commission on online payments. Everything else is yours.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-6">
+            {[
+              {
+                title: 'No monthly fees',
+                text: 'List your salon and take bookings for free. No subscription, ever-present or hidden.',
+              },
+              {
+                title: 'Money to your bank',
+                text: 'Online payments settle directly into your registered bank account. TrimiT never holds your money.',
+              },
+              {
+                title: `Only ~${PAYMENTS_FEES.totalPercent}% per online booking`,
+                text: `${PAYMENTS_FEES.trimitPercent}% TrimiT + ${PAYMENTS_FEES.gatewayPercent}% payment gateway. You keep about ${PAYMENTS_FEES.netPercent}%. Shown clearly, no surprises.`,
+              },
+            ].map((c) => (
+              <div key={c.title} className="rounded-2xl border border-stone-200 p-6">
+                <CheckCircle size={28} weight="fill" className="text-green-600 mb-3" />
+                <h3 className="font-heading font-bold text-stone-900 mb-2">{c.title}</h3>
+                <p className="text-stone-600 text-sm leading-relaxed">{c.text}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-10">
+            <Link
+              to="/help/payments"
+              className="inline-flex items-center gap-1.5 text-orange-800 font-semibold hover:underline"
+            >
+              See how payments &amp; payouts work
+              <ArrowRight size={18} weight="bold" />
+            </Link>
+          </div>
+        </div>
+      </section>
 
       <section className="py-16 px-4 bg-stone-50">
         <div className="max-w-3xl mx-auto grid sm:grid-cols-2 gap-6">

@@ -40,6 +40,10 @@ import { BookingsTrendChart, PopularServicesChart, StatusDistributionChart } fro
 import BookingCard from '../../components/BookingCard';
 import { SubscriptionBanner } from '../../components/SubscriptionBanner';
 import { useSubscriptionStatus } from '../../hooks/useSubscription';
+import { ENABLE_SUBSCRIPTIONS } from '../../lib/featureFlags';
+import { OwnerSetupBanner } from '../../components/OwnerSetupBanner';
+import { useBankAccount } from '../../hooks/useBankAccount';
+import { VendorStatus } from '../../services/bankAccountService';
 
 import { OwnerDashboardScreenProps as NavigationProps } from '../../navigation/types';
 import { ComponentProps } from 'react';
@@ -212,6 +216,22 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
   const queryClient = useQueryClient();
 
   const { data: subscriptionStatus } = useSubscriptionStatus();
+
+  // Payout activation status (Req 17.6, 3.5). Surface a dashboard banner whenever
+  // the owner has no bank/KYC record yet OR their PayU vendor is not yet active,
+  // so they can act at a glance. Hidden once vendor_status === 'active'.
+  const { data: bankAccount, isLoading: bankAccountLoading } = useBankAccount();
+  const payoutVendorStatus: VendorStatus = bankAccount?.vendor_status ?? 'not_registered';
+  // Don't flash the banner while the first load is in flight.
+  const showPayoutBanner = !bankAccountLoading && payoutVendorStatus !== 'active';
+  const payoutBannerMessage = bankAccount
+    ? 'Verify your bank details to start receiving booking payouts.'
+    : 'Add your bank details to start receiving booking payouts.';
+  const openPayoutDetails = () =>
+    navigation
+      .getParent()
+      ?.navigate('Settings', { screen: 'BankAccount', initial: false });
+
   const statusMutation = useMutation({
     mutationFn: ({ bookingId, status }: { bookingId: string; status: string }) => 
       bookingRepository.updateBookingStatus(bookingId, status),
@@ -339,7 +359,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
           <View style={styles.headerLeft}>
             <Text style={styles.welcomeText}>Good Day,</Text>
             <Text style={styles.salonTitle} numberOfLines={1}>{salon.name}</Text>
-            {subscriptionStatus?.is_trial ? (
+            {ENABLE_SUBSCRIPTIONS && subscriptionStatus?.is_trial ? (
               <TouchableOpacity
                 style={[styles.trialPill, { backgroundColor: trialPillColor }]}
                 activeOpacity={0.85}
@@ -365,11 +385,23 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
           </TouchableOpacity>
         </View>
 
-        {/* Subscription / trial banner (Phase 1: informational) */}
-        {subscriptionStatus ? (
+        {/* Subscription / trial banner (Phase 1: informational).
+            Hidden while TrimiT is commission-based + free for owners. */}
+        {ENABLE_SUBSCRIPTIONS && subscriptionStatus ? (
           <SubscriptionBanner
             status={subscriptionStatus}
             onPress={openSubscription}
+          />
+        ) : null}
+
+        {/* Payout activation banner (Req 17.6, 3.5) */}
+        {showPayoutBanner ? (
+          <OwnerSetupBanner
+            icon="card-outline"
+            title="Payouts: pending activation"
+            message={payoutBannerMessage}
+            ctaLabel="Add payout details"
+            onPress={openPayoutDetails}
           />
         ) : null}
 

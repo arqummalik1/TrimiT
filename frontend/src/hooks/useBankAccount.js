@@ -11,15 +11,21 @@ export function useBankAccount() {
     queryFn: () => bankAccountRepository.getBankAccount(),
     enabled: isOwner(profile),
     staleTime: 60_000,
+    retry: 2,
   });
 }
 
-export function useCreateLinkedAccount() {
+export function useSaveBankAccount() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data) => bankAccountRepository.createLinkedAccount(data),
+    mutationFn: (data) => bankAccountRepository.saveBankAccount(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bankAccount'] });
     },
   });
+}
+
+// Back-compat alias for existing callers.
+export function useCreateLinkedAccount() {
+  return useSaveBankAccount();
 }

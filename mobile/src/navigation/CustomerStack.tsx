@@ -7,10 +7,13 @@ import ServiceDetailScreen from '../screens/customer/ServiceDetailScreen';
 import BookingScreen from '../screens/customer/BookingScreen';
 import RescheduleBookingScreen from '../screens/customer/RescheduleBookingScreen';
 import PaymentScreen from '../screens/customer/PaymentScreen';
+import OnlinePaymentScreen from '../screens/customer/OnlinePaymentScreen';
+import PayuCheckoutScreen from '../screens/customer/PayuCheckoutScreen';
 import WriteReviewScreen from '../screens/customer/WriteReviewScreen';
 import PrivacyPolicyScreen from '../screens/legal/PrivacyPolicyScreen';
 import TermsScreen from '../screens/legal/TermsScreen';
 import ContactScreen from '../screens/legal/ContactScreen';
+import PaymentsHelpScreen from '../screens/legal/PaymentsHelpScreen';
 
 const Stack = createNativeStackNavigator<CustomerDiscoverStackParamList>();
 
@@ -28,10 +31,13 @@ export default function CustomerStack() {
       <Stack.Screen name="Booking" component={BookingScreen} />
       <Stack.Screen name="RescheduleBooking" component={RescheduleBookingScreen} />
       <Stack.Screen name="Payment" component={PaymentScreen} />
+      <Stack.Screen name="OnlinePayment" component={OnlinePaymentScreen} />
+      <Stack.Screen name="PayuCheckout" component={PayuCheckoutScreen} />
       <Stack.Screen name="WriteReview" component={WriteReviewScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <Stack.Screen name="Terms" component={TermsScreen} />
       <Stack.Screen name="Contact" component={ContactScreen} />
+      <Stack.Screen name="PaymentsHelp" component={PaymentsHelpScreen} />
     </Stack.Navigator>
   );
 }

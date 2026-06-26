@@ -31,9 +31,11 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: Optional[str] = None
 
     # ── Subscriptions (TrimiT Pro) ──────────────────────────────────────────
-    # Phase 2 enforcement. Default ON (app launched fresh with subscription-aware
-    # clients). Set to false in env to revert to observe-only.
-    SUBSCRIPTION_ENFORCEMENT_ENABLED: bool = True
+    # TEMPORARILY OFF: TrimiT is commission-based and free for owners. With this
+    # false, `require_active_subscription` and the booking gate are no-op
+    # pass-throughs — owners are NEVER blocked after trial. Set to true to
+    # re-enable Phase 2 enforcement.
+    SUBSCRIPTION_ENFORCEMENT_ENABLED: bool = False
     # Plan economics (paise). ₹299 / month.
     SUBSCRIPTION_PRICE_PAISE: int = 29900
     SUBSCRIPTION_TRIAL_DAYS: int = 14
@@ -60,6 +62,27 @@ class Settings(BaseSettings):
     # Staging only: create pre-confirmed users (no Supabase confirmation email).
     # Production must use Custom SMTP in Supabase for scalable signups.
     AUTH_AUTO_CONFIRM_SIGNUP: bool = False
+
+    # ── PayU split payments ─────────────────────────────────────────────────
+    # All fields are additive and default to safe values so the app boots even
+    # when they are unset. Layer B (online charge/split) stays inert until
+    # PAYU_PAYOUTS_ENABLED is true; Layer A (bank/KYC collection) only needs
+    # FIELD_ENCRYPTION_KEY when its endpoints are exercised.
+    #
+    # Layer B gate — OFF by default. Live online payments only when true.
+    PAYU_PAYOUTS_ENABLED: bool = False
+    # PayU environment: "test" (sandbox) or "live". Independent of the flag.
+    PAYU_MODE: str = "test"
+    PAYU_MERCHANT_KEY: Optional[str] = None
+    PAYU_MERCHANT_SALT: Optional[str] = None
+    PAYU_TEST_MERCHANT_KEY: Optional[str] = None
+    PAYU_TEST_MERCHANT_SALT: Optional[str] = None
+    # Fernet key (urlsafe base64, 32 bytes) for encrypting bank/KYC sensitive
+    # fields at rest. Never hardcode a fallback — encryption fails closed.
+    FIELD_ENCRYPTION_KEY: Optional[str] = None
+    # Commission economics. Default 5% TrimiT take; PayU fee ~2% (salon nets ~93%).
+    PLATFORM_COMMISSION_PERCENT: float = 5.0   # Admin-adjustable override at runtime
+    PAYU_FEE_PERCENT: float = 2.0              # gateway fee disclosed in total deduction
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE, env_file_encoding="utf-8", extra="ignore"

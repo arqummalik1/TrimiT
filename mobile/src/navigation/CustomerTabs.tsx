@@ -15,6 +15,7 @@ import ProfileScreen from '../screens/customer/ProfileScreen';
 import PrivacyPolicyScreen from '../screens/legal/PrivacyPolicyScreen';
 import TermsScreen from '../screens/legal/TermsScreen';
 import ContactScreen from '../screens/legal/ContactScreen';
+import PaymentsHelpScreen from '../screens/legal/PaymentsHelpScreen';
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
 
@@ -26,6 +27,7 @@ function ProfileStackScreen() {
       <ProfileStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <ProfileStack.Screen name="Terms" component={TermsScreen} />
       <ProfileStack.Screen name="Contact" component={ContactScreen} />
+      <ProfileStack.Screen name="PaymentsHelp" component={PaymentsHelpScreen} />
     </ProfileStack.Navigator>
   );
 }

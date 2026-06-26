@@ -1,5 +1,6 @@
 import os
 from fastapi import Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -55,6 +56,12 @@ def setup_exception_handlers(app):
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        # Pydantic v2 can place a non-JSON-serializable object in an error's
+        # ``ctx`` (e.g. the original ValueError raised by a custom
+        # ``@field_validator``). Coerce every error to a JSON-safe form so a
+        # validation failure always yields a structured 422 instead of crashing
+        # the response renderer (which would surface as a 500).
+        safe_errors = jsonable_encoder(exc.errors(), custom_encoder={Exception: str})
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content={
@@ -62,7 +69,7 @@ def setup_exception_handlers(app):
                 "error": {
                     "code": "VALIDATION_ERROR",
                     "message": "Input validation failed",
-                    "details": exc.errors()
+                    "details": safe_errors
                 },
                 "request_id": request_id_var.get()
             }

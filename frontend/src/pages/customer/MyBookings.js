@@ -14,6 +14,7 @@ import {
   Hourglass,
   Spinner,
   Bell,
+  CreditCard,
 } from "@phosphor-icons/react";
 import { bookingRepository } from "../../repositories/bookingRepository";
 import {
@@ -30,14 +31,26 @@ import {
 } from "../../lib/supabase";
 import { useAuthStore } from "../../store/authStore";
 import NotificationBell from "../../components/NotificationBell";
+import { ENABLE_ONLINE_PAY } from "../../lib/featureFlags";
+import { useCreatePayment } from "../../hooks/usePayment";
+import {
+  submitPayuCheckout,
+  PAYU_PENDING_BOOKING_KEY,
+} from "../../lib/payuCheckout";
 
 const MyBookings = () => {
   const queryClient = useQueryClient();
-  const { success, error } = useToastStore();
+  const { success, error, info } = useToastStore();
   const { addNotification } = useNotificationStore();
   const { profile } = useAuthStore();
   const [activeChannel, setActiveChannel] = useState(null);
   const [statusUpdates, setStatusUpdates] = useState([]);
+  // PayU online payment (Layer B, flag-gated). `onlineUnavailable` flips true
+  // when the server reports online pay is OFF / the salon isn't payout-ready,
+  // hiding the entry point gracefully. Pay-at-salon is unchanged.
+  const [onlineUnavailable, setOnlineUnavailable] = useState(false);
+  const [payingBookingId, setPayingBookingId] = useState(null);
+  const createPayment = useCreatePayment();
 
   const { data: rawBookings, isLoading } = useQuery({
     queryKey: ["myBookings"],
@@ -152,6 +165,48 @@ const MyBookings = () => {
       });
     },
   });
+
+  // PayU online payment: create an order then auto-submit the hosted-checkout
+  // form. On flag-OFF / not-ready, hide the entry point gracefully (Req 4.4/4.5).
+  const handlePayOnline = (booking) => {
+    setPayingBookingId(booking.id);
+    createPayment.mutate(
+      { bookingId: booking.id },
+      {
+        onSuccess: (order) => {
+          try {
+            sessionStorage.setItem(PAYU_PENDING_BOOKING_KEY, booking.id);
+          } catch {
+            /* sessionStorage unavailable — callback falls back to query param */
+          }
+          // Navigates the browser away to PayU's secure checkout.
+          submitPayuCheckout(order.payu, "test");
+        },
+        onError: (err) => {
+          setPayingBookingId(null);
+          const data = err?.response?.data;
+          const code =
+            data?.error?.details?.code || data?.error?.code || undefined;
+          if (
+            code === "ONLINE_PAYMENT_DISABLED" ||
+            code === "SALON_NOT_PAYOUT_READY"
+          ) {
+            setOnlineUnavailable(true);
+            info(
+              "Online payment isn’t available right now. You can pay directly at the salon.",
+              { title: "Pay at salon" },
+            );
+            return;
+          }
+          error(
+            data?.error?.message ||
+              "We couldn’t start your payment. Please try again.",
+            { title: "Payment" },
+          );
+        },
+      },
+    );
+  };
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -289,19 +344,40 @@ const MyBookings = () => {
                     </div>
 
                     {booking.status === "pending" && (
-                      <button
-                        onClick={() => cancelMutation.mutate(booking.id)}
-                        disabled={cancelMutation.isPending}
-                        data-testid={`cancel-booking-${booking.id}`}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {cancelMutation.isPending ? (
-                          <Spinner size={18} className="animate-spin" />
-                        ) : (
-                          <XCircle size={18} />
-                        )}
-                        {cancelMutation.isPending ? "Cancelling..." : "Cancel"}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {ENABLE_ONLINE_PAY &&
+                          !onlineUnavailable &&
+                          booking.payment_status !== "paid" && (
+                            <button
+                              onClick={() => handlePayOnline(booking)}
+                              disabled={payingBookingId === booking.id}
+                              data-testid={`pay-online-${booking.id}`}
+                              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-orange-700 hover:bg-orange-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {payingBookingId === booking.id ? (
+                                <Spinner size={18} className="animate-spin" />
+                              ) : (
+                                <CreditCard size={18} />
+                              )}
+                              {payingBookingId === booking.id
+                                ? "Starting…"
+                                : "Pay online"}
+                            </button>
+                          )}
+                        <button
+                          onClick={() => cancelMutation.mutate(booking.id)}
+                          disabled={cancelMutation.isPending}
+                          data-testid={`cancel-booking-${booking.id}`}
+                          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {cancelMutation.isPending ? (
+                            <Spinner size={18} className="animate-spin" />
+                          ) : (
+                            <XCircle size={18} />
+                          )}
+                          {cancelMutation.isPending ? "Cancelling..." : "Cancel"}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

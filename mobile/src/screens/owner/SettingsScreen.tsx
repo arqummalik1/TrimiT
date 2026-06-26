@@ -276,6 +276,22 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
 
             <TouchableOpacity
               style={styles.actionCard}
+              onPress={() => navigation.navigate('PaymentsHelp')}
+            >
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="card" size={24} color={theme.colors.primary} />
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionTitle}>Payments Help</Text>
+                <Text style={styles.actionDescription}>
+                  How payouts, refunds & fees work
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionCard}
               onPress={() => navigation.navigate('PrivacyPolicy')}
             >
               <View style={styles.actionIconContainer}>
@@ -535,7 +551,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => navigation.navigate('BankDetails')}
+            onPress={() => navigation.navigate('BankAccount')}
             disabled={!salon}
           >
             <View style={[styles.actionIconContainer, !salon && { opacity: 0.5 }]}>
@@ -543,10 +559,10 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
             </View>
             <View style={styles.actionTextContainer}>
               <Text style={[styles.actionTitle, !salon && { color: theme.colors.textSecondary }]}>
-                Bank Details
+                Payout Details
               </Text>
               <Text style={styles.actionDescription}>
-                Manage account number and IFSC code
+                Manage bank account, IFSC, and KYC
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
@@ -622,6 +638,22 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
         {/* Legal & Support */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Legal & Support</Text>
+
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('PaymentsHelp')}
+          >
+            <View style={styles.actionIconContainer}>
+              <Ionicons name="card" size={24} color={theme.colors.primary} />
+            </View>
+            <View style={styles.actionTextContainer}>
+              <Text style={styles.actionTitle}>Payments Help</Text>
+              <Text style={styles.actionDescription}>
+                How payouts, refunds & fees work
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.actionCard}
