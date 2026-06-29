@@ -160,10 +160,10 @@ export default function ManageServicesScreen() {
       closeModal();
       showToast('Service created!', 'success');
 
-      // If they just created their first service during onboarding, guide to the
-      // canonical Payout Details screen (BankAccount → /owner/bank-accounts).
+      // If they just created their first service during onboarding, guide them
+      // to add their UPI ID so they can accept payments.
       if (useOwnerOnboardingStore.getState().bankDetailsPending) {
-        navigation.navigate('Settings', { screen: 'BankAccount' });
+        navigation.navigate('Settings', { screen: 'UpiPaymentSettings' });
       }
     },
     onError: (err: unknown) => {

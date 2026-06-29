@@ -12,20 +12,43 @@ import { RootScreenProps } from '../../navigation/types';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 
 const phoneRegex = /^[6-9]\d{9}$/;
-const profileSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  phone: z
-    .string()
-    .optional()
-    .or(z.literal(''))
-    .refine((val) => !val || phoneRegex.test(val), {
-      message: 'Phone number must be a valid 10-digit number (e.g. 9876543210)',
+const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+const profileSchema = z
+  .object({
+    name: z.string().min(2, 'Name must be at least 2 characters'),
+    phone: z
+      .string()
+      .optional()
+      .or(z.literal(''))
+      .refine((val) => !val || phoneRegex.test(val), {
+        message: 'Phone number must be a valid 10-digit number (e.g. 9876543210)',
+      }),
+    role: z.enum(['customer', 'owner']),
+    upi_id: z.string().optional().or(z.literal('')),
+    termsAccepted: z.boolean().refine((val) => val === true, {
+      message: 'You must accept the terms and conditions',
     }),
-  role: z.enum(['customer', 'owner']),
-  termsAccepted: z.boolean().refine((val) => val === true, {
-    message: 'You must accept the terms and conditions',
-  }),
-});
+  })
+  .superRefine((data, ctx) => {
+    // UPI ID is REQUIRED for owners — customers must not see/submit it.
+    if (data.role !== 'owner') return;
+    const upi = (data.upi_id ?? '').trim();
+    if (!upi) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['upi_id'],
+        message: 'UPI ID is required so customers can pay you',
+      });
+      return;
+    }
+    if (!upiRegex.test(upi)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['upi_id'],
+        message: 'Enter a valid UPI ID (e.g. glowsalon@okaxis)',
+      });
+    }
+  });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
 
@@ -42,6 +65,7 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
     control,
     handleSubmit,
     setValue,
+    setError,
     watch,
     formState: { errors },
   } = useForm<ProfileFormData>({
@@ -50,6 +74,7 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
       name: prefilled.prefilledName || '',
       phone: prefilled.prefilledPhone ? prefilled.prefilledPhone.replace(/^\+91/, '') : '',
       role: prefilled.prefilledRole || 'customer',
+      upi_id: '',
       termsAccepted: false,
     },
   });
@@ -68,10 +93,24 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
       name: data.name,
       phone: formattedPhone,
       role: data.role,
+      // Only owners send a UPI ID; customers never do.
+      upi_id: data.role === 'owner' ? (data.upi_id ?? '').trim() : undefined,
     });
     
     if (!result.success) {
-      setLocalError(result.error || 'Failed to complete profile');
+      // Map backend UPI validation codes to an inline field error rather than
+      // a generic banner, so the owner knows exactly what to fix.
+      if (result.errorCode === 'UPI_REQUIRED' || result.errorCode === 'INVALID_UPI') {
+        setError('upi_id', {
+          type: 'server',
+          message:
+            result.errorCode === 'UPI_REQUIRED'
+              ? 'UPI ID is required so customers can pay you'
+              : 'Enter a valid UPI ID (e.g. glowsalon@okaxis)',
+        });
+      } else {
+        setLocalError(result.error || 'Failed to complete profile');
+      }
     }
     // On success, the RootNavigator will automatically unmount this screen 
     // and render the correct Tabs based on the new profileComplete state.
@@ -175,6 +214,31 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
               )}
             />
           </View>
+
+          {selectedRole === 'owner' && (
+            <View style={styles.inputGroup}>
+              <Controller
+                control={control}
+                name="upi_id"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="UPI ID *"
+                    placeholder="glowsalon@okaxis"
+                    value={value ?? ''}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={errors.upi_id?.message}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                  />
+                )}
+              />
+              <Text style={styles.upiHelpText}>
+                Customers pay you directly on this UPI ID. You can update it later in Settings.
+              </Text>
+            </View>
+          )}
 
           <TouchableOpacity
             style={styles.checkboxContainer}
@@ -310,6 +374,11 @@ const createStyles = (theme: any) => StyleSheet.create({
     ...theme.typography.caption,
     color: theme.colors.error,
     marginBottom: theme.spacing.md,
+  },
+  upiHelpText: {
+    ...theme.typography.caption,
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.xs,
   },
   checkboxContainer: {
     flexDirection: 'row',

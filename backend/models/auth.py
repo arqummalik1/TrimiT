@@ -86,7 +86,14 @@ class CompleteProfileRequest(BaseModel):
     Called immediately after OTP verification when no public.users row
     exists for the authenticated user. Role is required — there is no
     server-side default. Name is required (min 1 char). Phone is optional.
+
+    upi_id is REQUIRED when role == 'owner' (salon owners are paid directly via
+    UPI), and ignored for customers. Validated in the handler so we can return a
+    structured error.
     """
     role: UserRole = Field(..., description="User role: 'customer' or 'owner'. Required.")
     name: str = Field(..., min_length=1, max_length=100, description="Full display name.")
     phone: Optional[str] = Field(None, max_length=20, description="Phone number (optional).")
+    upi_id: Optional[str] = Field(
+        None, max_length=256, description="Owner UPI VPA (required for owners), e.g. name@bank."
+    )

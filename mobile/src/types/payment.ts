@@ -1,114 +1,114 @@
 /**
- * payment.ts — client types for the PayU online-payment path (Layer B).
+ * payment.ts — client types for the UPI-intent + manual-verification model.
  * ─────────────────────────────────────────────────────────────────────────────
- * Mirrors the additive backend contract:
- *   POST /api/v1/payments/create-order  (auth + Idempotency-Key)
- *   GET  /api/v1/payments/status?booking_id=...
+ * TrimiT never collects money. There are exactly two payment methods:
+ *   • 'salon_cash' — pay the salon in cash after the service (booking flows as today).
+ *   • 'upi'        — pay the salon's UPI ID directly from any UPI app. The salon
+ *                    owner then VERIFIES the payment; only then is the booking
+ *                    confirmed. We never auto-show "Payment Successful".
  *
- * Everything here is additive and flag-gated server-side
- * (`PAYU_PAYOUTS_ENABLED`, OFF by default). While the flag is OFF the
- * create-order endpoint returns 403 `ONLINE_PAYMENT_DISABLED`; the client
- * treats that as "online payments unavailable" and falls back to pay-at-salon.
+ * Mirrors the backend contract under /api/v1:
+ *   POST /payments/upi/initiate
+ *   POST /payments/upi/awaiting-verification
+ *   POST /payments/{booking_id}/verify   (owner)
+ *   POST /payments/{booking_id}/reject   (owner)
+ *   GET  /payments/{booking_id}/status
  *
- * No `any` types. Sensitive card data never touches the client — PayU hosts
- * capture; we only ever forward the signed `payu` form params to PayU.
- *
- * Requirements: 4.4, 4.5, 17.4, 17.5
+ * No `any` types.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-/** Backend structured-error code returned when the server flag is OFF (Req 4.4, 4.5). */
-export const ONLINE_PAYMENT_DISABLED_CODE = 'ONLINE_PAYMENT_DISABLED' as const;
-
-/** PayU hosted-checkout environment. Backend default is "test" until split is live. */
-export type PayuMode = 'test' | 'live';
-
-/** PayU hosted-checkout form endpoints (auto-POST target). */
-export const PAYU_CHECKOUT_URL: Record<PayuMode, string> = {
-  test: 'https://test.payu.in/_payment',
-  live: 'https://secure.payu.in/_payment',
-};
+/** The two — and only two — payment methods in v1. */
+export type PaymentMethod = 'salon_cash' | 'upi';
 
 /**
- * The signed PayU `_payment` form parameters returned by the backend. These are
- * POSTed verbatim to the PayU hosted checkout. `hash` is computed server-side
- * (SHA-512) — the client never computes or alters it.
- *
- * Known fields are typed explicitly; the index signature keeps additive PayU
- * fields (e.g. `splitInfo`, future `udf*`) forwardable without `any`.
+ * Verification lifecycle of a UPI payment as reported by the backend.
+ *  • not_required        — cash booking, nothing to verify.
+ *  • initiated           — UPI intent created, customer sent to their UPI app.
+ *  • waiting_verification — customer returned; awaiting salon owner verification.
+ *  • verified            — owner confirmed payment; booking is confirmed.
+ *  • rejected            — owner could not verify the payment.
+ *  • timeout             — owner hasn't verified within the allowed window.
  */
-export interface PayuParams {
-  key: string;
-  txnid: string;
-  /** Rupee string with 2 decimals, e.g. "100.00" (PayU expects rupees, not paise). */
-  amount: string;
-  productinfo: string;
-  firstname: string;
-  email: string;
-  phone: string;
-  /** Success URL — supplied by the backend, points at the backend callback. */
-  surl: string;
-  /** Failure URL — supplied by the backend, points at the backend callback. */
-  furl: string;
-  hash: string;
-  udf1?: string;
-  udf2?: string;
-  udf3?: string;
-  udf4?: string;
-  udf5?: string;
-  /** Split-settlement payload (JSON string) when present. */
-  splitInfo?: string;
-  [field: string]: string | undefined;
-}
+export type PaymentVerificationStatus =
+  | 'not_required'
+  | 'initiated'
+  | 'waiting_verification'
+  | 'verified'
+  | 'rejected'
+  | 'timeout';
 
-/** Successful `POST /payments/create-order` response (Req 6.1, 6.2, 17.4). */
-export interface CreateOrderResponse {
-  payment_id: string;
-  booking_id: string;
-  /** Total payable, integer paise (₹ = amount_paise / 100). */
-  amount_paise: number;
+/** Payment settlement status echoed by the backend (not money TrimiT holds). */
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+
+/** Booking lifecycle echoed by the payment endpoints. */
+export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+
+/**
+ * The UPI intent payload returned by `POST /payments/upi/initiate`. `intent_uri`
+ * is a ready-to-launch `upi://pay?...` deep link; the rest is shown so the
+ * customer can pay manually if no UPI app is installed.
+ */
+export interface UpiIntent {
+  payee_vpa: string;
+  payee_name: string;
+  /** Rupee amount as a number (display only — server is authoritative). */
+  amount: number;
   currency: string;
-  payment_status: 'pending' | 'paid' | 'failed' | 'refunded' | 'partially_refunded';
-  payu: PayuParams;
+  transaction_note: string;
+  booking_reference: string;
+  /** `upi://pay?pa=...&pn=...&am=...&tn=...` deep link. */
+  intent_uri: string;
 }
 
-/** Lifecycle of a payment as reported by `GET /payments/status`. */
-export type PaymentStatus =
-  | 'pending'
-  | 'paid'
-  | 'failed'
-  | 'refunded'
-  | 'partially_refunded';
-
-/** Settlement lifecycle (a `paid` payment is NOT yet settled money — Req 16.4). */
-export type SettlementStatus = 'pending' | 'settled' | 'failed';
-
-/**
- * `GET /payments/status` response. The backend returns `{status: "unknown"}`
- * (legacy-compatible) when the caller has no matching payment yet, otherwise the
- * full status payload. Modeled as a discriminated union so callers handle both
- * without `any`.
- */
-export interface PaymentStatusKnown {
-  status?: undefined;
-  payment_status: PaymentStatus;
-  settlement_status: SettlementStatus | null;
+/** Successful `POST /payments/upi/initiate` response. */
+export interface UpiInitiateResponse {
   booking_id: string;
-  amount_paise: number | null;
-  attempt_count: number | null;
-  /** Server-derived retry eligibility (Req 9.5). */
-  can_retry: boolean;
+  booking_reference: string;
+  payment_verification_status: PaymentVerificationStatus;
+  upi: UpiIntent;
+  message: string;
 }
 
-export interface PaymentStatusUnknown {
-  status: 'unknown';
+/** Successful `POST /payments/upi/awaiting-verification` response. */
+export interface UpiAwaitingVerificationResponse {
+  booking_id: string;
+  payment_verification_status: PaymentVerificationStatus;
+  message: string;
 }
 
-export type PaymentStatusResponse = PaymentStatusKnown | PaymentStatusUnknown;
+/** `GET /payments/{booking_id}/status` response. */
+export interface PaymentStatusResponse {
+  booking_id: string;
+  payment_method: PaymentMethod;
+  payment_status: PaymentStatus;
+  payment_verification_status: PaymentVerificationStatus;
+  booking_status: BookingStatus;
+  booking_reference: string;
+}
 
-/** Type guard: did the caller already have a payment row? */
-export function isKnownPaymentStatus(
-  resp: PaymentStatusResponse | undefined | null
-): resp is PaymentStatusKnown {
-  return !!resp && (resp as PaymentStatusUnknown).status !== 'unknown';
+/** Owner action result for `POST /payments/{booking_id}/verify`. */
+export interface VerifyPaymentResponse {
+  booking_id: string;
+  payment_verification_status: PaymentVerificationStatus;
+  payment_status: PaymentStatus;
+  booking_status: BookingStatus;
+}
+
+/** Owner action result for `POST /payments/{booking_id}/reject`. */
+export interface RejectPaymentResponse {
+  booking_id: string;
+  payment_verification_status: PaymentVerificationStatus;
+  booking_status: BookingStatus;
+}
+
+/** Verification states where polling should continue (not yet final). */
+export const PENDING_VERIFICATION_STATUSES: ReadonlySet<PaymentVerificationStatus> =
+  new Set<PaymentVerificationStatus>(['initiated', 'waiting_verification']);
+
+/** True while the payment verification is still in a non-final, pollable state. */
+export function isPendingVerification(
+  status: PaymentVerificationStatus | undefined | null
+): boolean {
+  return !!status && PENDING_VERIFICATION_STATUSES.has(status);
 }

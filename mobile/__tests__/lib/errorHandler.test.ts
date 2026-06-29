@@ -16,8 +16,13 @@ describe('handleApiError', () => {
 
   // ─── Axios timeout (ECONNABORTED) ──────────────────────────────────────────
   it('maps ECONNABORTED to network kind with timeout message', () => {
-    const err = new (axios as any).CancellationError('timeout of 10000ms exceeded');
-    (err as any).code = 'ECONNABORTED';
+    const err = {
+      isAxiosError: true,
+      code: 'ECONNABORTED',
+      message: 'timeout of 10000ms exceeded',
+      config: {},
+      toJSON: () => ({}),
+    };
     const result = handleApiError(err);
     expect(result.kind).toBe('network');
     expect(result.message).toMatch(/timed out/i);
@@ -25,8 +30,13 @@ describe('handleApiError', () => {
 
   // ─── Axios network error (no response) ──────────────────────────────────────
   it('maps no-response axios error to network kind', () => {
-    const err = new (axios as any).CancellationError('Network Error');
-    (err as any).code = 'ERR_NETWORK';
+    const err = {
+      isAxiosError: true,
+      code: 'ERR_NETWORK',
+      message: 'Network Error',
+      config: {},
+      toJSON: () => ({}),
+    };
     const result = handleApiError(err);
     expect(result.kind).toBe('network');
     expect(result.message).toMatch(/internet|network/i);

@@ -1,27 +1,14 @@
 /**
  * Payments Help Center content (single source of truth for web).
  *
- * Plain, India-first language. Mirrors the disclosure already shown on the
- * owner Payout Details page (5% TrimiT + 2% gateway = ~7% total, owner nets
- * ~93%). Keep these numbers in sync with:
- *   frontend/src/pages/owner/BankAccountPage.js  (TRIMIT_PERCENT / GATEWAY_PERCENT)
- *   backend/services/commission.py               (commission_percent)
+ * v1 model: TrimiT never collects customer money. Customers pay the salon
+ * directly — either cash at the salon, or by UPI to the salon's own UPI ID.
+ * The salon owner verifies the UPI payment, then the booking is confirmed.
  *
  * Structure:
  *   TOPICS  → grouped help sections rendered on /help/payments
  *   FAQ     → quick question/answer list (also good for SEO + support)
  */
-
-export const PAYMENTS_FEES = {
-  trimitPercent: 5,
-  gatewayPercent: 2,
-  get totalPercent() {
-    return this.trimitPercent + this.gatewayPercent;
-  },
-  get netPercent() {
-    return 100 - this.trimitPercent - this.gatewayPercent;
-  },
-};
 
 export const PAYMENTS_TOPICS = [
   {
@@ -29,42 +16,31 @@ export const PAYMENTS_TOPICS = [
     icon: 'flow',
     title: 'How payments work on TrimiT',
     points: [
-      'You can pay online while booking, or pay directly at the salon — your choice.',
-      'When you pay online, your money is processed securely by our payment partner (PayU).',
-      'Once your payment succeeds, your booking is confirmed instantly.',
-      'The salon receives the money directly in their own bank account — TrimiT never holds it.',
+      'You pay the salon directly — TrimiT never holds your money.',
+      'Choose "Cash at Salon" to pay in person, or "Pay with UPI" to pay the salon’s UPI ID from any UPI app.',
+      'For UPI, the salon confirms your booking once they see your payment — usually within a few minutes.',
+      'You will get a notification the moment your booking is confirmed.',
     ],
   },
   {
-    id: 'online-vs-salon',
+    id: 'cash-vs-upi',
     icon: 'wallet',
-    title: 'Pay online or pay at the salon',
+    title: 'Cash at salon or pay with UPI',
     points: [
-      'Pay at salon: book now, pay by cash or card when you visit. Nothing is charged online.',
-      'Pay online: pay securely while booking using UPI, cards, net banking, or wallets.',
-      'Both options confirm your slot. Pick whatever is convenient for you.',
+      'Cash at salon: book now, pay by cash when you visit.',
+      'Pay with UPI: open your UPI app (Google Pay, PhonePe, Paytm, BHIM…) and pay the salon’s UPI ID directly.',
+      'After paying by UPI, we show "Waiting for the salon to verify your payment" — the salon confirms shortly.',
     ],
   },
   {
-    id: 'payment-failed',
+    id: 'after-upi',
     icon: 'warning',
-    title: 'My payment failed or money was deducted',
+    title: 'I paid by UPI — what happens next?',
     points: [
-      'If a payment fails, your booking is not confirmed and you are not charged.',
-      'If money was deducted but the booking did not confirm, do not worry — failed-payment amounts are auto-reversed by your bank, usually within 5–7 working days.',
-      'You can simply try booking again, or choose "Pay at salon" instead.',
-      'Still seeing an issue after 7 days? Contact us with your booking date and the amount, and we will trace it for you.',
-    ],
-  },
-  {
-    id: 'refunds',
-    icon: 'refund',
-    title: 'Refunds and cancellations',
-    points: [
-      'If you cancel an eligible booking, your refund is processed back to the same method you paid with.',
-      'Refunds typically reach your account within 5–7 working days after they are approved.',
-      'Refund eligibility depends on the salon’s cancellation policy and how close to the appointment you cancel.',
-      'You will get a notification when your refund is initiated.',
+      'Returning from the UPI app does not instantly confirm your booking.',
+      'The salon checks their UPI app and verifies your payment using your booking reference.',
+      'Once verified, your booking is confirmed and you get a notification — usually within 2–5 minutes.',
+      'If the salon cannot find your payment, they may reject it — you can try again or contact the salon.',
     ],
   },
   {
@@ -72,20 +48,10 @@ export const PAYMENTS_TOPICS = [
     icon: 'bank',
     title: 'For salon owners — getting paid',
     points: [
-      'Listing your salon and taking bookings is completely free. There is no monthly subscription.',
-      'When a customer pays online, the money is settled directly to your registered bank account.',
-      `We only deduct a small commission of about ${PAYMENTS_FEES.totalPercent}% per online booking (${PAYMENTS_FEES.trimitPercent}% TrimiT + ${PAYMENTS_FEES.gatewayPercent}% payment gateway). You keep about ${PAYMENTS_FEES.netPercent}%.`,
-      'Add your bank and KYC details once in Payout Details to activate automatic settlements.',
-    ],
-  },
-  {
-    id: 'fees',
-    icon: 'receipt',
-    title: 'Fees and charges',
-    points: [
-      'For customers: there are no extra TrimiT charges. You pay the salon’s listed price.',
-      `For salon owners: free to join, no monthly fees. A ~${PAYMENTS_FEES.totalPercent}% commission applies only on online payments you actually receive.`,
-      'No hidden charges. The deduction is shown clearly on your Payout Details screen.',
+      'Listing your salon and taking bookings is free.',
+      'Customers pay you directly to your UPI ID — the money lands straight in your account.',
+      'TrimiT never holds or touches your money. There is no payment commission.',
+      'Add your UPI ID once in Payout Details to start accepting UPI bookings.',
     ],
   },
   {
@@ -93,42 +59,42 @@ export const PAYMENTS_TOPICS = [
     icon: 'shield',
     title: 'Is paying on TrimiT safe?',
     points: [
-      'Yes. Online payments are handled by PCI-DSS compliant payment partners.',
-      'TrimiT never stores your full card number or banking credentials.',
-      'Every transaction is encrypted and verified before your booking is confirmed.',
+      'You pay the salon directly through your own trusted UPI app.',
+      'TrimiT never stores your card or banking credentials.',
+      'Every UPI booking carries a unique reference so the salon can match your payment.',
     ],
   },
 ];
 
 export const PAYMENTS_FAQ = [
   {
-    q: 'Do I have to pay online to book?',
-    a: 'No. You can always choose "Pay at salon" and pay by cash or card at the salon. Online payment is optional.',
+    q: 'How do I pay for a booking?',
+    a: 'Choose "Cash at Salon" to pay in person, or "Pay with UPI" to pay the salon’s UPI ID directly from any UPI app.',
   },
   {
-    q: 'My money was deducted but the booking failed. What now?',
-    a: 'You are not charged for failed bookings. Any deducted amount is automatically reversed by your bank, usually within 5–7 working days. If it does not, contact us with the date and amount.',
+    q: 'I paid by UPI but my booking is not confirmed yet. Why?',
+    a: 'UPI payments are verified by the salon. Once they see your payment (matched by your booking reference), they confirm the booking — usually within 2–5 minutes.',
   },
   {
-    q: 'How long do refunds take?',
-    a: 'Approved refunds typically reach your original payment method within 5–7 working days.',
+    q: 'The salon could not verify my payment. What now?',
+    a: 'Please try paying again, or contact the salon directly. TrimiT never holds your money, so any UPI payment is between you and the salon.',
   },
   {
     q: 'Is it free for salon owners?',
-    a: `Yes — listing and taking bookings is free with no monthly subscription. We only take about a ${PAYMENTS_FEES.totalPercent}% commission on online payments (${PAYMENTS_FEES.trimitPercent}% TrimiT + ${PAYMENTS_FEES.gatewayPercent}% gateway), so you keep about ${PAYMENTS_FEES.netPercent}%.`,
+    a: 'Yes — listing and taking bookings is free, and customers pay you directly via UPI or cash. TrimiT takes no commission on payments.',
   },
   {
     q: 'When do salon owners get their money?',
-    a: 'Online payments settle directly to the salon’s own bank account. TrimiT never holds your money.',
+    a: 'Immediately — customers pay your UPI ID directly, so the money reaches your account at the time of payment.',
   },
   {
     q: 'Which payment methods are supported?',
-    a: 'UPI, debit and credit cards, net banking, and popular wallets through our secure payment partner.',
+    a: 'Cash at the salon, or UPI (Google Pay, PhonePe, Paytm, BHIM, and any UPI app).',
   },
 ];
 
 export const PAYMENTS_HELP_META = {
   title: 'Payments Help Center',
   subtitle:
-    'Everything about paying on TrimiT — how it works, failed payments, refunds, fees, and how salon owners get paid.',
+    'How paying on TrimiT works — cash or UPI, paid directly to the salon, and how salon owners get paid.',
 };

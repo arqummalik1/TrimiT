@@ -61,7 +61,8 @@ interface AuthState {
     role: 'customer' | 'owner';
     name: string;
     phone?: string;
-  }) => Promise<{ success: boolean; error?: string }>;
+    upi_id?: string;
+  }) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -413,7 +414,7 @@ export const useAuthStore = create<AuthState>()(
         
         if (!result.success || !result.profile) {
           set({ isLoading: false, error: result.error ?? 'Profile creation failed' });
-          return { success: false, error: result.error };
+          return { success: false, error: result.error, errorCode: result.errorCode };
         }
 
         set({

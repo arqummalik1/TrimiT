@@ -5,8 +5,10 @@ from enum import Enum
 class BookingStatus(str, Enum):
     pending = "pending"
     confirmed = "confirmed"
+    in_service = "in_service"
     completed = "completed"
     cancelled = "cancelled"
+    no_show = "no_show"
 
 class BookingCreate(BaseModel):
     salon_id: str

@@ -17,11 +17,14 @@ import {
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import { useToastStore } from '../../store/toastStore';
+import { useVerifyPayment, useRejectPayment } from '../../hooks/usePayment';
 import { formatPrice, formatTime, getStatusColor, getPaymentStatusColor } from '../../lib/utils';
 
 const ManageBookings = () => {
   const queryClient = useQueryClient();
   const { success, error } = useToastStore();
+  const verifyPayment = useVerifyPayment();
+  const rejectPayment = useRejectPayment();
 
   const { data: salon, isLoading: salonLoading } = useQuery({
     queryKey: ['ownerSalon'],
@@ -248,13 +251,71 @@ const ManageBookings = () => {
                   </div>
 
                   {/* Footer */}
-                  <div className="flex items-center justify-between">
-                    <span className={`px-2.5 py-1 rounded-lg text-xs font-medium ${getPaymentStatusColor(booking.payment_status)}`}>
-                      Payment: {booking.payment_status}
-                    </span>
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex flex-col gap-1">
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-medium ${getPaymentStatusColor(booking.payment_status)}`}>
+                        Payment: {booking.payment_status}
+                      </span>
+                      {booking.payment_method === 'upi' && booking.booking_reference && (
+                        <span className="text-xs text-stone-500">
+                          UPI ref: <span className="font-mono font-medium text-stone-700">{booking.booking_reference}</span>
+                        </span>
+                      )}
+                    </div>
 
-                    {/* Actions */}
-                    {booking.status === 'pending' && (
+                    {/* UPI payment verification — single owner action that
+                        verifies the payment AND confirms the booking. */}
+                    {booking.payment_method === 'upi' &&
+                    ['waiting_verification', 'initiated', 'timeout'].includes(
+                      booking.payment_verification_status
+                    ) ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() =>
+                            verifyPayment.mutate(
+                              { bookingId: booking.id },
+                              {
+                                onSuccess: () =>
+                                  success('Payment verified — booking confirmed!', { title: 'Verified' }),
+                                onError: (err) =>
+                                  error(err.response?.data?.detail?.message || 'Could not verify payment', { title: 'Error' }),
+                              }
+                            )
+                          }
+                          disabled={verifyPayment.isPending || rejectPayment.isPending}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-100 text-emerald-800 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors disabled:opacity-50"
+                        >
+                          {verifyPayment.isPending ? (
+                            <Spinner size={16} className="animate-spin" />
+                          ) : (
+                            <CheckCircle size={16} />
+                          )}
+                          Verify Payment
+                        </button>
+                        <button
+                          onClick={() =>
+                            rejectPayment.mutate(
+                              { bookingId: booking.id },
+                              {
+                                onSuccess: () =>
+                                  success('Payment marked as not received.', { title: 'Rejected' }),
+                                onError: (err) =>
+                                  error(err.response?.data?.detail?.message || 'Could not reject payment', { title: 'Error' }),
+                              }
+                            )
+                          }
+                          disabled={verifyPayment.isPending || rejectPayment.isPending}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors disabled:opacity-50"
+                        >
+                          {rejectPayment.isPending ? (
+                            <Spinner size={16} className="animate-spin" />
+                          ) : (
+                            <XCircle size={16} />
+                          )}
+                          Reject
+                        </button>
+                      </div>
+                    ) : booking.status === 'pending' ? (
                       <div className="flex gap-2">
                         <button
                           onClick={() => acceptMutation.mutate(booking.id)}
@@ -283,9 +344,7 @@ const ManageBookings = () => {
                           {rejectMutation.isPending ? 'Rejecting...' : 'Reject'}
                         </button>
                       </div>
-                    )}
-
-                    {booking.status === 'confirmed' && (
+                    ) : booking.status === 'confirmed' ? (
                       <button
                         onClick={() => completeMutation.mutate(booking.id)}
                         disabled={completeMutation.isPending}
@@ -299,7 +358,7 @@ const ManageBookings = () => {
                         )}
                         {completeMutation.isPending ? 'Completing...' : 'Mark Complete'}
                       </button>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </motion.div>

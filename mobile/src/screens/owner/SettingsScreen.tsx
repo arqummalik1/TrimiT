@@ -551,7 +551,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => navigation.navigate('BankAccount')}
+            onPress={() => navigation.navigate('UpiPaymentSettings')}
             disabled={!salon}
           >
             <View style={[styles.actionIconContainer, !salon && { opacity: 0.5 }]}>
@@ -559,10 +559,10 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
             </View>
             <View style={styles.actionTextContainer}>
               <Text style={[styles.actionTitle, !salon && { color: theme.colors.textSecondary }]}>
-                Payout Details
+                UPI Payments
               </Text>
               <Text style={styles.actionDescription}>
-                Manage bank account, IFSC, and KYC
+                Add your UPI ID to accept payments from customers
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />

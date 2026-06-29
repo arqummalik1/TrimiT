@@ -1,7 +1,6 @@
 import type { NavigatorScreenParams, CompositeScreenProps } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { PayuParams, PayuMode } from '../types/payment';
 
 // =============================================================================
 // AUTH STACK
@@ -39,29 +38,23 @@ export type CustomerDiscoverStackParamList = {
     salonName: string;
     serviceName: string;
   };
-  Payment: {
+  // UPI intent + manual-verification waiting screen. The customer pays the
+  // salon's UPI ID directly; the booking is confirmed only after the salon
+  // owner verifies. We never auto-show "Payment Successful".
+  PaymentWaiting: {
     bookingId: string;
-    amount: number;
+    bookingReference: string;
     salonName: string;
     serviceName: string;
-    bookingDate: string;
-    timeSlot: string;
-  };
-  // PayU online payment (Layer B, flag-gated). Additive — pay-at-salon
-  // (the `Payment` screen above) is unchanged.
-  OnlinePayment: {
-    bookingId: string;
-    /** Total payable in rupees (display only; server derives the charged amount). */
+    /** Salon UPI ID (payee VPA) shown for manual payment fallback. */
+    upiId: string;
+    payeeName: string;
+    /** Total payable in rupees (display only; server is authoritative). */
     amount: number;
-    salonName: string;
-    serviceName: string;
-  };
-  PayuCheckout: {
-    payu: PayuParams;
-    bookingId: string;
-    paymentId: string;
-    amountPaise: number;
-    mode?: PayuMode;
+    /** `upi://pay?...` deep link for re-launching the UPI app on retry. */
+    intentUri: string;
+    /** Whether a UPI app actually opened on the first attempt. */
+    appLaunched: boolean;
   };
   WriteReview: { salonId: string; bookingId: string };
   PrivacyPolicy: undefined;
@@ -100,7 +93,7 @@ export type OwnerSettingsStackParamList = {
   Subscription: undefined;
   SubscriptionCheckout: undefined;
   PaymentHistory: undefined;
-  BankAccount: undefined;
+  UpiPaymentSettings: undefined;
   PrivacyPolicy: undefined;
   Terms: undefined;
   Contact: undefined;

@@ -1,29 +1,47 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { paymentRepository } from '../repositories/paymentRepository';
 
 /**
- * usePayment — React Query hooks for the PayU online-payment path (web).
- *  • useCreatePayment  — mutation: create a PayU order for a booking.
- *  • usePaymentStatus  — query: poll a booking's payment/settlement status
- *                        while pending (stops once final/unknown→resolved).
+ * usePayment — React Query hooks for the UPI-intent + manual-verification flow.
  *
- * Requirements: 4.4, 4.5, 17.4, 17.5
+ *  • useInitiateUpi            — customer: start the UPI flow for a booking.
+ *  • useMarkAwaitingVerification — customer: "I've paid", await salon verify.
+ *  • usePaymentStatus          — poll a booking's verification status.
+ *  • useVerifyPayment          — owner: verify payment + confirm booking (1 op).
+ *  • useRejectPayment          — owner: reject the payment.
+ *
+ * TrimiT never collects money — none of these report "Payment Successful". The
+ * booking is confirmed only once the owner verifies.
  */
 
 export const paymentStatusKey = (bookingId) => ['paymentStatus', bookingId];
 
-/** Create a PayU order for a booking. Returns the signed PayU form params. */
-export function useCreatePayment() {
+/** Verification states that are still in-flight (keep polling). */
+const PENDING_VERIFICATION = new Set(['initiated', 'waiting_verification']);
+
+/** Customer: start the UPI flow. Returns salon UPI details + intent URI. */
+export function useInitiateUpi() {
   return useMutation({
-    mutationFn: ({ bookingId, idempotencyKey }) =>
-      paymentRepository.createOrder(bookingId, idempotencyKey),
+    mutationFn: (bookingId) => paymentRepository.initiateUpi(bookingId),
     retry: false,
   });
 }
 
+/** Customer: mark a booking as awaiting the salon's verification. */
+export function useMarkAwaitingVerification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (bookingId) => paymentRepository.markAwaitingVerification(bookingId),
+    retry: false,
+    onSuccess: (_data, bookingId) => {
+      qc.invalidateQueries({ queryKey: paymentStatusKey(bookingId) });
+    },
+  });
+}
+
 /**
- * Poll a booking's payment status. Refetches every 3s while the payment is
- * still `pending`; stops once the status is final. Disabled when no bookingId.
+ * Poll a booking's verification status. Refetches every 3s while the payment is
+ * still initiated/waiting_verification; stops once verified/rejected/timeout.
  */
 export function usePaymentStatus(bookingId, enabled = true) {
   return useQuery({
@@ -33,10 +51,39 @@ export function usePaymentStatus(bookingId, enabled = true) {
     refetchInterval: (query) => {
       const data = query.state.data;
       if (!data) return 3000;
-      if (data.status === 'unknown') return 3000;
-      return data.payment_status === 'pending' ? 3000 : false;
+      return PENDING_VERIFICATION.has(data.payment_verification_status) ? 3000 : false;
     },
     staleTime: 0,
     retry: 2,
+  });
+}
+
+/** Owner: verify the UPI payment (also confirms the booking server-side). */
+export function useVerifyPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ bookingId, notes }) => paymentRepository.verifyPayment(bookingId, notes),
+    retry: false,
+    onSuccess: (_data, { bookingId }) => {
+      qc.invalidateQueries({ queryKey: paymentStatusKey(bookingId) });
+      qc.invalidateQueries({ queryKey: ['bookings'] });
+      qc.invalidateQueries({ queryKey: ['ownerBookings'] });
+      qc.invalidateQueries({ queryKey: ['ownerAnalytics'] });
+    },
+  });
+}
+
+/** Owner: reject the UPI payment. The booking stays pending for a retry. */
+export function useRejectPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ bookingId, notes }) => paymentRepository.rejectPayment(bookingId, notes),
+    retry: false,
+    onSuccess: (_data, { bookingId }) => {
+      qc.invalidateQueries({ queryKey: paymentStatusKey(bookingId) });
+      qc.invalidateQueries({ queryKey: ['bookings'] });
+      qc.invalidateQueries({ queryKey: ['ownerBookings'] });
+      qc.invalidateQueries({ queryKey: ['ownerAnalytics'] });
+    },
   });
 }

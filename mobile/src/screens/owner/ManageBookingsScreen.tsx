@@ -27,6 +27,7 @@ import { handleApiError } from '../../lib/errorHandler';
 import { showToast } from '../../store/toastStore';
 import { Booking, Salon } from '../../types';
 import { OwnerTabScreenProps } from '../../navigation/types';
+import { useVerifyPayment, useRejectPayment } from '../../hooks/usePayment';
 
 const STATUSES = ['all', 'pending', 'confirmed', 'completed', 'cancelled'] as const;
 type StatusFilter = (typeof STATUSES)[number];
@@ -82,6 +83,33 @@ export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps
     await queryClient.invalidateQueries({ queryKey: ['ownerBookings'] });
     setRefreshing(false);
   }, [queryClient]);
+
+  const verifyPayment = useVerifyPayment();
+  const rejectPayment = useRejectPayment();
+
+  const handleVerifyPayment = (bookingId: string) => {
+    verifyPayment.mutate(
+      { bookingId },
+      {
+        onSuccess: () => showToast('Payment verified — booking confirmed', 'success'),
+        onError: (error: unknown) => showToast(handleApiError(error).message, 'error'),
+      }
+    );
+  };
+
+  const handleRejectPayment = (bookingId: string) => {
+    rejectPayment.mutate(
+      { bookingId },
+      {
+        onSuccess: () => showToast('Payment rejected', 'success'),
+        onError: (error: unknown) => showToast(handleApiError(error).message, 'error'),
+      }
+    );
+  };
+
+  const isUpiActionInFlight = (bookingId: string) =>
+    (verifyPayment.isPending && verifyPayment.variables?.bookingId === bookingId) ||
+    (rejectPayment.isPending && rejectPayment.variables?.bookingId === bookingId);
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
@@ -230,6 +258,9 @@ export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps
             onComplete={() =>
               statusMutation.mutate({ bookingId: item.id, status: 'completed' })
             }
+            onVerifyPayment={() => handleVerifyPayment(item.id)}
+            onRejectPayment={() => handleRejectPayment(item.id)}
+            isVerifying={isUpiActionInFlight(item.id)}
           />
         )}
       />

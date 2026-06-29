@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import {
@@ -31,26 +31,15 @@ import {
 } from "../../lib/supabase";
 import { useAuthStore } from "../../store/authStore";
 import NotificationBell from "../../components/NotificationBell";
-import { ENABLE_ONLINE_PAY } from "../../lib/featureFlags";
-import { useCreatePayment } from "../../hooks/usePayment";
-import {
-  submitPayuCheckout,
-  PAYU_PENDING_BOOKING_KEY,
-} from "../../lib/payuCheckout";
 
 const MyBookings = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { success, error, info } = useToastStore();
   const { addNotification } = useNotificationStore();
   const { profile } = useAuthStore();
   const [activeChannel, setActiveChannel] = useState(null);
   const [statusUpdates, setStatusUpdates] = useState([]);
-  // PayU online payment (Layer B, flag-gated). `onlineUnavailable` flips true
-  // when the server reports online pay is OFF / the salon isn't payout-ready,
-  // hiding the entry point gracefully. Pay-at-salon is unchanged.
-  const [onlineUnavailable, setOnlineUnavailable] = useState(false);
-  const [payingBookingId, setPayingBookingId] = useState(null);
-  const createPayment = useCreatePayment();
 
   const { data: rawBookings, isLoading } = useQuery({
     queryKey: ["myBookings"],
@@ -166,46 +155,11 @@ const MyBookings = () => {
     },
   });
 
-  // PayU online payment: create an order then auto-submit the hosted-checkout
-  // form. On flag-OFF / not-ready, hide the entry point gracefully (Req 4.4/4.5).
-  const handlePayOnline = (booking) => {
-    setPayingBookingId(booking.id);
-    createPayment.mutate(
-      { bookingId: booking.id },
-      {
-        onSuccess: (order) => {
-          try {
-            sessionStorage.setItem(PAYU_PENDING_BOOKING_KEY, booking.id);
-          } catch {
-            /* sessionStorage unavailable — callback falls back to query param */
-          }
-          // Navigates the browser away to PayU's secure checkout.
-          submitPayuCheckout(order.payu, "test");
-        },
-        onError: (err) => {
-          setPayingBookingId(null);
-          const data = err?.response?.data;
-          const code =
-            data?.error?.details?.code || data?.error?.code || undefined;
-          if (
-            code === "ONLINE_PAYMENT_DISABLED" ||
-            code === "SALON_NOT_PAYOUT_READY"
-          ) {
-            setOnlineUnavailable(true);
-            info(
-              "Online payment isn’t available right now. You can pay directly at the salon.",
-              { title: "Pay at salon" },
-            );
-            return;
-          }
-          error(
-            data?.error?.message ||
-              "We couldn’t start your payment. Please try again.",
-            { title: "Payment" },
-          );
-        },
-      },
-    );
+  // UPI: take the customer to the waiting page, which starts the UPI intent and
+  // shows "waiting for the salon to verify your payment". TrimiT never collects
+  // money, so there is no online checkout here.
+  const handlePayWithUpi = (booking) => {
+    navigate(`/payment/${booking.id}/waiting`);
   };
 
   const getStatusIcon = (status) => {
@@ -345,23 +299,18 @@ const MyBookings = () => {
 
                     {booking.status === "pending" && (
                       <div className="flex items-center gap-2">
-                        {ENABLE_ONLINE_PAY &&
-                          !onlineUnavailable &&
+                        {booking.payment_method === "upi" &&
+                          booking.payment_verification_status !== "verified" &&
                           booking.payment_status !== "paid" && (
                             <button
-                              onClick={() => handlePayOnline(booking)}
-                              disabled={payingBookingId === booking.id}
-                              data-testid={`pay-online-${booking.id}`}
-                              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-orange-700 hover:bg-orange-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              onClick={() => handlePayWithUpi(booking)}
+                              data-testid={`pay-upi-${booking.id}`}
+                              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-orange-700 hover:bg-orange-800 rounded-lg transition-colors"
                             >
-                              {payingBookingId === booking.id ? (
-                                <Spinner size={18} className="animate-spin" />
-                              ) : (
-                                <CreditCard size={18} />
-                              )}
-                              {payingBookingId === booking.id
-                                ? "Starting…"
-                                : "Pay online"}
+                              <CreditCard size={18} />
+                              {booking.payment_verification_status === "waiting_verification"
+                                ? "Payment details"
+                                : "Pay with UPI"}
                             </button>
                           )}
                         <button

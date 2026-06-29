@@ -44,7 +44,7 @@ export function normalizeSalon<T extends Partial<Salon>>(salon: T): T & Salon {
   const images =
     fromImages.length > 0 ? fromImages : fromUrl ? [fromUrl] : [];
 
-  const image_url = fromUrl ?? images[0];
+  const image_url = images[0] ?? fromUrl;
 
   return {
     ...salon,

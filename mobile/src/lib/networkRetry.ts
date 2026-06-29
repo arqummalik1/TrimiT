@@ -11,6 +11,7 @@ export function isTransientNetworkError(error: unknown): boolean {
   return (
     appErr.code === 'OFFLINE' ||
     msg.includes('timeout') ||
+    msg.includes('timed out') ||
     msg.includes('internet') ||
     msg.includes('network') ||
     msg.includes('connection')

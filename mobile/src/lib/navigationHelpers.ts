@@ -31,12 +31,16 @@ export function navigateToCustomerBookings(
     parent.navigate('Bookings' as never);
     return;
   }
-  navigation.dispatch(
-    CommonActions.navigate({
-      name: 'CustomerTabs',
-      params: { screen: 'Bookings' },
-    })
-  );
+  try {
+    navigation.dispatch(
+      CommonActions.navigate({
+        name: 'CustomerTabs',
+        params: { screen: 'Bookings' },
+      })
+    );
+  } catch {
+    // Navigation should never crash the app on a transient dispatch error.
+  }
 }
 
 /** Navigate to owner Bookings tab from dashboard or nested stacks. */

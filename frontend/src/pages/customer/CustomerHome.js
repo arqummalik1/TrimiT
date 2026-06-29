@@ -14,6 +14,7 @@ import {
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import { formatPrice } from '../../lib/utils';
+import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../../lib/featureFlags';
 
 const CustomerHome = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -167,31 +168,35 @@ const SalonCard = ({ salon }) => {
     ? Math.min(...salon.services.map(s => s.price))
     : null;
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.3 }}
-    >
-      <Link 
-        to={`/salon/${salon.id}`}
-        data-testid={`salon-card-${salon.id}`}
-        className="block bg-white rounded-2xl overflow-hidden border border-stone-200 hover:shadow-xl transition-all duration-300"
-      >
+  const unavailable =
+    ENABLE_SUBSCRIPTION_ENFORCEMENT && salon.subscription_active === false;
+
+  const cardClassName =
+    'block bg-white rounded-2xl overflow-hidden border border-stone-200 ' +
+    (unavailable ? 'cursor-not-allowed' : 'hover:shadow-xl transition-all duration-300');
+
+  const cardContent = (
+    <>
         {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden">
           <img
             src={salon.images?.[0] || defaultImage}
             alt={salon.name}
-            className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+            className={`w-full h-full object-cover transition-transform duration-500 ${
+              unavailable ? 'grayscale opacity-60' : 'hover:scale-105'
+            }`}
           />
-          {salon.distance && (
+          {unavailable ? (
+            <div className="absolute top-3 left-3 bg-stone-800/85 text-white px-3 py-1.5 rounded-full text-xs font-semibold">
+              Currently unavailable
+            </div>
+          ) : (
+            salon.distance && (
             <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 text-sm font-medium text-stone-700">
               <NavigationArrow size={14} weight="bold" />
               {salon.distance} km
             </div>
-          )}
+          ))}
         </div>
 
         {/* Content */}
@@ -220,13 +225,51 @@ const SalonCard = ({ salon }) => {
               <Clock size={16} weight="bold" />
               <span>{salon.opening_time} - {salon.closing_time}</span>
             </div>
-            {lowestPrice && (
+            {unavailable ? (
+              <span className="text-stone-400 font-semibold">Unavailable</span>
+            ) : (
+              lowestPrice && (
               <span className="text-orange-800 font-semibold">
                 From {formatPrice(lowestPrice)}
               </span>
-            )}
+            ))}
           </div>
         </div>
+    </>
+  );
+
+  if (unavailable) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div
+          data-testid={`salon-card-${salon.id}`}
+          aria-disabled="true"
+          title="Currently unavailable"
+          className={cardClassName}
+        >
+          {cardContent}
+        </div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Link 
+        to={`/salon/${salon.id}`}
+        data-testid={`salon-card-${salon.id}`}
+        className={cardClassName}
+      >
+        {cardContent}
       </Link>
     </motion.div>
   );

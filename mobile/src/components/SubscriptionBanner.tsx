@@ -48,7 +48,7 @@ function resolveContent(s: SubscriptionStatusView): BannerContent | null {
     return {
       tone: 'danger',
       icon: 'lock-closed',
-      title: 'Subscription inactive',
+      title: 'Subscription expired',
       subtitle: 'Subscribe to TrimiT Pro to unlock your salon features.',
       cta: 'Subscribe',
     };

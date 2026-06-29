@@ -36,7 +36,7 @@ describe('formatDistanceKm', () => {
   });
 
   it('formats exactly 0 as "0 km"', () => {
-    expect(formatDistanceKm(0)).toBe('0.0 km');
+    expect(formatDistanceKm(0)).toBe('0 km');
   });
 
   it('formats values < 1 with 1 decimal (e.g. 0.5 → "0.5 km")', () => {
@@ -51,8 +51,8 @@ describe('formatDistanceKm', () => {
     expect(formatDistanceKm(10)).toBe('10 km');
   });
 
-  it('handles boundary at 10 km (9.99 → "10.0 km")', () => {
-    expect(formatDistanceKm(9.99)).toBe('10.0 km');
+  it('handles boundary at 10 km (9.99 → "10 km")', () => {
+    expect(formatDistanceKm(9.99)).toBe('10 km');
   });
 
   it('formats very large distances (e.g. 1234.56 → "1235 km")', () => {

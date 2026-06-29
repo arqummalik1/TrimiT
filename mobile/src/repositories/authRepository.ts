@@ -398,6 +398,7 @@ export const authRepository = {
     role: 'customer' | 'owner';
     name: string;
     phone?: string;
+    upi_id?: string;
   }): Promise<{ success: boolean; profile?: User; error?: string; errorCode?: string }> {
     try {
       const response = await authService.completeProfile(data);

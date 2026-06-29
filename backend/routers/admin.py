@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hmac
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Header, HTTPException, Request, status
@@ -24,9 +24,8 @@ from services.broadcast import (
     list_recent_broadcasts,
     send_broadcast,
 )
-from services.commission import get_commission_percent
 from services import subscription_service as subs
-
+from services import admin_dashboard as dashboard
 logger = logging.getLogger("trimit")
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -47,6 +46,58 @@ def _require_admin(authorization: Optional[str]) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"code": "ADMIN_AUTH_INVALID", "message": "Invalid admin token"},
         )
+
+
+# ── Dashboard PIN login ───────────────────────────────────────────────────────
+#
+# The web admin page collects a 6–10 digit PIN and exchanges it here for the
+# bearer token used by every other admin endpoint. The real token NEVER ships in
+# client code — only the PIN does, and it's compared server-side in constant time
+# and rate-limited hard to make brute force impractical.
+
+
+class AdminLoginRequest(BaseModel):
+    pin: str = Field(..., min_length=4, max_length=32)
+
+
+@router.post("/login")
+@limiter.limit("5/minute")
+async def admin_login(request: Request, payload: AdminLoginRequest):
+    """Exchange the dashboard PIN for the admin bearer token."""
+    if not settings.ADMIN_API_TOKEN or not settings.ADMIN_DASHBOARD_PIN:
+        # Login disabled unless BOTH the token and the PIN are configured.
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
+    if not hmac.compare_digest(payload.pin.strip(), settings.ADMIN_DASHBOARD_PIN.strip()):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "INVALID_PIN", "message": "Incorrect PIN."},
+        )
+    return {"token": settings.ADMIN_API_TOKEN}
+
+
+# ── Dashboard data ─────────────────────────────────────────────────────────────
+@router.get("/dashboard/overview")
+@limiter.limit("60/minute")
+async def dashboard_overview(request: Request, authorization: Optional[str] = Header(None)):
+    """Top-line counts, subscription breakdown, MRR/revenue, visitor stats."""
+    _require_admin(authorization)
+    return await dashboard.get_overview()
+
+
+@router.get("/dashboard/owners")
+@limiter.limit("60/minute")
+async def dashboard_owners(request: Request, authorization: Optional[str] = Header(None)):
+    """All salon owners with salon + subscription status + trial days left."""
+    _require_admin(authorization)
+    return {"owners": await dashboard.list_owners()}
+
+
+@router.get("/dashboard/customers")
+@limiter.limit("60/minute")
+async def dashboard_customers(request: Request, authorization: Optional[str] = Header(None)):
+    """All customers."""
+    _require_admin(authorization)
+    return {"customers": await dashboard.list_customers()}
 
 
 class BroadcastCreate(BaseModel):
@@ -126,107 +177,62 @@ async def subscription_analytics(
     return await subs.admin_analytics()
 
 
-# ── Commission rate (Requirement 15: Admin-Configurable Commission Rate) ─────
+# ── Manual subscription grant (escape hatch until in-app Razorpay is live) ────
 #
-# The platform commission percent is persisted in app_settings under the key
-# 'commission_percent' and read at payment time by
-# services.commission.get_commission_percent(). These endpoints are admin-only
-# (same ADMIN_API_TOKEN guard as the rest of this router) and are never exposed
-# to Customers or Salon_Owners (Req 15.4). Changes apply to future payments
-# only — already-captured payments are never mutated here (Req 15.2).
+# Lets an admin activate/extend a salon owner's subscription when they pay you
+# offline (e.g. UPI/bank transfer). Admin-only (ADMIN_API_TOKEN). Sets the owner
+# to `active` with a paid period of `days` (default 30); the subscription
+# trigger flips their salon back to visible/bookable.
 
 
-class CommissionRateUpdate(BaseModel):
-    # No Field constraints here: we validate the 0–100 range in the handler so
-    # we can return a structured INVALID_COMMISSION_RATE (400) rather than a
-    # generic 422, per Requirement 15.3.
-    commission_percent: float = Field(
-        ..., description="Platform commission percent, 0–100 inclusive"
-    )
+class GrantSubscriptionRequest(BaseModel):
+    owner_id: str = Field(..., description="public.users.id of the salon owner")
+    days: int = Field(default=30, ge=1, le=3660, description="Days of access to grant")
 
 
-@router.get("/commission-rate")
-@limiter.limit("30/minute")
-async def get_commission_rate(
+@router.post("/grant-subscription")
+@limiter.limit("20/minute")
+async def grant_subscription(
     request: Request,
+    payload: GrantSubscriptionRequest,
     authorization: Optional[str] = Header(None),
 ):
-    """Return the current platform commission percent (Req 15.1, 15.5)."""
-    _require_admin(authorization)
-    percent = await get_commission_percent()
-    return {"commission_percent": percent}
-
-
-@router.put("/commission-rate")
-@limiter.limit("10/minute")
-async def set_commission_rate(
-    request: Request,
-    payload: CommissionRateUpdate,
-    authorization: Optional[str] = Header(None),
-):
-    """Set the platform commission percent (Req 15.2, 15.3, 15.4).
-
-    Validates ``0 <= value <= 100``; otherwise rejects with a structured
-    INVALID_COMMISSION_RATE error and leaves the stored value unchanged.
-    Persists the value (as a string) into ``app_settings`` under the key
-    ``commission_percent`` via the Supabase service role.
-    """
+    """Activate/extend an owner's subscription by N days (admin-only)."""
     _require_admin(authorization)
 
-    value = payload.commission_percent
-    if value < 0 or value > 100:
-        # Reject without touching the stored value (Req 15.3).
+    # Make sure a subscription row exists for this owner.
+    try:
+        await subs.ensure_trial(payload.owner_id)
+    except Exception as exc:
+        logger.error("[Admin] grant ensure_trial failed owner=%s err=%s", payload.owner_id, exc)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "INVALID_COMMISSION_RATE",
-                "message": "commission_percent must be between 0 and 100 inclusive",
-            },
+            detail={"code": "OWNER_NOT_FOUND", "message": "No such owner or subscription."},
         )
 
-    now = datetime.now(timezone.utc).isoformat()
-    row = {"key": "commission_percent", "value": str(value), "updated_at": now}
-
-    try:
-        # Upsert one row keyed by 'commission_percent': update in place if it
-        # exists (it is seeded by migration 48), else insert. Mirrors the
-        # GET-then-PATCH/POST pattern used elsewhere in the codebase.
-        existing = await supabase.request(
-            "GET",
-            "rest/v1/app_settings?key=eq.commission_percent&select=key",
-            service_role=True,
-        )
-        has_row = existing.status_code == 200 and bool(existing.json())
-
-        if has_row:
-            response = await supabase.request(
-                "PATCH",
-                "rest/v1/app_settings?key=eq.commission_percent",
-                service_role=True,
-                json={"value": str(value), "updated_at": now},
-            )
-        else:
-            response = await supabase.request(
-                "POST",
-                "rest/v1/app_settings",
-                service_role=True,
-                json=row,
-            )
-
-        if response.status_code not in (200, 201, 204):
-            raise RuntimeError(
-                f"app_settings upsert returned {response.status_code}"
-            )
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception("[Admin] commission-rate update failed: %s", exc)
+    now = datetime.now(timezone.utc)
+    period_end = now + timedelta(days=payload.days)
+    updated = await subs.update_subscription(
+        payload.owner_id,
+        {
+            "status": "active",
+            "current_period_start": now.isoformat(),
+            "current_period_end": period_end.isoformat(),
+            "next_renewal_at": period_end.isoformat(),
+            "cancel_at_period_end": False,
+            "cancelled_at": None,
+        },
+        event_type="admin_granted",
+        source="admin",
+        metadata={"days": payload.days},
+    )
+    if not updated:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "code": "COMMISSION_RATE_UPDATE_FAILED",
-                "message": "Could not update commission rate",
-            },
-        ) from exc
-
-    return {"commission_percent": value}
+            detail={"code": "GRANT_FAILED", "message": "Could not grant subscription."},
+        )
+    return {
+        "status": "active",
+        "owner_id": payload.owner_id,
+        "current_period_end": period_end.isoformat(),
+    }

@@ -1,9 +1,14 @@
 /**
  * Unit tests for src/hooks/useMinLoadingTime.ts
  * Covers: immediate show, min-time hold, fast-resolve no-flash, cleanup
+ *
+ * Under React 19 + RTL, timer-driven state updates must be flushed inside
+ * `act(...)`, so every `jest.advanceTimersByTime` is wrapped via `advance`.
  */
-import { renderHook } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { useMinLoadingTime } from '../../src/hooks/useMinLoadingTime';
+
+const advance = (ms: number) => act(() => { jest.advanceTimersByTime(ms); });
 
 describe('useMinLoadingTime', () => {
   beforeEach(() => {
@@ -35,10 +40,10 @@ describe('useMinLoadingTime', () => {
     // Should still show loading because minMs hasn't elapsed
     expect(result.current).toBe(true);
 
-    jest.advanceTimersByTime(499);
+    advance(499);
     expect(result.current).toBe(true);
 
-    jest.advanceTimersByTime(1);
+    advance(1);
     expect(result.current).toBe(false);
   });
 
@@ -47,7 +52,7 @@ describe('useMinLoadingTime', () => {
     const { result, rerender } = renderHook(() => useMinLoadingTime(isLoading, 200));
 
     // Simulate that >200ms passed while loading
-    jest.advanceTimersByTime(300);
+    advance(300);
 
     isLoading = false;
     rerender(undefined as any);
@@ -63,9 +68,9 @@ describe('useMinLoadingTime', () => {
     rerender(undefined as any);
 
     expect(result.current).toBe(true);
-    jest.advanceTimersByTime(499);
+    advance(499);
     expect(result.current).toBe(true);
-    jest.advanceTimersByTime(1);
+    advance(1);
     expect(result.current).toBe(false);
   });
 
@@ -74,7 +79,7 @@ describe('useMinLoadingTime', () => {
     const { result, rerender } = renderHook(() => useMinLoadingTime(isLoading, 300));
 
     // finish first load
-    jest.advanceTimersByTime(300);
+    advance(300);
     isLoading = false;
     rerender(undefined as any);
     expect(result.current).toBe(false);
@@ -88,7 +93,7 @@ describe('useMinLoadingTime', () => {
     rerender(undefined as any);
     expect(result.current).toBe(true); // held for minMs again
 
-    jest.advanceTimersByTime(300);
+    advance(300);
     expect(result.current).toBe(false);
   });
 
@@ -102,7 +107,7 @@ describe('useMinLoadingTime', () => {
     unmount();
 
     // Advancing timers after unmount must not throw
-    expect(() => jest.advanceTimersByTime(500)).not.toThrow();
+    expect(() => advance(500)).not.toThrow();
     expect(result.current).toBe(true); // frozen at last value
   });
 
@@ -120,7 +125,7 @@ describe('useMinLoadingTime', () => {
   it('keeps showing loading if isLoading stays true beyond minMs', () => {
     const { result } = renderHook(() => useMinLoadingTime(true, 200));
 
-    jest.advanceTimersByTime(1000);
+    advance(1000);
     expect(result.current).toBe(true); // still loading because isLoading is still true
   });
 });

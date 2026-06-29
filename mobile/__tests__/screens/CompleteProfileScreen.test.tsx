@@ -64,6 +64,55 @@ describe('CompleteProfileScreen', () => {
     expect(screen.getByText('Sign Out & Cancel')).toBeTruthy();
   });
 
+  it('does NOT show the UPI field for customers but shows it for owners', () => {
+    const route = { params: {} } as any;
+    renderScreen(route);
+
+    // Default role is customer → no UPI field.
+    expect(screen.queryByPlaceholderText('glowsalon@okaxis')).toBeNull();
+
+    // Switching to owner reveals the required UPI field.
+    fireEvent.press(screen.getByText('Salon Owner'));
+    expect(screen.getByPlaceholderText('glowsalon@okaxis')).toBeTruthy();
+  });
+
+  it('blocks owner submission without a UPI ID', async () => {
+    const route = { params: {} } as any;
+    renderScreen(route);
+
+    fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Owner Bob');
+    fireEvent.press(screen.getByText('Salon Owner'));
+    fireEvent.press(screen.getByText(/I agree to the/));
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Complete Setup'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('UPI ID is required so customers can pay you')).toBeTruthy();
+    });
+    expect(mockCompleteProfile).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid UPI ID for owners', async () => {
+    const route = { params: {} } as any;
+    renderScreen(route);
+
+    fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Owner Bob');
+    fireEvent.press(screen.getByText('Salon Owner'));
+    fireEvent.changeText(screen.getByPlaceholderText('glowsalon@okaxis'), 'not-a-upi');
+    fireEvent.press(screen.getByText(/I agree to the/));
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Complete Setup'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Enter a valid UPI ID (e.g. glowsalon@okaxis)')).toBeTruthy();
+    });
+    expect(mockCompleteProfile).not.toHaveBeenCalled();
+  });
+
   it('validates required fields on submit', async () => {
     const route = { params: {} } as any;
     renderScreen(route);
@@ -80,27 +129,18 @@ describe('CompleteProfileScreen', () => {
     expect(mockCompleteProfile).not.toHaveBeenCalled();
   });
 
-  it('calls completeProfile with the correct data on successful submission', async () => {
+  it('calls completeProfile with a UPI ID for owner signup', async () => {
     const route = { params: {} } as any;
     renderScreen(route);
 
-    const nameInput = screen.getByPlaceholderText('John Doe');
-    fireEvent.changeText(nameInput, 'Alice Test');
+    fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Alice Test');
+    fireEvent.changeText(screen.getByPlaceholderText('98765 43210'), '9876543210');
+    fireEvent.press(screen.getByText('Salon Owner'));
+    fireEvent.changeText(screen.getByPlaceholderText('glowsalon@okaxis'), 'glowsalon@okaxis');
+    fireEvent.press(screen.getByText(/I agree to the/));
 
-    const phoneInput = screen.getByPlaceholderText('98765 43210');
-    fireEvent.changeText(phoneInput, '9876543210');
-
-    // Select Owner role card
-    const ownerCard = screen.getByText('Salon Owner');
-    fireEvent.press(ownerCard);
-
-    // Accept terms
-    const checkboxLabel = screen.getByText(/I agree to the/);
-    fireEvent.press(checkboxLabel);
-
-    const submitBtn = screen.getByText('Complete Setup');
     await act(async () => {
-      fireEvent.press(submitBtn);
+      fireEvent.press(screen.getByText('Complete Setup'));
     });
 
     await waitFor(() => {
@@ -108,6 +148,28 @@ describe('CompleteProfileScreen', () => {
         name: 'Alice Test',
         phone: '+919876543210',
         role: 'owner',
+        upi_id: 'glowsalon@okaxis',
+      });
+    });
+  });
+
+  it('calls completeProfile without UPI for a customer', async () => {
+    const route = { params: {} } as any;
+    renderScreen(route);
+
+    fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Cathy Cust');
+    fireEvent.press(screen.getByText(/I agree to the/));
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Complete Setup'));
+    });
+
+    await waitFor(() => {
+      expect(mockCompleteProfile).toHaveBeenCalledWith({
+        name: 'Cathy Cust',
+        phone: undefined,
+        role: 'customer',
+        upi_id: undefined,
       });
     });
   });

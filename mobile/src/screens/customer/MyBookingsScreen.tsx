@@ -47,7 +47,6 @@ import { logger } from "../../lib/logger";
 
 import { AppError } from "../../types/error";
 import { CustomerTabScreenProps } from "../../navigation/types";
-import { ENABLE_ONLINE_PAY } from "../../lib/featureFlags";
 
 type MyBookingsProps = CustomerTabScreenProps<"Bookings">;
 
@@ -159,21 +158,9 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
     });
   };
 
-  // PayU online payment (Layer B, flag-gated). Entry point is hidden unless the
-  // client online-pay flag is on; the screen itself also degrades gracefully
-  // when the server flag is OFF (ONLINE_PAYMENT_DISABLED). Pay-at-salon
-  // is unchanged either way.
-  const handlePayOnline = (booking: Booking) => {
-    navigation.navigate("Discover", {
-      screen: "OnlinePayment",
-      params: {
-        bookingId: booking.id,
-        amount: booking.amount || 0,
-        salonName: booking.salons?.name || "Salon",
-        serviceName: booking.services?.name || "Service",
-      },
-    });
-  };
+  // PayU online payment removed. TrimiT now uses a UPI-intent + manual
+  // verification model handled during the booking flow (see BookingScreen →
+  // PaymentWaiting). There is no separate "pay online" entry from the list.
 
   // ── Error state ────────────────────────────────────────────────────────────
   if (isError && !showSkeleton) {
@@ -211,9 +198,6 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
               booking={item}
               onCancel={() => handleCancel(item.id)}
               onReschedule={() => handleReschedule(item)}
-              onPayOnline={
-                ENABLE_ONLINE_PAY ? () => handlePayOnline(item) : undefined
-              }
               onWriteReview={
                 item.status === "completed"
                   ? () =>

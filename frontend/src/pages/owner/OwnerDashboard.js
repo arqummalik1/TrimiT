@@ -22,7 +22,6 @@ import { formatPrice } from "../../lib/utils";
 import { useToastStore } from "../../store/toastStore";
 import { useNotificationStore } from "../../store/notificationStore";
 import { useAuthStore } from "../../store/authStore";
-import { useBankAccount } from "../../hooks/useBankAccount";
 import {
   subscribeToSalonBookings,
   unsubscribeFromChannel,
@@ -115,16 +114,11 @@ const OwnerDashboard = () => {
     queryFn: ownerRepository.getOwnerAnalytics,
   });
 
-  // Payout activation status (Req 17.6, 3.5). Surface a banner whenever the owner
-  // has no bank/KYC record yet OR their PayU vendor is not yet active. Hidden once
-  // vendor_status === 'active'. Don't flash while the first load is in flight.
-  const { data: bankAccount, isLoading: bankAccountLoading } = useBankAccount();
-  const payoutVendorStatus = bankAccount?.vendor_status ?? "not_registered";
-  const showPayoutBanner =
-    !bankAccountLoading && payoutVendorStatus !== "active";
-  const payoutBannerMessage = bankAccount
-    ? "Verify your bank details to start receiving booking payouts."
-    : "Add your bank details to start receiving booking payouts.";
+  // UPI payout readiness: nudge the owner to add a UPI ID so they can accept
+  // "Pay with UPI" bookings. Hidden once the salon has a upi_id.
+  const showPayoutBanner = !!salon && !salon.upi_id;
+  const payoutBannerMessage =
+    "Add your UPI ID so customers can pay you directly for bookings.";
 
   const statCards = [
     {

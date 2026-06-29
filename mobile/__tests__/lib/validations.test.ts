@@ -269,7 +269,7 @@ describe('promoSchema', () => {
   it('accepts a valid fixed promo', () => {
     const result = promoSchema.safeParse({
       code: 'FLAT100',
-      discount_type: 'fixed',
+      discount_type: 'flat',
       discount_value: 100,
     });
     expect(result.success).toBe(true);

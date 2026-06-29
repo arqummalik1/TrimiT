@@ -173,6 +173,7 @@ async def create_new_profile(
     role: str,
     name: str,
     phone: Optional[str],
+    upi_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Create a brand-new profile row in public.users.
@@ -209,6 +210,9 @@ async def create_new_profile(
         "phone": phone.strip() if phone else None,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+    # Owner UPI captured at signup (prefills their salon's UPI ID later).
+    if upi_id and validated_role == "owner":
+        profile_data["upi_id"] = upi_id.strip()
 
     logger.info(
         "create_new_profile: inserting profile user=%s role=%s",

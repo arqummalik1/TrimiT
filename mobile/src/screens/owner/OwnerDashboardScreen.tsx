@@ -37,13 +37,13 @@ import { EmptyState } from '../../components/EmptyState';
 import { handleApiError } from '../../lib/errorHandler';
 import { useMinLoadingTime } from '../../hooks/useMinLoadingTime';
 import { BookingsTrendChart, PopularServicesChart, StatusDistributionChart } from '../../components/charts';
+import { showToast } from '../../store/toastStore';
 import BookingCard from '../../components/BookingCard';
 import { SubscriptionBanner } from '../../components/SubscriptionBanner';
 import { useSubscriptionStatus } from '../../hooks/useSubscription';
 import { ENABLE_SUBSCRIPTIONS } from '../../lib/featureFlags';
 import { OwnerSetupBanner } from '../../components/OwnerSetupBanner';
-import { useBankAccount } from '../../hooks/useBankAccount';
-import { VendorStatus } from '../../services/bankAccountService';
+import { useVerifyPayment, useRejectPayment } from '../../hooks/usePayment';
 
 import { OwnerDashboardScreenProps as NavigationProps } from '../../navigation/types';
 import { ComponentProps } from 'react';
@@ -217,20 +217,40 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
 
   const { data: subscriptionStatus } = useSubscriptionStatus();
 
-  // Payout activation status (Req 17.6, 3.5). Surface a dashboard banner whenever
-  // the owner has no bank/KYC record yet OR their PayU vendor is not yet active,
-  // so they can act at a glance. Hidden once vendor_status === 'active'.
-  const { data: bankAccount, isLoading: bankAccountLoading } = useBankAccount();
-  const payoutVendorStatus: VendorStatus = bankAccount?.vendor_status ?? 'not_registered';
-  // Don't flash the banner while the first load is in flight.
-  const showPayoutBanner = !bankAccountLoading && payoutVendorStatus !== 'active';
-  const payoutBannerMessage = bankAccount
-    ? 'Verify your bank details to start receiving booking payouts.'
-    : 'Add your bank details to start receiving booking payouts.';
+  // UPI onboarding nudge. TrimiT never collects money — to accept UPI the salon
+  // must store a UPI ID. Surface a dashboard banner until one is set.
+  const showUpiBanner = !!salon && !salon.upi_id;
   const openPayoutDetails = () =>
     navigation
       .getParent()
-      ?.navigate('Settings', { screen: 'BankAccount', initial: false });
+      ?.navigate('Settings', { screen: 'UpiPaymentSettings', initial: false });
+
+  const verifyPayment = useVerifyPayment();
+  const rejectPayment = useRejectPayment();
+
+  const handleVerifyPayment = (bookingId: string) => {
+    verifyPayment.mutate(
+      { bookingId },
+      {
+        onSuccess: () => showToast('Payment verified — booking confirmed', 'success'),
+        onError: (error: unknown) => showToast(handleApiError(error).message, 'error'),
+      }
+    );
+  };
+
+  const handleRejectPayment = (bookingId: string) => {
+    rejectPayment.mutate(
+      { bookingId },
+      {
+        onSuccess: () => showToast('Payment rejected', 'success'),
+        onError: (error: unknown) => showToast(handleApiError(error).message, 'error'),
+      }
+    );
+  };
+
+  const isUpiActionInFlight = (bookingId: string) =>
+    (verifyPayment.isPending && verifyPayment.variables?.bookingId === bookingId) ||
+    (rejectPayment.isPending && rejectPayment.variables?.bookingId === bookingId);
 
   const statusMutation = useMutation({
     mutationFn: ({ bookingId, status }: { bookingId: string; status: string }) => 
@@ -394,13 +414,13 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
           />
         ) : null}
 
-        {/* Payout activation banner (Req 17.6, 3.5) */}
-        {showPayoutBanner ? (
+        {/* UPI onboarding banner — shown until the salon stores a UPI ID */}
+        {showUpiBanner ? (
           <OwnerSetupBanner
-            icon="card-outline"
-            title="Payouts: pending activation"
-            message={payoutBannerMessage}
-            ctaLabel="Add payout details"
+            icon="phone-portrait-outline"
+            title="Accept UPI payments"
+            message="Add your UPI ID so customers can pay you directly via any UPI app."
+            ctaLabel="Add UPI ID"
             onPress={openPayoutDetails}
           />
         ) : null}
@@ -459,6 +479,9 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
                 onConfirm={() => statusMutation.mutate({ bookingId: booking.id, status: 'confirmed' })}
                 onReject={() => statusMutation.mutate({ bookingId: booking.id, status: 'cancelled' })}
                 onComplete={() => statusMutation.mutate({ bookingId: booking.id, status: 'completed' })}
+                onVerifyPayment={() => handleVerifyPayment(booking.id)}
+                onRejectPayment={() => handleRejectPayment(booking.id)}
+                isVerifying={isUpiActionInFlight(booking.id)}
               />
             ))
           ) : (

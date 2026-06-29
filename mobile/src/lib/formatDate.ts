@@ -8,7 +8,11 @@
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
   try {
-    return new Date(iso).toLocaleDateString('en-IN', {
+    const d = new Date(iso);
+    // `toLocaleDateString` returns "Invalid Date" (it does NOT throw) for a
+    // malformed input, so guard explicitly and return the em-dash instead.
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-IN', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',

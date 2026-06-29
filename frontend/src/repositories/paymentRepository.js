@@ -1,17 +1,24 @@
 import paymentService from '../services/paymentService';
 
 /**
- * paymentRepository — the only layer pages/hooks touch for online payments.
+ * paymentRepository — the only layer pages/hooks touch for UPI payments.
  * Keeps `api`/axios out of the views (no direct api.* in pages).
- *
- * Requirements: 4.4, 4.5, 17.4, 17.5
  */
 export const paymentRepository = {
-  createOrder: async (bookingId, idempotencyKey) => {
-    return paymentService.createOrder(bookingId, idempotencyKey);
+  initiateUpi: async (bookingId) => {
+    return paymentService.initiateUpi(bookingId);
+  },
+  markAwaitingVerification: async (bookingId) => {
+    return paymentService.markAwaitingVerification(bookingId);
   },
   getPaymentStatus: async (bookingId) => {
     return paymentService.getPaymentStatus(bookingId);
+  },
+  verifyPayment: async (bookingId, notes) => {
+    return paymentService.verifyPayment(bookingId, notes);
+  },
+  rejectPayment: async (bookingId, notes) => {
+    return paymentService.rejectPayment(bookingId, notes);
   },
 };
 

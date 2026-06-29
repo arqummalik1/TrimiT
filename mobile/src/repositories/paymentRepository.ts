@@ -1,31 +1,43 @@
 import { paymentService } from '../services/paymentService';
-import { CreateOrderResponse, PaymentStatusResponse } from '../types/payment';
+import {
+  UpiInitiateResponse,
+  UpiAwaitingVerificationResponse,
+  PaymentStatusResponse,
+  VerifyPaymentResponse,
+  RejectPaymentResponse,
+} from '../types/payment';
 import { isAppError } from '../types/error';
 import { logger } from '../lib/logger';
 
 /**
- * paymentRepository — the only layer views/hooks touch for online payments.
+ * paymentRepository — the only layer views/hooks touch for UPI payments.
  * Keeps `apiClient`/axios out of the screens (no direct `api.*` in views) and
- * gives a single place to log/normalise failures.
- *
- * Requirements: 4.4, 4.5, 17.4, 17.5
+ * gives a single place to log/normalise failures. Errors are re-thrown as the
+ * already-normalised AppError from the apiClient interceptor.
  */
 export const paymentRepository = {
-  async createOrder(
-    bookingId: string,
-    idempotencyKey?: string
-  ): Promise<CreateOrderResponse> {
+  async initiateUpi(bookingId: string): Promise<UpiInitiateResponse> {
     try {
-      return await paymentService.createOrder(bookingId, idempotencyKey);
+      return await paymentService.initiateUpi(bookingId);
     } catch (error: unknown) {
-      // ONLINE_PAYMENT_DISABLED (flag OFF) is an expected, benign outcome — log
-      // it quietly so the screen can fall back to pay-at-salon without noise.
-      const code = isAppError(error) ? error.code : undefined;
-      if (code === 'ONLINE_PAYMENT_DISABLED') {
-        logger.warn('[paymentRepository] online payments disabled (flag OFF)');
-      } else {
-        logger.error('[paymentRepository] createOrder failed', error);
-      }
+      logger.error('[paymentRepository] initiateUpi failed', error, {
+        bookingId,
+        code: isAppError(error) ? error.code : undefined,
+      });
+      throw error;
+    }
+  },
+
+  async markAwaitingVerification(
+    bookingId: string
+  ): Promise<UpiAwaitingVerificationResponse> {
+    try {
+      return await paymentService.markAwaitingVerification(bookingId);
+    } catch (error: unknown) {
+      logger.error('[paymentRepository] markAwaitingVerification failed', error, {
+        bookingId,
+        code: isAppError(error) ? error.code : undefined,
+      });
       throw error;
     }
   },
@@ -34,7 +46,40 @@ export const paymentRepository = {
     try {
       return await paymentService.getPaymentStatus(bookingId);
     } catch (error: unknown) {
-      logger.error('[paymentRepository] getPaymentStatus failed', error);
+      logger.error('[paymentRepository] getPaymentStatus failed', error, {
+        bookingId,
+        code: isAppError(error) ? error.code : undefined,
+      });
+      throw error;
+    }
+  },
+
+  async verifyPayment(
+    bookingId: string,
+    notes?: string
+  ): Promise<VerifyPaymentResponse> {
+    try {
+      return await paymentService.verifyPayment(bookingId, notes);
+    } catch (error: unknown) {
+      logger.error('[paymentRepository] verifyPayment failed', error, {
+        bookingId,
+        code: isAppError(error) ? error.code : undefined,
+      });
+      throw error;
+    }
+  },
+
+  async rejectPayment(
+    bookingId: string,
+    notes?: string
+  ): Promise<RejectPaymentResponse> {
+    try {
+      return await paymentService.rejectPayment(bookingId, notes);
+    } catch (error: unknown) {
+      logger.error('[paymentRepository] rejectPayment failed', error, {
+        bookingId,
+        code: isAppError(error) ? error.code : undefined,
+      });
       throw error;
     }
   },

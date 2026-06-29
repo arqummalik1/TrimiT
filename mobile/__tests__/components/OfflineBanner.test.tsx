@@ -18,20 +18,20 @@ jest.mock('@expo/vector-icons', () => {
 
 // ─── NetInfo mock with event emitter ─────────────────────────────────────────
 type NetInfoCb = (state: any) => void;
-let subscribers: NetInfoCb[] = [];
+let mockSubscribers: NetInfoCb[] = [];
 
 jest.mock('@react-native-community/netinfo', () => ({
   addEventListener: jest.fn((cb: NetInfoCb) => {
-    subscribers.push(cb);
+    mockSubscribers.push(cb);
     return () => {
-      subscribers = subscribers.filter((s) => s !== cb);
+      mockSubscribers = mockSubscribers.filter((s) => s !== cb);
     };
   }),
 }));
 
 const emitNetInfoState = (state: any) => {
   act(() => {
-    subscribers.forEach((cb) => cb(state));
+    mockSubscribers.forEach((cb) => cb(state));
   });
 };
 
@@ -46,7 +46,7 @@ const renderWithProviders = (ui: React.ReactElement) =>
 
 describe('OfflineBanner', () => {
   beforeEach(() => {
-    subscribers = [];
+    mockSubscribers = [];
     jest.clearAllMocks();
     jest.useFakeTimers();
   });
@@ -134,9 +134,9 @@ describe('OfflineBanner', () => {
   it('subscribes to NetInfo on mount and unsubscribes on unmount', () => {
     const { unmount } = renderWithProviders(<OfflineBanner />);
     expect(NetInfo.addEventListener).toHaveBeenCalledTimes(1);
-    expect(subscribers.length).toBe(1);
+    expect(mockSubscribers.length).toBe(1);
 
     unmount();
-    expect(subscribers.length).toBe(0);
+    expect(mockSubscribers.length).toBe(0);
   });
 });

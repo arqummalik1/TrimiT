@@ -138,6 +138,7 @@ describe('Toast', () => {
   // ─── New toast replaces rendered content ──────────────────────────────────
   it('updates rendered message when current toast changes', () => {
     showToast('first');
+    showToast('second');
     const { rerender } = renderWithProviders(<Toast />);
     expect(screen.getByText('first')).toBeTruthy();
 

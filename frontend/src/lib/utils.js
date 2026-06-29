@@ -37,6 +37,13 @@ export function normalizeSlotTimeToHHMM(t) {
   return s.length >= 5 ? s.slice(0, 5) : s;
 }
 
+/** Structured error code from FastAPI error payloads (e.g. SUBSCRIPTION_REQUIRED). */
+export function getApiErrorCode(err) {
+  const detail = err?.response?.data?.detail;
+  if (detail && typeof detail === 'object' && detail.code) return detail.code;
+  return null;
+}
+
 /** Human-readable message from FastAPI / axios error payloads. */
 export function getApiErrorMessage(err, fallback = 'Something went wrong. Please try again.') {
   const detail = err?.response?.data?.detail;

@@ -92,7 +92,11 @@ export const SalonMapMarker: React.FC<SalonMapMarkerProps> = ({
     }
   }, [trackViewChangesProp, selected]);
 
-  const pinColor = selected ? theme.colors.primary : theme.colors.primaryLight;
+  // Pin color is driven entirely by the theme so re-branding updates every map
+  // pin automatically. Selected uses the darker brand shade for emphasis;
+  // unselected uses the primary brand color (always visible, never the
+  // near-white tint that previously made pins disappear).
+  const pinColor = selected ? theme.colors.primaryDark : theme.colors.primary;
 
   return (
     <Marker

@@ -17,6 +17,7 @@ import {
   TextInput,
 } from "react-native";
 import { ScreenWrapper } from "../../components/ScreenWrapper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -58,7 +59,6 @@ import { BookingParamsSchema } from "../../navigation/params";
 
 import { analytics } from "../../lib/analytics";
 import {
-  ENABLE_ONLINE_PAY,
   ENABLE_STAFF_SELECTION,
   ENABLE_MULTI_BOOKING_PER_SLOT,
   ENABLE_SUBSCRIPTION_ENFORCEMENT,
@@ -71,6 +71,10 @@ import {
 import { salonRepository } from "../../repositories/salonRepository";
 import { bookingRepository } from "../../repositories/bookingRepository";
 import { promotionRepository } from "../../repositories/promotionRepository";
+import { upiIntentService } from "../../services/upiIntentService";
+import PaymentMethodPicker from "../../components/booking/PaymentMethodPicker";
+import { createBookingStyles } from "../../components/booking/styles";
+import { useInitiateUpi } from "../../hooks/usePayment";
 
 // Staff selection imports
 import StaffPicker from "../../components/StaffPicker";
@@ -85,6 +89,8 @@ export const BookingScreen: React.FC<
 > = ({ navigation, route }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const pickerStyles = useMemo(() => createBookingStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
 
   // Validate params
   const validation = BookingParamsSchema.safeParse(route.params);
@@ -122,13 +128,14 @@ export const BookingScreen: React.FC<
 
   const { salonId, serviceId } = validation.data;
   const queryClient = useQueryClient();
+  const initiateUpiMutation = useInitiateUpi();
 
   const [selectedDate, setSelectedDate] = useState(
     format(new Date(), "yyyy-MM-dd"),
   );
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
-    "cash" | "card"
+    "cash" | "upi"
   >("cash");
   const [bookingComplete, setBookingComplete] = useState(false);
   const [slotConflictError, setSlotConflictError] = useState<string | null>(
@@ -605,13 +612,51 @@ export const BookingScreen: React.FC<
     }
   }, [selectedStaffForProfile, handleSelectStaff]);
 
+  // Launch the UPI intent flow for a freshly-created UPI booking, then route to
+  // the waiting screen. Kept separate from the booking mutation so booking logic
+  // stays independent of payment logic.
+  const startUpiPayment = useCallback(
+    async (bookingId: string) => {
+      if (!salon || !service) return;
+      try {
+        const result = await initiateUpiMutation.mutateAsync(bookingId);
+        const { launched } = await upiIntentService.launchUpiApp(
+          result.upi.intent_uri,
+        );
+        navigation.replace("PaymentWaiting", {
+          bookingId,
+          bookingReference: result.booking_reference,
+          salonName: salon.name,
+          serviceName: service.name,
+          upiId: result.upi.payee_vpa,
+          payeeName: result.upi.payee_name,
+          amount: result.upi.amount,
+          intentUri: result.upi.intent_uri,
+          appLaunched: launched,
+        });
+      } catch (error: unknown) {
+        const appErr = isAppError(error) ? error : handleApiError(error);
+        Alert.alert(
+          "Couldn't start UPI payment",
+          appErr.message ||
+            "We couldn't start the UPI payment. Your booking is saved — you can pay the salon directly.",
+          [
+            {
+              text: "Go to my bookings",
+              onPress: () => navigateToCustomerBookings(navigation),
+            },
+          ],
+        );
+      }
+    },
+    [salon, service, initiateUpiMutation, navigation],
+  );
+
   // Create booking mutation
   const bookingMutation = useMutation({
     mutationFn: async () => {
       const dbPaymentMethod =
-        ENABLE_ONLINE_PAY && selectedPaymentMethod === "card"
-          ? "online"
-          : "salon_cash";
+        selectedPaymentMethod === "upi" ? "upi" : "salon_cash";
 
       const normalizedSlot = selectedSlot
         ? normalizeSlotTimeToHHMM(selectedSlot)
@@ -706,25 +751,21 @@ export const BookingScreen: React.FC<
         }
       }
 
-      // If online payment selected, route to payment screen (replace so back cannot re-submit booking)
+      // UPI selected → start UPI intent flow. Booking logic stays independent
+      // of payment logic: the booking already exists; we now kick off payment.
+      // We NEVER show a "Payment Successful" alert for UPI — the customer is
+      // routed to the waiting screen until the salon verifies.
       if (
-        ENABLE_ONLINE_PAY &&
-        selectedPaymentMethod === "card" &&
+        selectedPaymentMethod === "upi" &&
         bookingId &&
         service &&
         salon &&
         selectedSlot
       ) {
-        navigation.replace("Payment", {
-          bookingId,
-          amount: service.price,
-          salonName: salon.name,
-          serviceName: service.name,
-          bookingDate: selectedDate,
-          timeSlot: selectedSlot,
-        });
+        void startUpiPayment(String(bookingId));
       } else {
-        // Keep selectedSlot/selectedDate until user leaves success — success UI calls formatTime(selectedSlot).
+        // Cash booking — keep selectedSlot/selectedDate until user leaves
+        // success (success UI calls formatTime(selectedSlot)).
         setBookingComplete(true);
       }
     },
@@ -740,6 +781,24 @@ export const BookingScreen: React.FC<
         queryKey: ["slots", salonId, serviceId, selectedDate],
       });
       refetchSlots();
+
+      // Salon frozen (owner subscription lapsed) → backend returns 403
+      // SALON_UNAVAILABLE. Show a clear, friendly message rather than a raw error.
+      if (statusCode === 403 || appErr.code === "SALON_UNAVAILABLE") {
+        resetBookingAttempt();
+        setSelectedSlot(null);
+        setHoldId(null);
+        setTimeLeft(null);
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        Alert.alert(
+          "Salon unavailable",
+          "This salon isn't accepting bookings right now.",
+        );
+        return;
+      }
 
       const isConflict = appErr.kind === "conflict" || statusCode === 409;
       const isHoldExpired =
@@ -1328,121 +1387,12 @@ export const BookingScreen: React.FC<
         )}
 
         {/* Payment Method */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="card" size={20} color={theme.colors.primary} />
-            <Text style={styles.sectionTitle}>Payment Method</Text>
-          </View>
-
-          <TouchableOpacity
-            style={[
-              styles.paymentOption,
-              selectedPaymentMethod === "cash" && styles.paymentOptionSelected,
-            ]}
-            onPress={() => setSelectedPaymentMethod("cash")}
-          >
-            <View style={styles.paymentIconContainer}>
-              <Ionicons
-                name="cash-outline"
-                size={24}
-                color={
-                  selectedPaymentMethod === "cash"
-                    ? theme.colors.textInverse
-                    : theme.colors.text
-                }
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={[
-                  styles.paymentTitle,
-                  selectedPaymentMethod === "cash" &&
-                    styles.paymentTextSelected,
-                ]}
-              >
-                Cash at Salon
-              </Text>
-              <Text
-                style={[
-                  styles.paymentSub,
-                  selectedPaymentMethod === "cash" &&
-                    styles.paymentTextSelected,
-                ]}
-              >
-                Pay after your service is completed
-              </Text>
-            </View>
-            {selectedPaymentMethod === "cash" && (
-              <Ionicons
-                name="checkmark-circle"
-                size={24}
-                color={theme.colors.textInverse}
-              />
-            )}
-          </TouchableOpacity>
-
-          {ENABLE_ONLINE_PAY ? (
-            <TouchableOpacity
-              style={[
-                styles.paymentOption,
-                selectedPaymentMethod === "card" &&
-                  styles.paymentOptionSelected,
-                { marginTop: 12 },
-              ]}
-              onPress={() => setSelectedPaymentMethod("card")}
-            >
-              <View style={styles.paymentIconContainer}>
-                <Ionicons
-                  name="card-outline"
-                  size={24}
-                  color={
-                    selectedPaymentMethod === "card"
-                      ? theme.colors.textInverse
-                      : theme.colors.text
-                  }
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={[
-                    styles.paymentTitle,
-                    selectedPaymentMethod === "card" &&
-                      styles.paymentTextSelected,
-                  ]}
-                >
-                  Online Payment
-                </Text>
-                <Text
-                  style={[
-                    styles.paymentSub,
-                    selectedPaymentMethod === "card" &&
-                      styles.paymentTextSelected,
-                  ]}
-                >
-                  Secure payment via card or UPI
-                </Text>
-              </View>
-              {selectedPaymentMethod === "card" && (
-                <Ionicons
-                  name="checkmark-circle"
-                  size={24}
-                  color={theme.colors.textInverse}
-                />
-              )}
-            </TouchableOpacity>
-          ) : (
-            <Text style={[styles.paymentSub, { marginTop: 12 }]}>
-              Pay at the salon after your service. Online payment coming soon.
-            </Text>
-          )}
-
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12 }}>
-            <Ionicons name="lock-closed" size={12} color={theme.colors.textSecondary} />
-            <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-              Payments are secure and encrypted.
-            </Text>
-          </View>
-        </View>
+        <PaymentMethodPicker
+          selected={selectedPaymentMethod}
+          onSelect={setSelectedPaymentMethod}
+          salonHasUpi={!!salon?.upi_id}
+          styles={pickerStyles}
+        />
 
         {/* Promo Code Section */}
         <View style={styles.section}>
@@ -1604,7 +1554,7 @@ export const BookingScreen: React.FC<
 
       {/* Confirm Button */}
       {selectedSlot && (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
           <Button
             title="Confirm Booking"
             onPress={handleConfirmBooking}

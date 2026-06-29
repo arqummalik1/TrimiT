@@ -1,19 +1,24 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { paymentRepository } from '../repositories/paymentRepository';
 import {
-  CreateOrderResponse,
+  UpiInitiateResponse,
+  UpiAwaitingVerificationResponse,
   PaymentStatusResponse,
-  isKnownPaymentStatus,
+  VerifyPaymentResponse,
+  RejectPaymentResponse,
+  isPendingVerification,
 } from '../types/payment';
 
 /**
- * usePayment — React Query hooks for the PayU online-payment path.
+ * usePayment — React Query hooks for the UPI-intent + manual-verification flow.
  * ─────────────────────────────────────────────────────────────────────────────
- *  • useCreatePayment   — mutation: create a PayU order for a booking.
- *  • usePaymentStatus   — query: poll a booking's payment/settlement status
- *                         while it is still pending (stops once final).
+ *  • useInitiateUpi             — customer: create a UPI intent for a booking.
+ *  • useMarkAwaitingVerification — customer: mark "returned from UPI app".
+ *  • usePaymentStatus           — poll status while verification is pending.
+ *  • useVerifyPayment           — owner: verify payment + confirm booking.
+ *  • useRejectPayment           — owner: reject an unverifiable payment.
  *
- * Requirements: 4.4, 4.5, 17.4, 17.5
+ * Mutations use retry:false — the user re-taps to retry explicitly.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -21,46 +26,82 @@ import {
 export const paymentStatusKey = (bookingId: string) =>
   ['paymentStatus', bookingId] as const;
 
-interface CreatePaymentVariables {
-  bookingId: string;
-  /** Stable key for one logical "pay" action so retries dedupe (Req 6.6). */
-  idempotencyKey?: string;
+/** Customer: create a UPI intent for a booking. */
+export function useInitiateUpi() {
+  return useMutation<UpiInitiateResponse, unknown, string>({
+    mutationFn: (bookingId: string) => paymentRepository.initiateUpi(bookingId),
+    retry: false,
+  });
 }
 
-/** Create a PayU order for a booking. Returns the signed PayU form params. */
-export function useCreatePayment() {
-  return useMutation<CreateOrderResponse, unknown, CreatePaymentVariables>({
-    mutationFn: ({ bookingId, idempotencyKey }) =>
-      paymentRepository.createOrder(bookingId, idempotencyKey),
-    // create-order is idempotent server-side AND a payment mutation, so we do
-    // not auto-retry here — the user explicitly re-taps to retry.
+/** Customer: mark a UPI booking as awaiting salon verification. */
+export function useMarkAwaitingVerification() {
+  return useMutation<UpiAwaitingVerificationResponse, unknown, string>({
+    mutationFn: (bookingId: string) =>
+      paymentRepository.markAwaitingVerification(bookingId),
     retry: false,
   });
 }
 
 /**
- * Poll a booking's payment status. While the payment is still `pending` (and a
- * `bookingId` is set) the query refetches on an interval so the UI flips to
- * success/failure as soon as the PayU callback/webhook lands. Polling stops
- * automatically once the status is final or unknown.
+ * Poll a booking's payment status. While the verification is `initiated` or
+ * `waiting_verification` the query refetches every 3s so the UI flips to
+ * verified/rejected/timeout as soon as the owner acts. Polling stops once the
+ * verification reaches a final state.
  *
  * @param bookingId  Booking to poll (query disabled when empty).
- * @param enabled    Gate polling on (e.g. only after returning from checkout).
+ * @param enabled    Gate polling (e.g. only on the waiting screen).
  */
 export function usePaymentStatus(bookingId: string | undefined, enabled = true) {
   return useQuery<PaymentStatusResponse>({
     queryKey: paymentStatusKey(bookingId ?? ''),
     queryFn: () => paymentRepository.getPaymentStatus(bookingId as string),
     enabled: enabled && !!bookingId,
-    // Poll every 3s while pending; stop once the payment reaches a final state.
     refetchInterval: (query) => {
       const data = query.state.data;
       if (!data) return 3000;
-      if (!isKnownPaymentStatus(data)) return 3000; // still "unknown" → keep polling
-      return data.payment_status === 'pending' ? 3000 : false;
+      return isPendingVerification(data.payment_verification_status) ? 3000 : false;
     },
     refetchIntervalInBackground: false,
     staleTime: 0,
     retry: 2,
+  });
+}
+
+/**
+ * Owner: verify the UPI payment AND confirm the booking in a single action.
+ * Invalidates owner + customer booking lists so the confirmed state shows
+ * everywhere immediately.
+ */
+export function useVerifyPayment() {
+  const queryClient = useQueryClient();
+  return useMutation<VerifyPaymentResponse, unknown, { bookingId: string; notes?: string }>({
+    mutationFn: ({ bookingId, notes }) =>
+      paymentRepository.verifyPayment(bookingId, notes),
+    retry: false,
+    onSuccess: (_data, { bookingId }) => {
+      queryClient.invalidateQueries({ queryKey: ['ownerBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['recentBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
+      queryClient.invalidateQueries({ queryKey: ['myBookings'] });
+      queryClient.invalidateQueries({ queryKey: paymentStatusKey(bookingId) });
+    },
+  });
+}
+
+/** Owner: reject an unverifiable UPI payment. Invalidates booking lists. */
+export function useRejectPayment() {
+  const queryClient = useQueryClient();
+  return useMutation<RejectPaymentResponse, unknown, { bookingId: string; notes?: string }>({
+    mutationFn: ({ bookingId, notes }) =>
+      paymentRepository.rejectPayment(bookingId, notes),
+    retry: false,
+    onSuccess: (_data, { bookingId }) => {
+      queryClient.invalidateQueries({ queryKey: ['ownerBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['recentBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
+      queryClient.invalidateQueries({ queryKey: ['myBookings'] });
+      queryClient.invalidateQueries({ queryKey: paymentStatusKey(bookingId) });
+    },
   });
 }

@@ -2,6 +2,8 @@ import React from 'react';
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 
 import { CustomerTabParamList, ProfileStackParamList } from './types';
@@ -18,6 +20,29 @@ import ContactScreen from '../screens/legal/ContactScreen';
 import PaymentsHelpScreen from '../screens/legal/PaymentsHelpScreen';
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
+
+// Deep "flow" screens (booking funnel + detail views) where the floating tab bar
+// must be hidden — they have their own bottom CTAs and the bar would overlap them.
+// Hiding it here is the same pattern Zomato/Urban Company use: entering a flow
+// removes the tabs; the header back button exits the flow.
+const HIDDEN_TAB_BAR_ROUTES = new Set<string>([
+  'SalonDetail',
+  'ServiceDetail',
+  'Booking',
+  'RescheduleBooking',
+  'PaymentWaiting',
+  'WriteReview',
+]);
+
+function CustomerTabBar(props: BottomTabBarProps) {
+  const { state } = props;
+  const activeTabRoute = state.routes[state.index];
+  const nestedRouteName = getFocusedRouteNameFromRoute(activeTabRoute);
+  if (nestedRouteName && HIDDEN_TAB_BAR_ROUTES.has(nestedRouteName)) {
+    return null;
+  }
+  return <FloatingTabBar {...props} />;
+}
 
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 function ProfileStackScreen() {
@@ -43,7 +68,7 @@ export default function CustomerTabs() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
       }}
-      tabBar={(props) => <FloatingTabBar {...props} />}
+      tabBar={(props) => <CustomerTabBar {...props} />}
     >
       <Tab.Screen
         name="Discover"

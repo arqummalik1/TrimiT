@@ -7,7 +7,6 @@ import DashboardMockup from '../components/landing/mockups/DashboardMockup';
 import FaqSection from '../components/landing/sections/FaqSection';
 import { OWNER_TESTIMONIALS } from '../config/testimonials';
 import { PROMO, isOfferActive } from '../config/promotions';
-import { PAYMENTS_FEES } from '../content/paymentsHelp';
 
 const OWNER_FAQ = [
   {
@@ -93,7 +92,7 @@ export default function ForSalonsPage() {
 
       <OwnerGrowthSection compact />
 
-      {/* Payments band — commission-based, free to join, paid to your bank */}
+      {/* Payments band — free to join, customers pay you directly via UPI/cash */}
       <section className="py-20 px-4 bg-white">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
@@ -101,27 +100,27 @@ export default function ForSalonsPage() {
               Payments
             </span>
             <h2 className="font-heading text-3xl font-bold text-stone-900 mt-3 mb-3">
-              Free to join. Get paid straight to your bank.
+              Free to join. Customers pay you directly.
             </h2>
             <p className="text-stone-600 max-w-2xl mx-auto">
-              No monthly subscription, no setup fees. We only earn when you do — a small
-              commission on online payments. Everything else is yours.
+              No setup fees and no payment commission. Customers pay by cash or UPI
+              straight to you — TrimiT never holds your money.
             </p>
           </div>
 
           <div className="grid sm:grid-cols-3 gap-6">
             {[
               {
-                title: 'No monthly fees',
-                text: 'List your salon and take bookings for free. No subscription, ever-present or hidden.',
+                title: 'No payment commission',
+                text: 'List your salon and take bookings for free. We take no cut of your payments.',
               },
               {
-                title: 'Money to your bank',
-                text: 'Online payments settle directly into your registered bank account. TrimiT never holds your money.',
+                title: 'Money straight to you',
+                text: 'Customers pay your UPI ID directly — the money lands in your account instantly.',
               },
               {
-                title: `Only ~${PAYMENTS_FEES.totalPercent}% per online booking`,
-                text: `${PAYMENTS_FEES.trimitPercent}% TrimiT + ${PAYMENTS_FEES.gatewayPercent}% payment gateway. You keep about ${PAYMENTS_FEES.netPercent}%. Shown clearly, no surprises.`,
+                title: 'Cash or UPI',
+                text: 'Accept cash at the salon or UPI from any app. You verify UPI payments in one tap.',
               },
             ].map((c) => (
               <div key={c.title} className="rounded-2xl border border-stone-200 p-6">

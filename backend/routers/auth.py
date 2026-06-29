@@ -533,6 +533,24 @@ async def complete_profile(
 
     email = current_user.get("email", "")
 
+    # Salon owners are paid directly via UPI, so a valid UPI ID is required at
+    # signup. Validated here (after the model) so we return a structured error.
+    upi_id = (data.upi_id or "").strip()
+    is_owner = data.role.value == "owner"
+    if is_owner:
+        import re as _re
+
+        if not upi_id:
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "UPI_REQUIRED", "message": "A UPI ID is required for salon owners."},
+            )
+        if not _re.match(r"^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$", upi_id):
+            raise HTTPException(
+                status_code=422,
+                detail={"code": "INVALID_UPI", "message": "Enter a valid UPI ID like name@bank."},
+            )
+
     try:
         profile = await create_new_profile(
             user_id=user_id,
@@ -540,6 +558,7 @@ async def complete_profile(
             role=data.role.value,
             name=data.name,
             phone=data.phone,
+            upi_id=upi_id if is_owner else None,
         )
     except ValueError as e:
         raise HTTPException(

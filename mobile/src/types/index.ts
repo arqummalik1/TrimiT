@@ -41,6 +41,13 @@ export interface Salon {
   auto_accept?: boolean;
   show_offers?: boolean;
   subscription_active?: boolean;
+  /** Salon's UPI ID (VPA, e.g. "salon@bank"). Required to accept UPI payments. */
+  upi_id?: string | null;
+  /** Optional uploaded UPI QR code image URL. */
+  upi_qr_code?: string | null;
+  /** Optional payout metadata (owner-entered, shown for reference only). */
+  bank_name?: string | null;
+  account_holder_name?: string | null;
   created_at: string;
   services?: Service[];
   reviews?: Review[];
@@ -76,7 +83,17 @@ export interface Booking {
   time_slot: string;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
-  payment_method?: 'salon_cash' | 'online';
+  payment_method?: 'salon_cash' | 'upi';
+  /** UPI verification lifecycle (only meaningful for UPI bookings). */
+  payment_verification_status?:
+    | 'not_required'
+    | 'initiated'
+    | 'waiting_verification'
+    | 'verified'
+    | 'rejected'
+    | 'timeout';
+  /** Human-friendly booking reference (e.g. shown to the customer/owner). */
+  booking_reference?: string;
   amount: number;
   created_at: string;
   salons?: Salon;

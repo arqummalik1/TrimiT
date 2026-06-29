@@ -6,9 +6,7 @@ import SalonDetailScreen from '../screens/customer/SalonDetailScreen';
 import ServiceDetailScreen from '../screens/customer/ServiceDetailScreen';
 import BookingScreen from '../screens/customer/BookingScreen';
 import RescheduleBookingScreen from '../screens/customer/RescheduleBookingScreen';
-import PaymentScreen from '../screens/customer/PaymentScreen';
-import OnlinePaymentScreen from '../screens/customer/OnlinePaymentScreen';
-import PayuCheckoutScreen from '../screens/customer/PayuCheckoutScreen';
+import PaymentWaitingScreen from '../screens/customer/PaymentWaitingScreen';
 import WriteReviewScreen from '../screens/customer/WriteReviewScreen';
 import PrivacyPolicyScreen from '../screens/legal/PrivacyPolicyScreen';
 import TermsScreen from '../screens/legal/TermsScreen';
@@ -30,9 +28,7 @@ export default function CustomerStack() {
       <Stack.Screen name="ServiceDetail" component={ServiceDetailScreen} />
       <Stack.Screen name="Booking" component={BookingScreen} />
       <Stack.Screen name="RescheduleBooking" component={RescheduleBookingScreen} />
-      <Stack.Screen name="Payment" component={PaymentScreen} />
-      <Stack.Screen name="OnlinePayment" component={OnlinePaymentScreen} />
-      <Stack.Screen name="PayuCheckout" component={PayuCheckoutScreen} />
+      <Stack.Screen name="PaymentWaiting" component={PaymentWaitingScreen} />
       <Stack.Screen name="WriteReview" component={WriteReviewScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <Stack.Screen name="Terms" component={TermsScreen} />

@@ -2,47 +2,79 @@ import api from '../lib/api';
 import { createIdempotencyKey } from '../lib/idempotency';
 
 /**
- * paymentService — PayU online-payment HTTP surface (Layer B, flag-gated).
+ * paymentService — UPI-intent + manual-verification HTTP surface (web).
  * ─────────────────────────────────────────────────────────────────────────────
- * Additive backend endpoints (same contract as mobile):
- *   POST /payments/create-order  — requires auth + an `Idempotency-Key` header.
- *   GET  /payments/status        — caller-scoped payment + settlement status.
+ * TrimiT never collects money. For UPI bookings the customer pays the salon's
+ * UPI ID directly, then the salon owner verifies the payment. Endpoints (all
+ * under /api/v1):
  *
- * While the server flag `PAYU_PAYOUTS_ENABLED` is OFF, create-order returns
- * 403 `ONLINE_PAYMENT_DISABLED`; callers treat that as "online payments
- * unavailable" and keep the unchanged pay-at-salon flow.
+ *   POST /payments/upi/initiate                — start UPI flow for a booking.
+ *   POST /payments/upi/awaiting-verification   — mark "customer says they paid".
+ *   GET  /payments/{booking_id}/status         — poll verification status.
+ *   POST /payments/{booking_id}/verify         — OWNER: verify + confirm booking.
+ *   POST /payments/{booking_id}/reject         — OWNER: reject payment.
  *
- * The `Idempotency-Key` is generated per logical "pay" action and sent
- * explicitly (the interceptor only auto-adds it for `/payments/verify` and
- * `/bookings/`). Re-using the same key on a retry returns the existing order
- * instead of creating a duplicate (Req 6.4, 6.6).
- *
- * Requirements: 4.4, 4.5, 17.4, 17.5
+ * No "Payment Successful" is ever shown on initiate — the booking is confirmed
+ * ONLY after the owner verifies (payment_verification_status === 'verified').
  * ─────────────────────────────────────────────────────────────────────────────
  */
 export const paymentService = {
   /**
-   * Create (or idempotently re-fetch) a PayU order for a booking. The payable
-   * amount is derived server-side from the booking (Req 17.1, 17.2).
-   *
+   * Start the UPI flow for a booking. Returns the salon UPI details and a
+   * `upi://pay?...` intent URI the customer opens to pay.
    * @param {string} bookingId
-   * @param {string} [idempotencyKey] stable key across retries of the same tap.
    */
-  createOrder: async (bookingId, idempotencyKey) => {
-    const key = idempotencyKey || createIdempotencyKey();
+  initiateUpi: async (bookingId) => {
+    const response = await api.post('/payments/upi/initiate', {
+      booking_id: bookingId,
+    });
+    return response.data;
+  },
+
+  /**
+   * Mark the booking as awaiting the salon's verification (customer indicated
+   * they have paid). Status moves initiated → waiting_verification.
+   * @param {string} bookingId
+   */
+  markAwaitingVerification: async (bookingId) => {
+    const response = await api.post('/payments/upi/awaiting-verification', {
+      booking_id: bookingId,
+    });
+    return response.data;
+  },
+
+  /** Fetch a booking's payment + verification status (used for polling). */
+  getPaymentStatus: async (bookingId) => {
+    const response = await api.get(`/payments/${bookingId}/status`);
+    return response.data;
+  },
+
+  /**
+   * OWNER: verify the customer's UPI payment. Single action — also confirms the
+   * booking server-side (payment_verification_status:'verified',
+   * payment_status:'paid', booking_status:'confirmed').
+   * @param {string} bookingId
+   * @param {string} [notes] optional owner note
+   */
+  verifyPayment: async (bookingId, notes) => {
     const response = await api.post(
-      '/payments/create-order',
-      { booking_id: bookingId },
-      { headers: { 'Idempotency-Key': key } }
+      `/payments/${bookingId}/verify`,
+      notes ? { notes } : {},
+      { headers: { 'Idempotency-Key': createIdempotencyKey() } }
     );
     return response.data;
   },
 
-  /** Fetch the caller's payment + settlement status for a booking. */
-  getPaymentStatus: async (bookingId) => {
-    const response = await api.get('/payments/status', {
-      params: { booking_id: bookingId },
-    });
+  /**
+   * OWNER: reject the customer's UPI payment.
+   * @param {string} bookingId
+   * @param {string} [notes] optional rejection reason
+   */
+  rejectPayment: async (bookingId, notes) => {
+    const response = await api.post(
+      `/payments/${bookingId}/reject`,
+      notes ? { notes } : {}
+    );
     return response.data;
   },
 };

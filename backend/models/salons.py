@@ -5,6 +5,17 @@ from typing import Optional, List
 
 # IFSC: 4 uppercase letters + '0' + 6 alphanumeric chars
 _IFSC_RE = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
+# UPI VPA: handle@provider (e.g. glowsalon@okaxis). Lenient on the local part.
+_UPI_RE = re.compile(r"^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$")
+
+
+def _validate_upi(v: Optional[str]) -> Optional[str]:
+    if v is None or v.strip() == "":
+        return None
+    v = v.strip()
+    if not _UPI_RE.match(v):
+        raise ValueError("Invalid UPI ID format. Expected something like name@bank.")
+    return v
 
 class SalonCreate(BaseModel):
     name: str
@@ -22,10 +33,21 @@ class SalonCreate(BaseModel):
     auto_accept: bool = False
     allow_multiple_bookings_per_slot: bool = False
     max_bookings_per_slot: int = 1
-    # Banking details — collected during onboarding for future PayU settlement
+    # UPI payments (v1): salon receives money directly. upi_id is required to
+    # offer "Pay with UPI"; the rest are optional onboarding details.
+    upi_id: Optional[str] = None
+    upi_qr_code: Optional[str] = None
+    bank_name: Optional[str] = None
+    account_holder_name: Optional[str] = None
+    # Banking details — legacy columns retained for back-compat.
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
     bank_account_holder_name: Optional[str] = None
+
+    @field_validator("upi_id")
+    @classmethod
+    def validate_upi_create(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_upi(v)
 
     @field_validator("bank_ifsc")
     @classmethod
@@ -54,10 +76,20 @@ class SalonUpdate(BaseModel):
     allow_multiple_bookings_per_slot: Optional[bool] = None
     max_bookings_per_slot: Optional[int] = None
     show_offers: Optional[bool] = None
-    # Banking details
+    # UPI payments (v1)
+    upi_id: Optional[str] = None
+    upi_qr_code: Optional[str] = None
+    bank_name: Optional[str] = None
+    account_holder_name: Optional[str] = None
+    # Banking details — legacy
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
     bank_account_holder_name: Optional[str] = None
+
+    @field_validator("upi_id")
+    @classmethod
+    def validate_upi_update(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_upi(v)
 
     @field_validator("bank_ifsc")
     @classmethod

@@ -29,6 +29,9 @@ export const formatPrice = (price: number): string => {
     style: 'currency',
     currency: 'INR',
     minimumFractionDigits: 0,
+    // Salon prices are whole rupees; round any stray decimals so the UI never
+    // shows things like ₹199.99.
+    maximumFractionDigits: 0,
   }).format(price);
 };
 

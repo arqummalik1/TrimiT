@@ -6,18 +6,18 @@ import { ShieldCheck, Wallet, ArrowsClockwise, ArrowRight } from '@phosphor-icon
 const ITEMS = [
   {
     icon: ShieldCheck,
-    title: 'Secure payments',
-    text: 'Pay with UPI, cards, net banking, or wallets — processed by trusted, PCI-DSS compliant partners.',
+    title: 'Pay the salon directly',
+    text: 'Pay by UPI straight to the salon, or cash at the counter. TrimiT never holds your money.',
   },
   {
     icon: Wallet,
     title: 'Pay your way',
-    text: 'Pay online while booking, or simply pay at the salon. Your choice, every time.',
+    text: 'Use any UPI app — Google Pay, PhonePe, Paytm, BHIM — or simply pay cash at the salon.',
   },
   {
     icon: ArrowsClockwise,
-    title: 'Easy refunds',
-    text: 'Cancelled an eligible booking? Refunds go back to your original method, usually in 5–7 days.',
+    title: 'Quick confirmation',
+    text: 'The salon verifies your UPI payment and confirms your booking, usually within minutes.',
   },
 ];
 
