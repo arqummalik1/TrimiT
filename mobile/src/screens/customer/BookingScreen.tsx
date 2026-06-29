@@ -79,6 +79,7 @@ import { useInitiateUpi } from "../../hooks/usePayment";
 // Staff selection imports
 import StaffPicker from "../../components/StaffPicker";
 import StaffProfileCard from "../../components/StaffProfileCard";
+import UpiAppPickerSheet from "../../components/booking/UpiAppPickerSheet";
 import type {
   AvailableStaffResponse,
   StaffWithServices,
@@ -166,6 +167,21 @@ export const BookingScreen: React.FC<
   const idempotencyKeyRef = React.useRef<string | null>(null);
   const successNavigatedRef = useRef(false);
 
+  // UPI app picker state — after a UPI booking is created we detect installed
+  // UPI apps and let the customer choose which one to pay with (instead of
+  // Android silently opening only the default handler).
+  const [upiPicker, setUpiPicker] = useState<{
+    visible: boolean;
+    bookingId: string;
+    bookingReference: string;
+    intentUri: string;
+    upiId: string;
+    payeeName: string;
+    amount: number;
+  } | null>(null);
+  const [upiApps, setUpiApps] = useState<import("../../services/upiIntentService").UpiApp[]>([]);
+  const [detectingUpiApps, setDetectingUpiApps] = useState(false);
+
   const resetBookingAttempt = useCallback(() => {
     idempotencyKeyRef.current = null;
   }, []);
@@ -189,6 +205,14 @@ export const BookingScreen: React.FC<
   });
 
   const service = salon?.services?.find((s) => s.id === serviceId);
+
+  // Default to UPI when the salon has a UPI ID configured — it's the
+  // recommended payment method. Falls back to cash if no UPI ID.
+  useEffect(() => {
+    if (salon?.upi_id) {
+      setSelectedPaymentMethod('upi');
+    }
+  }, [salon?.upi_id]);
 
   // Phase 2: a frozen salon (lapsed owner subscription) is viewable but NOT
   // bookable. Block the booking flow here; backend also returns 403 as the hard
@@ -612,28 +636,99 @@ export const BookingScreen: React.FC<
     }
   }, [selectedStaffForProfile, handleSelectStaff]);
 
-  // Launch the UPI intent flow for a freshly-created UPI booking, then route to
-  // the waiting screen. Kept separate from the booking mutation so booking logic
-  // stays independent of payment logic.
+  // Navigate to the waiting screen after we've kicked off (or attempted) a
+  // UPI launch. Kept separate so both the picker and the generic path reuse it.
+  const goToPaymentWaiting = useCallback(
+    (
+      details: {
+        bookingId: string;
+        bookingReference: string;
+        intentUri: string;
+        upiId: string;
+        payeeName: string;
+        amount: number;
+      },
+      launched: boolean,
+    ) => {
+      if (!salon || !service) return;
+      navigation.replace("PaymentWaiting", {
+        bookingId: details.bookingId,
+        bookingReference: details.bookingReference,
+        salonName: salon.name,
+        serviceName: service.name,
+        upiId: details.upiId,
+        payeeName: details.payeeName,
+        amount: details.amount,
+        intentUri: details.intentUri,
+        appLaunched: launched,
+      });
+    },
+    [salon, service, navigation],
+  );
+
+  // Customer picked a specific UPI app from the sheet.
+  const handleSelectUpiApp = useCallback(
+    async (app: import("../../services/upiIntentService").UpiApp) => {
+      if (!upiPicker) return;
+      const details = upiPicker;
+      setUpiPicker(null);
+      const { launched } = await upiIntentService.launchUpiAppByPackage(
+        details.intentUri,
+        app.androidPackage,
+      );
+      goToPaymentWaiting(details, launched);
+    },
+    [upiPicker, goToPaymentWaiting],
+  );
+
+  // Customer chose "any UPI app" (or no specific apps were detected) — fire the
+  // generic intent and let the system handle it.
+  const handlePayWithAnyUpi = useCallback(async () => {
+    if (!upiPicker) return;
+    const details = upiPicker;
+    setUpiPicker(null);
+    const { launched } = await upiIntentService.launchUpiApp(details.intentUri);
+    goToPaymentWaiting(details, launched);
+  }, [upiPicker, goToPaymentWaiting]);
+
+  // Customer dismissed the sheet without choosing — still go to the waiting
+  // screen so they can see the salon UPI ID and reopen a UPI app from there.
+  const handleCloseUpiPicker = useCallback(() => {
+    if (!upiPicker) return;
+    const details = upiPicker;
+    setUpiPicker(null);
+    goToPaymentWaiting(details, false);
+  }, [upiPicker, goToPaymentWaiting]);
+
+  // Launch the UPI intent flow for a freshly-created UPI booking. Instead of
+  // launching a UPI app directly (which on some devices opens only the default
+  // handler), we detect the installed UPI apps and show a picker so the
+  // customer chooses GPay / PhonePe / Paytm / WhatsApp themselves.
   const startUpiPayment = useCallback(
     async (bookingId: string) => {
       if (!salon || !service) return;
       try {
         const result = await initiateUpiMutation.mutateAsync(bookingId);
-        const { launched } = await upiIntentService.launchUpiApp(
-          result.upi.intent_uri,
-        );
-        navigation.replace("PaymentWaiting", {
+        const details = {
           bookingId,
           bookingReference: result.booking_reference,
-          salonName: salon.name,
-          serviceName: service.name,
+          intentUri: result.upi.intent_uri,
           upiId: result.upi.payee_vpa,
           payeeName: result.upi.payee_name,
           amount: result.upi.amount,
-          intentUri: result.upi.intent_uri,
-          appLaunched: launched,
-        });
+        };
+
+        // Open the picker immediately, then fill in detected apps async so the
+        // sheet shows a brief "finding your apps" state rather than blocking.
+        setUpiApps([]);
+        setDetectingUpiApps(true);
+        setUpiPicker({ visible: true, ...details });
+
+        upiIntentService
+          .getInstalledUpiApps(result.upi.intent_uri)
+          .then((apps) => setUpiApps(apps))
+          .catch(() => setUpiApps([]))
+          .finally(() => setDetectingUpiApps(false));
       } catch (error: unknown) {
         const appErr = isAppError(error) ? error : handleApiError(error);
         Alert.alert(
@@ -1556,13 +1651,13 @@ export const BookingScreen: React.FC<
       {selectedSlot && (
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
           <Button
-            title="Confirm Booking"
+            title={selectedPaymentMethod === 'upi' ? 'Book & Pay' : 'Confirm Booking'}
             onPress={handleConfirmBooking}
             loading={bookingMutation.isPending || reserveMutation.isPending}
             disabled={notBookable}
             icon={
               <Ionicons
-                name="card-outline"
+                name={selectedPaymentMethod === 'upi' ? 'phone-portrait-outline' : 'card-outline'}
                 size={20}
                 color={theme.colors.textInverse}
               />
@@ -1578,6 +1673,20 @@ export const BookingScreen: React.FC<
         onClose={() => setStaffProfileVisible(false)}
         onSelect={handleSelectFromProfile}
         showSelectButton={true}
+      />
+
+      {/* UPI app picker — lets the customer choose which installed UPI app to
+          pay with (GPay / PhonePe / Paytm / WhatsApp …) instead of Android
+          silently opening only the default handler. */}
+      <UpiAppPickerSheet
+        visible={!!upiPicker}
+        apps={upiApps}
+        detecting={detectingUpiApps}
+        amount={upiPicker?.amount ?? 0}
+        payeeName={upiPicker?.payeeName}
+        onSelectApp={handleSelectUpiApp}
+        onPayWithAny={handlePayWithAnyUpi}
+        onClose={handleCloseUpiPicker}
       />
     </ScreenWrapper>
   );
