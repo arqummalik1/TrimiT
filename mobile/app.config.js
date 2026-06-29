@@ -127,7 +127,7 @@ module.exports = ({ config }) => {
       // Plain string avoids expo-updates appVersion policy warning (OTA not used in v1).
       runtimeVersion: appVersion.version,
       orientation: 'portrait',
-      icon: './assets/SquareLogo.png',
+      icon: './assets/icon.png',
       userInterfaceStyle: 'automatic',
       // New Arch off for release stability (avoids device-specific native crashes on some OEMs).
       newArchEnabled: false,

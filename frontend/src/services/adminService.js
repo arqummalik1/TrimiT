@@ -64,6 +64,30 @@ export const adminService = {
     );
     return res.data;
   },
+
+  /** Block a user from accessing the app. */
+  blockUser: async (token, userId) => {
+    const res = await adminApi.post('/admin/users/block', { user_id: userId }, authHeaders(token));
+    return res.data;
+  },
+
+  /** Unblock a user. */
+  unblockUser: async (token, userId) => {
+    const res = await adminApi.post('/admin/users/unblock', { user_id: userId }, authHeaders(token));
+    return res.data;
+  },
+
+  /** Delete a user (soft delete). */
+  deleteUser: async (token, userId) => {
+    const res = await adminApi.delete(`/admin/users/${userId}`, authHeaders(token));
+    return res.data;
+  },
+
+  /** Send an invitation email to a new user. */
+  inviteUser: async (token, email, name, role) => {
+    const res = await adminApi.post('/admin/users/invite', { email, name, role }, authHeaders(token));
+    return res.data;
+  },
 };
 
 export default adminService;

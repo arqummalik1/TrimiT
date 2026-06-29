@@ -891,6 +891,7 @@ async def create_booking(
             initial_status=push_initial_status,
             is_premium=is_premium,
             payment_method=data.payment_method,
+            booking_reference=result.get("booking_reference"),
         )
     except Exception as e:
         logger.error(

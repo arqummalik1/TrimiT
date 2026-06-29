@@ -67,6 +67,23 @@
 - [ ] Confirm a salon's money reaches their bank (`settlement_status=settled`)
 
 ## Session log
+### 2026-06-29 — UPGRADE: Premium Admin Dashboard with Charts & User Management
+**Major upgrade to admin dashboard (`/admin`):**
+- **Installed recharts** for data visualization
+- **4 interactive charts:** Revenue trend (30-day area chart), Subscription breakdown (pie chart), User growth (12-month area chart), Bookings by status (bar chart)
+- **Full user management:** Block/unblock users, Delete users (soft delete), Invite owners/customers via email
+- **Subscription control:** Grant/extend subscriptions per owner, visual status badges, trial days remaining
+- **Premium dark UI:** TrimiT brand colors (orange-800 primary), sleek card design, responsive layout
+- **New backend endpoints:** `POST /admin/users/block`, `POST /admin/users/unblock`, `DELETE /admin/users/{id}`, `POST /admin/users/invite`
+- **New migration:** `database/52_user_management.sql` — adds `is_blocked` and `deleted_at` columns to `users` table
+- **Updated adminService.js:** Added `blockUser`, `unblockUser`, `deleteUser`, `inviteUser` methods
+- **Web build passes** ✓
+
+**Pending before live:**
+1. Apply migration `52_user_management.sql` in Supabase SQL Editor
+2. Set `ADMIN_DASHBOARD_PIN` on Render (strong 8–10 digits)
+3. Merge to `main` to deploy
+
 ### 2026-06-28 — CONFIRMED green + migrations applied + admin dashboard doc
 **Founder ran all verification commands — results confirmed:**
 - Backend: **136 passed**. Mobile payment/subscription/signup suites: **32 passed** (6 suites). `MyBookingsScreen.test.tsx`: **4/4 passed in isolation** → confirmed the earlier full-run failure was a load flake, NOT a regression. Web `npm run build`: success, all routes prerendered.

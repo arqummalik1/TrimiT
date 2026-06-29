@@ -39,15 +39,21 @@ export async function ensureAndroidNotificationChannels(): Promise<void> {
   const { useNotificationPrefsStore } = await import('../store/notificationPrefsStore');
   const { soundEnabled, vibrationEnabled } = useNotificationPrefsStore.getState();
 
+  // 'new_bookings' channel — maximum attention, mirrors Rapido Captain / Blinkit Partner.
+  // bypassDnd: owner must NEVER miss a booking because their phone is on silent.
+  // Aggressive vibration pattern: [wait, vibrate, pause, vibrate, pause, vibrate].
+  // Sound name must match the filename in assets/sounds/ registered in app.config.js.
   await Notifications.setNotificationChannelAsync(BOOKINGS_CHANNEL_ID, {
-    name: 'Bookings',
+    name: 'New Bookings',
+    description: 'Incoming booking requests — requires immediate attention.',
     importance: Notifications.AndroidImportance.MAX,
-    vibrationPattern: vibrationEnabled ? [0, 250, 250, 250] : undefined,
+    vibrationPattern: vibrationEnabled ? [0, 400, 200, 400, 200, 400] : undefined,
     enableVibrate: vibrationEnabled,
-    lightColor: '#FF6B6B',
-    sound: soundEnabled ? 'default' : undefined,
+    lightColor: '#9A3412',
+    sound: soundEnabled ? 'notification' : undefined,
     enableLights: true,
     showBadge: true,
+    bypassDnd: true,
   });
 
   // Promotions / broadcast channel — kept separate from bookings so users

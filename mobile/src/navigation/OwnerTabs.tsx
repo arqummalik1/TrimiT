@@ -16,6 +16,7 @@ import { useRealtimeBookings } from '../hooks/useRealtimeBookings';
 import { useNotificationStore } from '../store/notificationStore';
 import { BookingNotificationModal } from '../components/BookingNotificationModal';
 import { SubscriptionGate } from '../components/SubscriptionGate';
+import { useVerifyPayment } from '../hooks/usePayment';
 
 const devLog = (...args: unknown[]) => {
   if (__DEV__) console.log(...args);
@@ -92,7 +93,7 @@ export default function OwnerTabs() {
     staleTime: 0,
   });
 
-  // Mutation for booking status updates
+  // Mutation for booking status updates (cash bookings / cancellations)
   const statusMutation = useMutation({
     mutationFn: ({ bookingId, status }: { bookingId: string; status: string }) =>
       bookingRepository.updateBookingStatus(bookingId, status),
@@ -107,6 +108,9 @@ export default function OwnerTabs() {
       ]).catch(() => { });
     },
   });
+
+  // Mutation for UPI payment verification (verify + confirm in one action)
+  const verifyPayment = useVerifyPayment();
 
   useEffect(() => {
     initializeSound();
@@ -219,12 +223,19 @@ export default function OwnerTabs() {
         notification={activeNotification}
         onClose={() => setActiveNotification(null)}
         onAccept={(bookingId) => {
-          statusMutation.mutate({ bookingId, status: 'confirmed' });
+          // UPI bookings: one tap verifies payment + confirms booking.
+          // Cash bookings: just confirm (no payment verification needed).
+          const isUpi = activeNotification?.booking?.payment_method === 'upi';
+          if (isUpi) {
+            verifyPayment.mutate({ bookingId });
+          } else {
+            statusMutation.mutate({ bookingId, status: 'confirmed' });
+          }
         }}
         onReject={(bookingId) => {
           statusMutation.mutate({ bookingId, status: 'cancelled' });
         }}
-        isProcessing={statusMutation.isPending}
+        isProcessing={statusMutation.isPending || verifyPayment.isPending}
       />
 
       {/* Phase 2: full-screen freeze when subscription is inactive (no-op in Phase 1) */}

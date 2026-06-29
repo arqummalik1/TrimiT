@@ -101,6 +101,9 @@ export const BookingNotificationModal: React.FC<Props> = ({
     typeof booking.amount === 'number' && !Number.isNaN(booking.amount)
       ? booking.amount
       : Number(booking.amount) || 0;
+  const bookingRef = booking.booking_reference ?? null;
+  const paymentMethod = booking.payment_method ?? null;
+  const isUpi = paymentMethod === 'upi';
 
   const headline =
     type === 'new_booking'
@@ -167,6 +170,26 @@ export const BookingNotificationModal: React.FC<Props> = ({
                   </View>
                 </View>
                 <Text style={styles.amount}>{formatPrice(amountNum)}</Text>
+                {/* Payment method + booking reference row */}
+                <View style={styles.metaRow}>
+                  {paymentMethod ? (
+                    <View style={[styles.payBadge, isUpi ? styles.payBadgeUpi : styles.payBadgeCash]}>
+                      <Ionicons
+                        name={isUpi ? 'phone-portrait-outline' : 'cash-outline'}
+                        size={12}
+                        color={isUpi ? '#0369A1' : '#065F46'}
+                      />
+                      <Text style={[styles.payBadgeText, isUpi ? styles.payBadgeTextUpi : styles.payBadgeTextCash]}>
+                        {isUpi ? 'UPI' : 'Cash'}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {bookingRef ? (
+                    <Text style={styles.refText} numberOfLines={1}>
+                      {bookingRef}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
             </View>
 
@@ -195,7 +218,9 @@ export const BookingNotificationModal: React.FC<Props> = ({
                   ) : (
                     <>
                       <Ionicons name="checkmark-circle" size={20} color={theme.colors.textInverse} />
-                      <Text style={styles.btnAcceptText}>Accept</Text>
+                      <Text style={styles.btnAcceptText}>
+                        {isUpi ? 'Accept & Verify' : 'Accept'}
+                      </Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -366,5 +391,43 @@ const createStyles = (theme: Theme, isDark: boolean) =>
       fontFamily: fonts.bodySemiBold,
       fontSize: 15,
       color: theme.colors.textInverse,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 4,
+      flexWrap: 'wrap',
+    },
+    payBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: borderRadius.full,
+    },
+    payBadgeUpi: {
+      backgroundColor: '#E0F2FE',
+    },
+    payBadgeCash: {
+      backgroundColor: '#D1FAE5',
+    },
+    payBadgeText: {
+      fontSize: 11,
+      fontFamily: fonts.bodySemiBold,
+      fontWeight: '700',
+    },
+    payBadgeTextUpi: {
+      color: '#0369A1',
+    },
+    payBadgeTextCash: {
+      color: '#065F46',
+    },
+    refText: {
+      fontSize: 11,
+      fontFamily: fonts.body,
+      color: theme.colors.textSecondary,
+      flex: 1,
     },
   });

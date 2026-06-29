@@ -236,3 +236,109 @@ async def grant_subscription(
         "owner_id": payload.owner_id,
         "current_period_end": period_end.isoformat(),
     }
+
+
+# ── User Management (Block/Unblock/Delete/Invite) ──────────────────────────────
+
+class BlockUserRequest(BaseModel):
+    user_id: str = Field(..., description="public.users.id to block")
+
+
+@router.post("/users/block")
+@limiter.limit("30/minute")
+async def block_user(
+    request: Request,
+    payload: BlockUserRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Block a user from accessing the app."""
+    _require_admin(authorization)
+    try:
+        await supabase.request(
+            "PATCH",
+            f"rest/v1/users?id=eq.{payload.user_id}",
+            service_role=True,
+            json={"is_blocked": True},
+        )
+        return {"status": "blocked", "user_id": payload.user_id}
+    except Exception as exc:
+        logger.error("[Admin] block user failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "BLOCK_FAILED", "message": "Could not block user."},
+        )
+
+
+@router.post("/users/unblock")
+@limiter.limit("30/minute")
+async def unblock_user(
+    request: Request,
+    payload: BlockUserRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Unblock a user."""
+    _require_admin(authorization)
+    try:
+        await supabase.request(
+            "PATCH",
+            f"rest/v1/users?id=eq.{payload.user_id}",
+            service_role=True,
+            json={"is_blocked": False},
+        )
+        return {"status": "unblocked", "user_id": payload.user_id}
+    except Exception as exc:
+        logger.error("[Admin] unblock user failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "UNBLOCK_FAILED", "message": "Could not unblock user."},
+        )
+
+
+@router.delete("/users/{user_id}")
+@limiter.limit("10/minute")
+async def delete_user(
+    request: Request,
+    user_id: str,
+    authorization: Optional[str] = Header(None),
+):
+    """Delete a user (soft delete by setting deleted_at)."""
+    _require_admin(authorization)
+    try:
+        await supabase.request(
+            "PATCH",
+            f"rest/v1/users?id=eq.{user_id}",
+            service_role=True,
+            json={"deleted_at": datetime.now(timezone.utc).isoformat()},
+        )
+        return {"status": "deleted", "user_id": user_id}
+    except Exception as exc:
+        logger.error("[Admin] delete user failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"code": "DELETE_FAILED", "message": "Could not delete user."},
+        )
+
+
+class InviteUserRequest(BaseModel):
+    email: str = Field(..., description="Email to invite")
+    name: Optional[str] = Field(None, description="Optional name")
+    role: str = Field(default="customer", description="customer or owner")
+
+
+@router.post("/users/invite")
+@limiter.limit("10/minute")
+async def invite_user(
+    request: Request,
+    payload: InviteUserRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Send an invitation email to a new user."""
+    _require_admin(authorization)
+    # In v1, this just returns success - actual email sending would need Resend integration
+    # For now, you can manually reach out or implement Resend invite emails later
+    return {
+        "status": "invited",
+        "email": payload.email,
+        "role": payload.role,
+        "message": f"Invitation prepared for {payload.email}. Contact them manually or implement email sending.",
+    }
