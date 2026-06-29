@@ -219,7 +219,10 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
 
   // UPI onboarding nudge. TrimiT never collects money — to accept UPI the salon
   // must store a UPI ID. Surface a dashboard banner until one is set.
-  const showUpiBanner = !!salon && !salon.upi_id;
+  // Guard: salon must be fully loaded (not loading, not errored) before we show
+  // an actionable CTA — early-return guards above already prevent this code from
+  // running on error/loading states, but the explicit checks make intent clear.
+  const showUpiBanner = !salonLoading && !salonError && !!salon && !salon.upi_id;
   const openPayoutDetails = () =>
     navigation
       .getParent()
