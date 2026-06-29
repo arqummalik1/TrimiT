@@ -112,6 +112,67 @@ async def after_payment_verified(
         )
 
 
+async def after_upi_awaiting_verification(
+    *,
+    booking_id: str,
+    owner_id: Optional[str],
+    customer_id: Optional[str],
+    customer_name: str,
+    service_name: str,
+    amount: float,
+    booking_reference: str,
+) -> None:
+    """UPI customer returned and says they paid: tell owner + reassure customer."""
+    if owner_id:
+        await push_dispatch.notify_owner_payment_awaiting(
+            owner_id=owner_id,
+            booking_id=booking_id,
+            customer_name=customer_name,
+            service_name=service_name,
+            amount=amount,
+            booking_reference=booking_reference,
+        )
+    if customer_id:
+        await push_dispatch.notify_customer_payment_waiting(
+            customer_id=customer_id,
+            booking_id=booking_id,
+        )
+
+
+async def after_payment_confirmed(
+    *,
+    booking_id: str,
+    customer_id: Optional[str],
+    service_name: str,
+    booking_date: str,
+    time_slot: str,
+) -> None:
+    """Salon verified the UPI payment: tell the customer the booking is confirmed."""
+    if customer_id:
+        await push_dispatch.notify_customer_booking_confirmed(
+            customer_id=customer_id,
+            booking_id=booking_id,
+            service_name=service_name,
+            booking_date=booking_date,
+            time_slot=time_slot,
+        )
+
+
+async def after_payment_rejected(
+    *,
+    booking_id: str,
+    customer_id: Optional[str],
+    service_name: str,
+) -> None:
+    """Salon could not verify the UPI payment: tell the customer to retry/contact."""
+    if customer_id:
+        await push_dispatch.notify_customer_payment_rejected(
+            customer_id=customer_id,
+            booking_id=booking_id,
+            service_name=service_name,
+        )
+
+
 async def after_status_change(
     *,
     booking_id: str,

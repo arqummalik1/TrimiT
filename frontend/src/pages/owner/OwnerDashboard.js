@@ -14,6 +14,7 @@ import {
   XCircle,
   Hourglass,
   Gear,
+  CreditCard,
 } from "@phosphor-icons/react";
 import { bookingRepository } from "../../repositories/bookingRepository";
 import { ownerRepository } from "../../repositories/ownerRepository";
@@ -112,6 +113,12 @@ const OwnerDashboard = () => {
     queryKey: ["ownerAnalytics"],
     queryFn: ownerRepository.getOwnerAnalytics,
   });
+
+  // UPI payout readiness: nudge the owner to add a UPI ID so they can accept
+  // "Pay with UPI" bookings. Hidden once the salon has a upi_id.
+  const showPayoutBanner = !!salon && !salon.upi_id;
+  const payoutBannerMessage =
+    "Add your UPI ID so customers can pay you directly for bookings.";
 
   const statCards = [
     {
@@ -265,6 +272,36 @@ const OwnerDashboard = () => {
           </motion.div>
         ) : (
           <>
+            {/* Payout activation banner (Req 17.6, 3.5) */}
+            {showPayoutBanner && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6"
+              >
+                <Link
+                  to="/owner/bank-account"
+                  className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 transition-colors hover:bg-amber-100 group"
+                >
+                  <span className="p-2 rounded-xl bg-amber-100 text-amber-700">
+                    <CreditCard size={22} weight="bold" />
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold text-amber-800">
+                      Payouts: pending activation
+                    </p>
+                    <p className="text-sm text-amber-700">
+                      {payoutBannerMessage}
+                    </p>
+                  </div>
+                  <ArrowRight
+                    size={18}
+                    className="text-amber-500 group-hover:text-amber-700 transition-colors"
+                  />
+                </Link>
+              </motion.div>
+            )}
+
             {/* Stats Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               {statCards.map((stat, index) => (

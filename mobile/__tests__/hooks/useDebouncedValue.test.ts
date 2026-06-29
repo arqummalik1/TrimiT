@@ -1,9 +1,14 @@
 /**
  * Unit tests for src/hooks/useDebouncedValue.ts
  * Covers: initial render, debounce delay, rapid changes, unmount cleanup
+ *
+ * Note: under React 19 + RTL, state updates driven by timers must be flushed
+ * inside `act(...)`, so every `jest.advanceTimersByTime` is wrapped in act.
  */
 import { renderHook, act } from '@testing-library/react-native';
 import { useDebouncedValue } from '../../src/hooks/useDebouncedValue';
+
+const advance = (ms: number) => act(() => { jest.advanceTimersByTime(ms); });
 
 describe('useDebouncedValue', () => {
   beforeEach(() => {
@@ -28,7 +33,7 @@ describe('useDebouncedValue', () => {
     // Before timer fires, value is still 'a'
     expect(result.current).toBe('a');
 
-    jest.advanceTimersByTime(299);
+    advance(299);
     expect(result.current).toBe('a');
   });
 
@@ -38,7 +43,7 @@ describe('useDebouncedValue', () => {
     });
 
     rerender({ value: 'b' });
-    jest.advanceTimersByTime(300);
+    advance(300);
 
     expect(result.current).toBe('b');
   });
@@ -49,13 +54,13 @@ describe('useDebouncedValue', () => {
     });
 
     rerender({ value: 'b' });
-    jest.advanceTimersByTime(200); // 200ms elapsed
+    advance(200); // 200ms elapsed
 
     rerender({ value: 'c' }); // reset timer
-    jest.advanceTimersByTime(200); // only 200ms since 'c', total 400 since 'b'
+    advance(200); // only 200ms since 'c', total 400 since 'b'
     expect(result.current).toBe('a'); // still 'a' — timer was reset
 
-    jest.advanceTimersByTime(100); // 300ms since 'c'
+    advance(100); // 300ms since 'c'
     expect(result.current).toBe('c');
   });
 
@@ -69,7 +74,7 @@ describe('useDebouncedValue', () => {
     rerender({ value: '3' });
     rerender({ value: 'final' });
 
-    jest.advanceTimersByTime(200);
+    advance(200);
     expect(result.current).toBe('final');
   });
 
@@ -79,7 +84,7 @@ describe('useDebouncedValue', () => {
     });
 
     rerender({ value: 42 });
-    jest.advanceTimersByTime(100);
+    advance(100);
     expect(result.current).toBe(42);
   });
 
@@ -89,7 +94,7 @@ describe('useDebouncedValue', () => {
     });
 
     rerender({ value: { a: 2 } });
-    jest.advanceTimersByTime(100);
+    advance(100);
     expect(result.current).toEqual({ a: 2 });
   });
 
@@ -103,7 +108,7 @@ describe('useDebouncedValue', () => {
     unmount();
 
     // Advancing timers after unmount should not throw
-    expect(() => jest.advanceTimersByTime(300)).not.toThrow();
+    expect(() => advance(300)).not.toThrow();
     expect(result.current).toBe('a');
   });
 
@@ -114,7 +119,7 @@ describe('useDebouncedValue', () => {
 
     rerender({ value: 'b' });
     // setTimeout(fn, 0) — needs to advance at least 0ms via macro task queue
-    jest.advanceTimersByTime(0);
+    advance(0);
     expect(result.current).toBe('b');
   });
 
@@ -124,7 +129,7 @@ describe('useDebouncedValue', () => {
     });
 
     rerender({ value: 'same' });
-    jest.advanceTimersByTime(100);
+    advance(100);
     expect(result.current).toBe('same');
   });
 });

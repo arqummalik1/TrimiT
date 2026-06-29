@@ -37,9 +37,13 @@ import { EmptyState } from '../../components/EmptyState';
 import { handleApiError } from '../../lib/errorHandler';
 import { useMinLoadingTime } from '../../hooks/useMinLoadingTime';
 import { BookingsTrendChart, PopularServicesChart, StatusDistributionChart } from '../../components/charts';
+import { showToast } from '../../store/toastStore';
 import BookingCard from '../../components/BookingCard';
 import { SubscriptionBanner } from '../../components/SubscriptionBanner';
 import { useSubscriptionStatus } from '../../hooks/useSubscription';
+import { ENABLE_SUBSCRIPTIONS } from '../../lib/featureFlags';
+import { OwnerSetupBanner } from '../../components/OwnerSetupBanner';
+import { useVerifyPayment, useRejectPayment } from '../../hooks/usePayment';
 
 import { OwnerDashboardScreenProps as NavigationProps } from '../../navigation/types';
 import { ComponentProps } from 'react';
@@ -212,6 +216,42 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
   const queryClient = useQueryClient();
 
   const { data: subscriptionStatus } = useSubscriptionStatus();
+
+  // UPI onboarding nudge. TrimiT never collects money — to accept UPI the salon
+  // must store a UPI ID. Surface a dashboard banner until one is set.
+  const showUpiBanner = !!salon && !salon.upi_id;
+  const openPayoutDetails = () =>
+    navigation
+      .getParent()
+      ?.navigate('Settings', { screen: 'UpiPaymentSettings', initial: false });
+
+  const verifyPayment = useVerifyPayment();
+  const rejectPayment = useRejectPayment();
+
+  const handleVerifyPayment = (bookingId: string) => {
+    verifyPayment.mutate(
+      { bookingId },
+      {
+        onSuccess: () => showToast('Payment verified — booking confirmed', 'success'),
+        onError: (error: unknown) => showToast(handleApiError(error).message, 'error'),
+      }
+    );
+  };
+
+  const handleRejectPayment = (bookingId: string) => {
+    rejectPayment.mutate(
+      { bookingId },
+      {
+        onSuccess: () => showToast('Payment rejected', 'success'),
+        onError: (error: unknown) => showToast(handleApiError(error).message, 'error'),
+      }
+    );
+  };
+
+  const isUpiActionInFlight = (bookingId: string) =>
+    (verifyPayment.isPending && verifyPayment.variables?.bookingId === bookingId) ||
+    (rejectPayment.isPending && rejectPayment.variables?.bookingId === bookingId);
+
   const statusMutation = useMutation({
     mutationFn: ({ bookingId, status }: { bookingId: string; status: string }) => 
       bookingRepository.updateBookingStatus(bookingId, status),
@@ -339,7 +379,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
           <View style={styles.headerLeft}>
             <Text style={styles.welcomeText}>Good Day,</Text>
             <Text style={styles.salonTitle} numberOfLines={1}>{salon.name}</Text>
-            {subscriptionStatus?.is_trial ? (
+            {ENABLE_SUBSCRIPTIONS && subscriptionStatus?.is_trial ? (
               <TouchableOpacity
                 style={[styles.trialPill, { backgroundColor: trialPillColor }]}
                 activeOpacity={0.85}
@@ -365,11 +405,23 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
           </TouchableOpacity>
         </View>
 
-        {/* Subscription / trial banner (Phase 1: informational) */}
-        {subscriptionStatus ? (
+        {/* Subscription / trial banner (Phase 1: informational).
+            Hidden while TrimiT is commission-based + free for owners. */}
+        {ENABLE_SUBSCRIPTIONS && subscriptionStatus ? (
           <SubscriptionBanner
             status={subscriptionStatus}
             onPress={openSubscription}
+          />
+        ) : null}
+
+        {/* UPI onboarding banner — shown until the salon stores a UPI ID */}
+        {showUpiBanner ? (
+          <OwnerSetupBanner
+            icon="phone-portrait-outline"
+            title="Accept UPI payments"
+            message="Add your UPI ID so customers can pay you directly via any UPI app."
+            ctaLabel="Add UPI ID"
+            onPress={openPayoutDetails}
           />
         ) : null}
 
@@ -427,6 +479,9 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
                 onConfirm={() => statusMutation.mutate({ bookingId: booking.id, status: 'confirmed' })}
                 onReject={() => statusMutation.mutate({ bookingId: booking.id, status: 'cancelled' })}
                 onComplete={() => statusMutation.mutate({ bookingId: booking.id, status: 'completed' })}
+                onVerifyPayment={() => handleVerifyPayment(booking.id)}
+                onRejectPayment={() => handleRejectPayment(booking.id)}
+                isVerifying={isUpiActionInFlight(booking.id)}
               />
             ))
           ) : (

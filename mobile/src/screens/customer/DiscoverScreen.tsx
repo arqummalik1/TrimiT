@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
@@ -40,7 +41,7 @@ import { useDiscoverLocation } from '../../hooks/useDiscoverLocation';
 import { showToast } from '../../store/toastStore';
 import { Salon } from '../../types';
 import { normalizeSalon } from '../../lib/salonImage';
-import { spacing, borderRadius, typography, fonts } from '../../lib/utils';
+import { spacing, borderRadius, fonts } from '../../lib/utils';
 import { PermissionPrimer } from '../../components/PermissionPrimer';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
@@ -50,7 +51,6 @@ import { logger } from '../../lib/logger';
 import {
   DISCOVER_SEARCH_DEBOUNCE_MS,
   DISCOVER_CLUSTERING_MIN_MARKERS,
-  DISCOVER_FIT_MAX_MARKERS,
   DISCOVER_FIT_MAX_SPAN_KM,
   DISCOVER_CLUSTER_RADIUS,
   DISCOVER_NEARBY_RADIUS_KM,
@@ -82,6 +82,36 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   const isFocused = useIsFocused();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+
+  // ── Hide-on-scroll search bar (Twitter/Gmail pattern) ──────────────────────
+  // diffClamp gives the classic behaviour automatically: scroll DOWN → the bar
+  // collapses up & fades; scroll UP (even a little) → it comes back; at the top
+  // it's always shown. Height is measured once so there are no magic numbers.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [searchBarHeight, setSearchBarHeight] = useState(0);
+  const searchAnim = useMemo(() => {
+    if (!searchBarHeight) return null;
+    const clamped = Animated.diffClamp(scrollY, 0, searchBarHeight);
+    return {
+      height: clamped.interpolate({
+        inputRange: [0, searchBarHeight],
+        outputRange: [searchBarHeight, 0],
+        extrapolate: 'clamp',
+      }),
+      opacity: clamped.interpolate({
+        inputRange: [0, searchBarHeight * 0.8],
+        outputRange: [1, 0],
+        extrapolate: 'clamp',
+      }),
+    };
+  }, [scrollY, searchBarHeight]);
+  const onListScroll = useMemo(
+    () =>
+      Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+        useNativeDriver: false,
+      }),
+    [scrollY]
+  );
 
   const debouncedSearchQuery = useDebouncedValue(searchQuery.trim(), DISCOVER_SEARCH_DEBOUNCE_MS);
 
@@ -258,44 +288,38 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
       return;
     }
 
-    if (salonCoords.length > DISCOVER_FIT_MAX_MARKERS) {
-      map.animateToRegion(userRegion, 500);
-      logger.debug(`${LOG} map camera user-only (too many markers for auto-fit)`, {
-        count: salonCoords.length,
-      });
+    // Single salon → frame it closely.
+    if (salonCoords.length === 1) {
+      const only = salonCoords[0];
+      map.animateToRegion(
+        {
+          latitude: only.latitude,
+          longitude: only.longitude,
+          latitudeDelta: 0.06,
+          longitudeDelta: 0.06,
+        },
+        500
+      );
+      logger.debug(`${LOG} map camera single salon`);
       return;
     }
 
+    // 2+ salons → ALWAYS frame all of them (that's the whole point of map view).
+    // Include the user pin only when it doesn't blow the view out of proportion,
+    // so nearby browsing stays tight but salons are NEVER pushed off-screen.
     const withUser: Coordinates[] =
       coords != null
         ? [...salonCoords, { latitude: coords.lat, longitude: coords.lng }]
         : [...salonCoords];
+    const includeUser =
+      coords != null && computeApproxMaxSpanKm(withUser) <= DISCOVER_FIT_MAX_SPAN_KM;
+    const fitTarget = includeUser ? withUser : salonCoords;
 
-    const spanKm =
-      withUser.length >= 2 ? computeApproxMaxSpanKm(withUser) : 0;
-    if (salonCoords.length >= 2 && spanKm > DISCOVER_FIT_MAX_SPAN_KM) {
-      map.animateToRegion(userRegion, 500);
-      logger.debug(`${LOG} map camera user-only (span too large)`, { spanKm });
-      return;
-    }
-
-    if (withUser.length >= 2) {
-      map.fitToCoordinates(withUser, { edgePadding, animated: true });
-      logger.debug(`${LOG} map fitToCoordinates`, { count: withUser.length, spanKm });
-      return;
-    }
-
-    const only = withUser[0];
-    map.animateToRegion(
-      {
-        latitude: only.latitude,
-        longitude: only.longitude,
-        latitudeDelta: 0.06,
-        longitudeDelta: 0.06,
-      },
-      500
-    );
-    logger.debug(`${LOG} map camera single salon`);
+    map.fitToCoordinates(fitTarget, { edgePadding, animated: true });
+    logger.debug(`${LOG} map fitToCoordinates (all salons)`, {
+      salons: salonCoords.length,
+      includeUser,
+    });
   }, [coords, insets.top, insets.bottom, mapCenter.latitude, mapCenter.longitude, mapMarkersData]);
 
   useEffect(() => {
@@ -501,39 +525,54 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           </View>
         </View>
 
-        <TouchableOpacity
-          activeOpacity={isOnline ? 1 : 0.6}
-          onPress={handleOfflineTap}
-          disabled={isOnline}
-          accessibilityLabel={isOnline ? 'Search salons' : 'Search unavailable - offline'}
-          accessibilityHint="Type to filter salons by name or address"
+        <Animated.View
+          style={[
+            styles.searchWrap,
+            searchAnim ? { height: searchAnim.height, opacity: searchAnim.opacity } : null,
+          ]}
         >
-          <View style={[styles.searchContainer, !isOnline && styles.searchContainerDisabled]}>
-            <Ionicons
-              name={isOnline ? 'search' : 'cloud-offline-outline'}
-              size={20}
-              color={isOnline ? theme.colors.textSecondary : theme.colors.warning}
-            />
-            <TextInput
-              style={styles.searchInput}
-              placeholder={isOnline ? 'Search salons...' : 'No internet connection'}
-              placeholderTextColor={isOnline ? theme.colors.textSecondary : theme.colors.warning}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              editable={isOnline}
-              accessibilityRole="search"
-            />
-            {searchQuery.length > 0 && isOnline && (
-              <TouchableOpacity
-                onPress={() => setSearchQuery('')}
-                accessibilityLabel="Clear search"
-                accessibilityRole="button"
-              >
-                <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            )}
+          <View
+            style={styles.searchInner}
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              if (h && Math.abs(h - searchBarHeight) > 1) setSearchBarHeight(h);
+            }}
+          >
+            <TouchableOpacity
+              activeOpacity={isOnline ? 1 : 0.6}
+              onPress={handleOfflineTap}
+              disabled={isOnline}
+              accessibilityLabel={isOnline ? 'Search salons' : 'Search unavailable - offline'}
+              accessibilityHint="Type to filter salons by name or address"
+            >
+              <View style={[styles.searchContainer, !isOnline && styles.searchContainerDisabled]}>
+                <Ionicons
+                  name={isOnline ? 'search' : 'cloud-offline-outline'}
+                  size={20}
+                  color={isOnline ? theme.colors.textSecondary : theme.colors.warning}
+                />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder={isOnline ? 'Search salons...' : 'No internet connection'}
+                  placeholderTextColor={isOnline ? theme.colors.textSecondary : theme.colors.warning}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  editable={isOnline}
+                  accessibilityRole="search"
+                />
+                {searchQuery.length > 0 && isOnline && (
+                  <TouchableOpacity
+                    onPress={() => setSearchQuery('')}
+                    accessibilityLabel="Clear search"
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </Animated.View>
       </View>
 
       {showBodySkeleton ? (
@@ -593,6 +632,8 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
         <FlatList
           data={filteredSalons}
           keyExtractor={(item) => item.id}
+          onScroll={onListScroll}
+          scrollEventThrottle={16}
           renderItem={({ item }) => (
             <SalonCard salon={item} onPress={() => handleSalonPress(item)} />
           )}
@@ -649,7 +690,9 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     header: {
-      padding: spacing.xl,
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.xl,
+      paddingBottom: spacing.md,
       backgroundColor: theme.colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
@@ -658,7 +701,13 @@ const createStyles = (theme: Theme) =>
       flexDirection: 'row',
       alignItems: 'flex-start',
       justifyContent: 'space-between',
-      marginBottom: spacing.lg,
+    },
+    // Collapsing wrapper for the search bar (hide-on-scroll). Clips as it shrinks.
+    searchWrap: {
+      overflow: 'hidden',
+    },
+    searchInner: {
+      paddingTop: spacing.lg,
     },
     title: {
       fontFamily: fonts.heading,
@@ -692,9 +741,9 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       backgroundColor: theme.colors.surfaceSecondary,
       borderRadius: borderRadius.pill,
-      paddingHorizontal: spacing.xl,
-      paddingVertical: spacing.md,
-      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      gap: spacing.sm,
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
@@ -704,7 +753,9 @@ const createStyles = (theme: Theme) =>
     },
     searchInput: {
       flex: 1,
-      ...typography.body,
+      fontFamily: fonts.body,
+      fontSize: 14,
+      paddingVertical: 0,
       color: theme.colors.text,
     },
     listContent: {

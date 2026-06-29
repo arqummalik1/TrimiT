@@ -45,6 +45,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   height,
   borderRadius = 8,
   style,
+  testID,
 }) => {
   const { theme } = useTheme();
   const shimmerAnim = useRef(new Animated.Value(0)).current;
@@ -81,6 +82,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   return (
     <View
       onLayout={handleLayout}
+      testID={testID}
       style={[
         styles.container,
         { width: width as any, height, borderRadius, backgroundColor: BASE_COLOR },

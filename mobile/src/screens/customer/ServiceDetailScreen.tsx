@@ -31,7 +31,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -40,9 +40,8 @@ import api from '../../lib/api';
 import { Salon, Service } from '../../types';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
-import { fonts, spacing, borderRadius, shadows, formatPrice } from '../../lib/utils';
+import { fonts, spacing, borderRadius, formatPrice } from '../../lib/utils';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
-import { Button } from '../../components/Button';
 import { ErrorState } from '../../components/ErrorState';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
 
@@ -77,6 +76,10 @@ export const ServiceDetailScreen: React.FC<CustomerDiscoverScreenProps<'ServiceD
 }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  const insets = useSafeAreaInsets();
+  // The floating tab bar is hidden on this flow screen (see CustomerTabs), so the
+  // CTA sits at the true bottom with just safe-area padding.
+  const ctaBottomOffset = insets.bottom + 12;
 
   const { serviceId, salonId, salonName } = route.params as {
     serviceId: string;
@@ -265,25 +268,23 @@ export const ServiceDetailScreen: React.FC<CustomerDiscoverScreenProps<'ServiceD
 
         </View>
 
-        {/* Bottom padding for sticky CTA */}
-        <View style={{ height: 100 }} />
+        {/* Bottom padding so content scrolls clear of the sticky CTA */}
+        <View style={{ height: ctaBottomOffset + 96 }} />
       </ScrollView>
 
-      {/* ── Sticky Book Now CTA ── */}
-      <View style={[styles.stickyFooter, shadows.lg]}>
-        <View style={styles.stickyPriceBlock}>
-          {isOnOffer && service.original_price != null && (
-            <Text style={styles.stickyOriginalPrice}>
-              {formatPrice(service.original_price)}
-            </Text>
-          )}
-          <Text style={styles.stickyPrice}>{formatPrice(service.price)}</Text>
-        </View>
-        <Button
-          title="Book Now"
-          onPress={handleBook}
+      {/* ── Flat Book Now CTA pinned to the bottom ── */}
+      <View style={[styles.stickyFooter, { bottom: ctaBottomOffset }]}>
+        <TouchableOpacity
           style={styles.bookButton}
-        />
+          onPress={handleBook}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={`Book now for ${formatPrice(service.price)}`}
+        >
+          <Text style={styles.bookButtonText}>
+            Book Now  ·  {formatPrice(service.price)}
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -458,38 +459,28 @@ const createStyles = (theme: Theme, isDark: boolean) =>
       color: theme.colors.textSecondary,
       flex: 1,
     },
-    // Sticky footer
+    // Flat Book Now CTA — no border, no shadow, blends with the page
     stickyFooter: {
       position: 'absolute',
-      bottom: 0,
       left: 0,
       right: 0,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: theme.colors.surface,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
+      backgroundColor: theme.colors.background,
       paddingHorizontal: spacing.xl,
-      paddingVertical: spacing.lg,
-      paddingBottom: spacing.xxxl, // generous bottom padding for gesture bar
-    },
-    stickyPriceBlock: {
-      gap: 2,
-    },
-    stickyOriginalPrice: {
-      fontFamily: fonts.body,
-      fontSize: 12,
-      color: theme.colors.textTertiary,
-      textDecorationLine: 'line-through',
-    },
-    stickyPrice: {
-      fontFamily: fonts.bodyBold,
-      fontSize: 22,
-      color: theme.colors.primary,
+      paddingTop: spacing.sm,
     },
     bookButton: {
-      paddingHorizontal: spacing.xxxl,
+      width: '100%',
+      backgroundColor: theme.colors.primary,
+      borderRadius: borderRadius.lg,
+      paddingVertical: spacing.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    bookButtonText: {
+      fontFamily: fonts.bodyBold,
+      fontSize: 17,
+      color: theme.colors.textInverse,
+      letterSpacing: 0.3,
     },
   });
 

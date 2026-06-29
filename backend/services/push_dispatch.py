@@ -243,3 +243,71 @@ async def notify_booking_rescheduled(
         body=body,
         extra_data={"initiated_by": initiated_by},
     )
+
+
+async def notify_owner_payment_awaiting(
+    owner_id: str,
+    booking_id: str,
+    customer_name: str,
+    service_name: str,
+    amount: float,
+    booking_reference: str,
+) -> bool:
+    """Owner: a customer says they paid via UPI — verify it in the app."""
+    return await send_booking_push(
+        recipient_user_id=owner_id,
+        booking_id=booking_id,
+        event_type="payment_awaiting_verification",
+        category="bookings",
+        role_hint="owner",
+        title="Payment to verify",
+        body=(
+            f"{customer_name} marked {service_name} as paid (₹{amount:.0f}, "
+            f"ref {booking_reference}). Verify to confirm the booking."
+        ),
+        extra_data={
+            "payment_verification_status": "waiting_verification",
+            "booking_reference": booking_reference,
+        },
+    )
+
+
+async def notify_customer_payment_waiting(
+    customer_id: str,
+    booking_id: str,
+) -> bool:
+    """Customer: we are waiting for the salon to verify the UPI payment."""
+    return await send_booking_push(
+        recipient_user_id=customer_id,
+        booking_id=booking_id,
+        event_type="payment_waiting_verification",
+        category="booking_updates",
+        role_hint="customer",
+        title="Waiting for salon verification",
+        body=(
+            "We are waiting for the salon to verify your payment. "
+            "This usually takes less than five minutes."
+        ),
+        extra_data={"payment_verification_status": "waiting_verification"},
+    )
+
+
+async def notify_customer_payment_rejected(
+    customer_id: str,
+    booking_id: str,
+    service_name: str,
+) -> bool:
+    """Customer: the salon could not verify the UPI payment."""
+    return await send_booking_push(
+        recipient_user_id=customer_id,
+        booking_id=booking_id,
+        event_type="payment_rejected",
+        category="booking_updates",
+        role_hint="customer",
+        title="Payment not verified",
+        body=(
+            f"We could not verify your payment for {service_name}. "
+            "Please try again or contact the salon."
+        ),
+        extra_data={"payment_verification_status": "rejected"},
+    )

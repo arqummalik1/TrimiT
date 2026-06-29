@@ -15,6 +15,8 @@ interface CompleteProfilePayload {
   role: 'customer' | 'owner';
   name: string;
   phone?: string;
+  /** Owner UPI ID (VPA, e.g. "glowsalon@okaxis"). Required for owners. */
+  upi_id?: string;
 }
 
 export const authService = {

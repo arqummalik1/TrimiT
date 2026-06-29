@@ -158,6 +158,10 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
     });
   };
 
+  // PayU online payment removed. TrimiT now uses a UPI-intent + manual
+  // verification model handled during the booking flow (see BookingScreen →
+  // PaymentWaiting). There is no separate "pay online" entry from the list.
+
   // ── Error state ────────────────────────────────────────────────────────────
   if (isError && !showSkeleton) {
     const appErr = handleApiError(rawError);

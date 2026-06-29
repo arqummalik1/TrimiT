@@ -15,7 +15,7 @@ We collect the following categories of information:
 - **Profile information**: profile photo, role (customer or salon owner), and any additional details you choose to provide.
 - **Salon information** (owners only): salon name, address, location coordinates, services, pricing, hours, and uploaded images.
 - **Booking information**: services booked, dates, times, status, and payment records.
-- **Payment information**: handled by our payment processor. We do not store full card details on our servers.
+- **Payment information**: TrimiT never collects or holds payments. Customers pay salons directly by cash or UPI. We store payment records (method, status, booking reference) but no card numbers or UPI credentials.
 - **Device & usage data**: device type, OS, IP address, app version, and aggregated usage metrics.
 - **Location data** (optional): approximate location used to surface nearby salons. You may disable this in your device settings.
 
@@ -92,7 +92,7 @@ You may register only one role per account. Salon owners are independent busines
 ## 4. Bookings & Payments
 
 - Prices, availability, and service details are set by salon owners. TrimiT does not guarantee the accuracy of salon-provided content.
-- Payments are processed by our payment processor. Payment to TrimiT does not by itself confirm a booking — confirmation depends on the salon's acceptance and capacity rules.
+- TrimiT never collects or holds payments. Customers pay salons directly — by cash at the salon, or by UPI to the salon's UPI ID. A booking is confirmed by the salon's acceptance (and, for UPI, the salon's verification of payment), subject to capacity rules.
 - Refunds and cancellations follow the policy of the salon you booked with, subject to applicable law. Disputes should first be raised with the salon; we will assist where reasonable.
 
 ## 5. Salon Owner Obligations
@@ -201,4 +201,59 @@ TrimiT
 India
 
 We don't accept walk-ins — please reach out by phone or email and we'll route your message to the right team.
+`;
+
+// Payments Help Center. TrimiT never collects money — customers pay the salon
+// directly (cash or UPI) and the salon verifies UPI payments. Keep in sync with
+// frontend/src/content/paymentsHelp.js.
+export const PAYMENTS_HELP_MD = `# Payments Help
+
+How paying on TrimiT works — cash or UPI, both paid directly to the salon.
+
+## How payments work
+
+- TrimiT never collects or holds your money.
+- You pay the salon directly — either cash at the salon, or by UPI.
+- There are two payment options when you book: **Cash at Salon** and **Pay with UPI**.
+
+## Cash at Salon
+
+- Book now and pay by cash when you visit.
+- Nothing is charged in the app.
+
+## Pay with UPI
+
+- Choose **Pay with UPI** to pay the salon's UPI ID directly from any UPI app (Google Pay, PhonePe, Paytm, BHIM).
+- After you pay, we show "We are waiting for the salon to verify your payment." Most salons verify within **2–5 minutes**.
+- Your booking is confirmed only after the salon verifies your payment.
+- If no UPI app opens, you can pay the salon's UPI ID manually — it is shown on the waiting screen with your booking reference.
+
+## My UPI payment wasn't verified
+
+- If the salon can't verify your payment, you'll see a message to try again or contact the salon.
+- If you still need help, contact the salon with your booking reference, or reach us below.
+
+## Refunds and cancellations
+
+- Because payment goes straight to the salon, refunds and cancellations follow the salon's policy.
+- Raise any refund request with the salon directly; we'll help where we can.
+
+## For salon owners — getting paid
+
+- Listing your salon and taking bookings is **completely free**. No monthly subscription.
+- Add your **UPI ID** once in **UPI Payments** so customers can pay you directly.
+- When a customer pays by UPI, the money lands in your account directly — TrimiT never holds it.
+- Tap **Verify Payment** on the booking once you've received the money. That one tap confirms the booking.
+
+## Fees and charges
+
+- **Customers**: no extra TrimiT charges. You pay the salon's listed price.
+- **Salon owners**: free to join, no monthly fees.
+
+## Still need help?
+
+Share your booking reference and the amount, and our team will help.
+
+- **Phone**: +91 70060 82958
+- **Email**: contact@trimit.online
 `;

@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, act } from '@testing-library/react-native';
 import { ThemeProvider } from '../../src/theme/ThemeContext';
 import { SalonMapMarker } from '../../src/components/SalonMapMarker';
+import { lightTheme } from '../../src/theme/lightTheme';
 import { Animated } from 'react-native';
 
 // Mock react-native-maps
@@ -12,6 +13,14 @@ jest.mock('react-native-maps', () => {
     default: (props: any) => <View testID="map-view" {...props} />,
     Marker: (props: any) => <View testID="map-marker" {...props} />,
     Callout: (props: any) => <View testID="map-callout" {...props} />,
+  };
+});
+
+// Mock Ionicons so we can read the pin color the component applies.
+jest.mock('@expo/vector-icons', () => {
+  const { Text } = require('react-native');
+  return {
+    Ionicons: ({ name, color }: any) => <Text testID={`icon-${name}`}>{color}</Text>,
   };
 });
 
@@ -38,13 +47,22 @@ describe('SalonMapMarker', () => {
     );
   };
 
-  it('renders native marker with correct pinColor for unselected state', () => {
+  it('renders the custom location pin in the theme primary color when unselected', () => {
     renderComponent({ selected: false });
-    
+
     const marker = screen.getByTestId('map-marker');
     expect(marker).toBeTruthy();
-    // Default bright red pinColor
-    expect(marker.props.pinColor).toBe('#EF4444');
+    // The marker uses a custom Ionicons pin (not the native pinColor prop) by
+    // design — see component header. The pin color is theme-driven (dynamic):
+    // unselected = primary so re-branding updates it automatically.
+    const pin = screen.getByTestId('icon-location-sharp');
+    expect(pin).toHaveTextContent(lightTheme.colors.primary);
+  });
+
+  it('renders the pin in the darker brand shade when selected', () => {
+    renderComponent({ selected: true });
+    const pin = screen.getByTestId('icon-location-sharp');
+    expect(pin).toHaveTextContent(lightTheme.colors.primaryDark);
   });
 
   it('sets tracksViewChanges correctly based on prop', () => {

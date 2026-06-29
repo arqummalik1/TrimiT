@@ -10,6 +10,7 @@ import {
   getSalonCarouselUris,
   resolveSalonImageSource,
   resolveSalonCarouselSources,
+  TRIMIT_SALON_PLACEHOLDER,
 } from '../../src/lib/salonImage';
 
 // ─── normalizeSalonImages ────────────────────────────────────────────────────
@@ -149,9 +150,9 @@ describe('resolveSalonImageSource', () => {
     expect(source).toEqual({ uri: 'https://a.com/1.jpg' });
   });
 
-  it('returns placeholder (number) when no image', () => {
+  it('returns placeholder when no image', () => {
     const source = resolveSalonImageSource({} as any);
-    expect(typeof source).toBe('number');
+    expect(source).toBe(TRIMIT_SALON_PLACEHOLDER);
   });
 });
 
@@ -167,6 +168,6 @@ describe('resolveSalonCarouselSources', () => {
   it('returns single placeholder when no images', () => {
     const sources = resolveSalonCarouselSources({} as any);
     expect(sources.length).toBe(1);
-    expect(typeof sources[0]).toBe('number');
+    expect(sources[0]).toBe(TRIMIT_SALON_PLACEHOLDER);
   });
 });

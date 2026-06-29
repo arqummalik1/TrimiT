@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import {
@@ -14,6 +14,7 @@ import {
   Hourglass,
   Spinner,
   Bell,
+  CreditCard,
 } from "@phosphor-icons/react";
 import { bookingRepository } from "../../repositories/bookingRepository";
 import {
@@ -33,7 +34,8 @@ import NotificationBell from "../../components/NotificationBell";
 
 const MyBookings = () => {
   const queryClient = useQueryClient();
-  const { success, error } = useToastStore();
+  const navigate = useNavigate();
+  const { success, error, info } = useToastStore();
   const { addNotification } = useNotificationStore();
   const { profile } = useAuthStore();
   const [activeChannel, setActiveChannel] = useState(null);
@@ -152,6 +154,13 @@ const MyBookings = () => {
       });
     },
   });
+
+  // UPI: take the customer to the waiting page, which starts the UPI intent and
+  // shows "waiting for the salon to verify your payment". TrimiT never collects
+  // money, so there is no online checkout here.
+  const handlePayWithUpi = (booking) => {
+    navigate(`/payment/${booking.id}/waiting`);
+  };
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -289,19 +298,35 @@ const MyBookings = () => {
                     </div>
 
                     {booking.status === "pending" && (
-                      <button
-                        onClick={() => cancelMutation.mutate(booking.id)}
-                        disabled={cancelMutation.isPending}
-                        data-testid={`cancel-booking-${booking.id}`}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {cancelMutation.isPending ? (
-                          <Spinner size={18} className="animate-spin" />
-                        ) : (
-                          <XCircle size={18} />
-                        )}
-                        {cancelMutation.isPending ? "Cancelling..." : "Cancel"}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {booking.payment_method === "upi" &&
+                          booking.payment_verification_status !== "verified" &&
+                          booking.payment_status !== "paid" && (
+                            <button
+                              onClick={() => handlePayWithUpi(booking)}
+                              data-testid={`pay-upi-${booking.id}`}
+                              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-orange-700 hover:bg-orange-800 rounded-lg transition-colors"
+                            >
+                              <CreditCard size={18} />
+                              {booking.payment_verification_status === "waiting_verification"
+                                ? "Payment details"
+                                : "Pay with UPI"}
+                            </button>
+                          )}
+                        <button
+                          onClick={() => cancelMutation.mutate(booking.id)}
+                          disabled={cancelMutation.isPending}
+                          data-testid={`cancel-booking-${booking.id}`}
+                          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {cancelMutation.isPending ? (
+                            <Spinner size={18} className="animate-spin" />
+                          ) : (
+                            <XCircle size={18} />
+                          )}
+                          {cancelMutation.isPending ? "Cancelling..." : "Cancel"}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

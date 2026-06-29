@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Phone, Storefront, Users } from '@phosphor-icons/react';
+import { User, Phone, Storefront, Users, Wallet } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
@@ -17,7 +17,11 @@ import {
 // Shown after OTP verification when the user has no public.users row yet.
 // Here the user picks their role (customer/owner) + name (+ optional phone),
 // and the backend creates the profile. Role is decided AFTER OTP — same as
-// the mobile app.
+// the mobile app. Salon owners must also provide a UPI ID (they are paid
+// directly via UPI); customers never see the UPI field.
+
+// VPA format: name@bank (mirrors the backend regex).
+const UPI_REGEX = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 
 const CompleteProfilePage = () => {
   const navigate = useNavigate();
@@ -36,6 +40,8 @@ const CompleteProfilePage = () => {
   const [role, setRole] = useState('customer');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [upiId, setUpiId] = useState('');
+  const [upiError, setUpiError] = useState(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [fieldError, setFieldError] = useState(null);
 
@@ -66,6 +72,7 @@ const CompleteProfilePage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFieldError(null);
+    setUpiError(null);
     clearError();
 
     if (name.trim().length < 2) {
@@ -76,6 +83,19 @@ const CompleteProfilePage = () => {
       setFieldError(phoneValidationHint());
       return;
     }
+
+    const trimmedUpi = upiId.trim();
+    if (role === 'owner') {
+      if (!trimmedUpi) {
+        setUpiError('Please enter your UPI ID so customers can pay you directly.');
+        return;
+      }
+      if (!UPI_REGEX.test(trimmedUpi)) {
+        setUpiError('Enter a valid UPI ID in the format name@bank (e.g. glowsalon@okaxis).');
+        return;
+      }
+    }
+
     if (!acceptedTerms) {
       setFieldError('You must accept the Terms and Privacy Policy to continue.');
       return;
@@ -85,6 +105,7 @@ const CompleteProfilePage = () => {
       role,
       name: name.trim(),
       phone: phone ? toE164(phone) : undefined,
+      upi_id: role === 'owner' ? trimmedUpi : undefined,
     });
 
     if (result.success) {
@@ -97,6 +118,14 @@ const CompleteProfilePage = () => {
       } else {
         navigate('/explore', { replace: true });
       }
+      return;
+    }
+
+    // Map backend UPI validation errors to the inline UPI field.
+    if (result.errorCode === 'UPI_REQUIRED') {
+      setUpiError('Please enter your UPI ID so customers can pay you directly.');
+    } else if (result.errorCode === 'INVALID_UPI') {
+      setUpiError('Enter a valid UPI ID in the format name@bank (e.g. glowsalon@okaxis).');
     }
   };
 
@@ -221,6 +250,46 @@ const CompleteProfilePage = () => {
                 />
               </div>
             </div>
+
+            {role === 'owner' && (
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">
+                  UPI ID <span className="text-orange-800">*</span>
+                </label>
+                <div className="relative">
+                  <Wallet
+                    size={20}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400"
+                  />
+                  <input
+                    type="text"
+                    value={upiId}
+                    onChange={(e) => {
+                      setUpiId(e.target.value);
+                      if (upiError) setUpiError(null);
+                    }}
+                    data-testid="complete-upi"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors ${
+                      upiError ? 'border-red-300' : 'border-stone-200'
+                    }`}
+                    placeholder="glowsalon@okaxis"
+                    required
+                  />
+                </div>
+                {upiError ? (
+                  <p className="mt-2 text-sm text-red-600" data-testid="complete-upi-error">
+                    {upiError}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-stone-500">
+                    Customers pay you directly at this UPI ID. Format: name@bank.
+                  </p>
+                )}
+              </div>
+            )}
 
             <label className="flex items-start gap-3 cursor-pointer">
               <input

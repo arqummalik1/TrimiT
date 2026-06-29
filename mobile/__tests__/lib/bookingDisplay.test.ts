@@ -106,22 +106,34 @@ describe('getBookingServiceImageUri', () => {
     expect(uri).toBe('https://img.com/hair.jpg');
   });
 
-  it('falls back to salon image when service has no image', () => {
+  it('falls back to salon image when no embedded service', () => {
     const booking = {
-      services: [{ name: 'Beard Trim', image_url: null }],
+      services: null,
       salons: { images: ['https://img.com/salon.jpg'] },
     } as unknown as Booking;
     const uri = getBookingServiceImageUri(booking);
     expect(uri).toBe('https://img.com/salon.jpg');
   });
 
-  it('falls back to salon.image_url when no images array', () => {
+  it('falls back to salon.image_url when no service and no images array', () => {
     const booking = {
-      services: [{ name: 'Beard Trim', image_url: null }],
+      services: null,
       salons: { image_url: 'https://img.com/salon2.jpg', images: [] },
     } as unknown as Booking;
     const uri = getBookingServiceImageUri(booking);
     expect(uri).toBe('https://img.com/salon2.jpg');
+  });
+
+  it('uses category stock image when service has no image_url', () => {
+    const booking = {
+      services: [{ name: 'Beard Trim', image_url: null }],
+      salons: { images: ['https://img.com/salon.jpg'] },
+    } as unknown as Booking;
+    const uri = getBookingServiceImageUri(booking);
+    // Service is present → resolves via ServiceCard rules (category stock),
+    // not the salon hero. Matches the salon service list.
+    expect(uri).toContain('https://');
+    expect(uri).not.toBe('https://img.com/salon.jpg');
   });
 
   it('returns default category image when nothing else available', () => {

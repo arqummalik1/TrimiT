@@ -5,7 +5,271 @@
 > Living handoff file for humans and AI tools.
 > Update this file after every meaningful prompt, code change, migration, deploy, or QA pass.
 
+## 📊 Payments rollout — status dashboard (updated 2026-06-26)
+
+> Quick at-a-glance checklist of the commission-based payments work. `[x]` = done,
+> `[ ]` = pending. Newest detail lives in the session log below.
+
+### Product / business model
+- [x] Decision: **commission-based**, free for owners (no subscription)
+- [x] Subscription + trial UI hidden for owners (mobile), reversible via flag
+- [x] Owners never blocked after trial (`SUBSCRIPTION_ENFORCEMENT_ENABLED=false`)
+- [x] Commission economics set: 5% TrimiT + 2% gateway = ~7%, owner keeps ~93%
+
+### Backend (FastAPI / Render)
+- [x] PayU split-payment endpoints built (create-order, verify, webhook, status, refund)
+- [x] Bank/KYC collection + Fernet field encryption (`FIELD_ENCRYPTION_KEY` set)
+- [x] Commission split math (exact paise reconciliation) + admin commission override
+- [x] Owner earnings endpoint (settled vs pending)
+- [x] All gated behind `PAYU_PAYOUTS_ENABLED` (currently **false** = safe/off)
+- [x] DB migration `database/48_salon_bank_accounts_payu.sql` applied to prod
+- [ ] PayU **vendor registration** real contract (needs PayU split product live — TODO)
+- [ ] PayU **settlement webhook** exact field shape confirmed (TODO pending activation)
+
+### Frontend (web / Vercel)
+- [x] Payments Help Center page at `/help/payments` (+ SEO + sitemap)
+- [x] Owner payment messaging on `/for-salons` (free, paid to bank, ~7%)
+- [x] Customer payment band on landing `/`
+- [x] "Payments are secure" note on checkout (`BookingPage`)
+- [x] Footer link to Payments Help
+- [x] `VITE_ENABLE_ONLINE_PAY` switch placeholder (currently **false**)
+
+### Mobile (Expo / Play Store)
+- [x] Payments Help screen (Customer Profile + Owner Settings)
+- [x] "Payments are secure" note on `BookingScreen`
+- [x] Online checkout screens exist (`OnlinePaymentScreen`, `PayuCheckoutScreen` WebView)
+- [x] `EXPO_PUBLIC_ENABLE_ONLINE_PAY` switch (currently **true** in env; reaches users only via new build)
+- [ ] New Play Store build shipped with the latest payment UI (pending)
+
+### Keys / environment variables
+- [x] **Test merchant key** — entered in `backend/.env` (`PAYU_TEST_MERCHANT_KEY=WZlGgs`)
+- [x] **Test merchant salt** — entered in `backend/.env` (`PAYU_TEST_MERCHANT_SALT`)
+- [x] `FIELD_ENCRYPTION_KEY` — set in `backend/.env`
+- [x] Live key/salt **placeholders** created with comments (`PAYU_MERCHANT_KEY` / `PAYU_MERCHANT_SALT`, blank)
+- [x] Web + mobile env files commented: **no PayU keys client-side**, switch only
+- [ ] Test key + salt set on **Render** (production backend) — user to confirm
+- [ ] `FIELD_ENCRYPTION_KEY` set on **Render** (same value) — user to confirm
+- [ ] **Live merchant key** — fill at go-live (backend `.env` + Render)
+- [ ] **Live merchant salt** — fill at go-live (backend `.env` + Render)
+- [ ] `PAYU_MODE` switched `test` → `live` at go-live
+- [ ] `PAYU_PAYOUTS_ENABLED` flipped `false` → `true` at go-live
+
+### Testing
+- [ ] Local backend PayU test suite run by user
+- [ ] Sandbox transaction (test mode) — needs a salon set `vendor_status='active'` manually
+- [ ] First real live transaction (after PayU split approval)
+
+### Go-live (blocked on PayU split-settlement approval)
+- [ ] PayU **split settlement** product approved on the account
+- [ ] Real owners show `vendor_status = active`
+- [ ] Live keys + `PAYU_MODE=live` + `PAYU_PAYOUTS_ENABLED=true`
+- [ ] Client switches on (`VITE_ENABLE_ONLINE_PAY=true` + new mobile build)
+- [ ] Confirm a salon's money reaches their bank (`settlement_status=settled`)
+
 ## Session log
+### 2026-06-28 — CONFIRMED green + migrations applied + admin dashboard doc
+**Founder ran all verification commands — results confirmed:**
+- Backend: **136 passed**. Mobile payment/subscription/signup suites: **32 passed** (6 suites). `MyBookingsScreen.test.tsx`: **4/4 passed in isolation** → confirmed the earlier full-run failure was a load flake, NOT a regression. Web `npm run build`: success, all routes prerendered.
+- Confirmed mobile baseline (clean HEAD): 21 suites/40 tests already failing pre-existing; our work netted fewer failures + 14 new passing tests.
+**Migrations applied to production by founder:** `50_subscription_30day_and_owner_upi.sql` ✅ and `51_page_views_analytics.sql` ✅ (in addition to `49` earlier).
+**New doc:** `docs/ADMIN_DASHBOARD.md` — how to open (`/admin` + PIN), one-time setup (`ADMIN_DASHBOARD_PIN` on Render), feature walkthrough, architecture, local testing, security, troubleshooting.
+**Remaining before fully live:** set `ADMIN_DASHBOARD_PIN` on Render (strong 8–10 digits; local placeholder is `738261`); confirm Razorpay env + webhook; merge `→ main` to deploy backend+web. Cleanup of ~20 pre-existing stale mobile tests still recommended as a separate pass.
+
+### 2026-06-28 — FEATURE: Admin web dashboard (PIN-gated) + payment/subscription/signup tests
+**Admin dashboard (web-only, founder-only):**
+- Backend: `POST /admin/login` exchanges a server-side, rate-limited (5/min), constant-time-compared **PIN** for the existing `ADMIN_API_TOKEN` (the real token never ships in client code). New config `ADMIN_DASHBOARD_PIN`. Data endpoints `GET /admin/dashboard/overview|owners|customers` (bearer-guarded) via new `services/admin_dashboard.py` — owners list shows subscription status + trial-days-left (computed with `subscription_service.compute_access`, the same source enforcement uses), salon, UPI, etc. Visitor analytics: new `routers/analytics.py` `POST /analytics/pageview` (public, rate-limited) + `database/51_page_views_analytics.sql` (`page_views` table). Overview returns totals (owners/customers/salons/bookings), subscription breakdown, MRR/ARR/revenue, and visitor stats (24h/7d/30d + unique).
+- Web: standalone `/admin` route (NOT linked/prerendered). PIN lock screen → dashboard (premium dark theme): overview stat cards, owners table (status badges, trial days left, per-row "Grant 30 days" → `/admin/grant-subscription`, search + status filter), customers table (search), skeletons/empty/error states, refresh, lock/logout. New `services/adminService.js`, `lib/adminAuth.js`, `hooks/usePageviewTracker.js` (pings `/analytics/pageview` on route change, skips `/admin`), `pages/admin/AdminDashboard.js`. `npm run build` passes.
+- ⚠️ Apply migration `51`; set `ADMIN_DASHBOARD_PIN` on Render (currently a placeholder `738261` in local `.env` — CHANGE IT).
+
+**Tests added:**
+- Backend (pytest **136 passing**, +44): `test_payment_providers.py`, `test_payments_upi.py`, `test_subscription_billing.py`, `test_admin_grant.py`, `test_admin_dashboard.py` (login/overview/owners/customers + pageview).
+- Mobile (new suites, verified passing in isolation): `__tests__/services/upiIntentService.test.ts`, `__tests__/lib/paymentTypes.test.ts`, `__tests__/screens/PaymentWaitingScreen.test.tsx`, `__tests__/screens/SubscriptionCheckoutScreen.test.tsx`. Updated `CompleteProfileScreen.test.tsx` + `CompleteProfileScreenExtended.test.tsx` for the new required owner UPI field.
+
+**Mobile test-suite baseline finding (IMPORTANT):** the mobile jest suite was already badly red BEFORE any of this conversation's work — measured the baseline at clean HEAD via `git stash`: **21 suites / 40 tests failing** (e.g. `formatPrice` expects `₹200` but code returns `₹199.99`; `formatDistanceKm` `0 km` vs `0.0 km`; `formatDate`, `idempotency`, `validations`, etc. — stale tests vs code drift, in files this work never touched). After our changes the full run was **19 suites / 37 failing** (net fewer) with **+14 new passing tests**, and we FIXED `featureFlags`/`SalonCard` suites. `MyBookingsScreen.test.tsx` showed up failing only in the full run (ran ~8.5s) and passes in isolation — looks like a load flake; its test mocks everything and references no changed behavior. **Recommend a separate cleanup pass to fix the ~20 pre-existing stale mobile tests.**
+
+### 2026-06-28 — TESTS: payment + subscription coverage (backend + mobile)
+**Backend (pytest): 92 → 126 passing.** New tests:
+- `tests/test_payment_providers.py` — provider resolution (upi/cash/unknown), UPI-intent deep link + amount formatting (string in URI, numeric in JSON), `generate_booking_reference` format/uniqueness/no-ambiguous-chars.
+- `tests/test_payments_upi.py` — full UPI router: initiate (success, forbidden, non-UPI, salon-without-UPI), awaiting-verification, owner verify (single action confirms booking; non-owner 403; wrong-owner 403; idempotent), reject (booking stays pending), status (customer/owner allowed, stranger 403, 404 missing). Supabase mocked via respx; push notifications monkeypatched.
+- `tests/test_subscription_billing.py` — Razorpay HMAC-SHA256 checkout + webhook signature verification (valid/tampered/missing-secret).
+- `tests/test_admin_grant.py` — `/admin/grant-subscription` auth (401/403) + success + bad-days 422.
+- Razorpay subscription create/verify/cancel/webhook already covered by `test_subscriptions.py` (12 tests).
+**Mobile (jest): new tests, all passing.**
+- `__tests__/services/upiIntentService.test.ts` — `launchUpiApp` launched/false outcomes; never throws (mock RN Linking).
+- `__tests__/lib/paymentTypes.test.ts` — `isPendingVerification` polling gate.
+**Coverage gaps remaining (flagged to founder):** the **web app (`frontend/`) has NO test runner installed at all** (no jest/vitest) — entire web layer is untested. Mobile payment/subscription **screens** (component-render tests for PaymentWaitingScreen, SubscriptionCheckoutScreen, UPI field on CompleteProfile) are not yet covered. Both are follow-ups (web needs vitest setup first).
+
+### 2026-06-28 — RESTORE original Razorpay subscription verbatim (commit 51a20de3 / de6c789a^)
+**Decision (founder):** match the ORIGINAL subscription implementation exactly, not the interim rebuild.
+**Done:** restored `backend/services/subscription_billing.py` and `backend/routers/subscriptions.py` **verbatim** from `de6c789a^` (the state right before they were stubbed). Re-installed + re-added `razorpay==2.0.1` to `requirements.txt` (the original used the Razorpay SDK; it had been removed when the code was stubbed).
+**What the original adds back over the interim rebuild:**
+- Billing uses the official `razorpay` SDK (vs interim httpx) — same endpoints + identical HMAC-SHA256 signatures, so wire-compatible.
+- `create`: short-circuits if already active (returns existing sub + `already_active`), creates Razorpay customer, defers first charge to trial/period end (stacking).
+- `verify`: "already active" success, `SUB_MISMATCH` guard, reactivation vs activation detection, **deferred billing** (only records a captured payment if the charge happened now; otherwise the `subscription.charged` webhook records it), sends receipt email + `notify_activated/reactivated`.
+- `webhook`: full lifecycle with `notify.*` calls + receipt emails (authenticated/activated/charged/completed/cancelled/halted/pending/payment.failed), precise billing window from the Razorpay entity, dedupe by event id.
+- Error codes restored: `BAD_SIGNATURE`, `SUB_MISMATCH`, `NO_SUBSCRIPTION`, `NO_ACTIVE_SUB`, `RZP_SUBSCRIPTION_FAILED`, `PLAN_NOT_CONFIGURED`.
+**Compatibility:** `create`/`verify`/`cancel` response shapes unchanged → the mobile/web clients (which refetch `/subscriptions/status` after verify) work as-is. `import server` OK; **92 tests pass**.
+**Intentional deviation from original:** trial is **30 days** (founder requested earlier; original was 14) — set via config + migration 50 trigger. Everything else matches the original.
+
+### 2026-06-28 — RESTORE + AUDIT: Razorpay subscription parity, webhook auto-activation, trash cleanup
+**Investigation (git history):** The original Razorpay subscription system (commit `51a20de3`) was **stubbed out** later in commit `de6c789a` ("Remove Razorpay dependencies… stub payments API") — billing returned empty/false and the router returned 501. That's why it looked "missing." `backend/.env` still has all 4 Razorpay keys SET (key id/secret/plan/webhook secret). My earlier rebuild restored a working flow; this pass brought the **webhook to full parity** with the original.
+**Webhook auto-activation (now complete):** `_process_webhook_event` handles `subscription.authenticated`/`activated` → active, `subscription.charged` → active + precise billing window (current_start/current_end/charge_at from the Razorpay entity) + record payment + receipt email, `payment.failed` → payment_failed + record, `subscription.halted`/`pending` → past_due, `subscription.completed` → expired, `subscription.cancelled` → cancelled. So a salon **auto-activates after payment** via the webhook even if the app closes (idempotent, deduped by event id), plus the immediate `/verify` path.
+**Compatibility:** original billing used the `razorpay` SDK (removed from requirements in de6c789a). Current `subscription_billing.py` uses `httpx` against the same Razorpay REST endpoints + identical HMAC-SHA256 checkout/webhook signature scheme — no SDK dependency, fully compatible. No backend code imports `razorpay`.
+**Trash removed (committed files):** `backend/requirements.txt.tmp`, `backend/services/lecture.html` (stray HTML in the Python services dir, imported by nothing). `.DS_Store` already gitignored/untracked. No duplicate payment/subscription implementations found; `email_dispatch.py` is used by the invoice email service.
+**Verification:** backend `92 passed` (incl. all 12 subscription tests). NEW context doc `docs/CONTEXT_TRIMIT_PAYMENTS.md` created for sharing.
+**Reminder:** apply migration `50_subscription_30day_and_owner_upi.sql`; set `RAZORPAY_*` on Render; point the Razorpay dashboard webhook to `/api/v1/subscriptions/webhook` with the same secret.
+
+### 2026-06-28 — FEATURE: Enable owner subscriptions (30-day trial + enforcement), fix OTP, UPI at signup
+**Migrations:** `49_upi_manual_payments.sql` **APPLIED to production** by founder (confirmed 2026-06-28). NEW `50_subscription_30day_and_owner_upi.sql` **must still be applied** in Supabase SQL Editor (prod) — it (a) sets the owner trial to 30 days, (b) gives every existing owner a fresh 30-day trial so enabling enforcement doesn't freeze current salons, (c) adds `public.users.upi_id`.
+
+**Subscriptions — now ENABLED + ENFORCED (backend):**
+- `config.py`: `SUBSCRIPTION_ENFORCEMENT_ENABLED=True`, `SUBSCRIPTION_TRIAL_DAYS=30`. Added Razorpay config fields `RAZORPAY_KEY_ID/KEY_SECRET/PLAN_ID/WEBHOOK_SECRET` (unset → trial+enforcement still work; in-app charging just unavailable).
+- `services/subscription_billing.py`: rebuilt from stubs into real Razorpay calls (customer/subscription/cancel via httpx basic-auth; HMAC-SHA256 checkout + webhook signature verify). SAFE when keys unset (signatures return False; create/cancel raise a structured error the router maps cleanly).
+- `routers/subscriptions.py`: restored real `create` (defers first charge to trial/period end via `compute_billing_anchor`; 503 `SUBSCRIPTION_GATEWAY_UNAVAILABLE` when keys unset), `verify` (signature → activate + record payment), `cancel` (now/at-cycle-end), `webhook` (signature + dedupe by event id + state transitions).
+- `routers/admin.py`: NEW `POST /admin/grant-subscription` (admin token) — activate/extend an owner by N days when they pay you offline (escape hatch until in-app Razorpay is live).
+- Enforcement behavior (already wired, now ON): `require_active_subscription` → 402 `SUBSCRIPTION_REQUIRED` for lapsed owners; customer booking a lapsed salon → 403 `SALON_UNAVAILABLE`; `salons.subscription_active` synced by the migration-41 triggers.
+
+**Subscriptions (mobile + web):** flags `ENABLE_SUBSCRIPTIONS` + `ENABLE_SUBSCRIPTION_ENFORCEMENT` default true. Trial banner + "TrimiT Pro" card unhidden; owner app freezes on expiry with a Subscribe CTA; Subscribe flow calls `/subscriptions/create` → (Razorpay checkout when keys exist) → `/subscriptions/verify`, and shows a friendly "coming soon — contact TrimiT" on 503; lapsed salons greyed + unbookable for customers (403 handled). Mobile: `SubscriptionCheckoutScreen` rewritten, `RazorpayCheckoutModal` (WebView) added. Web: `OwnerSubscriptionGate` + `SubscriptionBanner` added, owner routes gated, `lib/razorpay.js` loader.
+
+**UPI required at owner signup (backend + mobile + web):** `POST /auth/complete-profile` now takes `upi_id`, REQUIRED for owners (422 `UPI_REQUIRED`/`INVALID_UPI`), stored on `users.upi_id`; salon creation prefills `salon.upi_id` from it. Mobile `CompleteProfileScreen` + web `CompleteProfilePage` show a required UPI field (owner-only, `name@bank` validation).
+
+**Fixes:**
+- The 9 previously-failing tests are FIXED → full backend suite **92 passed**. OTP tests (`test_otp_flow.py`) were stale live-server integration tests with outdated messages — rewritten as proper unit tests (TestClient + mocked Supabase). Subscription tests now pass because the router logic was restored.
+- OTP screen flicker fixed: `VerifyOtpScreen` used `KeyboardAvoidingView behavior="height"` on Android, which thrashes the bottom button + "resend" text with the number-pad open. Now `undefined` on Android (native adjustResize) — flicker gone.
+
+**Verification:** backend `92 passed`; mobile `npx tsc --noEmit` 0 errors; web `npm run build` success.
+
+**Still to do before users see it:** (1) apply migration 50 in Supabase; (2) to charge owners in-app, create a ₹299/mo Razorpay plan and set `RAZORPAY_*` env vars (Render) — until then use `/admin/grant-subscription` or trial; (3) optional pg_cron for `expire_lapsed_trials()` (mig 41) + `expire_unverified_upi_payments()` (mig 49); (4) new Play Store build; (5) merge to `main`.
+
+### 2026-06-27 — VERIFY + POLISH: PayU-removal audit, amount type fix, doc cleanup
+**What was verified (real checks, not claims):**
+- Repo-wide grep for `payu|PayU|PAYU` (excl. deps/build/git): **no source logic remains** — only explanatory code comments and the historical `.kiro/specs/payu-split-payments/` planning folder.
+- Confirmed all 22 PayU files are deleted (8 backend, 7 mobile, 7 web) via `ls`.
+- Confirmed all new files exist (backend `services/payments/*` + `routers/payments.py` + migration 49; mobile `upiIntentService.ts`, `PaymentWaitingScreen.tsx`, `UpiPaymentSettingsScreen.tsx`; web `PaymentWaitingPage.js`, `UpiSettingsPage.js`).
+- Backend `py_compile` clean; backend pytest **82 passed** (9 pre-existing OTP/subscription failures, unrelated). Mobile `npx tsc --noEmit` **0 errors**. Web `npm run build` **passes** (all routes prerendered).
+**Fix found during verification:** the UPI `amount` was sent as a string by the backend but typed as `number` on mobile/web. Made the backend send a numeric `amount` in the JSON (the 2-decimal string stays only inside `intent_uri`'s `am=`), so client types are now accurate. (`services/payments/base.py` `to_dict`, `models/payments.py`.)
+**Cleanup:** deleted obsolete docs `docs/PAYU_PAYMENTS_IMPLEMENTATION.md` and `docs/PAYU_SETUP_GUIDE.md` (described the removed system). Added a "Payment model (v1)" section to `.kiro/steering/production-rules.md` so future sessions remember PayU is gone and the UPI/manual-verification model is canonical.
+**Note:** `.kiro/specs/payu-split-payments/` (requirements/design/tasks) left as historical planning record — contains no code. Can be removed on request.
+
+### 2026-06-27 — MIGRATION: Remove PayU, introduce UPI-intent + manual-verification payments (backend foundation)
+**Context:** Product pivot. TrimiT no longer collects customer money. v1 payment = **Cash at Salon** or **Pay with UPI** (customer pays salon UPI directly; salon owner manually verifies; booking confirmed only after verification). Razorpay (owner subscriptions) KEPT untouched. Booking lifecycle kept separate from payment lifecycle.
+**Architecture decision (confirmed with founder):** `bookings.status` stays booking-only (now incl. `in_service`, `no_show`); new `bookings.payment_verification_status` (`not_required|initiated|waiting_verification|verified|rejected|timeout`) holds the payment workflow. Owner has ONE action ("Verify") that sets payment verified + booking confirmed atomically.
+**DB (NEW migration `database/49_upi_manual_payments.sql` — forward-only, additive; MUST be applied manually in Supabase SQL Editor against prod):**
+- `salons` += `upi_id`, `upi_qr_code`, `bank_name`, `account_holder_name`.
+- `bookings` += `booking_reference` (unique idx), `expected_upi_id`, `verified_at`, `verified_by`, `verification_notes`, `payment_verification_status` (CHECK).
+- Widened `bookings.status` CHECK (+in_service,+no_show) and `payment_method` CHECK (+upi; kept legacy salon_cash/online).
+- `expire_unverified_upi_payments(p_minutes)` timeout fn (flips stale UPI verifications → `timeout`, never cancels). PayU migration 48 tables left in place (history preserved, no longer used).
+**Backend code:**
+- NEW `services/payments/` abstract module: `PaymentProvider` ABC + `CashAtSalonProvider` + `UpiIntentManualVerificationProvider` + registry `get_payment_provider`; `reference.py` (`TRM-YYYY-XXXXXX`). Booking engine never imports a concrete provider.
+- REBUILT `routers/payments.py`: `POST /payments/upi/initiate`, `POST /payments/upi/awaiting-verification`, `POST /payments/{id}/verify` (single owner action), `POST /payments/{id}/reject`, `GET /payments/{id}/status`. Never reports "paid" on UPI return — always "waiting for salon verification".
+- REWROTE `models/payments.py` (UPI request/response models). `models/bookings.py` BookingStatus += in_service/no_show. `models/salons.py` += UPI fields + UPI validator.
+- `routers/bookings.py`: UPI never auto-confirms (stays pending until verify); allowed methods = cash + (upi if salon has upi_id); completion gate now blocks unverified UPI; new UPI booking marked `initiated`.
+- `services/push_dispatch.py` + `booking_push.py`: payment-awaiting / waiting-verification / payment-rejected / payment-confirmed notifications.
+- REMOVED PayU entirely: `services/payu_service.py`, `services/commission.py`, `services/bank_account_service.py`, `routers/bank_accounts.py`, `routers/owner_earnings.py`, `models/bank_accounts.py`, `core/feature_flags.py`, `core/crypto.py`; PayU config block in `config.py`; admin commission-rate endpoints; `server.py` router wiring. Deleted 14 PayU/commission/bank/crypto test files.
+**Verification:** `py_compile` clean; full pytest **82 passed**. The 9 failures (test_subscriptions, test_otp_flow) are PRE-EXISTING and unrelated — they fail in isolation and those files are untouched (`git status` confirms). All payment/booking/salon/auth tests pass.
+**Reach to users:** backend auto-deploys from `main`. The live Play Store build is cash-only (online pay was never shipped), so removing PayU does not break shipped clients. UPI customer flow reaches users only via a new mobile build (pending — mobile/web next).
+**Next:** mobile + web UPI implementation (UPIIntentService → repository → ViewModel → UI; owner single Verify action; salon onboarding UPI field).
+
+### 2026-06-27 — MIGRATION (cont.): Mobile + Web UPI/cash implementation
+**Mobile (Expo, `npx tsc --noEmit` → 0 errors):**
+- NEW `services/upiIntentService.ts` (RN Linking launcher), `screens/customer/PaymentWaitingScreen.tsx` (never "success"; polls status; reference + salon UPI fallback; verified/rejected/timeout states), `screens/owner/UpiPaymentSettingsScreen.tsx` (UPI onboarding, replaces PayU KYC).
+- REWROTE `types/payment.ts`, `services/paymentService.ts`, `repositories/paymentRepository.ts`, `hooks/usePayment.ts` (initiate/awaiting/status/verify/reject), `components/booking/PaymentMethodPicker.tsx` (cash|upi, gated by `salonHasUpi`).
+- UPDATED `BookingScreen` (cash→salon_cash, upi→initiate→launch→PaymentWaiting), `MyBookingsScreen`, `BookingCard` (owner single Verify + Reject), `ManageBookingsScreen`/`OwnerDashboardScreen` (verify/reject + "Add UPI ID" nudge), navigation (removed OnlinePayment/PayuCheckout/Payment; added PaymentWaiting + UpiPaymentSettings), `types/index.ts` (Salon upi fields; Booking payment_method 'salon_cash'|'upi' + payment_verification_status), `featureFlags.ts` (removed ENABLE_ONLINE_PAY), `legal/content.ts`.
+- DELETED `OnlinePaymentScreen`, `PayuCheckoutScreen`, `PaymentScreen`, owner `BankAccountScreen`, `bankAccountService`, `BankAccountRepository`, `useBankAccount`. Razorpay subscription code untouched.
+**Web (Vite, `npm run build` → success, all routes prerendered):**
+- REWROTE `services/paymentService.js`, `repositories/paymentRepository.js`, `hooks/usePayment.js` (UPI initiate/awaiting/status/verify/reject).
+- NEW `pages/customer/PaymentWaitingPage.js` (route `/payment/:bookingId/waiting`), `pages/owner/UpiSettingsPage.js` (replaces BankAccountPage at `/owner/bank-account`).
+- UPDATED `BookingPage.js` (salon_cash|upi gated by `salon.upi_id`; upi→waiting page), `MyBookings.js` (UPI pay entry, removed PayU), `ManageBookings.js` (owner Verify Payment + Reject for waiting_verification), `OwnerDashboard.js` (UPI-id nudge replaces vendor banner), `App.js` routes, `featureFlags.js` (removed ENABLE_ONLINE_PAY), copy in `content/paymentsHelp.js` + `ForSalonsPage.js` + `PaymentTrustSection.js` (cash/UPI, no commission).
+- DELETED `lib/payuCheckout.js`, `pages/customer/PaymentPage.js`, `PaymentCallbackPage.js`, `pages/owner/BankAccountPage.js`, `services/bankAccountService.js`, `hooks/useBankAccount.js`, `repositories/bankAccountRepository.js`. Razorpay subscription code untouched.
+**Pending before users see it:** (1) apply `database/49_upi_manual_payments.sql` in Supabase SQL Editor (prod); (2) backend+web auto-deploy on merge to `main`; (3) NEW Play Store build required for the mobile UPI flow.
+
+### 2026-06-26 — CHANGE: Hide subscription + trial for owners (commission-based, free for owners)
+**Context:** Product decision — TrimiT goes commission-based. Owners pay ₹0, app is free for them. Temporarily hide ALL subscription/trial UI and ensure owners are never blocked. Fully reversible (flag flip), no code/DB deleted.
+**What changed (mobile, additive/flag-gated only):**
+- `OwnerDashboardScreen.tsx`: gated the trial countdown pill **and** the `SubscriptionBanner` behind `ENABLE_SUBSCRIPTIONS` (was always-on). Now hidden.
+- `featureFlags.ts`: `ENABLE_SUBSCRIPTIONS = false` already set (hides Settings "TrimiT Pro" card + nav). Left as-is.
+**Already safe (no change needed):**
+- Backend `SUBSCRIPTION_ENFORCEMENT_ENABLED=false` (config + .env) → `require_active_subscription` is a no-op pass-through; owners are NEVER blocked after trial. Booking gate also no-ops.
+- Mobile `SubscriptionGate` returns null when `ENABLE_SUBSCRIPTION_ENFORCEMENT` is off (env, default false).
+- Web has no owner subscription/trial UI.
+**Trial length:** not changed. With enforcement off + UI hidden, trial_end is inert and invisible, so no DB edit was needed (safest path). Trial extension to 30d unnecessary while owners are free.
+**Verification:** diagnostics clean on `OwnerDashboardScreen.tsx`.
+**Migration state:** no SQL. **Reach to users:** backend/web auto-deploy from `main`; mobile UI change reaches users only via a new Play Store build.
+
+### 2026-06-26 — FEATURE: Payment messaging + Payments Help Center (web + mobile)
+**Context:** Commission-based launch. Tell users plainly: free for owners, money to your bank, ~7% per online booking; and give everyone a self-serve place for payment questions (failed payment, refunds, how payouts work). All additive — no API/DB/auth/booking changes.
+**Web (`frontend/`):**
+- NEW `content/paymentsHelp.js` — single source of payments copy + fee constants (5% + 2% = ~7%, owner nets ~93%).
+- NEW `pages/PaymentsHelpPage.js` at route `/help/payments` (topics + FAQ + support CTA). Wired in `App.js`.
+- `Footer.js`: added "Payments Help" link.
+- `ForSalonsPage.js`: new Payments band (free to join, paid to your bank, ~7% only) + "Direct bank payouts" feature + link to help center.
+- `config/seo-data.json`: added `/help/payments` SEO entry + STATIC_ROUTE (prerendered + in sitemap).
+**Mobile (`mobile/`):**
+- NEW `screens/legal/PaymentsHelpScreen.tsx` (reuses `LegalScreen` + `PAYMENTS_HELP_MD` added to `legal/content.ts`).
+- Registered `PaymentsHelp` route in CustomerStack, CustomerTabs (Profile), OwnerTabs (Settings) + `navigation/types.ts`.
+- Added "Payments Help" menu row to customer `ProfileScreen` and owner `SettingsScreen` (both legal blocks).
+**Fees kept consistent** with `BankAccountPage.js` disclosure and `backend/services/commission.py`.
+**Verification:** web `npm run build` OK (`/help/payments` prerendered); mobile `npx tsc --noEmit` 0 errors; diagnostics clean on all touched files; Phosphor icon names verified against installed package.
+**Migration state:** no SQL. **Reach to users:** web auto-deploys from `main`; mobile screen + menu reach users only via a new Play Store build.
+
+**Follow-up (same day):** Added customer-facing trust UI — NEW `components/landing/sections/PaymentTrustSection.js` on the landing page (`/`, after Offers): secure payments / pay your way / easy refunds + link to `/help/payments`. Added a small "Payments are secure and encrypted" note with a "How payments work" link on web `BookingPage.js` (payment-method card) and a matching lock note on mobile `BookingScreen.tsx` (presentational only — no booking-flow logic touched). Mobile `OnlinePaymentScreen.tsx` already had a PayU secure note. Web build + mobile tsc clean.
+
+### 2026-06-26 — FEATURE: PayU split-payments (spec `payu-split-payments`) — Phase 1 + Phase 2 complete, all behind a flag
+
+**Context:** New marketplace payments feature. Goal: customers pay online, money auto-splits to each salon's bank (TrimiT 5% commission + ~2% PayU fee = ~7% disclosed; salon nets ~93%). PayU split product not yet activated, so the whole charge/split path ships **disabled** behind `PAYU_PAYOUTS_ENABLED` (default false) and is verified in PayU test mode. Built two layers: **A** (collect+store bank/KYC, works today) and **B** (charge/split, gated).
+
+**Also fixed a pre-existing bug:** `bank_account_service.py` wrote to a `salon_bank_accounts` table that had **no migration** and only stored `account_number_last4` — the bank feature was silently broken. Now a real table stores full, encrypted bank+KYC.
+
+**Backend (all additive, structured `{code,message}` errors, integer paise, no secrets/PII logged):**
+- `database/48_salon_bank_accounts_payu.sql` (NEW migration — **applied to prod by user**): `salon_bank_accounts` (encrypted account/PAN/GSTIN + KYC + vendor lifecycle, RLS owner-scoped), `payments` (split breakdown + `payment_status`/`settlement_status`, CHECK reconciles), `refunds`, `payu_webhook_logs` (append-only, unique event id), `app_settings` (seeds `commission_percent=5`).
+- `core/crypto.py` (Fernet field encryption, fails closed without key), `core/feature_flags.py`, `services/commission.py` (Decimal half-up split, exact reconciliation), `services/payu_service.py` (SHA-512 request/response/webhook hashing, test/live env, order+split, vendor reg, refund — split/vendor/refund PayU contracts carry TODOs pending activation).
+- `routers/payments.py` rebuilt from 501 stubs: `create-order` (flag+vendor-active+idempotency+server-side amount+retry cap), `verify` (callback hash→confirm booking), `webhook` (authoritative, dedupe by event id, settlement status), `status` (caller-scoped + can_retry), `refund` (full/partial, idempotent).
+- `routers/bank_accounts.py` hardened (owner-only, masked, server-resolved salon). `routers/admin.py` += `GET/PUT /admin/commission-rate`. `routers/owner_earnings.py` (NEW, `GET /owner/earnings`, settled vs pending separated). Vendor registration wired into bank save (non-fatal, flag-gated).
+- `core/exceptions.py`: validation handler now JSON-encodes Pydantic v2 ctx (a custom-validator ValueError previously 500'd instead of 422). **Shared handler — affects all endpoints' validation errors; strictly more robust.**
+
+**Mobile + Web (additive, themed, via repositories, no `any` in TS):**
+- Owner payout-details KYC screens (mobile `BankAccountScreen`, web `BankAccountPage`) with ~7% deduction disclosure + payout-status badge; onboarding repointed to the canonical screen (old `BankDetailsScreen` kept, not deleted). Dashboard payout badge (mobile + web).
+- Customer payment UI (mobile `OnlinePaymentScreen` + `PayuCheckoutScreen` WebView auto-submit; web form auto-submit + `PaymentCallbackPage`), gated by client `ENABLE_ONLINE_PAY` (off) and the server flag — falls back to pay-at-salon on `ONLINE_PAYMENT_DISABLED`.
+
+**Verification:** payments/PayU/bank test suite **151 passed**; `import server` OK; mobile `npx tsc --noEmit` 0 errors; diagnostics clean. `FIELD_ENCRYPTION_KEY` generated and set in local `.env`.
+
+**Migration state:** `database/48_...` authored and **already applied to production Supabase by the user**. No other SQL.
+
+**Action items before/at release:** (1) set `FIELD_ENCRYPTION_KEY` on Render (same value as local). (2) Keep `PAYU_PAYOUTS_ENABLED` false. (3) Mobile UI reaches users only via a new Play Store build (backend/web auto-deploy from `main`). (4) Paste PayU test key/salt into `.env`/Render to test Layer B in PayU test mode.
+
+**Files changed:** `database/48_salon_bank_accounts_payu.sql`, `backend/core/{crypto,feature_flags,exceptions}.py`, `backend/config.py`, `backend/services/{commission,payu_service,bank_account_service}.py`, `backend/routers/{payments,bank_accounts,admin,owner_earnings}.py`, `backend/models/{bank_accounts,payments}.py`, `backend/server.py`, 14 backend test files, mobile `src/{services,repositories,hooks,screens/customer,screens/owner,navigation,types,components}` payout+payment files, web `frontend/src/{services,repositories,hooks,pages/customer,pages/owner,lib,App.js}`. Spec: `.kiro/specs/payu-split-payments/{requirements,design,tasks}.md` (all 20 tasks complete).
+
+### 2026-06-25 — FOLLOW-UP: Address web-auth PR review comments + repo doc cleanup
+
+**Context:** Code-review feedback on the web email-OTP auth PR (branch `fix/web-auth-otp-flow-parity`), plus a working-tree cleanup the user asked to ship on the same branch.
+
+**Review fixes (web frontend only):**
+1. `frontend/src/pages/SignupPage.js`: email validation now uses local component state (`fieldError`) instead of mutating the shared auth store via `useAuthStore.setState`. Error banner shows `fieldError || error`; clears on typing.
+2. `frontend/src/config/phone.js` (NEW): centralized, region-aware phone validation/formatting (defaults to IN / +91). Exposes `sanitizePhoneInput`, `isValidNationalPhone`, `toE164`, `phoneValidationHint`, `phoneDialCode`. `CompleteProfilePage.js` now uses these instead of an inlined regex and hardcoded `+91`.
+3. `frontend/src/store/authStore.js` → `completeProfile`: merges the server-returned profile into the `user` object so `user` and `profile` state stay consistent.
+
+**Repo cleanup (no runtime impact):**
+- Moved `RULES.md` → `Rules/RULES.md` (100% rename; content preserved).
+- Removed stale root-level docs/reports and a one-off `RUN_THIS_FIX.sql`.
+- Minor unrelated tweaks already in the working tree: `Header.js`, `content/blog/posts.js`, `index.css`.
+
+**Verification:**
+- `get_diagnostics` on all changed files → clean.
+- `npm run build` in `frontend/` → exit 0.
+
+**Migration state:** No new SQL. No migrations needed.
+
+**Open follow-up:** `.kiro/steering/production-rules.md` still references `/RULES.md`; the file now lives at `Rules/RULES.md`. Not updated (left per user instruction).
+
+**Commits:** `3e8dc7bb` (review fixes), `865137cb` (doc relocation/cleanup) on `fix/web-auth-otp-flow-parity`.
+
+**Files changed:**
+- `frontend/src/pages/SignupPage.js` (MODIFIED)
+- `frontend/src/config/phone.js` (NEW)
+- `frontend/src/pages/CompleteProfilePage.js` (MODIFIED)
+- `frontend/src/store/authStore.js` (MODIFIED)
+- `RULES.md` → `Rules/RULES.md` (RENAMED) + stale root docs removed
+
 ### 2026-06-25 — FIX: Web auth flow now mirrors mobile (email-only OTP + CompleteProfile, role decided after OTP)
 
 **Problem:**
@@ -1002,3 +1266,102 @@ Every future session should do these things:
 3. Update `Fixed In This Pass` and `Still Pending`
 4. Add a new `Session Log` row
 5. Keep `Database Migration State` accurate
+
+## Session log — 2026-06-27
+
+### Fix: owner-with-no-salon got 403 from `/owner/bank-accounts` (error spam + retries)
+- **Symptom:** On owner login (account with no salon yet), `/owner/bank-accounts`
+  returned `403 FORBIDDEN` ("no salon"), which the mobile app did not treat as an
+  empty state. Result: `ERROR [BankAccountRepository] getBankAccount failed` logged
+  and the query retried 3× (`retry: 2`). `/owner/salon` already returns `404` for
+  the same state and is handled silently.
+- **Root cause:** Wrong status semantics — "owner has no salon yet" is an empty /
+  not-found state, not an authorization failure. `bankAccountService.getBankAccount`
+  only maps `404 → null`.
+- **Fix:** `backend/routers/bank_accounts.py` `fetch_bank_account` — no-salon case
+  now returns `404` (code `NO_SALON`) instead of `403`. Mirrors `/owner/salon`.
+  Backwards-compatible: shipped builds already map `404 → null`, so old + new apps
+  render the empty state with no error/retry. No request/response shape change.
+- **Test:** `tests/test_bank_accounts.py::test_owner_no_salon_get_404` updated
+  (was `_403`). Full file: 11 passed.
+- **Migration state:** none (no SQL change).
+- **Deploy:** pending merge `zero-point-ten → main` for Render to pick up. Not yet deployed.
+
+## Session log — 2026-06-28
+
+### Mobile test cleanup: 12 failing suites → 0 (725 tests green)
+
+- **Scope:** Pre-existing failing mobile Jest suites (unrelated to the UPI /
+  subscription / admin work). Brought the suite from 12 failed suites / 20
+  failed tests to **63 suites / 725 tests all passing**. `tsc --noEmit` clean.
+
+- **Real source fixes (genuine bugs, not just test appeasement):**
+  - `src/lib/networkRetry.ts` + `src/lib/userFacingError.ts` — timeout detection
+    only matched the substring `"timeout"`, but `errorHandler.ts` rewrites real
+    Axios timeouts to the message `"The request timed out…"` (no `"timeout"`
+    substring). Added `"timed out"` matching so real timeouts are retried and
+    show the correct "took too long" copy.
+  - `src/lib/userFacingError.ts` — a generic `429` (e.g. too many booking
+    attempts) was showing the auth **email-cooldown** copy ("check your inbox…").
+    Now only auth screens (which pass `authContext`) get that copy; generic rate
+    limits get the neutral rate-limit message.
+  - `src/lib/salonImage.ts` — `normalizeSalon` now derives `image_url` as
+    `images[0] ?? image_url` (prefers the multi-image array, consistent with
+    `getSalonThumbnailUri`).
+  - `src/lib/navigationHelpers.ts` — wrapped the final `navigateToCustomerBookings`
+    dispatch in try/catch so a transient nav error can never crash the app.
+  - `src/components/Skeleton.tsx` — now forwards the declared `testID` prop to its
+    root view (was declared but never applied).
+
+- **Test-only fixes (tests had drifted from intentional app behaviour):**
+  - `idempotency.test.ts` — `/bookings` without trailing slash is correctly
+    `false` (contract uses `/bookings/`).
+  - `notificationNavigation.test.ts` — used invalid UUIDs that zod rejected;
+    replaced with valid v4 UUIDs.
+  - `salonImage.test.ts` — assert placeholder equals `TRIMIT_SALON_PLACEHOLDER`
+    instead of brittle `typeof === 'number'` (jest-expo returns an object).
+  - `bookingDisplay.test.ts` — salon-image fallback only applies when there is no
+    embedded service; a service with no image uses the category stock image
+    (matches ServiceCard). Rewrote the two cases accordingly.
+  - `Button.test.tsx` — `indicator.parentNode` → `fireEvent.press(indicator)`
+    (RNTL 13 API).
+  - `Toast.test.tsx` — "updates rendered message" never queued the second toast;
+    added `showToast('second')`.
+  - `notificationDedupe.test.ts` — removed the unsupported dynamic `import()`.
+  - `OfflineBanner.test.tsx` — `subscribers` → `mockSubscribers` (jest.mock
+    factory may only reference `mock`-prefixed out-of-scope vars).
+  - `SalonMapMarker.test.tsx` — marker no longer uses native `pinColor` (custom
+    Ionicons pin by design); assert the `location-sharp` glyph renders.
+
+- **FLAGGED (real UX bug, NOT yet changed — needs product call):** unselected
+  map pins render at `theme.colors.primaryLight` = `#FFF7ED` (near-white) in the
+  default light theme → salon pins are nearly invisible until selected. The old
+  code used a visible red pin. Recommend unselected = `theme.colors.primary`
+  (visible brand orange), selected keeps the opacity pulse for emphasis. Awaiting
+  go-ahead before touching live map rendering.
+
+- **Migration state:** unchanged. Applied through `49_upi_manual_payments.sql`.
+  Pending manual apply: `50_subscription_30day_and_owner_upi.sql`,
+  `51_page_views_analytics.sql` (per prior session notes).
+- **Deploy:** none. Test/source changes on the working branch; merge to `main`
+  when batching the broader release.
+
+### Migrations 50 & 51 applied + map pin color fix (same day)
+
+- **Migration state — UPDATED:** the user confirmed **both** of the previously
+  pending migrations were run successfully in the Supabase SQL Editor against
+  production:
+  - `50_subscription_30day_and_owner_upi.sql` — APPLIED ✅ (30-day trial trigger,
+    fresh trial for existing owners, `users.upi_id`).
+  - `51_page_views_analytics.sql` — APPLIED ✅ (admin dashboard page-view analytics).
+  - **Production is now current through migration 51.** No pending migrations.
+
+- **Map pin visibility fix (`src/components/SalonMapMarker.tsx`):** unselected
+  pins were `theme.colors.primaryLight` (`#FFF7ED`, near-white) → invisible on the
+  map. Now fully theme-driven and always visible:
+  - unselected = `theme.colors.primary`
+  - selected = `theme.colors.primaryDark` (plus the existing opacity pulse)
+  - Color comes entirely from the theme, so re-branding updates every pin
+    automatically. Kept the existing custom `location-sharp` pin (already shipping).
+  - Tests assert the pin renders in `lightTheme.colors.primary` / `primaryDark`
+    (verifies the dynamic wiring, not a hardcoded hex). Suite: 63/63, 726 tests green.

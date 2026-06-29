@@ -20,46 +20,6 @@ def test_auth_guard_protected_route(client):
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-def test_payment_verify_invalid_signature(client, mock_supabase):
-    from dependencies.auth import get_current_user
-
-    app = client.app
-    app.dependency_overrides[get_current_user] = lambda: {
-        "id": "u123",
-        "access_token": "mock_token",
-    }
-
-    # The idempotency layer (required=True) claims a slot before the handler body
-    # runs: a 201 insert wins the claim, and the post-failure HTTPException path
-    # deletes the processing sentinel.
-    mock_supabase.post("/rest/v1/idempotency_keys").return_value = Response(201, json={})
-    mock_supabase.delete("/rest/v1/idempotency_keys").return_value = Response(204)
-    # Handler loads the booking (owned by u123) before validating the signature.
-    mock_supabase.get("/rest/v1/bookings").return_value = Response(
-        200,
-        json=[{"id": "b123", "user_id": "u123", "amount": 100, "payment_status": "pending"}],
-    )
-
-    payload = {
-        "booking_id": "b123",
-        "razorpay_order_id": "ord_1",
-        "razorpay_payment_id": "pay_1",
-        "razorpay_signature": "invalid_razorpay_sig",
-    }
-
-    # Idempotency-Key is mandatory; without it the request 400s on the missing
-    # header before ever reaching signature validation.
-    response = client.post(
-        "/api/v1/payments/verify",
-        json=payload,
-        headers={"Idempotency-Key": "test-key-invalid-sig"},
-    )
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert "Invalid signature" in response.json()["error"]["message"]
-
-    app.dependency_overrides = {}
-
-
 def test_signup_email_confirmation_required(client, mock_supabase):
     # Mock Supabase signup returning 200 (OTP sent successfully)
     mock_supabase.post("/auth/v1/otp").return_value = Response(200, json={})

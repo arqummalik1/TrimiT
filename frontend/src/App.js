@@ -21,7 +21,7 @@ import CompleteProfilePage from "./pages/CompleteProfilePage";
 import EmailConfirmedPage from "./pages/EmailConfirmedPage";
 import SalonDetail from "./pages/customer/SalonDetail";
 import BookingPage from "./pages/customer/BookingPage";
-import PaymentPage from "./pages/customer/PaymentPage";
+import PaymentWaitingPage from "./pages/customer/PaymentWaitingPage";
 import MyBookings from "./pages/customer/MyBookings";
 import OwnerDashboard from "./pages/owner/OwnerDashboard";
 import ManageSalon from "./pages/owner/ManageSalon";
@@ -29,17 +29,20 @@ import ManageServices from "./pages/owner/ManageServices";
 import ManageBookings from "./pages/owner/ManageBookings";
 import SettingsPage from "./pages/owner/SettingsPage";
 import SubscriptionPage from "./pages/owner/SubscriptionPage";
-import BankAccountPage from "./pages/owner/BankAccountPage";
-import PrivacyPage from "./pages/legal/PrivacyPage";
+import UpiSettingsPage from "./pages/owner/UpiSettingsPage";
+import OwnerSubscriptionGate from "./components/owner/OwnerSubscriptionGate";import PrivacyPage from "./pages/legal/PrivacyPage";
 import TermsPage from "./pages/legal/TermsPage";
 import ContactPage from "./pages/legal/ContactPage";
 import AccountPage from "./pages/customer/AccountPage";
 import ExplorePage from "./pages/ExplorePage";
 import ForSalonsPage from "./pages/ForSalonsPage";
+import PaymentsHelpPage from "./pages/PaymentsHelpPage";
 import SeoCategoryPage from "./pages/seo/SeoCategoryPage";
 import BlogIndexPage from "./pages/blog/BlogIndexPage";
 import BlogPostPage from "./pages/blog/BlogPostPage";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import { SEO_PAGE_PATHS } from "./config/seoPages";
+import { usePageviewTracker } from "./hooks/usePageviewTracker";
 
 // Components
 import Header from "./components/Header";
@@ -97,6 +100,11 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const isAuthCallbackPage = AUTH_CALLBACK_PATHS.includes(location.pathname);
+  // Founder-only admin dashboard: standalone shell, never tracked, no global chrome.
+  const isAdminPage = location.pathname.startsWith("/admin");
+
+  // Fire-and-forget page-view analytics on route change (skips /admin internally).
+  usePageviewTracker();
 
   useEffect(() => {
     initializeAuth();
@@ -114,6 +122,18 @@ function App() {
     const suffix = `${window.location.search || ""}${window.location.hash || ""}`;
     navigate(`/auth/email-confirmed${suffix}`, { replace: true });
   }, [isAuthCallbackPage, location.pathname, navigate]);
+
+  // Admin dashboard is fully isolated from user auth + global chrome. Render it
+  // standalone so a slow/failed user-auth init never blocks the founder console.
+  if (isAdminPage) {
+    return (
+      <div className="min-h-screen bg-slate-950">
+        <Routes>
+          <Route path="/admin" element={<AdminDashboard />} />
+        </Routes>
+      </div>
+    );
+  }
 
   // Show loading screen while initializing auth
   if (isInitializing) {
@@ -173,6 +193,7 @@ function App() {
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/explore" element={<ExplorePage />} />
           <Route path="/for-salons" element={<ForSalonsPage />} />
+          <Route path="/help/payments" element={<PaymentsHelpPage />} />
           <Route path="/blog" element={<BlogIndexPage />} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
           {SEO_PAGE_PATHS.map((path) => (
@@ -197,10 +218,10 @@ function App() {
             }
           />
           <Route
-            path="/payment/:bookingId"
+            path="/payment/:bookingId/waiting"
             element={
               <ProtectedRoute allowedRoles={["customer"]}>
-                <PaymentPage />
+                <PaymentWaitingPage />
               </ProtectedRoute>
             }
           />
@@ -226,7 +247,9 @@ function App() {
             path="/owner/dashboard"
             element={
               <ProtectedRoute allowedRoles={["owner"]}>
-                <OwnerDashboard />
+                <OwnerSubscriptionGate>
+                  <OwnerDashboard />
+                </OwnerSubscriptionGate>
               </ProtectedRoute>
             }
           />
@@ -234,7 +257,9 @@ function App() {
             path="/owner/salon"
             element={
               <ProtectedRoute allowedRoles={["owner"]}>
-                <ManageSalon />
+                <OwnerSubscriptionGate>
+                  <ManageSalon />
+                </OwnerSubscriptionGate>
               </ProtectedRoute>
             }
           />
@@ -242,7 +267,9 @@ function App() {
             path="/owner/services"
             element={
               <ProtectedRoute allowedRoles={["owner"]}>
-                <ManageServices />
+                <OwnerSubscriptionGate>
+                  <ManageServices />
+                </OwnerSubscriptionGate>
               </ProtectedRoute>
             }
           />
@@ -250,7 +277,9 @@ function App() {
             path="/owner/bookings"
             element={
               <ProtectedRoute allowedRoles={["owner"]}>
-                <ManageBookings />
+                <OwnerSubscriptionGate>
+                  <ManageBookings />
+                </OwnerSubscriptionGate>
               </ProtectedRoute>
             }
           />
@@ -274,7 +303,7 @@ function App() {
             path="/owner/bank-account"
             element={
               <ProtectedRoute allowedRoles={["owner"]}>
-                <BankAccountPage />
+                <UpiSettingsPage />
               </ProtectedRoute>
             }
           />

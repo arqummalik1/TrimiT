@@ -41,7 +41,13 @@ export function getUserFacingMessage(
   }
 
   if (appErr.kind === 'rate_limit') {
-    return getAuthRateLimitMessage(appErr.code, options?.authContext ?? 'generic');
+    // Auth screens pass an authContext and get the email-cooldown copy.
+    // A generic 429 (e.g. too many booking attempts) gets generic copy —
+    // never the email/inbox wording.
+    if (options?.authContext) {
+      return getAuthRateLimitMessage(appErr.code, options.authContext);
+    }
+    return MESSAGES.rate_limit;
   }
 
   if (appErr.code === 'FILE_TOO_LARGE') {
@@ -56,7 +62,11 @@ export function getUserFacingMessage(
     return appErr.message;
   }
 
-  if (appErr.kind === 'network' && appErr.message.toLowerCase().includes('timeout')) {
+  if (
+    appErr.kind === 'network' &&
+    (appErr.message.toLowerCase().includes('timeout') ||
+      appErr.message.toLowerCase().includes('timed out'))
+  ) {
     return MESSAGES.timeout;
   }
 

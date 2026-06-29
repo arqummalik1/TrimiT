@@ -23,6 +23,15 @@ interface BookingCardProps {
   onComplete?: () => void;
   onReschedule?: () => void;
   onWriteReview?: () => void;
+  /**
+   * Owner UPI verification (verify payment + confirm booking in one tap). Shown
+   * only for owner-side UPI bookings whose payment is awaiting verification.
+   */
+  onVerifyPayment?: () => void;
+  /** Owner: reject an unverifiable UPI payment. */
+  onRejectPayment?: () => void;
+  /** Owner: verify/reject UPI payment in flight. */
+  isVerifying?: boolean;
 }
 
 const BookingCardComponent: React.FC<BookingCardProps> = ({
@@ -37,6 +46,9 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
   onComplete,
   onReschedule,
   onWriteReview,
+  onVerifyPayment,
+  onRejectPayment,
+  isVerifying = false,
 }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -47,6 +59,14 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
   const paymentColors   = isDark ? getDarkPaymentColors() : getLightPaymentColors();
   const bookingStatus   = statusColors[booking.status]    ?? { bg: theme.colors.surfaceSecondary, text: theme.colors.textSecondary };
   const paymentStatus   = paymentColors[booking.payment_status] ?? { bg: theme.colors.surfaceSecondary, text: theme.colors.textSecondary };
+
+  // UPI bookings awaiting the owner's verification. Verify is allowed from
+  // 'waiting_verification' (primary case) plus 'initiated' and 'timeout'.
+  const isUpiAwaitingVerification =
+    booking.payment_method === 'upi' &&
+    (booking.payment_verification_status === 'waiting_verification' ||
+      booking.payment_verification_status === 'initiated' ||
+      booking.payment_verification_status === 'timeout');
 
   const getStatusIcon = () => {
     switch (booking.status) {
@@ -109,6 +129,12 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
             <Text style={styles.detailText}>{booking.users.phone}</Text>
           </View>
         )}
+        {!!booking.booking_reference && (
+          <View style={styles.detailRow}>
+            <Ionicons name="pricetag" size={16} color={theme.colors.textSecondary} />
+            <Text style={styles.detailText}>{booking.booking_reference}</Text>
+          </View>
+        )}
       </View>
 
       {!compact && (
@@ -123,6 +149,44 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
           </View>
 
           <View style={styles.actions}>
+            {/* Owner: verify UPI payment (verifies payment AND confirms booking). */}
+            {isOwner && isUpiAwaitingVerification && (
+              <>
+                {isVerifying ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={theme.colors.primary}
+                    style={{ marginHorizontal: 16 }}
+                  />
+                ) : (
+                  <>
+                    {onVerifyPayment && (
+                      <TouchableOpacity
+                        style={styles.verifyButton}
+                        onPress={onVerifyPayment}
+                        accessibilityRole="button"
+                        accessibilityLabel="Verify payment and confirm booking"
+                      >
+                        <Ionicons name="shield-checkmark" size={16} color={theme.colors.textInverse} />
+                        <Text style={styles.verifyText}>Verify Payment</Text>
+                      </TouchableOpacity>
+                    )}
+                    {onRejectPayment && (
+                      <TouchableOpacity
+                        style={styles.rejectButton}
+                        onPress={onRejectPayment}
+                        accessibilityRole="button"
+                        accessibilityLabel="Reject payment"
+                      >
+                        <Ionicons name="close" size={16} color={theme.colors.error} />
+                        <Text style={styles.rejectText}>Reject</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+
             {/* Customer: reschedule (pending or confirmed) */}
             {!isOwner &&
               (booking.status === 'pending' || booking.status === 'confirmed') &&
@@ -178,8 +242,8 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
                 </TouchableOpacity>
               )}
 
-            {/* Owner: confirm / reject pending */}
-            {isOwner && booking.status === 'pending' && (
+            {/* Owner: confirm / reject pending (non-UPI-verification bookings) */}
+            {isOwner && booking.status === 'pending' && !isUpiAwaitingVerification && (
               <>
                 {isLoading ? (
                   <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginHorizontal: 16 }} />
@@ -360,6 +424,19 @@ const createStyles = (theme: Theme) =>
     rescheduleText: {
       ...typography.bodySmallMedium,
       color: theme.colors.primary,
+    },
+    verifyButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.primary,
+      gap: 4,
+    },
+    verifyText: {
+      ...typography.bodySmallMedium,
+      color: theme.colors.textInverse,
     },
     reviewButton: {
       flexDirection: 'row',

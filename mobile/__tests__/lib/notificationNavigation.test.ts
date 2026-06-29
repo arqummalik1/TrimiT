@@ -44,7 +44,7 @@ describe('handleNotificationNavigation', () => {
 
   it('navigates customer to Bookings tab for non-broadcast type', () => {
     const navRef = createMockNavRef(true);
-    handleNotificationNavigation(navRef as any, { type: 'booking_update', booking_id: 'abc' }, 'customer');
+    handleNotificationNavigation(navRef as any, { type: 'booking_update', booking_id: '11111111-1111-4111-8111-111111111111' }, 'customer');
 
     expect(navRef.dispatch).toHaveBeenCalledWith(
       CommonActions.navigate({
@@ -56,7 +56,7 @@ describe('handleNotificationNavigation', () => {
 
   it('navigates owner to Bookings tab for non-broadcast type', () => {
     const navRef = createMockNavRef(true);
-    handleNotificationNavigation(navRef as any, { type: 'booking_update', booking_id: 'abc' }, 'owner');
+    handleNotificationNavigation(navRef as any, { type: 'booking_update', booking_id: '11111111-1111-4111-8111-111111111111' }, 'owner');
 
     expect(navRef.dispatch).toHaveBeenCalledWith(
       CommonActions.navigate({
@@ -104,7 +104,7 @@ describe('handleNotificationNavigation', () => {
 
   it('works with bookingId (not booking_id)', () => {
     const navRef = createMockNavRef(true);
-    handleNotificationNavigation(navRef as any, { bookingId: 'b-123' }, 'owner');
+    handleNotificationNavigation(navRef as any, { bookingId: '22222222-2222-4222-8222-222222222222' }, 'owner');
 
     expect(navRef.dispatch).toHaveBeenCalledWith(
       CommonActions.navigate({

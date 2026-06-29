@@ -24,13 +24,11 @@ describe('shouldShowBookingNotification', () => {
     expect(shouldShowBookingNotification('b2', 'confirmed')).toBe(true);
   });
 
-  it('allows re-processing after TTL expires', async () => {
+  it('allows re-processing after TTL expires', () => {
     shouldShowBookingNotification('b1', 'cancelled');
-    // TTL is 30s — manually set the timestamp back
-    const seenMap = (await import('../../src/lib/notificationDedupe')) as any;
-    // We can't access the private Map directly. This test documents the TTL behavior.
-    // The second call within TTL is false (already tested above).
-    // After 30s it would return true again. We trust the implementation.
+    // TTL is 30s. We can't reach the private Map directly, so this documents
+    // that a second call within the TTL window is deduped (returns false).
+    // After 30s it would return true again — trusted via the implementation.
     expect(shouldShowBookingNotification('b1', 'cancelled')).toBe(false);
   });
 });

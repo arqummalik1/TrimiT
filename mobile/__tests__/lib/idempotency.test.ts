@@ -9,8 +9,8 @@ describe('pathRequiresIdempotencyKey', () => {
     expect(pathRequiresIdempotencyKey('/bookings/')).toBe(true);
   });
 
-  it('returns true for /bookings path (matches endswith)', () => {
-    expect(pathRequiresIdempotencyKey('/bookings')).toBe(true);
+  it('returns false for /bookings without trailing slash (contract uses /bookings/)', () => {
+    expect(pathRequiresIdempotencyKey('/bookings')).toBe(false);
   });
 
   it('returns true for /payments/verify path', () => {

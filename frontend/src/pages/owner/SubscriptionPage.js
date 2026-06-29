@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Star, Lock, Receipt, CheckCircle, WarningCircle } from '@phosphor-icons/react';
-import { useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Star, Receipt, CheckCircle, WarningCircle } from '@phosphor-icons/react';
 import {
   useSubscription,
   usePaymentHistory,
   useCancelSubscription,
+  useCreateSubscription,
+  useVerifySubscription,
 } from '../../hooks/useSubscription';
 import { useAuthStore } from '../../store/authStore';
+import { useToastStore } from '../../store/toastStore';
+import { openSubscriptionCheckout } from '../../lib/razorpay';
+import { getApiErrorCode, getApiErrorMessage } from '../../lib/utils';
 
 const STATUS_LABEL = {
   trial: 'Free Trial',
@@ -54,18 +58,84 @@ const fmtDate = (iso) => {  if (!iso) return '—';
 };
 
 const SubscriptionPage = () => {
-  const queryClient = useQueryClient();
   const profile = useAuthStore((s) => s.profile);
+  const user = useAuthStore((s) => s.user);
+  const { success } = useToastStore();
   const { data: sub, isLoading } = useSubscription();
   const { data: history } = usePaymentHistory();
   const cancelMutation = useCancelSubscription();
+  const createMutation = useCreateSubscription();
+  const verifyMutation = useVerifySubscription();
   const [error, setError] = useState(null);
+  // Friendly "coming soon" notice shown when Razorpay keys aren't configured
+  // yet (backend 503 SUBSCRIPTION_GATEWAY_UNAVAILABLE) or Checkout can't load.
+  const [gatewayNotice, setGatewayNotice] = useState(false);
 
   const onCancel = () => {
     if (!window.confirm('Cancel at the end of the current billing cycle?')) return;
     cancelMutation.mutate(true, {
       onError: () => setError('Could not cancel. Please try again.'),
     });
+  };
+
+  const subscribing = createMutation.isPending || verifyMutation.isPending;
+
+  const onSubscribe = async () => {
+    setError(null);
+    setGatewayNotice(false);
+    try {
+      const order = await createMutation.mutateAsync();
+
+      // Backend returned a real Razorpay order — open Checkout, then verify.
+      if (order?.key_id && order?.subscription_id) {
+        try {
+          const result = await openSubscriptionCheckout(order, {
+            name: profile?.name || user?.name,
+            email: user?.email,
+            contact: profile?.phone || user?.phone,
+          });
+          await verifyMutation.mutateAsync({
+            razorpay_payment_id: result.razorpay_payment_id,
+            razorpay_subscription_id:
+              result.razorpay_subscription_id || order.subscription_id,
+            razorpay_signature: result.razorpay_signature,
+          });
+          success('You are now on TrimiT Pro. Your salon stays active!', {
+            title: 'Subscription active',
+          });
+        } catch (checkoutErr) {
+          const reason = checkoutErr?.message;
+          if (reason === 'RAZORPAY_CHECKOUT_DISMISSED') {
+            // User closed the sheet — no error, just stop quietly.
+            return;
+          }
+          if (reason === 'RAZORPAY_SCRIPT_UNAVAILABLE') {
+            setGatewayNotice(true);
+            return;
+          }
+          // Verify failed or payment failed.
+          setError(
+            getApiErrorMessage(
+              checkoutErr,
+              'We could not confirm your payment. If money was deducted, it will be reflected shortly.'
+            )
+          );
+        }
+        return;
+      }
+
+      // No usable gateway payload — treat as gateway not ready.
+      setGatewayNotice(true);
+    } catch (err) {
+      if (
+        err?.response?.status === 503 ||
+        getApiErrorCode(err) === 'SUBSCRIPTION_GATEWAY_UNAVAILABLE'
+      ) {
+        setGatewayNotice(true);
+        return;
+      }
+      setError(getApiErrorMessage(err, 'Could not start your subscription. Please try again.'));
+    }
   };
 
   if (isLoading || !sub) {
@@ -160,12 +230,33 @@ const SubscriptionPage = () => {
 
       {/* Actions */}
       {showSubscribe && (
-        <div className="mb-4 bg-yellow-50 text-yellow-800 p-4 rounded-xl border border-yellow-200 flex gap-3">
-          <WarningCircle size={24} className="shrink-0 text-yellow-600" />
-          <p className="text-sm">
-            Our payment gateway is currently being updated. Subscriptions cannot be purchased or renewed online right now. We will notify you once the new payment gateway is live!
-          </p>
-        </div>
+        <>
+          {gatewayNotice ? (
+            <div className="mb-4 bg-yellow-50 text-yellow-800 p-4 rounded-xl border border-yellow-200 flex gap-3">
+              <WarningCircle size={24} className="shrink-0 text-yellow-600" />
+              <p className="text-sm">
+                In-app subscription payment is coming soon — contact TrimiT to activate
+                your TrimiT Pro plan and keep your salon active.
+              </p>
+            </div>
+          ) : (
+            <button
+              onClick={onSubscribe}
+              disabled={subscribing}
+              data-testid="subscribe-btn"
+              className="w-full rounded-xl bg-teal-700 text-white font-semibold py-3.5 flex items-center justify-center gap-2 hover:bg-teal-800 transition-colors disabled:opacity-60"
+            >
+              {subscribing ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Star size={20} weight="fill" />
+                  Subscribe ₹299/month
+                </>
+              )}
+            </button>
+          )}
+        </>
       )}
 
       {showCancel && (

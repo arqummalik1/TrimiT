@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { format, addDays, isBefore, startOfToday, isSameDay, parse } from 'date-fns';
@@ -11,10 +11,11 @@ import {
   CheckCircle,
   Timer,
   Warning,
-  CreditCard
+  CreditCard,
+  ShieldCheck
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
-import { formatPrice, formatTime, normalizeSlotTimeToHHMM, getApiErrorMessage } from '../../lib/utils';
+import { formatPrice, formatTime, normalizeSlotTimeToHHMM, getApiErrorMessage, getApiErrorCode } from '../../lib/utils';
 import { ENABLE_MULTI_BOOKING_PER_SLOT } from '../../lib/featureFlags';
 import { createIdempotencyKey } from '../../lib/idempotency';
 import { useToastStore } from '../../store/toastStore';
@@ -193,6 +194,14 @@ const BookingPage = () => {
       setHoldId(null);
       setTimeLeft(null);
       const msg = getApiErrorMessage(err, 'This slot is currently unavailable.');
+      if (err?.response?.status === 403 || getApiErrorCode(err) === 'SALON_UNAVAILABLE') {
+        setSelectedSlot(null);
+        showError(
+          'This salon is currently unavailable for booking. Please try another salon.',
+          { title: 'Salon unavailable', duration: 6000 }
+        );
+        return;
+      }
       if (err?.response?.status === 409) {
         setSelectedSlot(null);
         showError(msg, { title: 'Slot unavailable', duration: 6000 });
@@ -235,16 +244,10 @@ const BookingPage = () => {
       
       const bookingId = data.booking_id || data.id;
       
-      if (paymentMethod === 'online' && bookingId) {
-        navigate(`/payment/${bookingId}`, { 
-          state: { 
-            amount: service?.price,
-            salonName: salon?.name,
-            serviceName: service?.name,
-            bookingDate: selectedDate,
-            timeSlot: selectedSlot
-          } 
-        });
+      if (paymentMethod === 'upi' && bookingId) {
+        // UPI: never show success here. Go to the waiting page, which starts the
+        // UPI intent and shows "waiting for the salon to verify your payment".
+        navigate(`/payment/${bookingId}/waiting`);
         return;
       }
 
@@ -263,6 +266,16 @@ const BookingPage = () => {
         err,
         'Failed to create booking. Please try again.'
       );
+
+      if (status === 403 || getApiErrorCode(err) === 'SALON_UNAVAILABLE') {
+        setSelectedSlot(null);
+        resetBookingAttempt();
+        showError(
+          'This salon is currently unavailable for booking. Please try another salon.',
+          { title: 'Salon unavailable', duration: 6000 }
+        );
+        return;
+      }
 
       if (status === 409) {
         setSelectedSlot(null);
@@ -653,21 +666,33 @@ const BookingPage = () => {
                   <span className="text-xs text-stone-500 mt-1 text-center">Pay after service</span>
                 </button>
                 
-                <button
-                  onClick={() => setPaymentMethod('online')}
-                  className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
-                    paymentMethod === 'online'
-                      ? 'border-orange-800 bg-orange-50'
-                      : 'border-stone-200 bg-white hover:border-orange-300'
-                  }`}
-                >
-                  <CreditCard size={28} className={paymentMethod === 'online' ? 'text-orange-800' : 'text-stone-400'} />
-                  <span className={`font-semibold mt-2 ${paymentMethod === 'online' ? 'text-orange-900' : 'text-stone-700'}`}>
-                    Pay Online
-                  </span>
-                  <span className="text-xs text-stone-500 mt-1 text-center">Secure online payment</span>
-                </button>
+                {salon?.upi_id && (
+                  <button
+                    onClick={() => setPaymentMethod('upi')}
+                    className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
+                      paymentMethod === 'upi'
+                        ? 'border-orange-800 bg-orange-50'
+                        : 'border-stone-200 bg-white hover:border-orange-300'
+                    }`}
+                  >
+                    <CreditCard size={28} className={paymentMethod === 'upi' ? 'text-orange-800' : 'text-stone-400'} />
+                    <span className={`font-semibold mt-2 ${paymentMethod === 'upi' ? 'text-orange-900' : 'text-stone-700'}`}>
+                      Pay with UPI
+                    </span>
+                    <span className="text-xs text-stone-500 mt-1 text-center">Pay the salon directly</span>
+                  </button>
+                )}
               </div>
+
+              <p className="mt-4 flex items-center gap-1.5 text-xs text-stone-500">
+                <ShieldCheck size={14} weight="fill" className="text-green-600 shrink-0" />
+                <span>
+                  You pay the salon directly — TrimiT never holds your money.{' '}
+                  <Link to="/help/payments" className="text-orange-800 hover:underline">
+                    How payments work
+                  </Link>
+                </span>
+              </p>
             </div>
 
             <div className="bg-white rounded-2xl border border-stone-200 p-5">

@@ -283,6 +283,19 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
           <View style={styles.cardGroup}>
             <TouchableOpacity
               style={styles.cardGroupItem}
+              onPress={() => navigation.navigate('PaymentsHelp')}
+            >
+              <View style={[styles.cardGroupIconContainer, { backgroundColor: '#16A34A' }]}>
+                <Ionicons name="card" size={16} color={theme.colors.white} />
+              </View>
+              <View style={[styles.cardGroupTextContainer, { marginLeft: 12 }]}>
+                <Text style={styles.cardGroupTitle}>Payments Help</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.border} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cardGroupItem}
               onPress={() => navigation.navigate('PrivacyPolicy')}
             >
               <View style={[styles.cardGroupIconContainer, { backgroundColor: theme.colors.textSecondary }]}>

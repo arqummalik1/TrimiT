@@ -82,6 +82,8 @@ describe('CompleteProfileScreen — role selection (item 16)', () => {
 
     fireEvent.press(screen.getByText('Salon Owner'));
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Olive Owner');
+    // Owners must provide a UPI ID (customers get paid directly to it).
+    fireEvent.changeText(screen.getByPlaceholderText('glowsalon@okaxis'), 'olive@okaxis');
     acceptTerms();
     await act(async () => {
       fireEvent.press(screen.getByText('Complete Setup'));
@@ -89,7 +91,7 @@ describe('CompleteProfileScreen — role selection (item 16)', () => {
 
     await waitFor(() => {
       expect(mockCompleteProfile).toHaveBeenCalledWith(
-        expect.objectContaining({ role: 'owner' })
+        expect.objectContaining({ role: 'owner', upi_id: 'olive@okaxis' })
       );
     });
   });

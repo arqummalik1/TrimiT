@@ -55,7 +55,7 @@ describe('Button', () => {
     // No pressable target that maps to title — but the TouchableOpacity is
     // disabled, so even pressing the wrapper should not call onPress.
     const indicator = screen.UNSAFE_getByType(ActivityIndicator);
-    fireEvent.press(indicator.parentNode!);
+    fireEvent.press(indicator);
     expect(onPress).not.toHaveBeenCalled();
   });
 

@@ -1,28 +1,33 @@
 /**
- * Cash vs. online payment method selector for the booking flow.
- * Honors ENABLE_ONLINE_PAY (feature flag) — when off, shows a "coming soon"
- * note instead of the online option. Pure presentational.
+ * Payment method selector for the booking flow.
  *
- * Extracted verbatim from the original BookingScreen "Payment Method" section.
+ * Two options only (v1): "Cash at Salon" (always shown) and "Pay with UPI"
+ * (shown only when the salon has a UPI ID). TrimiT never collects money — UPI
+ * means the customer pays the salon directly from their UPI app.
+ *
+ * Pure presentational. The `'upi'` option is gated solely by `salonHasUpi`,
+ * never by a build flag.
  */
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeContext';
-import { ENABLE_ONLINE_PAY } from '../../lib/featureFlags';
 import type { BookingStyles } from './styles';
 
-export type PaymentMethod = 'cash' | 'card';
+export type PaymentMethodOption = 'cash' | 'upi';
 
 interface PaymentMethodPickerProps {
-  selected: PaymentMethod;
-  onSelect: (method: PaymentMethod) => void;
+  selected: PaymentMethodOption;
+  onSelect: (method: PaymentMethodOption) => void;
+  /** Whether the salon has a UPI ID configured. When false, only cash is shown. */
+  salonHasUpi: boolean;
   styles: BookingStyles;
 }
 
 const PaymentMethodPicker: React.FC<PaymentMethodPickerProps> = ({
   selected,
   onSelect,
+  salonHasUpi,
   styles,
 }) => {
   const { theme } = useTheme();
@@ -34,6 +39,7 @@ const PaymentMethodPicker: React.FC<PaymentMethodPickerProps> = ({
         <Text style={styles.sectionTitle}>Payment Method</Text>
       </View>
 
+      {/* Cash at Salon — always available */}
       <TouchableOpacity
         style={[
           styles.paymentOption,
@@ -45,11 +51,7 @@ const PaymentMethodPicker: React.FC<PaymentMethodPickerProps> = ({
           <Ionicons
             name="cash-outline"
             size={24}
-            color={
-              selected === 'cash'
-                ? theme.colors.textInverse
-                : theme.colors.text
-            }
+            color={selected === 'cash' ? theme.colors.textInverse : theme.colors.text}
           />
         </View>
         <View style={{ flex: 1 }}>
@@ -71,64 +73,49 @@ const PaymentMethodPicker: React.FC<PaymentMethodPickerProps> = ({
           </Text>
         </View>
         {selected === 'cash' && (
-          <Ionicons
-            name="checkmark-circle"
-            size={24}
-            color={theme.colors.textInverse}
-          />
+          <Ionicons name="checkmark-circle" size={24} color={theme.colors.textInverse} />
         )}
       </TouchableOpacity>
 
-      {ENABLE_ONLINE_PAY ? (
+      {/* Pay with UPI — only when the salon has a UPI ID */}
+      {salonHasUpi && (
         <TouchableOpacity
           style={[
             styles.paymentOption,
-            selected === 'card' && styles.paymentOptionSelected,
+            selected === 'upi' && styles.paymentOptionSelected,
             { marginTop: 12 },
           ]}
-          onPress={() => onSelect('card')}
+          onPress={() => onSelect('upi')}
         >
           <View style={styles.paymentIconContainer}>
             <Ionicons
-              name="card-outline"
+              name="phone-portrait-outline"
               size={24}
-              color={
-                selected === 'card'
-                  ? theme.colors.textInverse
-                  : theme.colors.text
-              }
+              color={selected === 'upi' ? theme.colors.textInverse : theme.colors.text}
             />
           </View>
           <View style={{ flex: 1 }}>
             <Text
               style={[
                 styles.paymentTitle,
-                selected === 'card' && styles.paymentTextSelected,
+                selected === 'upi' && styles.paymentTextSelected,
               ]}
             >
-              Online Payment
+              Pay with UPI
             </Text>
             <Text
               style={[
                 styles.paymentSub,
-                selected === 'card' && styles.paymentTextSelected,
+                selected === 'upi' && styles.paymentTextSelected,
               ]}
             >
-              Secure payment via card or UPI
+              Pay directly to the salon via any UPI app
             </Text>
           </View>
-          {selected === 'card' && (
-            <Ionicons
-              name="checkmark-circle"
-              size={24}
-              color={theme.colors.textInverse}
-            />
+          {selected === 'upi' && (
+            <Ionicons name="checkmark-circle" size={24} color={theme.colors.textInverse} />
           )}
         </TouchableOpacity>
-      ) : (
-        <Text style={[styles.paymentSub, { marginTop: 12 }]}>
-          Pay at the salon after your service. Online payment coming soon.
-        </Text>
       )}
     </View>
   );

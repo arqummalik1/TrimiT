@@ -56,6 +56,13 @@ export const handleApiError = (error: unknown): AppError => {
       else if (status === 409) kind = 'conflict';
       else if (status === 429) kind = 'rate_limit';
       else if (typeof status === 'number' && status >= 500) kind = 'server';
+
+      // Owner subscription lapsed (HTTP 402). Never surface a raw gate error —
+      // the SubscriptionGate overlay handles the UX; this keeps any incidental
+      // alert friendly.
+      if (status === 402 || code === 'SUBSCRIPTION_REQUIRED') {
+        message = 'Your TrimiT Pro subscription has expired. Subscribe to continue.';
+      }
     }
   } else if (error instanceof Error) {
     message = error.message;

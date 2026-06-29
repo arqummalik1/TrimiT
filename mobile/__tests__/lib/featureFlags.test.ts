@@ -1,6 +1,6 @@
 /**
  * Unit tests for src/lib/featureFlags.ts
- * Covers: ENABLE_ONLINE_PAY, ENABLE_STAFF_SELECTION,
+ * Covers: ENABLE_STAFF_SELECTION,
  *         ENABLE_MULTI_BOOKING_PER_SLOT, ENABLE_OWNER_PROMO_MANAGEMENT,
  *         ENABLE_SUBSCRIPTIONS, ENABLE_SUBSCRIPTION_ENFORCEMENT
  *
@@ -8,7 +8,6 @@
  * boolean coercion logic by checking the exported values are booleans.
  */
 import {
-  ENABLE_ONLINE_PAY,
   ENABLE_STAFF_SELECTION,
   ENABLE_MULTI_BOOKING_PER_SLOT,
   ENABLE_OWNER_PROMO_MANAGEMENT,
@@ -17,10 +16,6 @@ import {
 } from '../../src/lib/featureFlags';
 
 describe('featureFlags', () => {
-  it('ENABLE_ONLINE_PAY is a boolean', () => {
-    expect(typeof ENABLE_ONLINE_PAY).toBe('boolean');
-  });
-
   it('ENABLE_STAFF_SELECTION is a boolean', () => {
     expect(typeof ENABLE_STAFF_SELECTION).toBe('boolean');
   });

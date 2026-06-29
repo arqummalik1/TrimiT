@@ -203,6 +203,13 @@ async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_curr
     payload = salon.model_dump()
     payload = _sync_salon_image_fields(payload)
 
+    # Prefill the salon's UPI ID from the owner's signup UPI (users.upi_id) when
+    # the create form didn't supply one — so "Pay with UPI" works immediately.
+    if not payload.get("upi_id"):
+        owner_upi = (profile or {}).get("upi_id")
+        if owner_upi:
+            payload["upi_id"] = owner_upi
+
     salon_data = {
         "id": str(uuid.uuid4()),
         "owner_id": current_user.get("id"),

@@ -188,6 +188,33 @@ apiClient.interceptors.response.use(
     }
 
     const normalizedError = handleApiError(error);
+
+    // Owner subscription lapsed: the backend gates owner endpoints with HTTP 402
+    // SUBSCRIPTION_REQUIRED. Instead of surfacing a raw error, drive the freeze
+    // gate by seeding the subscription-status query (has_access=false) and
+    // refetching the real status. The SubscriptionGate overlay then blocks the
+    // owner app and routes them to checkout.
+    if (status === 402 || normalizedError.code === 'SUBSCRIPTION_REQUIRED') {
+      try {
+        const { useAuthStore } = await import('../store/authStore');
+        const { queryKeys } = await import('../lib/queryKeys');
+        const qc = useAuthStore.getState().queryClient;
+        if (qc) {
+          qc.setQueryData(queryKeys.subscriptionStatus, {
+            status: 'expired',
+            has_access: false,
+            is_trial: false,
+            trial_days_remaining: 0,
+            next_renewal_at: null,
+            enforcement_enabled: true,
+          });
+          qc.invalidateQueries({ queryKey: queryKeys.subscriptionStatus });
+        }
+      } catch {
+        // best-effort; backend still enforces server-side
+      }
+    }
+
     if (__DEV__) {
       const log =
         normalizedError.kind === 'server' ? console.error : console.warn;

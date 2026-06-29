@@ -38,18 +38,29 @@ export type CustomerDiscoverStackParamList = {
     salonName: string;
     serviceName: string;
   };
-  Payment: {
+  // UPI intent + manual-verification waiting screen. The customer pays the
+  // salon's UPI ID directly; the booking is confirmed only after the salon
+  // owner verifies. We never auto-show "Payment Successful".
+  PaymentWaiting: {
     bookingId: string;
-    amount: number;
+    bookingReference: string;
     salonName: string;
     serviceName: string;
-    bookingDate: string;
-    timeSlot: string;
+    /** Salon UPI ID (payee VPA) shown for manual payment fallback. */
+    upiId: string;
+    payeeName: string;
+    /** Total payable in rupees (display only; server is authoritative). */
+    amount: number;
+    /** `upi://pay?...` deep link for re-launching the UPI app on retry. */
+    intentUri: string;
+    /** Whether a UPI app actually opened on the first attempt. */
+    appLaunched: boolean;
   };
   WriteReview: { salonId: string; bookingId: string };
   PrivacyPolicy: undefined;
   Terms: undefined;
   Contact: undefined;
+  PaymentsHelp: undefined;
 };
 
 export type ProfileStackParamList = {
@@ -57,6 +68,7 @@ export type ProfileStackParamList = {
   PrivacyPolicy: undefined;
   Terms: undefined;
   Contact: undefined;
+  PaymentsHelp: undefined;
 };
 
 export type CustomerTabParamList = {
@@ -81,10 +93,11 @@ export type OwnerSettingsStackParamList = {
   Subscription: undefined;
   SubscriptionCheckout: undefined;
   PaymentHistory: undefined;
-  BankAccount: undefined;
+  UpiPaymentSettings: undefined;
   PrivacyPolicy: undefined;
   Terms: undefined;
   Contact: undefined;
+  PaymentsHelp: undefined;
   BankDetails: undefined;
 };
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Calendar, ChartBar, Bell, Tag, Storefront, ListChecks } from '@phosphor-icons/react';
+import { ArrowRight, Calendar, ChartBar, Bell, Tag, Storefront, ListChecks, Bank, CheckCircle } from '@phosphor-icons/react';
 import OwnerGrowthSection from '../components/landing/sections/OwnerGrowthSection';
 import DashboardMockup from '../components/landing/mockups/DashboardMockup';
 import FaqSection from '../components/landing/sections/FaqSection';
@@ -28,6 +28,7 @@ const FEATURES = [
   { icon: ListChecks, title: 'Service management', text: 'Add services, prices, and durations easily.' },
   { icon: Bell, title: 'Notifications', text: 'Get alerted when customers book or cancel.' },
   { icon: ChartBar, title: 'Analytics', text: 'Track bookings and revenue trends.' },
+  { icon: Bank, title: 'Direct bank payouts', text: 'Online payments settle straight to your bank account.' },
   { icon: Tag, title: 'Offers', text: 'Highlight promotions on your profile.' },
   { icon: Storefront, title: 'Digital profile', text: 'Photos, hours, and location for customers.' },
 ];
@@ -90,6 +91,57 @@ export default function ForSalonsPage() {
       </section>
 
       <OwnerGrowthSection compact />
+
+      {/* Payments band — free to join, customers pay you directly via UPI/cash */}
+      <section className="py-20 px-4 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <span className="text-xs font-bold tracking-[0.2em] uppercase text-orange-700">
+              Payments
+            </span>
+            <h2 className="font-heading text-3xl font-bold text-stone-900 mt-3 mb-3">
+              Free to join. Customers pay you directly.
+            </h2>
+            <p className="text-stone-600 max-w-2xl mx-auto">
+              No setup fees and no payment commission. Customers pay by cash or UPI
+              straight to you — TrimiT never holds your money.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-6">
+            {[
+              {
+                title: 'No payment commission',
+                text: 'List your salon and take bookings for free. We take no cut of your payments.',
+              },
+              {
+                title: 'Money straight to you',
+                text: 'Customers pay your UPI ID directly — the money lands in your account instantly.',
+              },
+              {
+                title: 'Cash or UPI',
+                text: 'Accept cash at the salon or UPI from any app. You verify UPI payments in one tap.',
+              },
+            ].map((c) => (
+              <div key={c.title} className="rounded-2xl border border-stone-200 p-6">
+                <CheckCircle size={28} weight="fill" className="text-green-600 mb-3" />
+                <h3 className="font-heading font-bold text-stone-900 mb-2">{c.title}</h3>
+                <p className="text-stone-600 text-sm leading-relaxed">{c.text}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-10">
+            <Link
+              to="/help/payments"
+              className="inline-flex items-center gap-1.5 text-orange-800 font-semibold hover:underline"
+            >
+              See how payments &amp; payouts work
+              <ArrowRight size={18} weight="bold" />
+            </Link>
+          </div>
+        </div>
+      </section>
 
       <section className="py-16 px-4 bg-stone-50">
         <div className="max-w-3xl mx-auto grid sm:grid-cols-2 gap-6">

@@ -210,6 +210,79 @@ enforcement up to the API layer.**
 - **Watch the deploy.** Confirm with `curl /health` and a sanity request
   before claiming the fix is live.
 
+## 7A. Payment model — v1 is UPI + cash, manual verification (PayU REMOVED)
+
+> As of 2026-06-27 PayU is **completely removed**. Do not re-introduce any
+> PayU/online-gateway code. TrimiT does **NOT** collect customer money in v1.
+
+- **Two payment methods only:** `salon_cash` and `upi`. (Legacy `online` value
+  is kept in DB CHECKs for old rows but is not used.)
+- **Money never enters TrimiT.** For UPI, the customer pays the salon's
+  `upi_id` directly via their UPI app. The salon owner then **manually
+  verifies** the payment; only then is the booking confirmed.
+- **Never show "Payment Successful"** after returning from a UPI app. Always
+  show "We are waiting for the salon to verify your payment." A booking is
+  confirmed ONLY after owner verification.
+- **Booking status is separate from payment status.** `bookings.status`
+  (`pending, confirmed, in_service, completed, cancelled, no_show`) is the
+  booking lifecycle. `bookings.payment_verification_status`
+  (`not_required, initiated, waiting_verification, verified, rejected,
+  timeout`) is the UPI workflow. Never merge the two.
+- **One owner action.** A single "Verify Payment" sets
+  `payment_verification_status='verified'` + `payment_status='paid'` +
+  `status='confirmed'` atomically. "Reject" sets `rejected` (booking stays
+  pending so the customer can retry).
+- **Provider abstraction (keep it).** `backend/services/payments/` exposes the
+  `PaymentProvider` interface + `UpiIntentManualVerificationProvider` +
+  `CashAtSalonProvider`. The booking engine must NEVER import a concrete
+  provider — resolve via `get_payment_provider(method)`. Future gateways
+  (split/merchant/webhook) plug in here without touching booking logic.
+- **Key files:** backend `routers/payments.py`, `services/payments/*`,
+  migration `database/49_upi_manual_payments.sql`; mobile
+  `services/upiIntentService.ts`, `screens/customer/PaymentWaitingScreen.tsx`,
+  `screens/owner/UpiPaymentSettingsScreen.tsx`; web
+  `pages/customer/PaymentWaitingPage.js`, `pages/owner/UpiSettingsPage.js`.
+- **Razorpay stays** — it is the OWNER SUBSCRIPTION billing, unrelated to
+  customer payments. Do not remove it.
+- **UPI launch only via the UPI Intent Service** (`upiIntentService` on mobile;
+  the `upi://pay` link on web). UI/ViewModels must not launch UPI directly.
+
+## 7B. Subscription model — owners pay; 30-day trial + ENFORCEMENT IS ON
+
+> As of 2026-06-28 owner subscriptions are **enabled and enforced**. TrimiT's
+> revenue is the owner subscription (₹299/mo), separate from customer UPI.
+
+- **Trial = 30 days**, created on owner signup (DB trigger). After it lapses
+  without an active paid subscription, the owner is **frozen** (402
+  `SUBSCRIPTION_REQUIRED` on owner mutations; client shows "subscription
+  expired" + Subscribe) and their **salon is greyed + unbookable** for
+  customers (`salons.subscription_active=false` → booking returns 403
+  `SALON_UNAVAILABLE`).
+- **Single gate:** `dependencies/subscription.py::require_active_subscription`
+  is the ONLY place premium gating is enforced — do not scatter checks.
+- **Source of truth:** `services/subscription_service.py` (`compute_access`,
+  `has_active_access`). Access-granting statuses: `trial`, `active`,
+  `grace_period`. `salons.subscription_active` is kept in sync by the
+  migration-41 triggers.
+- **Razorpay billing** (`services/subscription_billing.py` +
+  `routers/subscriptions.py`): real but only CHARGES when `RAZORPAY_KEY_ID /
+  KEY_SECRET / PLAN_ID / WEBHOOK_SECRET` are set. While unset, `create` returns
+  503 `SUBSCRIPTION_GATEWAY_UNAVAILABLE` and the client shows "coming soon".
+- **Escape hatch:** `POST /admin/grant-subscription` (admin token) activates/
+  extends an owner by N days when they pay offline. Use it instead of editing
+  the DB by hand.
+- **Razorpay = subscriptions only.** Never wire Razorpay to customer payments
+  (customers use cash/UPI, see 7A).
+
+## 7C. Migration state (keep current)
+
+- Applied to production: **all migrations through `49_upi_manual_payments.sql`**
+  (49 confirmed applied 2026-06-28).
+- **Pending:** `50_subscription_30day_and_owner_upi.sql` — apply manually in the
+  Supabase SQL Editor (30-day trial + fresh trial for existing owners +
+  `users.upi_id`).
+- New SQL is always a NEW numbered file, forward-only, applied manually.
+
 ## 8. Documentation discipline
 
 - **READ `docs/PROGRESS.md` ON EVERY PROMPT — BEFORE writing any code.** It is

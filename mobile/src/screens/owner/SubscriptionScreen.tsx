@@ -194,10 +194,10 @@ const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* Actions */}
         {showSubscribe && (
-          <View style={[styles.primaryBtn, { opacity: 0.6 }]}>
-            <Ionicons name="time" size={18} color="#FFFFFF" />
-            <Text style={styles.primaryBtnText}>Coming Soon</Text>
-          </View>
+          <TouchableOpacity style={styles.primaryBtn} onPress={goCheckout}>
+            <Ionicons name="card" size={18} color="#FFFFFF" />
+            <Text style={styles.primaryBtnText}>Subscribe ₹{(sub.amount / 100).toFixed(0)}/month</Text>
+          </TouchableOpacity>
         )}
 
         {showCancel && (

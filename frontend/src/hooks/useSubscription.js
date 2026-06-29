@@ -45,3 +45,25 @@ export function useCancelSubscription() {
     },
   });
 }
+
+/** Create a Razorpay subscription order (owner). */
+export function useCreateSubscription() {
+  return useMutation({
+    mutationFn: () => subscriptionRepository.create(),
+    retry: false,
+  });
+}
+
+/** Verify a completed Razorpay subscription payment, then refresh status. */
+export function useVerifySubscription() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) => subscriptionRepository.verify(payload),
+    retry: false,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subscription'] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptionStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptionHistory'] });
+    },
+  });
+}

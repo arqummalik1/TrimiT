@@ -3,6 +3,7 @@ import { subscriptionRepository } from '../repositories/subscriptionRepository';
 import { queryKeys } from '../lib/queryKeys';
 import { useAuthStore } from '../store/authStore';
 import { ENABLE_SUBSCRIPTIONS, ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../lib/featureFlags';
+import { CreateSubscriptionResponse, VerifySubscriptionPayload } from '../types/subscription';
 
 /** Owner subscription (full view). Only fetches for owners. */
 export function useSubscription() {
@@ -68,4 +69,20 @@ export function useRefreshSubscription() {
     queryClient.invalidateQueries({ queryKey: queryKeys.subscriptionStatus });
     queryClient.invalidateQueries({ queryKey: queryKeys.subscriptionHistory });
   };
+}
+
+/** Create (or resume) the Razorpay subscription order. */
+export function useCreateSubscription() {
+  return useMutation<CreateSubscriptionResponse, unknown, void>({
+    mutationFn: () => subscriptionRepository.create(),
+  });
+}
+
+/** Verify a completed Razorpay payment and activate the subscription. */
+export function useVerifySubscription() {
+  const refresh = useRefreshSubscription();
+  return useMutation<{ status: string; message: string }, unknown, VerifySubscriptionPayload>({
+    mutationFn: (payload: VerifySubscriptionPayload) => subscriptionRepository.verify(payload),
+    onSuccess: () => refresh(),
+  });
 }

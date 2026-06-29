@@ -136,21 +136,24 @@ async def update_booking_status(
     if role == "owner" and body.status == BookingStatus.completed:
         b_full = await supabase.request(
             "GET",
-            f"rest/v1/bookings?id=eq.{booking_id}&select=payment_method,payment_status",
+            f"rest/v1/bookings?id=eq.{booking_id}&select=payment_method,payment_status,payment_verification_status",
             token=token,
         )
         pay_method = ""
         pay_status = ""
+        verify_status = ""
         if b_full.status_code == 200 and b_full.json():
             row = b_full.json()[0]
             pay_method = str(row.get("payment_method") or "")
             pay_status = str(row.get("payment_status") or "")
-        if pay_method == "online" and pay_status == "pending":
+            verify_status = str(row.get("payment_verification_status") or "")
+        # A UPI booking can only be completed once its payment is verified.
+        if pay_method == "upi" and verify_status != "verified":
             raise HTTPException(
                 status_code=400,
                 detail={
-                    "code": "PAYMENT_PENDING",
-                    "message": "Cannot complete booking until online payment is verified",
+                    "code": "PAYMENT_NOT_VERIFIED",
+                    "message": "Verify the UPI payment before completing this booking.",
                 },
             )
         if pay_method == "salon_cash" or pay_status == "paid":
@@ -208,14 +211,17 @@ def _time_ranges_overlap(
 
 
 def _get_allowed_payment_methods(salon: dict) -> set[str]:
-    methods = salon.get("payment_methods")
-    if isinstance(methods, list):
-        normalized = {str(method).strip() for method in methods if str(method).strip()}
-        if normalized:
-            return normalized
-    # Legacy salons may not have the new column yet; preserve current behaviour
-    # until the migration is applied and payment methods are explicitly configured.
-    return {"salon_cash", "online"}
+    """Payment methods a salon accepts in v1.
+
+    Cash at salon is always available. UPI is offered only when the salon has
+    set a ``upi_id`` (the customer pays that UPI directly — TrimiT never holds
+    funds). The legacy ``payment_methods`` column / 'online' value is no longer
+    used for gating after the PayU → UPI migration.
+    """
+    methods = {"salon_cash"}
+    if str(salon.get("upi_id") or "").strip():
+        methods.add("upi")
+    return methods
 
 
 def _has_active_hold(hold_rows: list, user_id: str, normalized_slot: str) -> bool:
@@ -777,13 +783,22 @@ async def create_booking(
     # Keep this layer thin — let the DB be the single source of truth.
 
     # 3. Create booking via RPC (Atomic)
+    # UPI bookings never auto-confirm: even when the salon has auto_accept, the
+    # booking stays 'pending' until the owner manually verifies the UPI payment.
+    # Cash bookings keep the existing auto_accept behaviour.
+    is_upi = data.payment_method == "upi"
+    if is_upi:
+        initial_status = "pending"
+    else:
+        initial_status = "confirmed" if salon.get("auto_accept") else "pending"
+
     rpc_payload = {
         "p_user_id": user_id,
         "p_salon_id": data.salon_id,
         "p_service_id": data.service_id,
         "p_booking_date": data.booking_date,
         "p_time_slot": data.time_slot,
-        "p_status": "confirmed" if salon.get("auto_accept") else "pending",
+        "p_status": initial_status,
         "p_payment_method": data.payment_method,
         "p_payment_status": "paid"
         if data.payment_method == "salon_cash"
@@ -850,10 +865,19 @@ async def create_booking(
         token=token,
     )
 
-    try:
-        initial_status = result.get("status") or (
-            "confirmed" if salon.get("auto_accept") else "pending"
+    # UPI bookings enter the manual-verification workflow immediately. The
+    # booking reference + UPI intent are produced by POST /payments/upi/initiate;
+    # here we only mark the payment as 'initiated' (separate from booking status).
+    if is_upi:
+        await supabase.request(
+            "PATCH",
+            f"rest/v1/bookings?id=eq.{booking_id}",
+            service_role=True,
+            json={"payment_verification_status": "initiated"},
         )
+
+    try:
+        push_initial_status = result.get("status") or initial_status
         customer_name = await booking_push.fetch_user_name(user_id)
         is_premium = final_amount >= 500
         await booking_push.after_booking_created(
@@ -864,7 +888,7 @@ async def create_booking(
             service_name=service.get("name", "Service"),
             booking_date=data.booking_date,
             time_slot=data.time_slot,
-            initial_status=initial_status,
+            initial_status=push_initial_status,
             is_premium=is_premium,
             payment_method=data.payment_method,
         )
