@@ -92,6 +92,9 @@ export const BookingNotificationModal: React.FC<Props> = ({
   if (!notification) return null;
 
   const { booking, type, actionRequired } = notification;
+  const receivedAt = notification.timestamp
+    ? new Date(notification.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null;
   const serviceName = getServiceDisplayName(booking);
   const serviceImageUri = getBookingServiceImageUri(booking);
   const customerName = booking.users?.name || 'Customer';
@@ -139,6 +142,7 @@ export const BookingNotificationModal: React.FC<Props> = ({
               <View style={styles.badge}>
                 <View style={styles.badgeDot} />
                 <Text style={styles.badgeText}>{headline}</Text>
+                {receivedAt ? <Text style={styles.receivedText}>· {receivedAt}</Text> : null}
               </View>
               <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={12}>
                 <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
@@ -286,6 +290,11 @@ const createStyles = (theme: Theme, isDark: boolean) =>
       fontSize: 12,
       letterSpacing: 0.8,
       textTransform: 'uppercase',
+      color: theme.colors.textSecondary,
+    },
+    receivedText: {
+      fontFamily: fonts.bodyMedium,
+      fontSize: 12,
       color: theme.colors.textSecondary,
     },
     closeBtn: {

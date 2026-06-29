@@ -9,7 +9,8 @@ import Constants from 'expo-constants';
 import api from './api';
 import { logger } from './logger';
 
-const BOOKINGS_CHANNEL_ID = 'bookings';
+const BOOKINGS_CHANNEL_ID = 'bookings_v2';
+const LEGACY_BOOKINGS_CHANNEL_ID = 'bookings';
 const PROMOTIONS_CHANNEL_ID = 'promotions';
 const DEFAULT_EAS_PROJECT_ID = 'e4f2eade-fe15-4a16-8766-83b0771a4643';
 
@@ -39,7 +40,14 @@ export async function ensureAndroidNotificationChannels(): Promise<void> {
   const { useNotificationPrefsStore } = await import('../store/notificationPrefsStore');
   const { soundEnabled, vibrationEnabled } = useNotificationPrefsStore.getState();
 
-  // 'new_bookings' channel — maximum attention, mirrors Rapido Captain / Blinkit Partner.
+  // Android LOCKS a channel's sound/vibration/importance/bypassDnd on first
+  // creation — they can never be changed in code afterwards. The original
+  // 'bookings' channel shipped with sound:'default' and no DnD bypass, so we
+  // create a fresh 'bookings_v2' channel to apply the high-attention settings
+  // and delete the stale one so it doesn't linger in the owner's settings.
+  await Notifications.deleteNotificationChannelAsync(LEGACY_BOOKINGS_CHANNEL_ID).catch(() => {});
+
+  // 'bookings_v2' channel — maximum attention, mirrors Rapido Captain / Blinkit Partner.
   // bypassDnd: owner must NEVER miss a booking because their phone is on silent.
   // Aggressive vibration pattern: [wait, vibrate, pause, vibrate, pause, vibrate].
   // Sound name must match the filename in assets/sounds/ registered in app.config.js.

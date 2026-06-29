@@ -100,7 +100,7 @@ class PushNotificationService:
             "sound": sound,
             "priority": priority,
             "data": data or {},
-            "channelId": "bookings",
+            "channelId": "bookings_v2",
         }
 
         try:
@@ -147,7 +147,7 @@ class PushNotificationService:
                     # Default to the bookings channel for backwards-compat;
                     # broadcasts pass channelId='promotions' so users can mute
                     # marketing without losing booking alerts.
-                    "channelId": notif.get("channelId", "bookings"),
+                    "channelId": notif.get("channelId", "bookings_v2"),
                 }
             )
 
