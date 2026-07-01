@@ -24,6 +24,15 @@ export const salonService = {
     return normalizeSalon(response.data as Salon);
   },
 
+  /** Owner kill-switch: toggle accepting new bookings, with optional timed reopen. */
+  updateAvailability: async (
+    salonId: string,
+    payload: { accepting_bookings: boolean; closed_until?: string | null; reason?: string | null }
+  ): Promise<Salon> => {
+    const response = await apiClient.patch(`/salons/${salonId}/availability`, payload);
+    return normalizeSalon(response.data as Salon);
+  },
+
   getAnalytics: async (period: string = 'today'): Promise<Analytics> => {
     const response = await apiClient.get('/owner/analytics', {
       params: { period },

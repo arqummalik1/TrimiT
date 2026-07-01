@@ -69,6 +69,7 @@ import {
   withTransientNetworkRetry,
 } from "../../lib/networkRetry";
 import { salonRepository } from "../../repositories/salonRepository";
+import { getSalonClosedState, getClosedLabel } from "../../lib/salonAvailability";
 import { bookingRepository } from "../../repositories/bookingRepository";
 import { promotionRepository } from "../../repositories/promotionRepository";
 import { upiIntentService } from "../../services/upiIntentService";
@@ -219,6 +220,10 @@ export const BookingScreen: React.FC<
   // gate.
   const notBookable =
     ENABLE_SUBSCRIPTION_ENFORCEMENT && salon?.subscription_active === false;
+
+  // Owner kill-switch: salon manually closed (separate from subscription).
+  const closedState = useMemo(() => getSalonClosedState(salon), [salon]);
+  const salonClosed = closedState.closed;
 
   const slotsStaffId = useMemo(
     () => (!anyStaffSelected && selectedStaffId ? selectedStaffId : undefined),
@@ -889,8 +894,11 @@ export const BookingScreen: React.FC<
           timerRef.current = null;
         }
         Alert.alert(
-          "Salon unavailable",
-          "This salon isn't accepting bookings right now.",
+          appErr.code === "SALON_CLOSED" ? "Salon temporarily closed" : "Salon unavailable",
+          appErr.code === "SALON_CLOSED"
+            ? appErr.message ||
+                "This salon is temporarily closed and not taking bookings right now."
+            : "This salon isn't accepting bookings right now.",
         );
         return;
       }
@@ -964,6 +972,15 @@ export const BookingScreen: React.FC<
       Alert.alert(
         "Booking unavailable",
         "This salon isn't accepting bookings right now. Please check back later.",
+      );
+      return;
+    }
+    if (salonClosed) {
+      Alert.alert(
+        "Salon temporarily closed",
+        closedState.reopenAt
+          ? `This salon is closed right now (${getClosedLabel(closedState)}). Please book after it reopens.`
+          : "This salon is temporarily closed and not taking bookings right now. Please check back later.",
       );
       return;
     }
@@ -1654,7 +1671,7 @@ export const BookingScreen: React.FC<
             title={selectedPaymentMethod === 'upi' ? 'Book & Pay' : 'Confirm Booking'}
             onPress={handleConfirmBooking}
             loading={bookingMutation.isPending || reserveMutation.isPending}
-            disabled={notBookable}
+            disabled={notBookable || salonClosed}
             icon={
               <Ionicons
                 name={selectedPaymentMethod === 'upi' ? 'phone-portrait-outline' : 'card-outline'}

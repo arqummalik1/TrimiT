@@ -17,7 +17,7 @@ class SupabaseClient:
             self._client = httpx.AsyncClient(timeout=self.timeout)
         return self._client
 
-    async def request(self, method: str, path: str, token: str = None, service_role: bool = False, json: dict = None, params: dict = None):
+    async def request(self, method: str, path: str, token: str = None, service_role: bool = False, json: dict = None, params: dict = None, extra_headers: dict = None):
         headers = {
             "apikey": self.service_role_key if service_role else self.anon_key,
             "Authorization": f"Bearer {token if token else (self.service_role_key if service_role else self.anon_key)}",
@@ -26,6 +26,13 @@ class SupabaseClient:
         
         if method.upper() in ["POST", "PATCH", "PUT"]:
             headers["Prefer"] = "return=representation"
+
+        # Optional per-call header overrides (e.g. Prefer: resolution=merge-duplicates
+        # for upserts, or Prefer: count=exact for totals). Merged last so callers
+        # can override the defaults above. Backwards-compatible: defaults unchanged
+        # when not provided.
+        if extra_headers:
+            headers.update(extra_headers)
         
         # Clean path
         if path.startswith("/"):

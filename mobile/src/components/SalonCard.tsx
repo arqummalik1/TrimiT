@@ -8,6 +8,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { Theme } from '../theme/tokens';
 import { normalizeSalon, resolveSalonImageSource } from '../lib/salonImage';
 import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../lib/featureFlags';
+import { getSalonClosedState } from '../lib/salonAvailability';
 
 interface SalonCardProps {
   salon: Salon;
@@ -29,9 +30,14 @@ const SalonCardComponent: React.FC<SalonCardProps> = ({ salon: rawSalon, onPress
   // (booking is blocked downstream). The salon is "frozen", not hidden.
   const inactive = ENABLE_SUBSCRIPTION_ENFORCEMENT && salon.subscription_active === false;
 
+  // Owner manually closed (separate from subscription). Salon stays visible but
+  // shows a "Temporarily closed" badge and is not bookable downstream.
+  const closedState = useMemo(() => getSalonClosedState(salon), [salon]);
+  const showClosed = !inactive && closedState.closed;
+
   return (
     <TouchableOpacity
-      style={[styles.container, inactive && styles.containerInactive]}
+      style={[styles.container, (inactive || showClosed) && styles.containerInactive]}
       onPress={onPress}
       activeOpacity={0.9}
     >
@@ -48,6 +54,14 @@ const SalonCardComponent: React.FC<SalonCardProps> = ({ salon: rawSalon, onPress
             <View style={styles.unavailableBadge}>
               <Ionicons name="lock-closed" size={12} color="#FFFFFF" />
               <Text style={styles.unavailableText}>Not taking bookings</Text>
+            </View>
+          </View>
+        )}
+        {showClosed && (
+          <View style={styles.unavailableOverlay}>
+            <View style={styles.unavailableBadge}>
+              <Ionicons name="moon" size={12} color="#FFFFFF" />
+              <Text style={styles.unavailableText}>Temporarily closed</Text>
             </View>
           </View>
         )}

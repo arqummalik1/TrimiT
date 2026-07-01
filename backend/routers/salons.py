@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, HTTPException, Depends, status
+from fastapi import APIRouter, Request, HTTPException, Depends, status, Header
 from typing import List, Optional
 from datetime import datetime, date, timedelta, timezone
 import uuid
@@ -10,7 +10,8 @@ from core.salon_auth import assert_salon_owner
 from config import settings
 from dependencies.auth import get_current_user
 from dependencies.subscription import require_active_subscription
-from models.salons import SalonCreate, SalonUpdate, ServiceCreate, ServiceUpdate
+from models.salons import SalonCreate, SalonUpdate, ServiceCreate, ServiceUpdate, SalonAvailabilityUpdate
+from services import salon_availability
 
 logger = logging.getLogger("trimit")
 
@@ -270,6 +271,79 @@ async def update_salon(salon_id: str, data: SalonUpdate, current_user: dict = De
     if fetch.status_code != 200 or not fetch.json():
         raise HTTPException(status_code=500, detail="Salon updated but could not reload")
     return fetch.json()[0]
+
+
+@router.patch("/{salon_id}/availability")
+async def update_salon_availability(
+    salon_id: str,
+    data: SalonAvailabilityUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Owner kill-switch: turn new bookings ON/OFF with an optional timed reopen.
+
+    Separate from subscription. Does NOT touch existing bookings — only blocks
+    NEW bookings while closed. Deliberately NOT behind require_active_subscription
+    so a frozen owner can still reopen once they re-subscribe.
+    """
+    await assert_salon_owner(salon_id, current_user.get("id"))
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if data.accepting_bookings:
+        # Reopen now: clear the closed window + reason.
+        update_data = {
+            "accepting_bookings": True,
+            "closed_until": None,
+            "closed_at": None,
+            "closed_reason": None,
+        }
+    else:
+        update_data = {
+            "accepting_bookings": False,
+            "closed_until": data.closed_until,  # None = indefinite
+            "closed_at": now_iso,
+            "closed_reason": data.reason,
+        }
+
+    response = await supabase.request(
+        "PATCH",
+        f"rest/v1/salons?id=eq.{salon_id}",
+        json=update_data,
+        token=current_user.get("access_token"),
+    )
+    if response.status_code not in (200, 204):
+        logger.error(
+            "[update_salon_availability] patch failed: %s %s",
+            response.status_code,
+            response.text,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "AVAILABILITY_UPDATE_FAILED", "message": "Could not update availability."},
+        )
+
+    fetch = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{salon_id}&select=*",
+        token=current_user.get("access_token"),
+    )
+    if fetch.status_code != 200 or not fetch.json():
+        raise HTTPException(status_code=500, detail="Availability updated but could not reload")
+    return _strip_bank_details(fetch.json()[0])
+
+
+@router.post("/internal/run-availability")
+async def run_availability(request: Request, authorization: Optional[str] = Header(None)):
+    """Cron-triggered: auto-reopen elapsed closed windows + remind owners closed >24h.
+
+    Admin-token protected (same pattern as subscription reminders).
+    """
+    if not settings.ADMIN_API_TOKEN:
+        raise HTTPException(status_code=404, detail="Not Found")
+    if not authorization or authorization.split(" ", 1)[-1].strip() != settings.ADMIN_API_TOKEN:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    from services import salon_availability_notifications as avail_notify
+    result = await avail_notify.run_availability_sweep()
+    return {"status": "ok", **result}
 
 @router.post("/{salon_id}/services")
 async def create_service(salon_id: str, service: ServiceCreate, current_user: dict = Depends(require_active_subscription)):

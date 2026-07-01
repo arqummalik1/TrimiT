@@ -23,7 +23,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import MapView from 'react-native-maps';
 import ClusteredMapView from 'react-native-map-clustering';
 import type { Coordinates } from '../../lib/maps';
@@ -46,6 +46,8 @@ import { PermissionPrimer } from '../../components/PermissionPrimer';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { SalonMapMarker } from '../../components/SalonMapMarker';
+import { ServiceAreaGate } from '../../components/ServiceAreaGate';
+import { serviceabilityRepository } from '../../repositories/serviceabilityRepository';
 import { DISCOVER_FALLBACK_COORDS, DISCOVER_INITIAL_DELTA } from '../../lib/maps';
 import { logger } from '../../lib/logger';
 import {
@@ -207,6 +209,19 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
 
   const showQuerySkeleton = useMinLoadingTime(isLoading && locationReady, 500);
   const showBodySkeleton = !locationReady || showQuerySkeleton;
+
+  // ── Serviceability gate ─────────────────────────────────────────────────
+  // Is the user inside a city TrimiT serves? Independent of the salon query so
+  // it never blocks discovery. Fails OPEN (treated serviceable) on any error,
+  // and only gates when the backend explicitly returns serviceable === false.
+  const { data: serviceability } = useQuery({
+    queryKey: ['serviceability', 'check', latKey, lngKey],
+    enabled: locationReady,
+    staleTime: 10 * 60 * 1000,
+    queryFn: () => serviceabilityRepository.check(coords),
+    retry: 1,
+  });
+  const isOutOfArea = serviceability?.serviceable === false;
 
   const filteredSalons = useMemo(() => {
     if (!debouncedSearchQuery) return allSalons;
@@ -433,7 +448,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           coordinate={coordinate}
           label={salon.name}
           variant="brand"
-          showLabel={false}
+          showLabel
           showCallout
           onPress={() => handleSalonPress(salon)}
         />
@@ -496,6 +511,8 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
             accessibilityRole="tablist"
             accessibilityLabel="View mode toggle"
           >
+            {!isOutOfArea && (
+              <>
             <TouchableOpacity
               style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
               onPress={() => setViewMode('list')}
@@ -522,6 +539,8 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
                 color={viewMode === 'map' ? theme.colors.textInverse : theme.colors.textSecondary}
               />
             </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
 
@@ -531,6 +550,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
             searchAnim ? { height: searchAnim.height, opacity: searchAnim.opacity } : null,
           ]}
         >
+          {!isOutOfArea && (
           <View
             style={styles.searchInner}
             onLayout={(e) => {
@@ -572,11 +592,14 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
               </View>
             </TouchableOpacity>
           </View>
+          )}
         </Animated.View>
       </View>
 
       {showBodySkeleton ? (
         <SalonListSkeleton />
+      ) : isOutOfArea && serviceability ? (
+        <ServiceAreaGate result={serviceability} coords={coords} />
       ) : viewMode === 'map' ? (
         <View style={styles.mapWrap}>
           {isFocused ? (

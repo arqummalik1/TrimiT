@@ -27,6 +27,7 @@ import {
   unsubscribeFromChannel,
 } from "../../lib/supabase";
 import NotificationBell from "../../components/NotificationBell";
+import SalonAvailabilityToggle from "../../components/owner/SalonAvailabilityToggle";
 
 const OwnerDashboard = () => {
   const queryClient = useQueryClient();
@@ -195,7 +196,10 @@ const OwnerDashboard = () => {
             </div>
 
             {/* Notification Bell */}
-            <NotificationBell isOwner={true} />
+            <div className="flex items-center gap-3">
+              <SalonAvailabilityToggle salon={salon} />
+              <NotificationBell isOwner={true} />
+            </div>
           </div>
         </motion.div>
 

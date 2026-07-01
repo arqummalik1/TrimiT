@@ -13,7 +13,7 @@ import {
   UsersThree, Storefront, CalendarCheck, CurrencyInr, ChartLineUp,
   Eye, Buildings, Wallet, Clock, CheckCircle, WarningCircle, Spinner,
   CaretDown, Sparkle, UserCircle, Prohibit, Trash, UserPlus,
-  EnvelopeSimple, X, TrendUp, TrendDown, Export, Plus, Minus
+  EnvelopeSimple, X, TrendUp, TrendDown, Export, Plus, Minus, MapPin
 } from '@phosphor-icons/react';
 import adminService from '../../services/adminService';
 import { getAdminToken, setAdminToken, clearAdminToken } from '../../lib/adminAuth';
@@ -32,6 +32,30 @@ const formatINR = (v) => `₹${Number(v || 0).toLocaleString('en-IN')}`;
 const formatNumber = (v) => Number(v || 0).toLocaleString('en-IN');
 const formatDateShort = (v) => v ? new Date(v).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 const formatDateTime = (v) => v ? new Date(v).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+
+/** Download waitlist leads as a CSV file (founder lead pipeline export). */
+function exportLeadsCsv(leads) {
+  if (!Array.isArray(leads) || leads.length === 0) return;
+  const headers = ['Name', 'Email', 'Area', 'Nearest area', 'Distance (km)', 'Lat', 'Lng', 'Source', 'Joined'];
+  const esc = (v) => {
+    const s = v === null || v === undefined ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = leads.map((l) => [
+    l.name, l.email, l.area_label, l.nearest_area_slug,
+    l.nearest_distance_km, l.lat, l.lng, l.source, l.created_at,
+  ].map(esc).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `trimit-waitlist-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 function timeAgo(value) {
   if (!value) return '';
@@ -286,6 +310,12 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
   const [overview, setOverview] = useState(null);
   const [owners, setOwners] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [leads, setLeads] = useState([]);
+  const [leadsByArea, setLeadsByArea] = useState([]);
+  const [leadsTotal, setLeadsTotal] = useState(0);
+  const [view, setView] = useState('dashboard'); // 'dashboard' | 'leads'
+  const [selectedLeadIds, setSelectedLeadIds] = useState(() => new Set());
+  const [markingNotified, setMarkingNotified] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errors, setErrors] = useState({ overview: '', owners: '', customers: '' });
@@ -309,13 +339,19 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
       adminService.getOverview(token),
       adminService.getOwners(token),
       adminService.getCustomers(token),
+      adminService.getWaitlistLeads(token),
     ]);
     if (results.some((r) => r.status === 'rejected' && isAuthError(r.reason))) { onAuthExpired(); return; }
-    const [ov, ow, cu] = results;
+    const [ov, ow, cu, ld] = results;
     const nextErrors = { overview: '', owners: '', customers: '' };
     if (ov.status === 'fulfilled') setOverview(ov.value); else nextErrors.overview = getApiErrorMessage(ov.reason, 'Could not load overview.');
     if (ow.status === 'fulfilled') setOwners(ow.value); else nextErrors.owners = getApiErrorMessage(ow.reason, 'Could not load owners.');
     if (cu.status === 'fulfilled') setCustomers(cu.value); else nextErrors.customers = getApiErrorMessage(cu.reason, 'Could not load customers.');
+    if (ld.status === 'fulfilled') {
+      setLeads(ld.value?.leads ?? []);
+      setLeadsByArea(ld.value?.by_area ?? []);
+      setLeadsTotal(ld.value?.total ?? 0);
+    }
     setErrors(nextErrors);
     setLoading(false);
     setRefreshing(false);
@@ -337,6 +373,35 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
       setGrantMsg(getApiErrorMessage(err, 'Could not grant.'));
     } finally { setGrantingId(null); setTimeout(() => setGrantMsg(''), 4000); }
   }, [token, onAuthExpired]);
+
+  const toggleLead = useCallback((id) => {
+    setSelectedLeadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleAllLeads = useCallback((ids, checked) => {
+    setSelectedLeadIds(checked ? new Set(ids) : new Set());
+  }, []);
+
+  const handleMarkNotified = useCallback(async (notified) => {
+    const ids = Array.from(selectedLeadIds);
+    if (ids.length === 0) return;
+    setMarkingNotified(true);
+    try {
+      await adminService.markLeadsNotified(token, ids, notified);
+      const ld = await adminService.getWaitlistLeads(token);
+      setLeads(ld?.leads ?? []);
+      setLeadsByArea(ld?.by_area ?? []);
+      setLeadsTotal(ld?.total ?? 0);
+      setSelectedLeadIds(new Set());
+    } catch (err) {
+      if (isAuthError(err)) { onAuthExpired(); return; }
+      alert(getApiErrorMessage(err, 'Could not update leads.'));
+    } finally { setMarkingNotified(false); }
+  }, [token, selectedLeadIds, onAuthExpired]);
 
   const handleBlock = useCallback(async (userId) => {
     setActionLoading(true);
@@ -417,8 +482,34 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
         </div>
       </header>
 
+      {/* View tabs */}
+      <div className="mb-6 flex items-center gap-2 border-b border-white/10">
+        {[
+          { key: 'dashboard', label: 'Dashboard', Icon: ChartLineUp },
+          { key: 'leads', label: 'Notify Me', Icon: EnvelopeSimple, badge: leadsTotal },
+        ].map(({ key, label, Icon, badge }) => (
+          <button
+            key={key}
+            onClick={() => setView(key)}
+            className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
+              view === key
+                ? 'border-orange-500 text-white'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Icon size={16} weight="duotone" />
+            {label}
+            {badge > 0 && (
+              <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-xs font-bold text-violet-200">{badge}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {errors.overview && !overview && <InlineError message={errors.overview} onRetry={() => loadAll()} />}
 
+      {view === 'dashboard' && (
+      <>
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard icon={Storefront} accent="orange" label="Salon Owners" value={formatNumber(totals.owners)} loading={loading} />
@@ -628,6 +719,101 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
           )}
         </SectionCard>
       </div>
+      </>
+      )}
+
+      {view === 'leads' && (
+      <>
+      {/* Notify Me — out-of-area demand leads (separate screen) */}
+      <div className="mb-4 flex items-center gap-2 rounded-xl border border-orange-500/20 bg-orange-500/10 px-4 py-3 text-sm text-orange-100">
+        <MapPin size={16} weight="fill" className="text-orange-300" />
+        TrimiT is currently live in <strong className="text-white">Jammu</strong>. These people asked to be notified when we launch in their area.
+      </div>
+      <div className="mt-2 mb-12">
+        <SectionCard title="Waitlist Leads" icon={EnvelopeSimple} right={
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200">{leadsTotal} total</span>
+            {selectedLeadIds.size > 0 && (
+              <button onClick={() => handleMarkNotified(true)} disabled={markingNotified} className="flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/20 disabled:opacity-50">
+                {markingNotified ? <Spinner size={14} className="animate-spin" /> : <CheckCircle size={14} weight="bold" />} Mark {selectedLeadIds.size} as notified
+              </button>
+            )}
+            {leads.length > 0 && (
+              <button onClick={() => exportLeadsCsv(leads)} className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/20">
+                <Export size={14} weight="bold" /> Export CSV
+              </button>
+            )}
+          </div>
+        }>
+          {leadsByArea.length > 0 && (
+            <div className="flex flex-wrap gap-2 border-b border-white/10 px-5 py-4">
+              {leadsByArea.map((b) => (
+                <span key={b.area} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-800/60 px-3 py-1 text-xs text-slate-300">
+                  <MapPin size={12} weight="duotone" className="text-orange-300" />
+                  <span className="font-medium text-white">{b.area}</span>
+                  <span className="text-slate-400">· {b.count}</span>
+                </span>
+              ))}
+            </div>
+          )}
+          {loading ? <TableSkeleton cols={5} rows={5} /> : leads.length === 0 ? <EmptyState icon={EnvelopeSimple} title="No waitlist leads yet" /> : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[800px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-slate-500">
+                    <th className="px-5 py-3 font-medium w-10">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all leads"
+                        className="h-4 w-4 rounded border-white/20 bg-slate-800 accent-orange-500"
+                        checked={leads.length > 0 && selectedLeadIds.size === leads.length}
+                        onChange={(e) => toggleAllLeads(leads.map((l) => l.id), e.target.checked)}
+                      />
+                    </th>
+                    <th className="px-5 py-3 font-medium">Name</th>
+                    <th className="px-5 py-3 font-medium">Email</th>
+                    <th className="px-5 py-3 font-medium">Nearest City</th>
+                    <th className="px-5 py-3 font-medium">Distance</th>
+                    <th className="px-5 py-3 font-medium">Source</th>
+                    <th className="px-5 py-3 font-medium">Status</th>
+                    <th className="px-5 py-3 font-medium">Joined</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {leads.map((l) => (
+                    <tr key={l.id} className={`transition hover:bg-white/[0.03] ${selectedLeadIds.has(l.id) ? 'bg-orange-500/[0.06]' : ''}`}>
+                      <td className="px-5 py-4">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${l.email}`}
+                          className="h-4 w-4 rounded border-white/20 bg-slate-800 accent-orange-500"
+                          checked={selectedLeadIds.has(l.id)}
+                          onChange={() => toggleLead(l.id)}
+                        />
+                      </td>
+                      <td className="px-5 py-4 font-medium text-white">{l.name || '—'}</td>
+                      <td className="px-5 py-4 text-slate-300">{l.email}</td>
+                      <td className="px-5 py-4 text-slate-300">{l.area_label || l.nearest_area_slug || '—'}</td>
+                      <td className="px-5 py-4 text-slate-400">{typeof l.nearest_distance_km === 'number' ? `${Math.round(l.nearest_distance_km)} km` : '—'}</td>
+                      <td className="px-5 py-4 text-slate-400 capitalize">{l.source || '—'}</td>
+                      <td className="px-5 py-4">
+                        {l.notified_at ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300"><CheckCircle size={12} weight="fill" /> Notified</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-700/40 px-2 py-1 text-xs font-medium text-slate-400">Pending</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-slate-400">{formatDateTime(l.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </SectionCard>
+      </div>
+      </>
+      )}
 
       {/* Block Modal */}
       <Modal open={blockModal.open} onClose={() => setBlockModal({ open: false, user: null, type: null })} title={`Block ${blockModal.type === 'owner' ? 'Owner' : 'Customer'}`}>

@@ -18,6 +18,15 @@ const ContactPage = () => (
         <p className="text-stone-600 text-sm mb-4">
           Reach our team for bookings, salon listings, or account help.
         </p>
+        <div className="mb-4 p-4 rounded-2xl border border-stone-200 bg-stone-50">
+          <p className="text-xs uppercase tracking-wide text-stone-400 font-semibold mb-1">
+            Business / Legal Entity
+          </p>
+          <p className="text-sm font-semibold text-stone-900">KALSOOM AKHTER</p>
+          <p className="text-xs text-stone-500 mt-1">
+            Registered operator of TrimiT.
+          </p>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Email Card */}
           <a

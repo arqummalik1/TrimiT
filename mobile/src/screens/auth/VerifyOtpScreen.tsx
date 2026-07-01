@@ -8,8 +8,6 @@ import {
   Platform,
   ScrollView,
   TextInput,
-  NativeSyntheticEvent,
-  TextInputKeyPressEventData,
   ViewStyle,
   TextStyle,
 } from 'react-native';
@@ -32,8 +30,8 @@ interface ResendCountdownSectionProps {
   isLoading: boolean;
   clearError: () => void;
   setLocalError: (err: string | undefined) => void;
-  setCode: React.Dispatch<React.SetStateAction<string[]>>;
-  focusFirstInput: () => void;
+  setCode: React.Dispatch<React.SetStateAction<string>>;
+  focusInput: () => void;
   theme: Theme;
   styles: {
     resendContainer: ViewStyle;
@@ -50,7 +48,7 @@ const ResendCountdownSection: React.FC<ResendCountdownSectionProps> = ({
   clearError,
   setLocalError,
   setCode,
-  focusFirstInput,
+  focusInput,
   theme,
   styles,
 }) => {
@@ -99,8 +97,8 @@ const ResendCountdownSection: React.FC<ResendCountdownSectionProps> = ({
     if (result.success) {
       showToast('A new code has been sent to your email.', 'success');
       setResendTimer(30);
-      setCode(Array(6).fill(''));
-      focusFirstInput();
+      setCode('');
+      focusInput();
     } else {
       showToast(result.error || 'Failed to resend code. Please try again.', 'error');
     }
@@ -133,20 +131,17 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
 
   const { verifyOtp, sendOtp, isLoading, error: authError, clearError } = useAuthStore();
 
-  const [code, setCode] = useState<string[]>(Array(6).fill(''));
+  const [code, setCode] = useState<string>('');
   const [localError, setLocalError] = useState<string | undefined>(undefined);
   const [sendingCode, setSendingCode] = useState(route.params.isPending === true);
   const [otpSendFailed, setOtpSendFailed] = useState(false);
 
-  // Refs for the 6 TextInput boxes
-  const inputRefs = [
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-  ];
+  // Single hidden input backs the 6 visual boxes. A SINGLE field is what makes
+  // iOS Security-Code AutoFill (QuickType bar) fill all 6 digits at once — six
+  // separate inputs only ever get the first digit filled. It also makes paste
+  // and Android autofill behave correctly.
+  const inputRef = useRef<TextInput>(null);
+  const focusInput = () => inputRef.current?.focus();
 
   // Clear errors on mount/unmount
   useEffect(() => {
@@ -196,41 +191,15 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
     return () => clearTimeout(timeoutTimer);
   }, [route.params.isPending, sendingCode]);
 
-  const handleTextChange = (text: string, index: number) => {
+  const handleCodeChange = (text: string) => {
     setLocalError(undefined);
     clearError();
-
-    const numericText = text.replace(/[^0-9]/g, '');
-    if (numericText.length === 6) {
-      const newCode = numericText.split('');
-      setCode(newCode);
-      inputRefs[5].current?.focus();
-      return;
-    }
-
-    const cleaned = numericText.slice(-1);
-    const newCode = [...code];
-    newCode[index] = cleaned;
-    setCode(newCode);
-
-    // Auto-advance focus to the next input box if typed a digit
-    if (cleaned && index < 5) {
-      inputRefs[index + 1].current?.focus();
-    }
-  };
-
-  const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>, index: number) => {
-    // Fallback focus to previous input box on backspace press
-    if (e.nativeEvent.key === 'Backspace' && !code[index] && index > 0) {
-      const newCode = [...code];
-      newCode[index - 1] = '';
-      setCode(newCode);
-      inputRefs[index - 1].current?.focus();
-    }
+    const numeric = text.replace(/[^0-9]/g, '').slice(0, 6);
+    setCode(numeric);
   };
 
   const handleVerify = async () => {
-    const fullCode = code.join('');
+    const fullCode = code;
     if (fullCode.length < 6) {
       setLocalError('Please enter all 6 digits of the code.');
       return;
@@ -269,7 +238,7 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
     return `${name.slice(0, 2)}***@${domain}`;
   }, [email]);
 
-  const isVerifyDisabled = code.some((val) => !val) || isLoading;
+  const isVerifyDisabled = code.length < 6 || isLoading;
 
   return (
     <ScreenWrapper variant="auth">
@@ -318,28 +287,44 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
               />
             )}
 
-            {/* Numeric Digits Code Boxes */}
-            <View style={styles.codeContainer}>
-              {code.map((value, index) => (
-                <TextInput
-                  key={index}
-                  ref={inputRefs[index]}
-                  style={[
-                    styles.codeInput,
-                    value ? styles.codeInputFilled : null,
-                  ]}
-                  value={value}
-                  onChangeText={(text) => handleTextChange(text, index)}
-                  onKeyPress={(e) => handleKeyPress(e, index)}
-                  keyboardType="number-pad"
-                  maxLength={6} // allow pasting of whole string
-                  selectTextOnFocus
-                  editable={!isLoading}
-                  textContentType="oneTimeCode"
-                  autoComplete="one-time-code"
-                />
-              ))}
-            </View>
+            {/* Numeric code: one hidden input drives 6 visual cells so iOS/
+                Android autofill + paste fill all digits at once. */}
+            <TouchableOpacity activeOpacity={1} onPress={focusInput}>
+              <View style={styles.codeContainer}>
+                {Array.from({ length: 6 }).map((_, index) => {
+                  const char = code[index] ?? '';
+                  const isActive = index === Math.min(code.length, 5) && !char;
+                  return (
+                    <View
+                      key={index}
+                      style={[
+                        styles.codeInput,
+                        char ? styles.codeInputFilled : null,
+                        isActive ? styles.codeInputActive : null,
+                      ]}
+                    >
+                      <Text style={styles.codeInputText}>{char}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              <TextInput
+                ref={inputRef}
+                value={code}
+                onChangeText={handleCodeChange}
+                keyboardType="number-pad"
+                maxLength={6}
+                editable={!isLoading}
+                autoFocus
+                textContentType="oneTimeCode"
+                autoComplete={Platform.OS === 'android' ? 'sms-otp' : 'one-time-code'}
+                importantForAutofill="yes"
+                caretHidden
+                style={styles.hiddenInput}
+                accessibilityLabel="6-digit verification code"
+              />
+            </TouchableOpacity>
 
             <Button
               title="Verify & Continue"
@@ -357,7 +342,7 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
               clearError={clearError}
               setLocalError={setLocalError}
               setCode={setCode}
-              focusFirstInput={() => inputRefs[0].current?.focus()}
+              focusInput={focusInput}
               theme={theme}
               styles={styles}
             />
@@ -425,15 +410,30 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1.5,
       borderColor: theme.colors.border,
       borderRadius: borderRadius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.surface,
+    },
+    codeInputText: {
       textAlign: 'center',
       fontSize: 22,
       fontWeight: '600',
       color: theme.colors.text,
-      backgroundColor: theme.colors.surface,
     },
     codeInputFilled: {
       borderColor: theme.colors.primary,
       backgroundColor: theme.colors.surfaceSecondary,
+    },
+    codeInputActive: {
+      borderColor: theme.colors.primary,
+    },
+    hiddenInput: {
+      position: 'absolute',
+      width: '100%',
+      height: 56,
+      opacity: 0,
+      // Keep it within the box row so focus/paste feels natural.
+      top: spacing.lg,
     },
     resendContainer: {
       marginTop: spacing.xl,

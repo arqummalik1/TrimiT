@@ -88,6 +88,25 @@ export const adminService = {
     const res = await adminApi.post('/admin/users/invite', { email, name, role }, authHeaders(token));
     return res.data;
   },
+
+  /** Out-of-area demand leads (waitlist) + counts grouped by nearest city. */
+  getWaitlistLeads: async (token, { limit = 200, offset = 0 } = {}) => {
+    const res = await adminApi.get(
+      `/admin/waitlist-leads?limit=${limit}&offset=${offset}`,
+      authHeaders(token)
+    );
+    return res.data; // { leads, total, by_area }
+  },
+
+  /** Mark (or unmark) one or more waitlist leads as notified. */
+  markLeadsNotified: async (token, leadIds, notified = true) => {
+    const res = await adminApi.post(
+      '/admin/waitlist-leads/mark-notified',
+      { lead_ids: leadIds, notified },
+      authHeaders(token)
+    );
+    return res.data; // { updated, notified }
+  },
 };
 
 export default adminService;

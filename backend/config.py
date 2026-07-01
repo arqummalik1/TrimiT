@@ -78,6 +78,13 @@ class Settings(BaseSettings):
     # Production must use Custom SMTP in Supabase for scalable signups.
     AUTH_AUTO_CONFIRM_SIGNUP: bool = False
 
+    # ── Serviceability ──────────────────────────────────────────────────────
+    # Optional GLOBAL override for every active service area's coverage radius
+    # (km). When set (> 0), it wins over each row's `service_areas.radius_km`,
+    # so you can widen/narrow coverage from Render env WITHOUT touching the DB
+    # (e.g. flip Jammu 30 → 50 km instantly). Unset/blank/<=0 → use the DB value.
+    SERVICE_AREA_RADIUS_KM: Optional[float] = None
+
     # API Keys
     GOOGLE_MAPS_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None

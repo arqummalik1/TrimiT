@@ -44,6 +44,8 @@ import { useSubscriptionStatus } from '../../hooks/useSubscription';
 import { ENABLE_SUBSCRIPTIONS } from '../../lib/featureFlags';
 import { OwnerSetupBanner } from '../../components/OwnerSetupBanner';
 import { useVerifyPayment, useRejectPayment } from '../../hooks/usePayment';
+import SalonCloseSheet, { CloseChoice } from '../../components/owner/SalonCloseSheet';
+import { getSalonClosedState, getClosedLabel } from '../../lib/salonAvailability';
 
 import { OwnerDashboardScreenProps as NavigationProps } from '../../navigation/types';
 import { ComponentProps } from 'react';
@@ -228,6 +230,37 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
   const verifyPayment = useVerifyPayment();
   const rejectPayment = useRejectPayment();
 
+  // ── Open/Close kill-switch ──────────────────────────────────────────────────
+  const [closeSheetVisible, setCloseSheetVisible] = useState(false);
+  const closedState = useMemo(() => getSalonClosedState(salon), [salon]);
+
+  const availabilityMutation = useMutation({
+    mutationFn: (payload: { accepting_bookings: boolean; closed_until?: string | null; reason?: string | null }) =>
+      salonRepository.updateAvailability(salon!.id, payload),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['ownerSalon'], updated);
+      queryClient.invalidateQueries({ queryKey: ['ownerSalon'] });
+    },
+    onError: (error: unknown) => {
+      showToast(handleApiError(error).message, 'error');
+    },
+  });
+
+  const handleReopen = () => {
+    availabilityMutation.mutate(
+      { accepting_bookings: true },
+      { onSuccess: () => showToast('Your salon is open — accepting bookings', 'success') }
+    );
+  };
+
+  const handleCloseConfirm = (choice: CloseChoice) => {
+    setCloseSheetVisible(false);
+    availabilityMutation.mutate(
+      { accepting_bookings: false, closed_until: choice.closedUntil },
+      { onSuccess: () => showToast(choice.label, 'success') }
+    );
+  };
+
   const handleVerifyPayment = (bookingId: string) => {
     verifyPayment.mutate(
       { bookingId },
@@ -379,6 +412,41 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
           <View style={styles.headerLeft}>
             <Text style={styles.welcomeText}>Good Day,</Text>
             <Text style={styles.salonTitle} numberOfLines={1}>{salon.name}</Text>
+            {/* Open / Closed kill-switch pill */}
+            <TouchableOpacity
+              style={[
+                styles.availabilityPill,
+                {
+                  backgroundColor: closedState.closed
+                    ? theme.colors.error + '1A'
+                    : theme.colors.success + '1A',
+                  borderColor: closedState.closed ? theme.colors.error : theme.colors.success,
+                },
+              ]}
+              activeOpacity={0.85}
+              disabled={availabilityMutation.isPending}
+              onPress={closedState.closed ? handleReopen : () => setCloseSheetVisible(true)}
+            >
+              <View
+                style={[
+                  styles.availabilityDot,
+                  { backgroundColor: closedState.closed ? theme.colors.error : theme.colors.success },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.availabilityText,
+                  { color: closedState.closed ? theme.colors.error : theme.colors.success },
+                ]}
+                numberOfLines={1}
+              >
+                {availabilityMutation.isPending
+                  ? 'Updating…'
+                  : closedState.closed
+                  ? `${getClosedLabel(closedState)} · Tap to open`
+                  : 'Open · Accepting bookings'}
+              </Text>
+            </TouchableOpacity>
             {ENABLE_SUBSCRIPTIONS && subscriptionStatus?.is_trial ? (
               <TouchableOpacity
                 style={[styles.trialPill, { backgroundColor: trialPillColor }]}
@@ -536,6 +604,14 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <SalonCloseSheet
+        visible={closeSheetVisible}
+        openingTime={salon.opening_time}
+        saving={availabilityMutation.isPending}
+        onClose={() => setCloseSheetVisible(false)}
+        onConfirm={handleCloseConfirm}
+      />
     </ScreenWrapper>
   );
 };
@@ -563,6 +639,19 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: theme.borderRadius.pill,
   },
   trialPillText: { ...typography.captionMedium, color: theme.colors.background, fontWeight: '800', letterSpacing: 0.2 },
+  availabilityPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: theme.borderRadius.pill,
+    borderWidth: 1,
+  },
+  availabilityDot: { width: 7, height: 7, borderRadius: 4 },
+  availabilityText: { ...typography.captionMedium, fontWeight: '700', letterSpacing: 0.2 },
   notificationBell: {
     width: 44, height: 44, borderRadius: theme.borderRadius.full, backgroundColor: theme.colors.surface,
     alignItems: 'center', justifyContent: 'center',
