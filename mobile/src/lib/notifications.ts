@@ -8,6 +8,7 @@ import { AppState, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import api from './api';
 import { logger } from './logger';
+import { lightPalette } from '../theme/colors';
 
 const BOOKINGS_CHANNEL_ID = 'bookings_v2';
 const LEGACY_BOOKINGS_CHANNEL_ID = 'bookings';
@@ -57,7 +58,7 @@ export async function ensureAndroidNotificationChannels(): Promise<void> {
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: vibrationEnabled ? [0, 400, 200, 400, 200, 400] : undefined,
     enableVibrate: vibrationEnabled,
-    lightColor: '#9A3412',
+    lightColor: lightPalette.primary,
     sound: soundEnabled ? 'notification' : undefined,
     enableLights: true,
     showBadge: true,

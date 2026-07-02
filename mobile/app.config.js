@@ -30,6 +30,7 @@ function loadDotEnv() {
 loadDotEnv();
 
 const appVersion = require('../shared/app-version.json');
+const { lightPalette } = require('./src/theme/colors');
 
 const withAndroidPermissions = require('./plugins/withAndroidPermissions');
 
@@ -58,6 +59,8 @@ module.exports = ({ config }) => {
   const supabaseUrl = env('EXPO_PUBLIC_SUPABASE_URL');
   const supabaseAnon = env('EXPO_PUBLIC_SUPABASE_ANON_KEY');
   const sentryDsn = env('EXPO_PUBLIC_SENTRY_DSN');
+  const googleWebClientId = env('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
+  const googleIosClientId = env('EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID');
 
   if (isEasBuild && isReleaseProfile) {
     const missing = [];
@@ -81,8 +84,8 @@ module.exports = ({ config }) => {
     [
       'expo-notifications',
       {
-        icon: './assets/adaptive-icon.png',
-        color: '#000000',
+        icon: './assets/notification-icon.png',
+        color: lightPalette.primary,
         sounds: ['./assets/sounds/notification.mp3'],
       },
     ],
@@ -116,6 +119,18 @@ module.exports = ({ config }) => {
       },
     ]);
   }
+
+  // Google Sign-In native module (config plugin). The plugin REQUIRES an
+  // iosUrlScheme even for Android-only builds, so we fall back to a harmless
+  // placeholder when no iOS client ID is set (ignored on Android). Set
+  // EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID before shipping an iOS build.
+  const googleIosUrlScheme = googleIosClientId
+    ? `com.googleusercontent.apps.${googleIosClientId.replace('.apps.googleusercontent.com', '')}`
+    : 'com.googleusercontent.apps.placeholder';
+  plugins.push([
+    '@react-native-google-signin/google-signin',
+    { iosUrlScheme: googleIosUrlScheme },
+  ]);
 
   return withAndroidPermissions({
     ...config,
@@ -155,8 +170,8 @@ module.exports = ({ config }) => {
         package: 'com.trimit.app',
         allowBackup: false,
         notification: {
-          icon: './assets/adaptive-icon.png',
-          color: '#000000',
+          icon: './assets/notification-icon.png',
+          color: lightPalette.primary,
         },
         adaptiveIcon: {
           foregroundImage: './assets/adaptive-icon.png',
@@ -192,6 +207,8 @@ module.exports = ({ config }) => {
         supabaseUrl,
         supabaseAnonKey: supabaseAnon,
         googleMapsApiKey: mapsKey,
+        googleWebClientId,
+        googleIosClientId,
         publicSiteUrl: env('EXPO_PUBLIC_PUBLIC_SITE_URL', DEFAULT_SITE_URL),
         sentryDsn: sentryDsn || null,
         enableOnlinePay: env('EXPO_PUBLIC_ENABLE_ONLINE_PAY', 'false'),
