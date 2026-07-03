@@ -121,7 +121,13 @@ function withAndroidPermissions(config) {
 
     const app = AndroidConfig.Manifest.getMainApplicationOrThrow(config.modResults);
     app.$ = app.$ || {};
-    app.$['android:enableOnBackInvokedCallback'] = 'true';
+    // MUST stay 'false'. On old architecture + react-native-screens 4.x, Android
+    // 13+ predictive back (enableOnBackInvokedCallback="true") is NOT consumed by
+    // React Navigation, so every swipe-back/gesture back closes the app instead
+    // of popping the screen. Setting it false restores the legacy BackHandler
+    // path that React Navigation intercepts reliably. Do not flip to 'true'
+    // until the app is on the New Architecture and back nav is verified.
+    app.$['android:enableOnBackInvokedCallback'] = 'false';
 
     return config;
   });

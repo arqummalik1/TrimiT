@@ -27,6 +27,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { ErrorState } from '../../components/ErrorState';
+import { GoogleSignInButton } from '../../components/GoogleSignInButton';
 import { showToast } from '../../store/toastStore';
 import { getAuthRateLimitMessage } from '../../lib/authRateLimitMessages';
 import { typography, spacing, borderRadius } from '../../lib/utils';
@@ -37,6 +38,11 @@ import { ScreenWrapper } from '../../components/ScreenWrapper';
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Google Sign-In is built but NOT yet verified end-to-end (mobile + web), so it
+// is hidden for launch. Flip to true once tested to re-enable the button — no
+// other change needed.
+const GOOGLE_LOGIN_ENABLED = false;
 
 interface ValidationErrors {
   email?: string;
@@ -298,6 +304,19 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
                 {isOtpLogin ? 'Sign in with Email and Password' : 'Sign in with OTP'}
               </Text>
             </TouchableOpacity>
+
+            {/* Divider + Google — hidden until Google login is verified */}
+            {GOOGLE_LOGIN_ENABLED && (
+              <>
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>OR</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                <GoogleSignInButton />
+              </>
+            )}
           </View>
 
 
@@ -382,6 +401,21 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     ...typography.bodySmallMedium,
     color: theme.colors.primary,
     textAlign: 'center',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginVertical: spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.colors.border,
+  },
+  dividerText: {
+    ...typography.caption,
+    color: theme.colors.textSecondary,
   },
   footer: {
     flexDirection: 'row',

@@ -5,12 +5,16 @@ import { EnvelopeSimple } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
+import GoogleSignInButton from '../components/auth/GoogleSignInButton';
 
 // Email-only OTP signup — identical flow to the mobile app and to LoginPage.
 // The user enters only their email, receives a 6-digit OTP, verifies it, and
 // (if new) finishes on CompleteProfile where they pick their role. Role is
 // decided AFTER OTP. There is no upfront role/name/phone form anymore.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Google login is built but not yet verified end-to-end; hidden for launch.
+const GOOGLE_LOGIN_ENABLED = false;
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -110,6 +114,19 @@ const SignupPage = () => {
               )}
             </button>
           </form>
+
+          {/* Divider + Google — hidden until Google login is verified */}
+          {GOOGLE_LOGIN_ENABLED && (
+            <>
+              <div className="flex items-center gap-3 my-6">
+                <div className="flex-1 h-px bg-stone-200" />
+                <span className="text-xs text-stone-400 font-medium">OR</span>
+                <div className="flex-1 h-px bg-stone-200" />
+              </div>
+
+              <GoogleSignInButton label="Sign up with Google" />
+            </>
+          )}
 
           <div className="mt-6 text-center">
             <p className="text-stone-500 text-sm">

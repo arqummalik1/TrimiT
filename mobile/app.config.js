@@ -1,4 +1,4 @@
-// Dynamic Expo config — env from EAS dashboard, eas.json, or mobile/.env (local builds via scripts/load-env-for-build.sh).
+ // Dynamic Expo config — env from EAS dashboard, eas.json, or mobile/.env (local builds via scripts/load-env-for-build.sh).
 // .env is gitignored and is NOT copied into EAS temp dirs — always load .env here when the file exists.
 
 const fs = require('fs');
@@ -30,7 +30,6 @@ function loadDotEnv() {
 loadDotEnv();
 
 const appVersion = require('../shared/app-version.json');
-const { lightPalette } = require('./src/theme/colors');
 
 const withAndroidPermissions = require('./plugins/withAndroidPermissions');
 
@@ -49,6 +48,9 @@ function env(name, fallback = '') {
   }
   return fallback;
 }
+
+// Notification accent color — MUST match lightPalette.primary in src/theme/colors.ts
+const NOTIFICATION_COLOR = '#9A3412';
 
 module.exports = ({ config }) => {
   const isEasBuild = Boolean(process.env.EAS_BUILD);
@@ -85,7 +87,7 @@ module.exports = ({ config }) => {
       'expo-notifications',
       {
         icon: './assets/notification-icon.png',
-        color: lightPalette.primary,
+        color: NOTIFICATION_COLOR,
         sounds: ['./assets/sounds/notification.mp3'],
       },
     ],
@@ -171,7 +173,7 @@ module.exports = ({ config }) => {
         allowBackup: false,
         notification: {
           icon: './assets/notification-icon.png',
-          color: lightPalette.primary,
+          color: NOTIFICATION_COLOR,
         },
         adaptiveIcon: {
           foregroundImage: './assets/adaptive-icon.png',

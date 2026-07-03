@@ -5,7 +5,12 @@ import { EnvelopeSimple, Lock, Eye, EyeSlash } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
+import GoogleSignInButton from '../components/auth/GoogleSignInButton';
 import { safeInternalPath } from '../lib/utils';
+
+// Google login is built but not yet verified end-to-end; hidden for launch.
+// Flip to true once tested to re-enable.
+const GOOGLE_LOGIN_ENABLED = false;
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -176,6 +181,19 @@ const LoginPage = () => {
               </button>
             </div>
           </form>
+
+          {/* Divider + Google — hidden until Google login is verified */}
+          {GOOGLE_LOGIN_ENABLED && (
+            <>
+              <div className="flex items-center gap-3 my-6">
+                <div className="flex-1 h-px bg-stone-200" />
+                <span className="text-xs text-stone-400 font-medium">OR</span>
+                <div className="flex-1 h-px bg-stone-200" />
+              </div>
+
+              <GoogleSignInButton />
+            </>
+          )}
 
           <div className="mt-6 text-center space-y-3">
             <p className="text-stone-500 text-sm">

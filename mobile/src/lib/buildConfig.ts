@@ -5,6 +5,8 @@ type Extra = {
   supabaseUrl?: string;
   supabaseAnonKey?: string;
   googleMapsApiKey?: string;
+  googleWebClientId?: string;
+  googleIosClientId?: string;
   publicSiteUrl?: string;
   sentryDsn?: string | null;
   enableOnlinePay?: string;
@@ -30,6 +32,11 @@ export const buildConfig = {
   supabaseUrl: pick('supabaseUrl', 'EXPO_PUBLIC_SUPABASE_URL', ''),
   supabaseAnonKey: pick('supabaseAnonKey', 'EXPO_PUBLIC_SUPABASE_ANON_KEY', ''),
   googleMapsApiKey: pick('googleMapsApiKey', 'EXPO_PUBLIC_GOOGLE_MAPS_API_KEY', ''),
+  // Google Sign-In. webClientId is the "Web application" OAuth client ID (used by
+  // Supabase signInWithIdToken and required by GoogleSignin on Android too).
+  // iosClientId is the iOS OAuth client ID (only needed for iOS builds).
+  googleWebClientId: pick('googleWebClientId', 'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID', ''),
+  googleIosClientId: pick('googleIosClientId', 'EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID', ''),
   publicSiteUrl: pick('publicSiteUrl', 'EXPO_PUBLIC_PUBLIC_SITE_URL', 'https://trimit.online'),
   sentryDsn: pick('sentryDsn', 'EXPO_PUBLIC_SENTRY_DSN', ''),
   enableOnlinePay:

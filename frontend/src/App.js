@@ -19,6 +19,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import VerifyOtpPage from "./pages/VerifyOtpPage";
 import CompleteProfilePage from "./pages/CompleteProfilePage";
 import EmailConfirmedPage from "./pages/EmailConfirmedPage";
+import AuthCallbackPage from "./pages/AuthCallbackPage";
 import SalonDetail from "./pages/customer/SalonDetail";
 import BookingPage from "./pages/customer/BookingPage";
 import PaymentWaitingPage from "./pages/customer/PaymentWaitingPage";
@@ -92,7 +93,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
-const AUTH_CALLBACK_PATHS = ["/auth/email-confirmed", "/reset-password"];
+const AUTH_CALLBACK_PATHS = ["/auth/email-confirmed", "/reset-password", "/auth/callback"];
 
 function App() {
   const { initializeAuth, isAuthenticated, profile, isInitializing, hasSalon } =
@@ -188,6 +189,7 @@ function App() {
             path="/auth/email-confirmed"
             element={<EmailConfirmedPage />}
           />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/contact" element={<ContactPage />} />

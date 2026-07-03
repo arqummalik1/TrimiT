@@ -67,6 +67,76 @@
 - [ ] Confirm a salon's money reaches their bank (`settlement_status=settled`)
 
 ## Session log
+### 2026-07-02 — Notification icon branding + launch-blocker fixes (mobile)
+**Notification icon:** Android small/status-bar icon was pointed at
+`adaptive-icon.png` (fully opaque) → rendered as a white square (Android uses
+only the alpha channel for the small icon). Generated `assets/notification-icon.png`
+(96×96 white silhouette of the logo mark, transparent bg, padded, via
+`scripts/make-notification-icon.py`) and pointed both the `expo-notifications`
+plugin and `android.notification` at it, with brand accent `#9A3412`. All pushes
+(owner + customer, remote + local) now show the branded TrimiT icon.
+
+**Also fixed this pass (all mobile, verified tsc + tests):**
+- Booking no longer fires a client-side "Booking confirmed" local notification at
+  creation (was premature for UPI/cash). Backend `notify_customer_booking_confirmed`
+  remains the source of truth. (RULES 7A)
+- Google login hidden behind `GOOGLE_LOGIN_ENABLED=false` (mobile + web) until
+  verified end-to-end. `googleAuthService` now lazy-loads the native module so
+  Expo Go no longer throws `RNGoogleSignin` Invariant Violation.
+- Back gesture no longer exits the app: `withAndroidPermissions.js`
+  `enableOnBackInvokedCallback` → `false` (predictive back unsupported on old arch).
+- Discover no longer refetches all cards ~1 min after open: `useDiscoverLocation`
+  now ignores sub-500 m GPS refinement (was changing the query key).
+- Session-expired-after-login: added `onAuthStateChange` writeback so rotated
+  Supabase refresh tokens are persisted to the store (no more stale-token 401s).
+- `expo install --fix`: expo 54.0.35, expo-file-system 19.0.23, expo-font 14.0.12.
+
+Local preview APK built OK (`build-1783002335863.apk`). AAB pending user sign-off.
+
+**Follow-up (same date) — notification timing corrected:**
+- Verified backend `booking_push.py` sends "✅ Booking Confirmed" at the right
+  moments only: creation-if-`auto_accept` (cash), owner-accept, and UPI
+  payment-verified. No change needed server-side.
+- `BookingScreen`: removed creation-time `scheduleBookingReminder` (fired for
+  unconfirmed bookings).
+- `MyBookingsScreen`: 1-hour "Upcoming appointment" reminder now scheduled
+  ONLY for `status==='confirmed'` bookings (idempotent; driven by focus-refetch
+  + realtime), and cancelled for `cancelled` bookings. Verified: tsc + 51
+  booking tests pass; added a notifications jest.mock to MyBookingsScreen.test.
+- Cloud production AAB (versionCode 33) built on EAS for Play Store.
+- Added steering `/.kiro/steering/no-assumptions.md` (RULE #1: never assume,
+  always fact-check).
+
+### 2026-07-01 — FEATURE: Google Sign-In (web + mobile) + web contact legal entity name
+**Google Sign-In / Sign-Up on web and mobile.** Reuses the existing OTP
+architecture end-to-end — Google just produces a Supabase session, then the
+same `/auth/me` + `profile_complete` gate decides new vs returning. New users
+land on CompleteProfile to pick their role (customer/owner); returning users are
+routed by role. **One email = one account** via Supabase "link identities"
+(dashboard setting) — no duplicates between OTP and Google.
+
+**Backend:** ZERO changes. A Google-issued Supabase JWT validates on the same
+`JWT_SECRET`; `/auth/me` returns `profile_complete=false` for a new user and the
+existing CompleteProfile flow takes over. **No new migration.**
+
+**Web (Vercel):**
+- `store/authStore.js` — new `googleSignIn()` (OAuth redirect) + `hydrateFromSupabaseSession()`.
+- `pages/AuthCallbackPage.js` + route `/auth/callback` (PKCE code exchange / implicit hash).
+- `components/auth/GoogleSignInButton.js` on Login + Signup pages.
+- `env.example` — documented Google config (lives in Supabase dashboard; no client secret in frontend).
+- Verified: `vite build` green.
+
+**Mobile (Expo / Play Store — NEEDS NEW BUILD + RESUBMISSION, user approved):**
+- Added `@react-native-google-signin/google-signin ^16.1.2` (native module, config plugin in `app.config.js`).
+- `services/googleAuthService.ts` (native idToken) → `store/authStore.ts::googleSignIn()` → `supabase.auth.signInWithIdToken`.
+- `components/GoogleSignInButton.tsx` on LoginScreen; native Google sign-out wired into `clearSession`.
+- `buildConfig.ts` + both env examples: `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`.
+- Verified: `tsc --noEmit` green; `expo config` evaluates (plugin needs a placeholder iosUrlScheme for Android-only builds).
+
+**Still needed from user (config, not code):** Google Cloud OAuth Web client ID+secret, Android OAuth client (package `com.trimit.app` + SHA-1 of upload & Play App Signing keys), optional iOS client ID; enable Google provider + redirect URLs + "link identities" in Supabase; fill the new env vars in `frontend/.env` (Vercel) and `mobile/.env`.
+
+**Contact page:** web `frontend/src/pages/legal/ContactPage.js` shows legal entity **KALSOOM AKHTER** (Cashfree activation). Mobile intentionally NOT changed (per Cashfree instruction). Pushed to branch `zero-point-twenty-one`.
+
 ### 2026-06-29 — FEATURE: Salon Open/Close kill-switch (owner-controlled availability)
 **Built the full v1 + auto-reopen feature.** Owners can stop/start taking NEW bookings from the dashboard; existing bookings are never touched.
 

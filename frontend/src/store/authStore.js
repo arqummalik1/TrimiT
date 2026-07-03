@@ -145,6 +145,100 @@ export const useAuthStore = create(
         }
       },
 
+      // ── Google sign-in (OAuth redirect) ──────────────────────────────
+      // Starts Supabase's Google OAuth flow. The browser leaves the page and
+      // returns to /auth/callback, which calls hydrateFromSupabaseSession().
+      // Same login-or-signup outcome as OTP: existing user is routed by role,
+      // a brand-new user is gated into CompleteProfile to pick a role.
+      googleSignIn: async () => {
+        set({ error: null });
+        try {
+          const redirectTo = `${window.location.origin}/auth/callback`;
+          const { error } = await supabase.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+              redirectTo,
+              // Let the user pick which Google account every time.
+              queryParams: { prompt: "select_account" },
+            },
+          });
+          if (error) {
+            return { success: false, error: error.message };
+          }
+          return { success: true };
+        } catch (e) {
+          return {
+            success: false,
+            error: e?.message || "Could not start Google sign-in.",
+          };
+        }
+      },
+
+      // Shared session hydration for OAuth (Google) callbacks. Given a Supabase
+      // session, mirrors the verify-otp store logic: set the bearer token, ask
+      // the backend who this is (/auth/me), and gate new users into
+      // CompleteProfile. No new backend endpoint is needed — a Google session
+      // is a normal Supabase session, so /auth/me returns profile_complete.
+      hydrateFromSupabaseSession: async (session) => {
+        const accessToken = session?.access_token;
+        const refreshToken = session?.refresh_token ?? null;
+        if (!accessToken) {
+          return { success: false, error: "No session returned from Google." };
+        }
+        set({ isLoading: true, error: null });
+        try {
+          api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+
+          const response = await api.get("/auth/me");
+          const userData = response.data;
+          const profile = userData.profile || null;
+          const profileComplete =
+            userData.profile_complete ?? !!profile?.role;
+
+          if (!profileComplete) {
+            set({
+              user: userData,
+              profile: null,
+              token: accessToken,
+              refreshToken,
+              isAuthenticated: true,
+              isLoading: false,
+              hasSalon: false,
+              profileComplete: false,
+              error: null,
+            });
+            return { success: true, profileComplete: false };
+          }
+
+          let hasSalon = false;
+          if (profile?.role === "owner") {
+            try {
+              const salonRes = await api.get("/owner/salon");
+              hasSalon = !!salonRes.data;
+            } catch (e) {
+              hasSalon = false;
+            }
+          }
+
+          set({
+            user: userData,
+            profile,
+            token: accessToken,
+            refreshToken,
+            isAuthenticated: true,
+            isLoading: false,
+            hasSalon,
+            profileComplete: true,
+            error: null,
+          });
+          return { success: true, profileComplete: true, profile, hasSalon };
+        } catch (error) {
+          set({ isLoading: false });
+          const message = translateAuthError(error, "login");
+          return { success: false, error: message };
+        }
+      },
+
       logout: () => {
         delete api.defaults.headers.common.Authorization;
         clearPersistedAuth();

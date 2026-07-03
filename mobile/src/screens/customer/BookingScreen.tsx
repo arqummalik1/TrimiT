@@ -42,10 +42,6 @@ import { logger } from "../../lib/logger";
 
 import { Button } from "../../components/Button";
 import { useBookingStore } from "../../store/bookingStore";
-import {
-  scheduleBookingReminder,
-  presentBookingConfirmedLocal,
-} from "../../lib/notifications";
 import { openNativeDirections } from "../../lib/maps";
 import {
   navigateToCustomerBookings,
@@ -824,7 +820,7 @@ export const BookingScreen: React.FC<
       setHoldId(null);
       setTimeLeft(null);
 
-      // Schedule a reminder notification 1 hour before
+      // Analytics: booking was CREATED (not necessarily confirmed yet).
       if (selectedDate && selectedSlot && salon && service) {
         analytics.track("booking_confirmed", {
           salon_id: salonId,
@@ -833,22 +829,17 @@ export const BookingScreen: React.FC<
           slot: selectedSlot,
           price: service.price,
         });
-
-        if (bookingId) {
-          scheduleBookingReminder({
-            bookingId: String(bookingId),
-            salonName: salon.name,
-            serviceName: service.name,
-            date: selectedDate,
-            time: selectedSlot,
-          }).catch(() => {}); // Silently ignore if notifications not permitted
-          presentBookingConfirmedLocal({
-            salonName: salon.name,
-            serviceName: service.name,
-            date: selectedDate,
-            time: selectedSlot,
-          }).catch(() => {});
-        }
+        // NOTE: We intentionally schedule NO local notification here — neither
+        // a "Booking confirmed" alert nor the 1-hour reminder. A freshly created
+        // booking is `pending`: UPI awaits the salon's payment verification, and
+        // cash awaits the owner accepting (unless auto-accept is on). Firing
+        // anything here told the customer "confirmed" before they had paid.
+        //
+        // The REAL "✅ Booking Confirmed" push is sent by the backend
+        // (notify_customer_booking_confirmed) only once the booking truly
+        // becomes confirmed. The 1-hour "Upcoming appointment" reminder is
+        // scheduled from MyBookingsScreen for bookings whose status is actually
+        // `confirmed`, and cancelled if they are cancelled. See RULES 7A.
       }
 
       // UPI selected → start UPI intent flow. Booking logic stays independent

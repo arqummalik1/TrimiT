@@ -109,6 +109,38 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
     }, [userId, queryClient]),
   );
 
+  // Schedule the local "Upcoming appointment" reminder (1 hour before) ONLY for
+  // bookings the backend reports as actually `confirmed` (owner accepted /
+  // auto-accept / UPI payment verified) — never at creation time. Rescheduling
+  // is idempotent (stable id per booking, cancels-then-sets), and this effect
+  // reruns whenever the list refreshes (focus + realtime), so a pending→confirmed
+  // transition gets its reminder promptly. Cancelled bookings have theirs removed.
+  useEffect(() => {
+    if (!bookings || bookings.length === 0) return;
+    const actionable = bookings.filter(
+      (b) => b.status === "confirmed" || b.status === "cancelled",
+    );
+    if (actionable.length === 0) return;
+    void (async () => {
+      const { scheduleBookingReminder, cancelBookingReminder } = await import(
+        "../../lib/notifications"
+      );
+      for (const b of actionable) {
+        if (b.status === "confirmed") {
+          await scheduleBookingReminder({
+            bookingId: b.id,
+            salonName: b.salons?.name ?? "your salon",
+            serviceName: b.services?.name ?? "your appointment",
+            date: b.booking_date,
+            time: b.time_slot,
+          });
+        } else {
+          await cancelBookingReminder(b.id);
+        }
+      }
+    })();
+  }, [bookings]);
+
   const showSkeleton = useMinLoadingTime(isLoading);
 
   const cancelMutation = useMutation({

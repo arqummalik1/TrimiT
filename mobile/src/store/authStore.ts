@@ -55,6 +55,7 @@ interface AuthState {
     extras?: { role?: 'customer' | 'owner'; name?: string; phone?: string }
   ) => Promise<{ success: boolean; error?: string; session?: any }>;
   sendOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
+  googleSignIn: () => Promise<{ success: boolean; error?: string; cancelled?: boolean }>;
   isOnboardingCompleted: boolean;
   completeOnboarding: () => void;
   completeProfile: (data: {
@@ -111,6 +112,12 @@ export const useAuthStore = create<AuthState>()(
           await supabase.auth.signOut();
         } catch (err) {
           logger.warn('[Auth] Supabase signOut failed', { err });
+        }
+        try {
+          const { signOutGoogle } = require('../services/googleAuthService');
+          await signOutGoogle();
+        } catch (err) {
+          logger.warn('[Auth] Google signOut failed', { err });
         }
         try {
           await supabase.realtime.setAuth();
@@ -441,6 +448,88 @@ export const useAuthStore = create<AuthState>()(
           return { success: false, error: message };
         }
       },
+
+      // ── Google sign-in (native) ───────────────────────────────────────
+      // 1. Native Google picker → Google idToken.
+      // 2. Trade idToken for a Supabase session (signInWithIdToken).
+      // 3. Reuse the exact OTP downstream: /auth/me decides new vs returning.
+      //    New user → profileComplete=false → RootNavigator shows
+      //    CompleteProfile (pick role). Returning user → routed by role.
+      // One email = one account: Supabase auto-links the Google identity to an
+      // existing OTP account with the same verified email (dashboard setting).
+      googleSignIn: async () => {
+        set({ isLoading: true, error: null, sessionExpired: false });
+        try {
+          const { signInWithGoogle } = require('../services/googleAuthService');
+          const outcome = await signInWithGoogle();
+
+          if (!outcome.ok) {
+            set({ isLoading: false, error: outcome.cancelled ? null : outcome.error });
+            return { success: false, error: outcome.error, cancelled: outcome.cancelled };
+          }
+
+          const { data, error } = await supabase.auth.signInWithIdToken({
+            provider: 'google',
+            token: outcome.idToken,
+          });
+
+          if (error || !data?.session?.access_token) {
+            const message =
+              error?.message || 'Google sign-in failed. Please try again.';
+            set({ isLoading: false, error: message });
+            return { success: false, error: message };
+          }
+
+          const accessToken = data.session.access_token;
+          const refreshToken = data.session.refresh_token ?? null;
+
+          setAuthToken(accessToken);
+          void syncSupabaseAuthSession(accessToken, refreshToken);
+
+          // /auth/me is the source of truth for profile + profile_complete.
+          const { authService } = require('../services/authService');
+          const meResponse = await authService.getMe();
+          const responseData = meResponse.data as {
+            profile?: User;
+            profile_complete?: boolean;
+          };
+          const profileComplete = responseData.profile_complete ?? false;
+          const profile = profileComplete
+            ? normalizeAuthUser(responseData)
+            : null;
+
+          if (!profileComplete) {
+            set({
+              user: null,
+              token: accessToken,
+              refreshToken,
+              isAuthenticated: true,
+              profileComplete: false,
+              isLoading: false,
+              error: null,
+              authBootstrapComplete: true,
+            });
+            return { success: true };
+          }
+
+          set({
+            user: profile,
+            token: accessToken,
+            refreshToken,
+            isAuthenticated: true,
+            profileComplete: true,
+            isLoading: false,
+            error: null,
+            authBootstrapComplete: true,
+          });
+          return { success: true };
+        } catch (err) {
+          const { parseAuthFailure } = require('../repositories/authRepository');
+          const { message } = parseAuthFailure(err);
+          set({ isLoading: false, error: message });
+          return { success: false, error: message };
+        }
+      },
     }),
     {
       name: 'trimit-auth-storage',
@@ -474,3 +563,46 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Keep persisted tokens in sync with Supabase's rotated tokens.
+//
+// The Supabase client runs with autoRefreshToken=true and rotates the refresh
+// token every time it refreshes. Because we persist tokens ourselves (zustand,
+// persistSession=false), we MUST capture each rotation — otherwise the store
+// keeps a stale refresh token and the next setSession()/refresh fails with
+// "Invalid Refresh Token: Already Used", which surfaces to the user as a
+// spurious "Session expired" a short time after login.
+//
+// This listener only updates the token fields (never isAuthenticated /
+// profileComplete / role), so it cannot cause a navigation remount. It is a
+// no-op during sign-out and when the token hasn't actually changed.
+// ─────────────────────────────────────────────────────────────────────────────
+if (typeof supabase.auth?.onAuthStateChange === 'function') {
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event !== 'TOKEN_REFRESHED' && event !== 'SIGNED_IN') {
+      return;
+    }
+    const accessToken = session?.access_token;
+    if (!accessToken) {
+      return;
+    }
+    const state = useAuthStore.getState();
+    if (state.isSigningOut || !state.isAuthenticated) {
+      return;
+    }
+    const nextRefresh = session?.refresh_token ?? state.refreshToken;
+    const changed =
+      accessToken !== state.token || nextRefresh !== state.refreshToken;
+    if (!changed) {
+      return;
+    }
+    logger.info('[Auth] token synced from Supabase refresh', { event });
+    setAuthToken(accessToken);
+    useAuthStore.setState({
+      token: accessToken,
+      refreshToken: nextRefresh,
+      sessionExpired: false,
+    });
+  });
+}
