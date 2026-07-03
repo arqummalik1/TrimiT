@@ -67,6 +67,30 @@
 - [ ] Confirm a salon's money reaches their bank (`settlement_status=settled`)
 
 ## Session log
+### 2026-07-03 — DEPLOYMENT: v1.0.1 mobile app + backend sync to production
+**Mobile app v1.0.1 released to Play Store** (AAB built locally: `build-1783023945275.aab`, 44.5 MB, versionCode 37).
+**Backend + web pushed to `main` and auto-deployed** to Render + Vercel to prevent user crashes.
+
+**What was deployed (merged `zero-point-twenty-one` → `main`):**
+- All notification fixes (branding, timing, booking confirmation logic)
+- Session token writeback (fixes stale 401s)
+- Google Sign-In foundation (hidden behind flag)
+- GPS refinement fix (Discover screen)
+- Back gesture fix (no longer exits app)
+- Salon open/close + service area features (backend + web + mobile)
+- Admin dashboard improvements
+- All database migrations 52, 53, 54 (already applied to production Supabase)
+
+**Verification needed:**
+- [ ] Render deploy successful (check `/health` endpoint)
+- [ ] Web deploy successful (check `trimit.online`)
+- [ ] Users on v1.0.1 mobile app can sign in, book, receive notifications
+- [ ] No crashes reported from production
+
+**Play Store listing updated:**
+- Version: 1.0.1
+- What's New: Map view, notification fixes, improved login, location accuracy, performance improvements
+
 ### 2026-07-02 — Notification icon branding + launch-blocker fixes (mobile)
 **Notification icon:** Android small/status-bar icon was pointed at
 `adaptive-icon.png` (fully opaque) → rendered as a white square (Android uses
