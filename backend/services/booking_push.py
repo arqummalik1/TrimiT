@@ -68,6 +68,7 @@ async def after_booking_created(
     initial_status: str,
     is_premium: bool = False,
     payment_method: Optional[str] = None,
+    booking_reference: Optional[str] = None,
 ) -> None:
     if salon_owner_id:
         await push_dispatch.notify_owner_new_booking(
@@ -79,6 +80,7 @@ async def after_booking_created(
             time_slot=time_slot,
             is_premium=is_premium,
             payment_method=payment_method,
+            booking_reference=booking_reference,
         )
     else:
         logger.error("[Push] after_booking_created missing owner_id booking_id=%s", booking_id)

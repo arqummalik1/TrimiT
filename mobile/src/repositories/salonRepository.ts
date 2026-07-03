@@ -46,6 +46,13 @@ export const salonRepository = {
     return await salonService.updateSalon(salonId, updates);
   },
 
+  async updateAvailability(
+    salonId: string,
+    payload: { accepting_bookings: boolean; closed_until?: string | null; reason?: string | null }
+  ): Promise<Salon> {
+    return await salonService.updateAvailability(salonId, payload);
+  },
+
   async getAnalytics(period: string): Promise<Analytics> {
     return await salonService.getAnalytics(period);
   },

@@ -67,6 +67,118 @@
 - [ ] Confirm a salon's money reaches their bank (`settlement_status=settled`)
 
 ## Session log
+### 2026-07-02 — Notification icon branding + launch-blocker fixes (mobile)
+**Notification icon:** Android small/status-bar icon was pointed at
+`adaptive-icon.png` (fully opaque) → rendered as a white square (Android uses
+only the alpha channel for the small icon). Generated `assets/notification-icon.png`
+(96×96 white silhouette of the logo mark, transparent bg, padded, via
+`scripts/make-notification-icon.py`) and pointed both the `expo-notifications`
+plugin and `android.notification` at it, with brand accent `#9A3412`. All pushes
+(owner + customer, remote + local) now show the branded TrimiT icon.
+
+**Also fixed this pass (all mobile, verified tsc + tests):**
+- Booking no longer fires a client-side "Booking confirmed" local notification at
+  creation (was premature for UPI/cash). Backend `notify_customer_booking_confirmed`
+  remains the source of truth. (RULES 7A)
+- Google login hidden behind `GOOGLE_LOGIN_ENABLED=false` (mobile + web) until
+  verified end-to-end. `googleAuthService` now lazy-loads the native module so
+  Expo Go no longer throws `RNGoogleSignin` Invariant Violation.
+- Back gesture no longer exits the app: `withAndroidPermissions.js`
+  `enableOnBackInvokedCallback` → `false` (predictive back unsupported on old arch).
+- Discover no longer refetches all cards ~1 min after open: `useDiscoverLocation`
+  now ignores sub-500 m GPS refinement (was changing the query key).
+- Session-expired-after-login: added `onAuthStateChange` writeback so rotated
+  Supabase refresh tokens are persisted to the store (no more stale-token 401s).
+- `expo install --fix`: expo 54.0.35, expo-file-system 19.0.23, expo-font 14.0.12.
+
+Local preview APK built OK (`build-1783002335863.apk`). AAB pending user sign-off.
+
+**Follow-up (same date) — notification timing corrected:**
+- Verified backend `booking_push.py` sends "✅ Booking Confirmed" at the right
+  moments only: creation-if-`auto_accept` (cash), owner-accept, and UPI
+  payment-verified. No change needed server-side.
+- `BookingScreen`: removed creation-time `scheduleBookingReminder` (fired for
+  unconfirmed bookings).
+- `MyBookingsScreen`: 1-hour "Upcoming appointment" reminder now scheduled
+  ONLY for `status==='confirmed'` bookings (idempotent; driven by focus-refetch
+  + realtime), and cancelled for `cancelled` bookings. Verified: tsc + 51
+  booking tests pass; added a notifications jest.mock to MyBookingsScreen.test.
+- Cloud production AAB (versionCode 33) built on EAS for Play Store.
+- Added steering `/.kiro/steering/no-assumptions.md` (RULE #1: never assume,
+  always fact-check).
+
+### 2026-07-01 — FEATURE: Google Sign-In (web + mobile) + web contact legal entity name
+**Google Sign-In / Sign-Up on web and mobile.** Reuses the existing OTP
+architecture end-to-end — Google just produces a Supabase session, then the
+same `/auth/me` + `profile_complete` gate decides new vs returning. New users
+land on CompleteProfile to pick their role (customer/owner); returning users are
+routed by role. **One email = one account** via Supabase "link identities"
+(dashboard setting) — no duplicates between OTP and Google.
+
+**Backend:** ZERO changes. A Google-issued Supabase JWT validates on the same
+`JWT_SECRET`; `/auth/me` returns `profile_complete=false` for a new user and the
+existing CompleteProfile flow takes over. **No new migration.**
+
+**Web (Vercel):**
+- `store/authStore.js` — new `googleSignIn()` (OAuth redirect) + `hydrateFromSupabaseSession()`.
+- `pages/AuthCallbackPage.js` + route `/auth/callback` (PKCE code exchange / implicit hash).
+- `components/auth/GoogleSignInButton.js` on Login + Signup pages.
+- `env.example` — documented Google config (lives in Supabase dashboard; no client secret in frontend).
+- Verified: `vite build` green.
+
+**Mobile (Expo / Play Store — NEEDS NEW BUILD + RESUBMISSION, user approved):**
+- Added `@react-native-google-signin/google-signin ^16.1.2` (native module, config plugin in `app.config.js`).
+- `services/googleAuthService.ts` (native idToken) → `store/authStore.ts::googleSignIn()` → `supabase.auth.signInWithIdToken`.
+- `components/GoogleSignInButton.tsx` on LoginScreen; native Google sign-out wired into `clearSession`.
+- `buildConfig.ts` + both env examples: `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`.
+- Verified: `tsc --noEmit` green; `expo config` evaluates (plugin needs a placeholder iosUrlScheme for Android-only builds).
+
+**Still needed from user (config, not code):** Google Cloud OAuth Web client ID+secret, Android OAuth client (package `com.trimit.app` + SHA-1 of upload & Play App Signing keys), optional iOS client ID; enable Google provider + redirect URLs + "link identities" in Supabase; fill the new env vars in `frontend/.env` (Vercel) and `mobile/.env`.
+
+**Contact page:** web `frontend/src/pages/legal/ContactPage.js` shows legal entity **KALSOOM AKHTER** (Cashfree activation). Mobile intentionally NOT changed (per Cashfree instruction). Pushed to branch `zero-point-twenty-one`.
+
+### 2026-06-29 — FEATURE: Salon Open/Close kill-switch (owner-controlled availability)
+**Built the full v1 + auto-reopen feature.** Owners can stop/start taking NEW bookings from the dashboard; existing bookings are never touched.
+
+**DB (apply manually):** `database/53_salon_open_close.sql` — adds `salons.accepting_bookings` (default TRUE), `closed_until`, `closed_at`, `closed_reason`, `closed_reminder_sent_at` + index. Forward-only, all existing salons default to open.
+
+**Backend:**
+- `services/salon_availability.py` — single source of truth; `is_salon_closed()` evaluates the window LAZILY (auto-opens when `closed_until` passes, even if cron is late).
+- Gate added to `create_booking` AND `reserve_slot` → `403 SALON_CLOSED` (separate from `SALON_UNAVAILABLE`). Kept next to the subscription gate.
+- `PATCH /salons/{id}/availability` (owner-only, NOT behind subscription so a frozen owner can still reopen).
+- `services/salon_availability_notifications.py` + `POST /salons/internal/run-availability` (admin-token cron): auto-reopens elapsed windows + pushes owner "you're open"; reminds owners closed >24h with no reopen time (deduped via `closed_reminder_sent_at`). Channel `reminders`. NO customer push on close.
+
+**Mobile:**
+- `lib/salonAvailability.ts` (closed-state + label), `components/owner/SalonCloseSheet.tsx` (presets: 2h / today / N-day stepper / indefinite — no native date-picker dep).
+- Owner dashboard header pill: green "Open" / red "Closed · reopens X · Tap to open"; realtime via ownerSalon cache.
+- Customer side: `SalonCard` "Temporarily closed" badge; `BookingScreen` blocks confirm + handles `SALON_CLOSED`.
+- `salonService.updateAvailability` + repo method. Salon type extended.
+
+**Web:**
+- `lib/salonAvailability.js`, `components/owner/SalonAvailabilityToggle.js` (dropdown presets) in owner dashboard header.
+- `SalonCard` closed badge; `BookingPage` handles `SALON_CLOSED` in both reserve + booking error paths.
+
+**Verified:** backend 136 passed; mobile tsc 0 errors; web build passes.
+**Notifications doc:** `docs/NOTIFICATIONS.md` (channel strategy + salon-off behavior; festive/weekend channels documented for LATER).
+**Pending:** apply migration 53 in Supabase; schedule the cron to hit `/salons/internal/run-availability` (e.g. every 5–10 min); new Play Store build for the owner toggle.
+
+### 2026-06-29 — UPGRADE: Premium Admin Dashboard with Charts & User Management
+**Major upgrade to admin dashboard (`/admin`):**
+- **Installed recharts** for data visualization
+- **4 interactive charts:** Revenue trend (30-day area chart), Subscription breakdown (pie chart), User growth (12-month area chart), Bookings by status (bar chart)
+- **Full user management:** Block/unblock users, Delete users (soft delete), Invite owners/customers via email
+- **Subscription control:** Grant/extend subscriptions per owner, visual status badges, trial days remaining
+- **Premium dark UI:** TrimiT brand colors (orange-800 primary), sleek card design, responsive layout
+- **New backend endpoints:** `POST /admin/users/block`, `POST /admin/users/unblock`, `DELETE /admin/users/{id}`, `POST /admin/users/invite`
+- **New migration:** `database/52_user_management.sql` — adds `is_blocked` and `deleted_at` columns to `users` table
+- **Updated adminService.js:** Added `blockUser`, `unblockUser`, `deleteUser`, `inviteUser` methods
+- **Web build passes** ✓
+
+**Pending before live:**
+1. Apply migration `52_user_management.sql` in Supabase SQL Editor
+2. Set `ADMIN_DASHBOARD_PIN` on Render (strong 8–10 digits)
+3. Merge to `main` to deploy
+
 ### 2026-06-28 — CONFIRMED green + migrations applied + admin dashboard doc
 **Founder ran all verification commands — results confirmed:**
 - Backend: **136 passed**. Mobile payment/subscription/signup suites: **32 passed** (6 suites). `MyBookingsScreen.test.tsx`: **4/4 passed in isolation** → confirmed the earlier full-run failure was a load flake, NOT a regression. Web `npm run build`: success, all routes prerendered.
@@ -1365,3 +1477,63 @@ Every future session should do these things:
     automatically. Kept the existing custom `location-sharp` pin (already shipping).
   - Tests assert the pin renders in `lightTheme.colors.primary` / `primaryDark`
     (verifies the dynamic wiring, not a hardcoded hex). Suite: 63/63, 726 tests green.
+
+### Map pins now show salon names (2026-06-30)
+- **Request:** customer home → Discover → Map view showed pins with no names; user couldn't tell which pin was which salon.
+- **Root cause:** `SalonMapMarker` had a `showLabel` prop that was never rendered, and `DiscoverScreen` passed `showLabel={false}`. The salon name only appeared in a tap-callout.
+- **Fix (client-only, backwards-compatible):**
+  - `src/components/SalonMapMarker.tsx` — when `showLabel` is on, render the salon name in a rounded pill above the pin (themed surface bg, brand-colored border, shadow for readability, 1-line truncate, maxWidth 160). Anchor switches to `{x:0.5, y:1}` so the pin tip stays exactly on the coordinate. Non-labeled callers (owner ManageSalon, SalonDetail mini-map) unchanged.
+  - `src/screens/customer/DiscoverScreen.tsx` — `showLabel` enabled on Discover markers (`label={salon.name}` already passed).
+- **Verified:** no TS/lint diagnostics. UI-only; reaches users via OTA Expo update or next Play build (no resubmission needed for logic). No API/DB/auth/booking changes.
+
+### Serviceability gate + waitlist leads (2026-07-01)
+- **Problem:** users outside Jammu (the only live city) saw "No Salons Found", reading like a bug. Bad first impression for the ~1–2k new installs.
+- **Solution (Option B — center+radius geofence, config-driven):**
+  - **DB (migration 54, PENDING — apply manually):** `backend/database/54_service_areas_and_waitlist.sql`
+    - `service_areas` (name, slug, center_lat/lng, radius_km, is_active, launching_soon). Seeded **Jammu @ 32.7266,74.8570, radius 30 km**. Add a city = INSERT a row (no deploy).
+    - `waitlist_leads` (name, email[unique], lat/lng, nearest_area_slug, nearest_distance_km, source). RLS on; service-role only (PII off public API).
+  - **Backend (additive):** `services/serviceability.py` (haversine geofence, FAIL-OPEN on error), `models/serviceability.py`, `routers/serviceability.py` (public `GET /serviceability/check`, `POST /serviceability/waitlist` + Resend confirmation email). Admin `GET /admin/waitlist-leads`. Registered in `server.py`. Extended `core/supabase.py` with optional `extra_headers` (backwards-compatible) for upsert/count.
+  - **Mobile (JS-only, OTA-safe):** `services/serviceabilityService.ts`, `repositories/serviceabilityRepository.ts`, types in `types/index.ts`. New `components/ServiceAreaGate.tsx` — animated location pin (Animated API, no Lottie), "We're not in your area yet / TrimiT is live in Jammu", nearest-distance hint, and "Notify me at launch" waitlist form (prefills logged-in email/name). Wired into `DiscoverScreen` via a `useQuery` serviceability check; gates only when backend returns `serviceable===false` (fail-open otherwise); hides search/toggle when gated.
+  - **Web admin:** `frontend/src/pages/admin/AdminDashboard.js` new "Waitlist Leads" section (demand-by-city chips + table + CSV export), `adminService.getWaitlistLeads`.
+- **Verified:** backend modules import OK; geofence unit check (Jammu=serviceable @3km, Delhi=not @510km); no TS/JS/py diagnostics on touched files.
+- **MIGRATION ACTION REQUIRED:** apply `backend/database/54_service_areas_and_waitlist.sql` in the Supabase SQL Editor (prod) BEFORE the backend deploy is useful. Until applied, `check` fails open (everyone serviceable) and waitlist inserts will 400 — safe, no crash.
+- **Backwards-compatible:** all new endpoints additive; no existing contract changed. Existing Jammu users unaffected (inside geofence → normal flow).
+
+### Serviceability radius → env var (2026-07-01)
+- Added `SERVICE_AREA_RADIUS_KM` to `backend/config.py`. When set (>0) it globally overrides every active area's DB `radius_km`; unset/blank/<=0 falls back to the DB value.
+- `services/serviceability.py`: new `_effective_radius_km()` used in the geofence check.
+- Documented in `backend/.env` (default 30). **Also set it on Render → Environment** to change coverage live (e.g. 50) with no DB edit and no code deploy.
+- Verified: env=30 → 30 km; env=50 → a 44.9 km point becomes serviceable.
+
+### Serviceability on web + admin "Notify Me" screen + web service images (2026-07-01)
+- **Admin dashboard — separate "Notify Me" screen:** `frontend/src/pages/admin/AdminDashboard.js` now has a top tab switcher (Dashboard | Notify Me). The waitlist leads (name, email, nearest city, distance, source, date) + demand-by-city chips + CSV export moved into the dedicated "Notify Me" view, headed by a "TrimiT is currently live in Jammu" banner. Tab badge shows lead count. `adminService.getWaitlistLeads` already added.
+- **Web serviceability gate (parity with mobile):**
+  - `frontend/src/services/serviceabilityService.js` (check + joinWaitlist, source='web'), `frontend/src/hooks/useServiceability.js` (only runs when coords shared; fail-open).
+  - `frontend/src/components/discovery/ServiceAreaGate.js` — animated pin (Tailwind), "not in your area / live in Jammu", nearest-distance hint, Notify Me form.
+  - Integrated into `pages/customer/CustomerHome.js` (real geolocation → gate when serviceable===false) and `components/discovery/SalonDiscoveryView.js` (gates only after the visitor clicks "Use my location" and is out of area; default Jammu browsing unchanged for SEO).
+- **Web service images fixed:** `frontend/src/pages/customer/SalonDetail.js` now renders each service's `service.image_url` as a thumbnail (was previously not shown on web at all). Mobile already showed it.
+- **Verified:** no diagnostics; esbuild JSX syntax check passed on all four edited web files.
+- **Migrations:** 54 REQUIRED (serviceability). 53 (salon open/close) recommended — backend reads its columns. Both still PENDING per user.
+
+### Mark-as-notified for waitlist leads (2026-07-01)
+- Migrations 53 + 54 CONFIRMED APPLIED to production by user.
+- Backend: `services/serviceability.py::mark_leads_notified(ids, notified)` (sets/clears `notified_at`), new admin endpoint `POST /admin/waitlist-leads/mark-notified` ({lead_ids, notified}). `list_waitlist_leads` now returns `notified_at`.
+- Web admin "Notify Me" tab: row checkboxes + select-all, "Mark N as notified" button, and a Status column (Notified/Pending). `adminService.markLeadsNotified`.
+- `SERVICE_AREA_RADIUS_KM=30` confirmed present in `backend/.env` (backend-only; also set on Render).
+- Verified: backend imports OK, no diagnostics, esbuild JSX check passed.
+
+### OTP autofill refactor + web map + coverage transparency + lat/lng required (2026-07-01)
+- **OTP autofill (mobile, JS-only/OTA-safe):** `VerifyOtpScreen.tsx` rebuilt from 6 separate inputs → ONE hidden `TextInput` behind 6 visual cells. Fixes iOS Security-Code AutoFill (single field fills all 6) + robust paste. `autoComplete` = `sms-otp` (Android) / `one-time-code` (iOS), `textContentType="oneTimeCode"`. NOTE: OTP is EMAIL-based; Android has NO keyboard autofill for email codes (SMS-only) — true "tap above keyboard" on Android needs a clipboard "Paste code" chip (requires expo-clipboard → native rebuild) or SMS OTP. Flagged to owner.
+- **Web real map:** replaced the fake "Map View Coming Soon" placeholder in `CustomerHome.js` with `components/discovery/GoogleSalonMap.js` — reuses the EXISTING web `loadGoogleMaps()` + `GOOGLE_MAPS_API_KEY` (same browser key the owner LocationPicker already uses; the Android app key is NOT reused/doesn't work on web). Markers per salon w/ valid coords, info window + link, fit-to-bounds, graceful fallback. Removed dead MapView placeholder.
+- **Coverage transparency:** new `components/discovery/ServiceCityNotice.js` ("TrimiT is currently available in Jammu only") added to `CustomerHome` + `SalonDiscoveryView`. CustomerHome subtitle "Showing salons near you" → "Showing salons in Jammu".
+- **lat/lng REQUIRED on salon creation:** `models/salons.py` SalonCreate `latitude`/`longitude` now required floats with range validation. Both mobile + web owner forms already send coords, so safe. FOLLOW-UP: clients still default to Delhi (28.61,77.20) if owner doesn't move the pin — should force explicit pin selection client-side.
+- **Verified:** no diagnostics; esbuild JSX check passed; backend model validation tested (rejects missing lat/lng, accepts valid).
+
+### Map-pin required at salon onboarding + phone-OTP spec (2026-07-01)
+- **Phone OTP deferred:** decision to NOT ship phone OTP now (blocked by India DLT registration — no point shipping what users can't use publicly). Full plan captured as a spec: `.kiro/specs/phone-otp-authentication/requirements.md` (requirements-first). To be built on a later branch once DLT clears. Email OTP remains the working method.
+- **Map-pin REQUIRED at salon onboarding (mobile + web):**
+  - Mobile `ManageSalonScreen.tsx`: removed the silent Delhi default (28.6139,77.2090). New `locationSet` state — false until the owner places a pin (or an existing salon loads with real coords). Shows a "Tap to set your salon location" prompt until placed; Save is disabled + `handleSubmit` blocks with a clear toast until a pin exists.
+  - Web `ManageSalon.js`: `latitude/longitude` start null; `locationSet` gates Save; `handleSubmit` validates a pin is placed; hint shown until placed. `LocationPicker.onChange` (fires only on click/drag/search/locate, not mount) marks the pin placed.
+  - Web `LocationPicker.js`: default map center changed Delhi → Jammu (launch city) for a sensible starting camera before a pin is placed.
+  - Backend already requires latitude/longitude on `SalonCreate` (done earlier) — this closes the client gap so owners can't submit a wrong default.
+- **Verified:** no diagnostics; esbuild JSX check passed on web files.

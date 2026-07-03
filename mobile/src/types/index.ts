@@ -41,6 +41,14 @@ export interface Salon {
   auto_accept?: boolean;
   show_offers?: boolean;
   subscription_active?: boolean;
+  /** Owner kill-switch: false = not taking NEW bookings right now. */
+  accepting_bookings?: boolean;
+  /** ISO time the salon auto-reopens; null/absent = indefinite (manual reopen). */
+  closed_until?: string | null;
+  /** When the salon was closed (for the >24h reminder). */
+  closed_at?: string | null;
+  /** Optional owner reason shown to customers (e.g. "On holiday"). */
+  closed_reason?: string | null;
   /** Salon's UPI ID (VPA, e.g. "salon@bank"). Required to accept UPI payments. */
   upi_id?: string | null;
   /** Optional uploaded UPI QR code image URL. */
@@ -186,4 +194,29 @@ export interface Promotion {
   expires_at: string | null;
   active: boolean;
   created_at: string;
+}
+
+// ── Serviceability (city coverage) ──────────────────────────────────────────
+export interface ServiceAreaRef {
+  name: string;
+  slug: string;
+  launching_soon: boolean;
+}
+
+export interface ServiceabilityResult {
+  serviceable: boolean;
+  reason: string;
+  matched_area: ServiceAreaRef | null;
+  nearest_area: ServiceAreaRef | null;
+  nearest_distance_km: number | null;
+  active_areas: string[];
+}
+
+export interface WaitlistJoinPayload {
+  email: string;
+  name?: string;
+  lat?: number;
+  lng?: number;
+  area_label?: string;
+  source?: string;
 }

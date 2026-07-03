@@ -81,9 +81,53 @@ function withAndroidPermissions(config) {
 
     manifest['uses-permission'] = permissions;
 
+    // ── UPI package visibility (Android 11+ package-visibility rules) ─────────
+    // Without these <queries>, Linking.canOpenURL() for specific UPI apps and
+    // package-targeted intents return false on Android 11+, so the in-app UPI
+    // app picker can't detect or launch GPay/PhonePe/Paytm/BHIM individually.
+    const UPI_PACKAGES = [
+      'com.google.android.apps.nbu.paisa.user', // Google Pay
+      'com.phonepe.app',                        // PhonePe
+      'net.one97.paytm',                        // Paytm
+      'in.org.npci.upiapp',                     // BHIM
+      'com.whatsapp',                           // WhatsApp Pay
+      'com.amazon.mShop.android.shopping',      // Amazon Pay
+      'com.dreamplug.androidapp',               // CRED
+    ];
+
+    manifest.queries = Array.isArray(manifest.queries)
+      ? manifest.queries
+      : manifest.queries
+        ? [manifest.queries]
+        : [];
+
+    // General visibility: any app that handles the `upi://` VIEW intent.
+    const upiIntentQuery = {
+      intent: [
+        {
+          action: [{ $: { 'android:name': 'android.intent.action.VIEW' } }],
+          data: [{ $: { 'android:scheme': 'upi' } }],
+        },
+      ],
+    };
+
+    // Explicit per-package visibility so canOpenURL detects each UPI app.
+    const packageEntries = UPI_PACKAGES.map((pkg) => ({
+      $: { 'android:name': pkg },
+    }));
+
+    manifest.queries.push(upiIntentQuery);
+    manifest.queries.push({ package: packageEntries });
+
     const app = AndroidConfig.Manifest.getMainApplicationOrThrow(config.modResults);
     app.$ = app.$ || {};
-    app.$['android:enableOnBackInvokedCallback'] = 'true';
+    // MUST stay 'false'. On old architecture + react-native-screens 4.x, Android
+    // 13+ predictive back (enableOnBackInvokedCallback="true") is NOT consumed by
+    // React Navigation, so every swipe-back/gesture back closes the app instead
+    // of popping the screen. Setting it false restores the legacy BackHandler
+    // path that React Navigation intercepts reliably. Do not flip to 'true'
+    // until the app is on the New Architecture and back nav is verified.
+    app.$['android:enableOnBackInvokedCallback'] = 'false';
 
     return config;
   });

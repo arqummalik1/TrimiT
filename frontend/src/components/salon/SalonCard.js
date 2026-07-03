@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Star, Clock, NavigationArrow, Prohibit } from '@phosphor-icons/react';
+import { MapPin, Star, Clock, NavigationArrow, Prohibit, Moon } from '@phosphor-icons/react';
 import { formatPrice } from '../../lib/utils';
 import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../../lib/featureFlags';
+import { getSalonClosedState } from '../../lib/salonAvailability';
 
 const DEFAULT_IMAGE =
   'https://images.unsplash.com/photo-1626383137804-ff908d2753a2?auto=format&fit=crop&w=800&q=72';
@@ -17,6 +18,10 @@ export default function SalonCard({ salon, compact = false }) {
   const unavailable =
     ENABLE_SUBSCRIPTION_ENFORCEMENT && salon.subscription_active === false;
 
+  // Owner manually closed (separate axis). Visible but not bookable.
+  const closedState = getSalonClosedState(salon);
+  const showClosed = !unavailable && closedState.closed;
+
   const cardInner = (
     <>
       <motion.div className="relative aspect-[4/3] overflow-hidden">
@@ -24,7 +29,7 @@ export default function SalonCard({ salon, compact = false }) {
           src={salon.images?.[0] || salon.image_url || DEFAULT_IMAGE}
           alt={salon.name}
           className={`w-full h-full object-cover transition-transform duration-500 ${
-            unavailable ? 'grayscale opacity-60' : 'hover:scale-105'
+            unavailable || showClosed ? 'grayscale opacity-60' : 'hover:scale-105'
           }`}
           loading="lazy"
         />
@@ -32,6 +37,11 @@ export default function SalonCard({ salon, compact = false }) {
           <div className="absolute top-3 left-3 bg-stone-800/85 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold">
             <Prohibit size={14} weight="bold" />
             Currently unavailable
+          </div>
+        ) : showClosed ? (
+          <div className="absolute top-3 left-3 bg-stone-800/85 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold">
+            <Moon size={14} weight="bold" />
+            Temporarily closed
           </div>
         ) : (
           distance != null && (

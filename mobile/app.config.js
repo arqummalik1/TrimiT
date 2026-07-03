@@ -1,4 +1,4 @@
-// Dynamic Expo config — env from EAS dashboard, eas.json, or mobile/.env (local builds via scripts/load-env-for-build.sh).
+ // Dynamic Expo config — env from EAS dashboard, eas.json, or mobile/.env (local builds via scripts/load-env-for-build.sh).
 // .env is gitignored and is NOT copied into EAS temp dirs — always load .env here when the file exists.
 
 const fs = require('fs');
@@ -49,6 +49,9 @@ function env(name, fallback = '') {
   return fallback;
 }
 
+// Notification accent color — MUST match lightPalette.primary in src/theme/colors.ts
+const NOTIFICATION_COLOR = '#9A3412';
+
 module.exports = ({ config }) => {
   const isEasBuild = Boolean(process.env.EAS_BUILD);
   const profile = process.env.EAS_BUILD_PROFILE || '';
@@ -58,6 +61,8 @@ module.exports = ({ config }) => {
   const supabaseUrl = env('EXPO_PUBLIC_SUPABASE_URL');
   const supabaseAnon = env('EXPO_PUBLIC_SUPABASE_ANON_KEY');
   const sentryDsn = env('EXPO_PUBLIC_SENTRY_DSN');
+  const googleWebClientId = env('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
+  const googleIosClientId = env('EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID');
 
   if (isEasBuild && isReleaseProfile) {
     const missing = [];
@@ -81,8 +86,8 @@ module.exports = ({ config }) => {
     [
       'expo-notifications',
       {
-        icon: './assets/adaptive-icon.png',
-        color: '#000000',
+        icon: './assets/notification-icon.png',
+        color: NOTIFICATION_COLOR,
         sounds: ['./assets/sounds/notification.mp3'],
       },
     ],
@@ -117,6 +122,18 @@ module.exports = ({ config }) => {
     ]);
   }
 
+  // Google Sign-In native module (config plugin). The plugin REQUIRES an
+  // iosUrlScheme even for Android-only builds, so we fall back to a harmless
+  // placeholder when no iOS client ID is set (ignored on Android). Set
+  // EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID before shipping an iOS build.
+  const googleIosUrlScheme = googleIosClientId
+    ? `com.googleusercontent.apps.${googleIosClientId.replace('.apps.googleusercontent.com', '')}`
+    : 'com.googleusercontent.apps.placeholder';
+  plugins.push([
+    '@react-native-google-signin/google-signin',
+    { iosUrlScheme: googleIosUrlScheme },
+  ]);
+
   return withAndroidPermissions({
     ...config,
     expo: {
@@ -127,7 +144,7 @@ module.exports = ({ config }) => {
       // Plain string avoids expo-updates appVersion policy warning (OTA not used in v1).
       runtimeVersion: appVersion.version,
       orientation: 'portrait',
-      icon: './assets/SquareLogo.png',
+      icon: './assets/icon.png',
       userInterfaceStyle: 'automatic',
       // New Arch off for release stability (avoids device-specific native crashes on some OEMs).
       newArchEnabled: false,
@@ -155,8 +172,8 @@ module.exports = ({ config }) => {
         package: 'com.trimit.app',
         allowBackup: false,
         notification: {
-          icon: './assets/adaptive-icon.png',
-          color: '#000000',
+          icon: './assets/notification-icon.png',
+          color: NOTIFICATION_COLOR,
         },
         adaptiveIcon: {
           foregroundImage: './assets/adaptive-icon.png',
@@ -192,6 +209,8 @@ module.exports = ({ config }) => {
         supabaseUrl,
         supabaseAnonKey: supabaseAnon,
         googleMapsApiKey: mapsKey,
+        googleWebClientId,
+        googleIosClientId,
         publicSiteUrl: env('EXPO_PUBLIC_PUBLIC_SITE_URL', DEFAULT_SITE_URL),
         sentryDsn: sentryDsn || null,
         enableOnlinePay: env('EXPO_PUBLIC_ENABLE_ONLINE_PAY', 'false'),

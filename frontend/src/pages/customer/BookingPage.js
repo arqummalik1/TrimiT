@@ -194,11 +194,14 @@ const BookingPage = () => {
       setHoldId(null);
       setTimeLeft(null);
       const msg = getApiErrorMessage(err, 'This slot is currently unavailable.');
-      if (err?.response?.status === 403 || getApiErrorCode(err) === 'SALON_UNAVAILABLE') {
+      if (err?.response?.status === 403 || getApiErrorCode(err) === 'SALON_UNAVAILABLE' || getApiErrorCode(err) === 'SALON_CLOSED') {
         setSelectedSlot(null);
+        const closed = getApiErrorCode(err) === 'SALON_CLOSED';
         showError(
-          'This salon is currently unavailable for booking. Please try another salon.',
-          { title: 'Salon unavailable', duration: 6000 }
+          closed
+            ? (msg || 'This salon is temporarily closed and not taking bookings right now.')
+            : 'This salon is currently unavailable for booking. Please try another salon.',
+          { title: closed ? 'Salon temporarily closed' : 'Salon unavailable', duration: 6000 }
         );
         return;
       }
@@ -267,12 +270,15 @@ const BookingPage = () => {
         'Failed to create booking. Please try again.'
       );
 
-      if (status === 403 || getApiErrorCode(err) === 'SALON_UNAVAILABLE') {
+      if (status === 403 || getApiErrorCode(err) === 'SALON_UNAVAILABLE' || getApiErrorCode(err) === 'SALON_CLOSED') {
         setSelectedSlot(null);
         resetBookingAttempt();
+        const closed = getApiErrorCode(err) === 'SALON_CLOSED';
         showError(
-          'This salon is currently unavailable for booking. Please try another salon.',
-          { title: 'Salon unavailable', duration: 6000 }
+          closed
+            ? (errorMessage || 'This salon is temporarily closed and not taking bookings right now.')
+            : 'This salon is currently unavailable for booking. Please try another salon.',
+          { title: closed ? 'Salon temporarily closed' : 'Salon unavailable', duration: 6000 }
         );
         return;
       }

@@ -41,28 +41,36 @@ const ManageSalon = () => {
     description: '',
     address: '',
     city: '',
-    latitude: 28.6139,
-    longitude: 77.2090,
+    latitude: null,
+    longitude: null,
     phone: '',
     opening_time: '09:00',
     closing_time: '21:00',
     images: [],
   });
+  // TRUE only once the owner actually places a pin (or an existing salon loaded
+  // with real coords). No silent default — Save is blocked until this is true.
+  const [locationSet, setLocationSet] = useState(false);
 
   useEffect(() => {
     if (salon) {
+      const lat = Number(salon.latitude);
+      const lng = Number(salon.longitude);
+      const hasCoords =
+        Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
       setFormData({
         name: salon.name || '',
         description: salon.description || '',
         address: salon.address || '',
         city: salon.city || '',
-        latitude: salon.latitude || 28.6139,
-        longitude: salon.longitude || 77.2090,
+        latitude: hasCoords ? lat : null,
+        longitude: hasCoords ? lng : null,
         phone: salon.phone || '',
         opening_time: salon.opening_time || '09:00',
         closing_time: salon.closing_time || '21:00',
         images: salon.images || [],
       });
+      setLocationSet(hasCoords);
     }
   }, [salon]);
 
@@ -114,6 +122,10 @@ const ManageSalon = () => {
     }
     if (!formData.phone || formData.phone.trim() === '') {
       setValidationError('Phone is required');
+      return;
+    }
+    if (!locationSet || !Number.isFinite(Number(formData.latitude)) || !Number.isFinite(Number(formData.longitude))) {
+      setValidationError('Please pin your salon location on the map');
       return;
     }
 
@@ -350,11 +362,13 @@ const ManageSalon = () => {
                 Pin your exact location on the map *
               </label>
               <LocationPicker
-                latitude={Number(formData.latitude)}
-                longitude={Number(formData.longitude)}
-                onChange={(lat, lng) =>
-                  setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }))
-                }
+                latitude={formData.latitude != null ? Number(formData.latitude) : undefined}
+                longitude={formData.longitude != null ? Number(formData.longitude) : undefined}
+                onChange={(lat, lng) => {
+                  setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+                  setLocationSet(true);
+                  setValidationError(null);
+                }}
                 onAddressResolved={({ address, city }) =>
                   setFormData((prev) => ({
                     ...prev,
@@ -363,6 +377,11 @@ const ManageSalon = () => {
                   }))
                 }
               />
+              {!locationSet && (
+                <p className="mt-2 text-sm text-orange-800 flex items-center gap-1">
+                  <MapPin size={14} weight="fill" /> Tap the map or use your location to pin your salon. This is required.
+                </p>
+              )}
             </div>
           </div>
 
@@ -484,9 +503,9 @@ const ManageSalon = () => {
           <div className="flex justify-end gap-4">
             <button
               type="submit"
-              disabled={createMutation.isPending || updateMutation.isPending}
+              disabled={createMutation.isPending || updateMutation.isPending || !locationSet}
               data-testid="save-salon-btn"
-              className="btn-primary flex items-center gap-2"
+              className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {(createMutation.isPending || updateMutation.isPending) ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

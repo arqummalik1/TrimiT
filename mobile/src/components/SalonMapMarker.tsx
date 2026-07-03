@@ -98,14 +98,31 @@ export const SalonMapMarker: React.FC<SalonMapMarkerProps> = ({
   // near-white tint that previously made pins disappear).
   const pinColor = selected ? theme.colors.primaryDark : theme.colors.primary;
 
+  // When showLabel is on, the salon name sits in a pill above the pin and the
+  // whole view grows taller, so we anchor at the very bottom (y: 1) to keep the
+  // pin tip exactly on the coordinate. Without a label we keep the original
+  // anchor so existing maps (owner/detail) are unchanged.
+  const showNameLabel = showLabel && !!label;
+  const markerAnchor = showNameLabel ? { x: 0.5, y: 1 } : { x: 0.5, y: 0.9 };
+
   return (
     <Marker
       coordinate={coordinate}
       onPress={onPress}
       tracksViewChanges={tracksView}
-      anchor={{ x: 0.5, y: 0.9 }}
+      anchor={markerAnchor}
     >
-      <View style={styles.markerContainer}>
+      <View style={showNameLabel ? styles.markerContainerLabeled : styles.markerContainer}>
+        {showNameLabel ? (
+          <View style={[styles.labelPill, { backgroundColor: theme.colors.surface, borderColor: pinColor }]}>
+            <Text
+              numberOfLines={1}
+              style={[styles.labelText, { color: theme.colors.text }]}
+            >
+              {label}
+            </Text>
+          </View>
+        ) : null}
         <Animated.View style={{ opacity: opacityAnim, alignItems: 'center' }}>
           <Ionicons name="location-sharp" size={48} color={pinColor} />
         </Animated.View>
@@ -130,6 +147,30 @@ const styles = StyleSheet.create({
     height: 60,
     alignItems: 'center',
     justifyContent: 'flex-end',
+  },
+  markerContainerLabeled: {
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingTop: 2,
+  },
+  labelPill: {
+    maxWidth: 160,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: -2,
+    // Subtle shadow so the name stays readable over any map tile.
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  labelText: {
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   callout: {
     flexDirection: 'row',

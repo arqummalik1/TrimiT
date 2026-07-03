@@ -68,8 +68,11 @@ export default function LocationPicker({ latitude, longitude, onChange, onAddres
   // Init map once Google Maps is loaded
   useEffect(() => {
     let cancelled = false;
-    const initLat = Number.isFinite(latitude) ? latitude : 28.6139;
-    const initLng = Number.isFinite(longitude) ? longitude : 77.209;
+    // Default map center BEFORE a pin is placed = Jammu (our launch city). This
+    // is only the starting camera; the salon's stored location is set only when
+    // the owner clicks/drags the pin (which fires onChange).
+    const initLat = Number.isFinite(latitude) ? latitude : 32.7266;
+    const initLng = Number.isFinite(longitude) ? longitude : 74.857;
 
     loadGoogleMaps()
       .then((maps) => {

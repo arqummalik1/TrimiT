@@ -105,16 +105,19 @@ async def notify_owner_new_booking(
     *,
     is_premium: bool = False,
     payment_method: Optional[str] = None,
+    booking_reference: Optional[str] = None,
 ) -> bool:
-    title = "Premium booking" if is_premium else "New booking"
+    title = "⭐ Premium booking" if is_premium else "🔔 New booking"
     body = f"{customer_name} booked {service_name} on {booking_date} at {time_slot}"
-    if is_premium:
-        body = f"⭐ {body}"
+    if payment_method == "upi" and booking_reference:
+        body += f" — UPI ref: {booking_reference}"
     extra: Dict[str, Any] = {}
     if payment_method:
         extra["payment_method"] = payment_method
     if is_premium:
         extra["is_premium"] = True
+    if booking_reference:
+        extra["booking_reference"] = booking_reference
 
     return await send_booking_push(
         recipient_user_id=owner_id,
@@ -160,8 +163,8 @@ async def notify_customer_booking_confirmed(
         event_type="booking_confirmed",
         category="booking_updates",
         role_hint="customer",
-        title="Booking confirmed",
-        body=f"Your {service_name} on {booking_date} at {time_slot} is confirmed.",
+        title="✅ Booking Confirmed",
+        body=f"Your {service_name} on {booking_date} at {time_slot} is confirmed. See you there!",
         extra_data={"status": "confirmed"},
     )
 
@@ -176,10 +179,10 @@ async def notify_customer_booking_completed(
         event_type="booking_completed",
         category="booking_updates",
         role_hint="customer",
-        title="Thank you for using TrimiT",
+        title="⭐ Visit complete! How was it?",
         body=(
-            "Your booking has been completed successfully. "
-            "Please take a moment to rate us on the Google Play Store."
+            "Your appointment is done. We hope you loved the experience — "
+            "a quick rating on the Play Store means the world to us."
         ),
         extra_data={"status": "completed", "play_store_url": PLAY_STORE_URL},
     )
@@ -199,7 +202,7 @@ async def notify_customer_booking_rejected(
         category="booking_updates",
         role_hint="customer",
         title="Booking not accepted",
-        body=f"Your {service_name} on {booking_date} at {time_slot} was not accepted.",
+        body=f"The salon couldn't accept your {service_name} on {booking_date} at {time_slot}. Try another slot.",
         extra_data={"status": "cancelled"},
     )
 
@@ -283,10 +286,10 @@ async def notify_customer_payment_waiting(
         event_type="payment_waiting_verification",
         category="booking_updates",
         role_hint="customer",
-        title="Waiting for salon verification",
+        title="⏳ Payment received — verifying",
         body=(
-            "We are waiting for the salon to verify your payment. "
-            "This usually takes less than five minutes."
+            "Your payment has been noted. The salon is verifying it right now — "
+            "most salons confirm within 2–5 minutes."
         ),
         extra_data={"payment_verification_status": "waiting_verification"},
     )
@@ -306,8 +309,8 @@ async def notify_customer_payment_rejected(
         role_hint="customer",
         title="Payment not verified",
         body=(
-            f"We could not verify your payment for {service_name}. "
-            "Please try again or contact the salon."
+            f"The salon couldn't verify your payment for {service_name}. "
+            "Please try paying again or contact the salon directly."
         ),
         extra_data={"payment_verification_status": "rejected"},
     )

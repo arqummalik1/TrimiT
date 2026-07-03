@@ -211,6 +211,14 @@ const SalonDetail = () => {
                   )}
                   
                   <div className="flex items-center justify-between">
+                    {service.image_url && (
+                      <img
+                        src={service.image_url}
+                        alt={service.name}
+                        loading="lazy"
+                        className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover mr-4 flex-shrink-0 border border-stone-200"
+                      />
+                    )}
                     <div className="flex-1">
                       <h3 className="font-heading text-lg font-bold text-stone-900 mb-1">
                         {service.name}

@@ -21,8 +21,11 @@ class SalonCreate(BaseModel):
     name: str
     address: str
     city: str  # Required in database
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
+    # Location is MANDATORY: a salon with no/!bad coordinates can't be found by
+    # nearby search and can't be placed on the map. Enforced here so an owner
+    # cannot register without a real pin. (Edit flow uses SalonUpdate, unaffected.)
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
     phone: str  # Required in database
     image_url: Optional[str] = None
     images: List[str] = Field(default_factory=list)
@@ -100,6 +103,27 @@ class SalonUpdate(BaseModel):
         if not _IFSC_RE.match(v):
             raise ValueError("Invalid IFSC code format. Expected: 4 letters + 0 + 6 alphanumeric (e.g. SBIN0001234)")
         return v
+
+class SalonAvailabilityUpdate(BaseModel):
+    """Owner kill-switch: turn new bookings on/off, with optional timed reopen."""
+    accepting_bookings: bool
+    # ISO8601 auto-reopen time. None = closed indefinitely (manual reopen).
+    closed_until: Optional[str] = None
+    reason: Optional[str] = Field(default=None, max_length=120)
+
+    @field_validator("closed_until")
+    @classmethod
+    def validate_closed_until(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or str(v).strip() == "":
+            return None
+        from datetime import datetime
+        s = str(v).strip().replace("Z", "+00:00")
+        try:
+            datetime.fromisoformat(s)
+        except ValueError:
+            raise ValueError("closed_until must be a valid ISO8601 datetime.")
+        return v
+
 
 class ServiceCreate(BaseModel):
     name: str

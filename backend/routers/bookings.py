@@ -21,6 +21,7 @@ from models.bookings import (
 from models.promotions import PromoCodeValidate
 from models.reschedule import RescheduleRequest
 from services import booking_push
+from services import salon_availability
 
 logger = logging.getLogger("trimit")
 
@@ -635,6 +636,38 @@ async def reserve_slot(
     user_id = current_user.get("id")
     token = current_user.get("access_token")
 
+    # Owner kill-switch: block holds on a manually-closed salon (separate axis
+    # from subscription). Lightweight fetch of just the availability columns.
+    avail_resp = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{data.salon_id}"
+        "&select=accepting_bookings,closed_until,closed_reason,subscription_active",
+        token=token,
+    )
+    if avail_resp.status_code == 200 and avail_resp.json():
+        salon_row = avail_resp.json()[0]
+        if (
+            settings.SUBSCRIPTION_ENFORCEMENT_ENABLED
+            and salon_row.get("subscription_active") is False
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "SALON_UNAVAILABLE",
+                    "message": "This salon is not accepting bookings right now.",
+                },
+            )
+        closed, reopen_at, reason = salon_availability.is_salon_closed(salon_row)
+        if closed:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "SALON_CLOSED",
+                    "message": salon_availability.closed_booking_message(reopen_at, reason),
+                    "reopen_at": reopen_at,
+                },
+            )
+
     # Call RPC to reserve slot
     rpc_payload = {
         "p_salon_id": data.salon_id,
@@ -718,6 +751,19 @@ async def create_booking(
             detail={
                 "code": "SALON_UNAVAILABLE",
                 "message": "This salon is not accepting bookings right now.",
+            },
+        )
+
+    # Owner kill-switch: salon manually closed (separate axis from subscription).
+    # Existing bookings are untouched; only NEW bookings are blocked.
+    closed, reopen_at, reason = salon_availability.is_salon_closed(salon)
+    if closed:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "SALON_CLOSED",
+                "message": salon_availability.closed_booking_message(reopen_at, reason),
+                "reopen_at": reopen_at,
             },
         )
 
@@ -891,6 +937,7 @@ async def create_booking(
             initial_status=push_initial_status,
             is_premium=is_premium,
             payment_method=data.payment_method,
+            booking_reference=result.get("booking_reference"),
         )
     except Exception as e:
         logger.error(

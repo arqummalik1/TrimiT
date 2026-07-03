@@ -15,6 +15,10 @@ import {
 import api from '../../lib/api';
 import { formatPrice } from '../../lib/utils';
 import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../../lib/featureFlags';
+import { useServiceability } from '../../hooks/useServiceability';
+import ServiceAreaGate from '../../components/discovery/ServiceAreaGate';
+import ServiceCityNotice from '../../components/discovery/ServiceCityNotice';
+import GoogleSalonMap from '../../components/discovery/GoogleSalonMap';
 
 const CustomerHome = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,6 +60,10 @@ const CustomerHome = () => {
     },
   });
 
+  // Serviceability gate — only when the visitor shared their location.
+  const { data: serviceability } = useServiceability(userLocation);
+  const isOutOfArea = serviceability?.serviceable === false;
+
   return (
     <div className="min-h-screen bg-stone-50 pb-12">
       {/* Hero Search Section */}
@@ -69,10 +77,12 @@ const CustomerHome = () => {
               Find Your Perfect Salon
             </h1>
             <p className="text-stone-500 mb-6">
-              {userLocation 
-                ? 'Showing salons near you' 
+              {userLocation
+                ? 'Showing salons in Jammu'
                 : locationError || 'Allow location access to see nearby salons'}
             </p>
+
+            <ServiceCityNotice className="mb-6" />
 
             {/* Search Bar */}
             <div className="flex gap-4 flex-wrap">
@@ -125,7 +135,9 @@ const CustomerHome = () => {
 
       {/* Content */}
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {isLoading ? (
+        {isOutOfArea && serviceability ? (
+          <ServiceAreaGate result={serviceability} coords={userLocation} />
+        ) : isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div key={i} className="bg-white rounded-2xl p-4 animate-pulse">
@@ -154,7 +166,7 @@ const CustomerHome = () => {
             )}
           </div>
         ) : (
-          <MapView salons={salons || []} userLocation={userLocation} />
+          <GoogleSalonMap salons={salons || []} userLocation={userLocation} />
         )}
       </div>
     </div>
@@ -272,29 +284,6 @@ const SalonCard = ({ salon }) => {
         {cardContent}
       </Link>
     </motion.div>
-  );
-};
-
-const MapView = ({ salons, userLocation }) => {
-  return (
-    <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-      <div className="aspect-[16/9] bg-stone-100 flex items-center justify-center">
-        <div className="text-center p-8">
-          <MapTrifold size={64} weight="duotone" className="mx-auto text-stone-400 mb-4" />
-          <h3 className="font-heading text-xl font-bold text-stone-700 mb-2">
-            Map View Coming Soon
-          </h3>
-          <p className="text-stone-500 max-w-md mx-auto">
-            Google Maps integration requires an API key. Please provide your Google Maps API key to enable this feature.
-          </p>
-          {salons.length > 0 && (
-            <p className="text-sm text-stone-400 mt-4">
-              {salons.length} salons found in your area
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
   );
 };
 

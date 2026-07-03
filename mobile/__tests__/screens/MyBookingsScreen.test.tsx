@@ -47,6 +47,12 @@ jest.mock('../../src/lib/supabase', () => ({
   unsubscribeFromBookings: jest.fn(),
 }));
 
+// Reminder scheduling is a side effect (dynamically imported); no-op it here.
+jest.mock('../../src/lib/notifications', () => ({
+  scheduleBookingReminder: jest.fn().mockResolvedValue(undefined),
+  cancelBookingReminder: jest.fn().mockResolvedValue(undefined),
+}));
+
 // Keep the user id stable so the realtime effect path is deterministic.
 jest.mock('../../src/store/authStore', () => ({
   useAuthStore: (selector: (s: any) => unknown) => selector({ user: { id: 'u1' } }),

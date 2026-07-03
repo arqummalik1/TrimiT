@@ -5,6 +5,9 @@ import { MagnifyingGlass, MapPin, NavigationArrow } from '@phosphor-icons/react'
 import SalonCard from '../salon/SalonCard';
 import { usePublicSalons } from '../../hooks/usePublicSalons';
 import { JAMMU_CITY } from '../../config/jammu';
+import { useServiceability } from '../../hooks/useServiceability';
+import ServiceAreaGate from './ServiceAreaGate';
+import ServiceCityNotice from './ServiceCityNotice';
 
 export default function SalonDiscoveryView({
   title = 'Explore salons in Jammu',
@@ -19,6 +22,9 @@ export default function SalonDiscoveryView({
   const [searchQuery, setSearchQuery] = useState(initialQ);
   const [coords, setCoords] = useState({ lat: initialLat, lng: initialLng });
   const [locationLabel, setLocationLabel] = useState(JAMMU_CITY.label);
+  // Only gate when the visitor actively shared their real location (not the
+  // default Jammu center used for SEO/browsing).
+  const [sharedLocation, setSharedLocation] = useState(false);
 
   useEffect(() => {
     setSearchQuery(initialQ);
@@ -30,6 +36,11 @@ export default function SalonDiscoveryView({
     lng: coords.lng,
     limit: 24,
   });
+
+  const { data: serviceability } = useServiceability(
+    sharedLocation ? coords : null
+  );
+  const isOutOfArea = sharedLocation && serviceability?.serviceable === false;
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -47,6 +58,7 @@ export default function SalonDiscoveryView({
       (pos) => {
         setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setLocationLabel('Near you');
+        setSharedLocation(true);
         const next = new URLSearchParams(searchParams);
         next.set('lat', String(pos.coords.latitude));
         next.set('lng', String(pos.coords.longitude));
@@ -101,11 +113,16 @@ export default function SalonDiscoveryView({
               <MapPin size={16} weight="fill" className="text-orange-800" />
               {locationLabel} · {JAMMU_CITY.region}
             </p>
+            <ServiceCityNotice className="mt-4" />
           </motion.div>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {isOutOfArea && serviceability ? (
+          <ServiceAreaGate result={serviceability} coords={coords} />
+        ) : (
+        <>
         {error && (
           <div className="text-center py-12 px-4">
             <p className="text-stone-700 font-medium mb-1">Could not load salons</p>
@@ -140,6 +157,8 @@ export default function SalonDiscoveryView({
             <h2 className="font-heading text-xl font-bold text-stone-700 mb-2">No salons found</h2>
             <p className="text-stone-500">Try a different search or check back as new salons join.</p>
           </div>
+        )}
+        </>
         )}
       </div>
     </motion.div>

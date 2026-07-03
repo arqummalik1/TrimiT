@@ -63,6 +63,10 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   });
 
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  // TRUE only once the owner has actually placed a pin (or an existing salon
+  // loaded with real coords). We NEVER pre-fill a silent default location, so a
+  // salon can't be created at the wrong place. Save stays blocked until true.
+  const [locationSet, setLocationSet] = useState(false);
   const [pendingImages, setPendingImages] = useState<
     { id: string; localUri: string; progress: number; phase: 'preparing' | 'uploading' }[]
   >([]);
@@ -71,18 +75,25 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     description: '',
     address: '',
     city: '',
-    latitude: '28.6139',
-    longitude: '77.2090',
+    latitude: '',
+    longitude: '',
     phone: '',
     opening_time: '09:00',
     closing_time: '21:00',
     images: [] as string[],
   });
 
-  const selectedCoords: Coordinates = {
-    latitude: parseFloat(formData.latitude) || 28.6139,
-    longitude: parseFloat(formData.longitude) || 77.209,
-  };
+  // Where the map preview / picker opens BEFORE a pin is placed. This is only a
+  // starting camera position (Jammu — our launch city), NOT the salon's stored
+  // location. The stored location is only set once the owner taps a pin.
+  const MAP_DISPLAY_DEFAULT: Coordinates = { latitude: 32.7266, longitude: 74.857 };
+
+  const selectedCoords: Coordinates = locationSet
+    ? {
+        latitude: parseFloat(formData.latitude),
+        longitude: parseFloat(formData.longitude),
+      }
+    : MAP_DISPLAY_DEFAULT;
 
   const handleLocationConfirmed = useCallback((coords: Coordinates) => {
     setFormData((prev) => ({
@@ -90,24 +101,30 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       latitude: coords.latitude.toFixed(6),
       longitude: coords.longitude.toFixed(6),
     }));
+    setLocationSet(true);
     setShowLocationPicker(false);
   }, []);
 
   useEffect(() => {
     if (salon) {
       const normalized = normalizeSalon(salon);
+      const lat = Number(normalized.latitude);
+      const lng = Number(normalized.longitude);
+      const hasCoords =
+        Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
       setFormData({
         name: normalized.name || '',
         description: normalized.description || '',
         address: normalized.address || '',
         city: normalized.city || '',
-        latitude: String(normalized.latitude || 28.6139),
-        longitude: String(normalized.longitude || 77.2090),
+        latitude: hasCoords ? String(lat) : '',
+        longitude: hasCoords ? String(lng) : '',
         phone: normalized.phone || '',
         opening_time: normalized.opening_time || '09:00',
         closing_time: normalized.closing_time || '21:00',
         images: normalized.images,
       });
+      setLocationSet(hasCoords);
     }
   }, [salon]);
 
@@ -147,6 +164,11 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   const handleSubmit = async () => {
     if (pendingImages.length > 0) {
       showToast('Please wait for images to finish uploading', 'warning');
+      return;
+    }
+
+    if (!locationSet) {
+      showToast('Please pin your salon location on the map', 'error');
       return;
     }
 
@@ -305,46 +327,60 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
           />
 
           {/* Location preview card — opens full-screen picker */}
-          <Text style={styles.mapLabel}>Pin your exact salon location on the map</Text>
+          <Text style={styles.mapLabel}>
+            Pin your exact salon location on the map <Text style={styles.requiredMark}>*</Text>
+          </Text>
           <TouchableOpacity
-            style={styles.locationPreviewCard}
+            style={[styles.locationPreviewCard, !locationSet && styles.locationPreviewCardEmpty]}
             onPress={() => setShowLocationPicker(true)}
             activeOpacity={0.9}
           >
-            <View style={styles.locationMapPreview} pointerEvents="none">
-              <MapView
-                style={StyleSheet.absoluteFill}
-                region={{
-                  latitude: selectedCoords.latitude,
-                  longitude: selectedCoords.longitude,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-                scrollEnabled={false}
-                zoomEnabled={false}
-                rotateEnabled={false}
-                pitchEnabled={false}
-              >
-                <SalonMapMarker
-                  coordinate={selectedCoords}
-                  variant="brand"
-                  selected
-                  showCallout={false}
-                />
-              </MapView>
-            </View>
-            <View style={styles.locationPreviewFooter}>
-              <View style={styles.coordsBlock}>
-                <Ionicons name="location" size={14} color={theme.colors.primary} />
-                <Text style={styles.coordsText}>
-                  {selectedCoords.latitude.toFixed(5)}, {selectedCoords.longitude.toFixed(5)}
+            {locationSet ? (
+              <>
+                <View style={styles.locationMapPreview} pointerEvents="none">
+                  <MapView
+                    style={StyleSheet.absoluteFill}
+                    region={{
+                      latitude: selectedCoords.latitude,
+                      longitude: selectedCoords.longitude,
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
+                    }}
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                    rotateEnabled={false}
+                    pitchEnabled={false}
+                  >
+                    <SalonMapMarker
+                      coordinate={selectedCoords}
+                      variant="brand"
+                      selected
+                      showCallout={false}
+                    />
+                  </MapView>
+                </View>
+                <View style={styles.locationPreviewFooter}>
+                  <View style={styles.coordsBlock}>
+                    <Ionicons name="location" size={14} color={theme.colors.primary} />
+                    <Text style={styles.coordsText}>
+                      {selectedCoords.latitude.toFixed(5)}, {selectedCoords.longitude.toFixed(5)}
+                    </Text>
+                  </View>
+                  <View style={styles.changeLocationBtn}>
+                    <Ionicons name="create-outline" size={14} color={theme.colors.primary} />
+                    <Text style={styles.changeLocationText}>Change Location</Text>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <View style={styles.locationEmptyState}>
+                <Ionicons name="map-outline" size={32} color={theme.colors.primary} />
+                <Text style={styles.locationEmptyTitle}>Tap to set your salon location</Text>
+                <Text style={styles.locationEmptySubtitle}>
+                  Drop a pin on the map so customers can find you. This is required.
                 </Text>
               </View>
-              <View style={styles.changeLocationBtn}>
-                <Ionicons name="create-outline" size={14} color={theme.colors.primary} />
-                <Text style={styles.changeLocationText}>Change Location</Text>
-              </View>
-            </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -424,7 +460,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
           title={salon ? 'Save Changes' : 'Create Salon'}
           onPress={handleSubmit}
           loading={isSaving}
-          disabled={isUploading}
+          disabled={isUploading || !locationSet}
           style={{ marginTop: spacing.lg }}
         />
         <View style={{ height: TAB_BAR_BASE_HEIGHT + insets.bottom + 40 }} />
@@ -480,6 +516,30 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     ...typography.bodySmall,
     color: theme.colors.textSecondary,
     marginBottom: spacing.sm,
+  },
+  requiredMark: {
+    color: theme.colors.error,
+  },
+  locationPreviewCardEmpty: {
+    borderStyle: 'dashed',
+    borderColor: theme.colors.primary,
+  },
+  locationEmptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.xs,
+  },
+  locationEmptyTitle: {
+    ...typography.bodyMedium,
+    color: theme.colors.text,
+    marginTop: spacing.xs,
+  },
+  locationEmptySubtitle: {
+    ...typography.caption,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
   },
   // Location preview card
   locationPreviewCard: {
