@@ -232,25 +232,15 @@ async def resolve_profile_for_user(
     """
     Definitive profile for login /auth/me: service-role read first, then user JWT.
     If the profile is missing in the database, returns None (onboarding/profile completion required).
+    
+    SECURITY: DB role is the ONLY source of truth. JWT metadata is NEVER trusted for role.
+    P0-2 Fix: Removed JWT metadata role upgrade to prevent escalation attacks.
     """
     row = await fetch_profile_service_role(user_id)
     if row:
-        meta_role = role_from_user_metadata(user_metadata)
-        if meta_role == "owner" and normalize_role_safe(row.get("role")) == "customer":
-            logger.warning(
-                "resolve_profile_for_user: upgrading customer→owner from metadata user=%s",
-                user_id[:8] if user_id else "?",
-            )
-            row = await upsert_user_profile(
-                user_id,
-                {
-                    "id": user_id,
-                    "role": "owner",
-                    "email": row.get("email") or email,
-                    "name": row.get("name") or (email.split("@")[0] if email else "User"),
-                },
-                prefer_incoming_role=True,
-            )
+        # P0-2 Security Fix: DB role is immutable, JWT metadata is ignored.
+        # Role can ONLY be set at account creation via /complete-profile.
+        # Owner role requires UPI validation at signup - no post-signup escalation possible.
         return row
 
     if user_jwt:

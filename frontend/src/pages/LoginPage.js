@@ -44,7 +44,9 @@ const LoginPage = () => {
     if (result.success) {
       useToastStore.getState().success('Verification OTP code sent to your email.');
       setResendTimer(60);
-      navigate(`/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}&type=magiclink`);
+      // P0-3 Security Fix: Pass redirect param through OTP flow so user lands back on booking page
+      const redirectParam = redirectAfterLogin ? `&redirect=${encodeURIComponent(redirectAfterLogin)}` : '';
+      navigate(`/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}&type=magiclink${redirectParam}`);
     }
   };
 

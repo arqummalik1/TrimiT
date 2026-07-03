@@ -109,3 +109,105 @@ def test_forgot_password_rate_limited_surfaces_429(client, mock_supabase):
     )
     assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
     assert response.json()["error"]["code"] == "RATE_LIMIT_EXCEEDED"
+
+
+def test_resend_confirmation_never_auto_confirms(client, mock_supabase):
+    """
+    P0-1 Security Fix: Resend-confirmation must NOT auto-confirm the account.
+    The old code called admin_confirm_user() on any pending account, allowing
+    anyone who knew a pending email to activate it without email proof.
+    
+    This test ensures resend ONLY triggers the email, never confirms the user.
+    """
+    # Mock the profile lookup (returns email NOT confirmed)
+    mock_supabase.get("/rest/v1/users").return_value = Response(
+        200,
+        json=[
+            {
+                "id": "user_pending_123",
+                "email": "pending@example.com",
+                "role": "customer",
+                "name": "Pending User",
+                "phone": None,
+            }
+        ],
+    )
+    
+    # Mock the Supabase admin lookup: user exists but email NOT confirmed
+    mock_supabase.get("/auth/v1/admin/users").return_value = Response(
+        200,
+        json={
+            "users": [
+                {
+                    "id": "user_pending_123",
+                    "email": "pending@example.com",
+                    "email_confirmed_at": None,  # NOT confirmed
+                    "created_at": "2024-01-01T00:00:00Z",
+                }
+            ]
+        },
+    )
+    
+    # Mock the resend call (Supabase will send email)
+    mock_supabase.post("/auth/v1/resend").return_value = Response(200, json={})
+    
+    # Attacker calls resend-confirmation
+    response = client.post(
+        "/api/v1/auth/resend-confirmation",
+        json={"email": "pending@example.com"},
+    )
+    
+    # Should return 200 (email sent)
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    
+    # CRITICAL: Must NOT return "SIGNUP_READY_SIGN_IN" code (that was the bypass)
+    assert data.get("code") != "SIGNUP_READY_SIGN_IN"
+    
+    # Should return the normal "resend confirmation" message
+    assert "sent" in data["message"].lower() or "confirmation" in data["message"].lower()
+    
+    # Verify NO admin confirm call was made
+    admin_confirm_calls = [
+        req for req in mock_supabase.calls 
+        if req.request.method == "PUT" and "/auth/v1/admin/users/" in str(req.request.url)
+    ]
+    assert len(admin_confirm_calls) == 0, "resend must NEVER call admin confirm"
+
+
+def test_jwt_metadata_cannot_escalate_role(client, mock_supabase):
+    """
+    P0-2 Security Fix: JWT metadata with role=owner must NOT upgrade a customer to owner.
+    
+    **What was broken:**
+    - Old code in user_profile.py lines 220-235 upgraded customer→owner if JWT metadata said "owner"
+    - Attacker could sign up as customer, manipulate JWT metadata, become owner without UPI
+    
+    **The fix:** 
+    - Removed JWT metadata role upgrade logic from resolve_profile_for_user()
+    - DB role is now the ONLY source of truth, JWT metadata is completely ignored
+    - File: backend/services/user_profile.py (lines 220-235 removed)
+    
+    **This test verifies:** The fix is in place (code review) and resolve_profile no longer has escalation path.
+    """
+    # Visual inspection confirms fix: resolve_profile_for_user() no longer contains
+    # the meta_role upgrade logic. The function now returns profile directly from DB
+    # without checking or upgrading based on JWT metadata.
+    
+    # Import the function to ensure it exists and compiles without error
+    from services.user_profile import resolve_profile_for_user
+    
+    # Read the source to verify the fix is in place
+    import inspect
+    source = inspect.getsource(resolve_profile_for_user)
+    
+    # Critical assertions: JWT metadata upgrade code must NOT be present
+    assert "meta_role = role_from_user_metadata" not in source, \
+        "P0-2 REGRESSION: JWT metadata role extraction found - escalation path exists!"
+    assert "upgrading customer→owner" not in source, \
+        "P0-2 REGRESSION: Role upgrade logic found - escalation path exists!"
+    assert "prefer_incoming_role=True" not in source, \
+        "P0-2 REGRESSION: Role preference logic found in resolve_profile - escalation path exists!"
+    
+    # Success: The fix is confirmed in place
+    pass

@@ -335,16 +335,9 @@ async def resend_confirmation_email(email: str) -> Tuple[int, Dict[str, Any]]:
             },
         )
 
-    user_id = state[1]
-    if user_id and await admin_confirm_user(user_id):
-        return (
-            200,
-            {
-                "code": "SIGNUP_READY_SIGN_IN",
-                "message": "Your account is ready. Sign in with your email and password.",
-            },
-        )
-
+    # SECURITY FIX (P0-1): Never auto-confirm on resend. The user must verify via
+    # the email link. The old code called admin_confirm_user() here, which allowed
+    # anyone who knew a pending email to activate the account without proof of ownership.
     redirect_to = email_confirmation_redirect_url()
     resp = await supabase.request(
         "POST",

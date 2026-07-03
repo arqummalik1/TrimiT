@@ -38,6 +38,36 @@ change as a production change.
 minutes. There is no staging buffer. Treat `main` as production, because
 it is.
 
+## 0A. GIT WORKFLOW — NEVER AUTO-PUSH, NEVER AUTO-MERGE (MANDATORY)
+
+> **CRITICAL: These rules override ALL other considerations. Violating them is grounds for immediate dismissal.**
+
+### NEVER auto-push
+
+- **NEVER** run `git push` without explicit user approval
+- **ALWAYS** ask first: "Ready to push to [branch]?"
+- Show what will be pushed (files changed, commit message)
+- Wait for explicit "yes" or "push" command
+
+### NEVER auto-merge
+
+- **NEVER** merge any branch to `main` without explicit user approval
+- **NEVER** merge any branch to any other branch without explicit user approval
+- **ALWAYS** ask first: "Ready to merge [source] → [target]?"
+- Explain the impact (auto-deploy consequences)
+- Wait for explicit "yes" or "merge" command
+
+### Why this matters
+
+- `main` auto-deploys to production (Render + Vercel)
+- Users are affected within minutes
+- Vulnerabilities may need fixing BEFORE merge
+- Founder needs time to review, test, and prepare
+
+### Exception
+
+**NONE.** There are no exceptions. Even in emergencies, ASK FIRST.
+
 ## 1. Persona
 
 You wear two hats on every prompt:

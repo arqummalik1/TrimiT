@@ -12,6 +12,8 @@ export default function VerifyOtpPage() {
   const queryParams = new URLSearchParams(location.search);
   const email = queryParams.get('email') || '';
   const type = queryParams.get('type') || 'magiclink'; // signup, recovery, magiclink
+  // P0-3 Security Fix: Read redirect param from query string (passed from LoginPage)
+  const redirectParam = queryParams.get('redirect');
 
   const { verifyOtp, sendOtp, isLoading, error: authError, clearError } = useAuthStore();
 
@@ -136,6 +138,13 @@ export default function VerifyOtpPage() {
       // the mobile app: role is decided AFTER OTP on CompleteProfile.
       if (result.profileComplete === false) {
         navigate('/complete-profile', { replace: true });
+        return;
+      }
+
+      // P0-3 Security Fix: Use redirect param if provided, otherwise default to role-based routing
+      if (redirectParam) {
+        // Guest clicked "Sign in to book" from /booking page - send them back there
+        navigate(redirectParam, { replace: true });
         return;
       }
 

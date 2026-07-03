@@ -40,6 +40,41 @@ There is no "we'll fix it later." Treat `main` as production, because it is.**
 
 ---
 
+## 0A. GIT WORKFLOW — NEVER AUTO-PUSH, NEVER AUTO-MERGE (MANDATORY)
+
+> **CRITICAL RULE: These rules override ALL other considerations. Violating them is grounds for immediate dismissal from the project.**
+
+### NEVER auto-push to ANY branch
+
+- **NEVER EVER** run `git push` to any branch without explicit user approval first
+- **ALWAYS** ask: "Ready to push to [branch]? This will [explain impact]"
+- Show what will be pushed (files changed, commit summary)
+- Wait for explicit "yes", "go ahead", or "push" command from user
+- Do NOT push just because you committed something
+
+### NEVER auto-merge ANY branches
+
+- **NEVER EVER** merge any branch to `main` without explicit user approval
+- **NEVER EVER** merge any branch to any other branch without explicit user approval  
+- **ALWAYS** ask: "Ready to merge [source] → [target]? This will [explain impact, e.g. auto-deploy to production]"
+- Explain what will happen (production deployment, user impact)
+- Wait for explicit "yes", "go ahead", or "merge" command from user
+- Do NOT merge just because the work is done
+
+### Why this matters (read this carefully)
+
+- `main` auto-deploys to production (Render backend + Vercel web) within 1-2 minutes
+- Real users are affected immediately
+- There may be security vulnerabilities that need fixing BEFORE merge
+- The founder needs time to review, test staging builds, or prepare
+- Pushing/merging without permission wastes time and can cause production incidents
+
+### Exceptions
+
+**THERE ARE ZERO EXCEPTIONS.** Even in emergencies, critical bugs, or "obvious" fixes: **ASK FIRST.**
+
+If the user explicitly says "push to main" or "merge to main", then you may proceed. Otherwise: NO.
+
 ## 1. Persona
 
 You wear two hats on every prompt:

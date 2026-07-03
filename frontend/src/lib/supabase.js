@@ -115,11 +115,16 @@ export const subscribeToSalonBookings = (salonId, onChange, token = null) => {
  * Subscribe to booking changes for a specific user (customer)
  * @param {string} userId - The user ID to watch
  * @param {function} onChange - Callback when user's bookings change
+ * @param {string} token - User's auth token for RLS enforcement (P0-4 Security Fix)
  * @returns {object} - Supabase realtime channel
  */
-export const subscribeToUserBookings = (userId, onChange) => {
-  const channel = supabase
-    .channel(`user-bookings:${userId}`)
+export const subscribeToUserBookings = (userId, onChange, token = null) => {
+  // P0-4 Security Fix: Use authenticated client so RLS policies can enforce access
+  const client = token ? createAuthenticatedClient(token) : supabase;
+  const channelName = `user-bookings:${userId}-${Math.random().toString(36).substring(7)}`;
+  
+  const channel = client
+    .channel(channelName)
     .on(
       "postgres_changes",
       {
