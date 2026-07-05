@@ -21,7 +21,7 @@ const pushPayloadSchema = z.object({
   type: z.string().optional(),
   booking_id: uuidOrEmpty,
   bookingId: uuidOrEmpty,
-  role_hint: z.enum(['customer', 'owner']).optional(),
+  role_hint: z.enum(['customer', 'owner', 'employee']).optional(),
   status: z.string().optional(),
   audience: z.string().optional(),
 });
@@ -29,7 +29,7 @@ const pushPayloadSchema = z.object({
 export function handleNotificationNavigation(
   navigationRef: NavigationContainerRef<RootStackParamList> | null,
   data: PushPayload | undefined,
-  userRole: 'customer' | 'owner' | undefined
+  userRole: 'customer' | 'owner' | 'employee' | undefined
 ): void {
   if (!navigationRef?.isReady() || !data) {
     return;
@@ -52,13 +52,15 @@ export function handleNotificationNavigation(
     // Use the authenticated user's role
     const role = userRole;
 
+    const isOwnerSide = role === 'owner' || role === 'employee';
+
     logger.info('[PushNav] navigate', { type, bookingId, role });
 
     // Broadcast (Zomato/Blinkit-style) marketing pushes don't deep-link anywhere
     // by default — open the app on the role's home tab. If a future broadcast
     // wants to deep link, encode it in `data` and extend this branch.
     if (type === 'broadcast') {
-      if (role === 'owner') {
+      if (isOwnerSide) {
         navigationRef.dispatch(
           CommonActions.navigate({
             name: 'OwnerTabs',
@@ -76,7 +78,7 @@ export function handleNotificationNavigation(
       return;
     }
 
-    if (role === 'owner') {
+    if (isOwnerSide) {
       navigationRef.dispatch(
         CommonActions.navigate({
           name: 'OwnerTabs',

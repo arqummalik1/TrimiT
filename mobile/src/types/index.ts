@@ -3,7 +3,7 @@ export interface User {
   email: string;
   name: string;
   phone?: string;
-  role: 'customer' | 'owner';
+  role: 'customer' | 'owner' | 'employee';
   gender?: 'male' | 'female';
   discovery_audience?: 'auto' | 'men' | 'women' | 'all';
   push_token?: string;

@@ -31,7 +31,12 @@ export function normalizeAuthUser(raw: ProfileLike | null | undefined): User | n
     return null;
   }
 
-  const role: User['role'] = row.role === 'owner' ? 'owner' : 'customer';
+  const role: User['role'] =
+    row.role === 'owner'
+      ? 'owner'
+      : row.role === 'employee'
+        ? 'employee'
+        : 'customer';
 
   return {
     id: row.id,
