@@ -3,14 +3,34 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Trash, Warning } from '@phosphor-icons/react';
 import { useAuthStore } from '../../store/authStore';
+import { useToastStore } from '../../store/toastStore';
 import { SUPPORT_EMAIL } from '../../config/contact';
 import AppVersionNote from '../../components/AppVersionNote';
+import { FilterChipRow } from '../../components/FilterChipRow';
+import { DISCOVERY_PREF_OPTIONS } from '../../lib/genderServe';
 
 const AccountPage = () => {
   const navigate = useNavigate();
-  const { profile, deleteAccount, isLoading } = useAuthStore();
+  const { profile, user, deleteAccount, updateProfile, isLoading } = useAuthStore();
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState(null);
+  const [discoveryAudience, setDiscoveryAudience] = useState(
+    profile?.discovery_audience || user?.discovery_audience || 'auto',
+  );
+  const [savingDiscovery, setSavingDiscovery] = useState(false);
+
+  const handleDiscoveryChange = async (value) => {
+    setDiscoveryAudience(value);
+    setSavingDiscovery(true);
+    const result = await updateProfile({ discovery_audience: value });
+    setSavingDiscovery(false);
+    if (result.success) {
+      useToastStore.getState().success('Discovery preference updated');
+    } else {
+      setError(result.error || 'Could not update discovery preference');
+      setDiscoveryAudience(profile?.discovery_audience || 'auto');
+    }
+  };
 
   const handleDelete = async () => {
     const confirmed = window.confirm(
@@ -52,6 +72,22 @@ const AccountPage = () => {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
+        <h2 className="font-semibold text-stone-900 mb-2">Discovery</h2>
+        <p className="text-sm text-stone-500 mb-4">
+          Choose which salons appear when you browse near you.
+        </p>
+        <FilterChipRow
+          options={DISCOVERY_PREF_OPTIONS}
+          value={discoveryAudience}
+          onChange={handleDiscoveryChange}
+          testIDPrefix="discovery-pref"
+        />
+        {savingDiscovery && (
+          <p className="text-sm text-stone-500 mt-3">Saving…</p>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-red-200 p-6">

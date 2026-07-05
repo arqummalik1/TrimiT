@@ -587,6 +587,7 @@ async def complete_profile(
             name=data.name,
             phone=data.phone,
             upi_id=upi_id if is_owner else None,
+            gender=data.gender,
         )
     except ValueError as e:
         raise HTTPException(

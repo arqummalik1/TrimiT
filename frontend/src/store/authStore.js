@@ -516,7 +516,7 @@ export const useAuthStore = create(
       // Mandatory second step after OTP for new users. Creates the
       // public.users row with the chosen role. Idempotent server-side —
       // role cannot be escalated once the row exists.
-      completeProfile: async ({ role, name, phone, upi_id }) => {
+      completeProfile: async ({ role, name, phone, upi_id, gender }) => {
         set({ isLoading: true, error: null });
         try {
           const response = await api.post("/auth/complete-profile", {
@@ -524,6 +524,7 @@ export const useAuthStore = create(
             name,
             phone,
             upi_id,
+            gender,
           });
           const profile = response.data?.profile || null;
 
@@ -567,6 +568,28 @@ export const useAuthStore = create(
             translateAuthError(error, "generic");
           set({ isLoading: false, error: message });
           return { success: false, error: message, errorCode };
+        }
+      },
+
+      updateProfile: async (payload) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await api.patch("/auth/profile", payload);
+          const fresh = response.data?.profile || get().profile;
+          const currentUser = get().user;
+          const syncedUser =
+            currentUser && fresh ? { ...currentUser, ...fresh } : fresh || currentUser;
+          set({
+            user: syncedUser,
+            profile: fresh,
+            isLoading: false,
+            error: null,
+          });
+          return { success: true, profile: fresh };
+        } catch (error) {
+          const message = translateAuthError(error, "generic");
+          set({ isLoading: false, error: message });
+          return { success: false, error: message };
         }
       },
     }),

@@ -1,7 +1,7 @@
 import re
 
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, List
+from typing import Optional, List, Literal
 
 # IFSC: 4 uppercase letters + '0' + 6 alphanumeric chars
 _IFSC_RE = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
@@ -46,6 +46,7 @@ class SalonCreate(BaseModel):
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
     bank_account_holder_name: Optional[str] = None
+    gender_serve: Literal["men", "women", "unisex"] = "unisex"
 
     @field_validator("upi_id")
     @classmethod
@@ -88,6 +89,7 @@ class SalonUpdate(BaseModel):
     bank_account_number: Optional[str] = None
     bank_ifsc: Optional[str] = None
     bank_account_holder_name: Optional[str] = None
+    gender_serve: Optional[Literal["men", "women", "unisex"]] = None
 
     @field_validator("upi_id")
     @classmethod
@@ -137,6 +139,7 @@ class ServiceCreate(BaseModel):
     original_price: Optional[int] = None
     offer_end_date: Optional[str] = None  # YYYY-MM-DD
     offer_tagline: Optional[str] = None
+    audience: Optional[Literal["men", "women", "both"]] = None
 
 class ServiceUpdate(BaseModel):
     name: Optional[str] = None
@@ -150,3 +153,4 @@ class ServiceUpdate(BaseModel):
     original_price: Optional[int] = None
     offer_end_date: Optional[str] = None
     offer_tagline: Optional[str] = None
+    audience: Optional[Literal["men", "women", "both"]] = None

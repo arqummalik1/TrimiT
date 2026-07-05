@@ -39,6 +39,8 @@ import { useOwnerSalonQuery } from '../../hooks/useOwnerSalonQuery';
 import { useOwnerOnboardingStore } from '../../store/ownerOnboardingStore';
 import type { OwnerServicesScreenProps } from '../../navigation/types';
 import { groupServicesByCategory } from '../../lib/serviceCategories';
+import { SERVICE_AUDIENCE_OPTIONS } from '../../lib/genderServe';
+import { FilterChipRow } from '../../components/FilterChipRow';
 
 const EMPTY_FORM = {
   name: '',
@@ -47,6 +49,7 @@ const EMPTY_FORM = {
   duration: '30',
   image_url: '' as string,
   category_id: '' as string,
+  audience: 'both' as 'men' | 'women' | 'both',
   is_on_offer: false,
   discount_percentage: '',
 };
@@ -78,6 +81,7 @@ function buildServicePayload(data: typeof EMPTY_FORM, categoriesExist: boolean) 
     duration,
     image_url: data.image_url || null,
     category_id: data.category_id || null,
+    audience: data.audience,
     is_on_offer: data.is_on_offer,
     discount_percentage: discount,
   };
@@ -97,6 +101,7 @@ export default function ManageServicesScreen({ navigation, route }: ServicesRout
   const { data: salon, isLoading, isError, error, refetch, isRefetching } = useOwnerSalonQuery();
   const categories = salon?.service_categories ?? [];
   const categoriesExist = categories.length > 0;
+  const isUnisexSalon = salon?.gender_serve === 'unisex';
   const serviceSections = useMemo(
     () => groupServicesByCategory(salon?.services ?? [], categories),
     [salon?.services, categories],
@@ -112,6 +117,7 @@ export default function ManageServicesScreen({ navigation, route }: ServicesRout
         duration: String(service.duration),
         image_url: service.image_url || '',
         category_id: service.category_id || '',
+        audience: service.audience ?? 'both',
         is_on_offer: service.is_on_offer ?? false,
         discount_percentage: service.discount_percentage
           ? String(service.discount_percentage)
@@ -501,6 +507,18 @@ export default function ManageServicesScreen({ navigation, route }: ServicesRout
                       })}
                     </View>
                   </ScrollView>
+                </View>
+              ) : null}
+
+              {isUnisexSalon ? (
+                <View style={styles.categoryBlock}>
+                  <Text style={styles.categoryLabel}>Who is this for?</Text>
+                  <FilterChipRow
+                    options={SERVICE_AUDIENCE_OPTIONS}
+                    value={formData.audience}
+                    onChange={(v) => setFormData((p) => ({ ...p, audience: v }))}
+                    testIDPrefix="service-audience"
+                  />
                 </View>
               ) : null}
 

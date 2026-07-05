@@ -23,6 +23,7 @@ export function buildServicePayload(data, categoriesExist = false) {
     image_url: data.image_url || undefined,
     is_on_offer: Boolean(data.is_on_offer),
     category_id,
+    audience: data.audience || 'both',
   };
 
   if (data.is_on_offer && data.discount_percentage != null && data.discount_percentage !== '') {

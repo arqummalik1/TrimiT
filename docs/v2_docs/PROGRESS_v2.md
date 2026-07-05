@@ -1,7 +1,9 @@
 # TrimiT - V2 Progress
 
 ## Accomplished (2026-07-05)
-- **Service categories (C1–C4):** Migration `57_service_categories.sql`; backend `/owner/categories`; mobile + **web** owner categories, grouped services, customer salon menu sections; delete blocked when services exist. Cursor rules: no implicit merge, TDD for mobile/web/backend.
+- **Migrations 57 + 58 applied in Supabase SQL Editor:** `service_categories`, salon `gender_serve`, customer `gender` / `discovery_audience`, service `audience`, updated `get_nearby_salons_v1` filter.
+- **Gender serve G0–G5 (mobile + web parity):** Salon type (Men's salon / Parlor / Unisex); customer gender at signup (`CompleteProfilePage`); Discover chips; Account discovery preference; unisex menu + service audience chips. Themed `FilterChipRow` + tests (mobile + web).
+- **Service categories (C1–C4):** Mobile + web owner categories, grouped services, customer menu sections.
 
 ## Accomplished (2026-07-04)
 - **Google sign-in (web):** Enabled on Login + Signup with branded button (multicolor G, Google identity styling). OAuth callback hydrates session + `/auth/me`; same email de-dup via Supabase Link identities.
@@ -20,7 +22,6 @@
 - **Versioning Automation:** Added `scripts/bump_version.js` to intelligently update `shared/app-version.json`, pushing `androidVersionCode` up by 1 and updating `version`.
 
 ## Next Steps
-- Apply migration **57** in Supabase SQL Editor (`database/57_service_categories.sql`).
 - Verify the newly added `bump_version.js` script with the build pipeline.
 - Continue monitoring Play Store crash logs (if any) as version 1.0.2 rolls out.
 - Ensure all DEFERRED_FIXES are reviewed and safely addressed in a future branch.

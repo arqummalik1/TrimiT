@@ -13,6 +13,8 @@ type ProfileLike = {
   notify_promotional?: boolean;
   notify_reminders?: boolean;
   created_at?: string;
+  gender?: 'male' | 'female';
+  discovery_audience?: 'auto' | 'men' | 'women' | 'all';
   profile?: ProfileLike;
 };
 
@@ -43,6 +45,14 @@ export function normalizeAuthUser(raw: ProfileLike | null | undefined): User | n
     notify_booking_updates: row.notify_booking_updates,
     notify_promotional: row.notify_promotional,
     notify_reminders: row.notify_reminders,
+    gender: row.gender === 'male' || row.gender === 'female' ? row.gender : undefined,
+    discovery_audience:
+      row.discovery_audience === 'auto' ||
+      row.discovery_audience === 'men' ||
+      row.discovery_audience === 'women' ||
+      row.discovery_audience === 'all'
+        ? row.discovery_audience
+        : undefined,
     created_at: row.created_at ?? '',
   };
 }

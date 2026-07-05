@@ -46,6 +46,7 @@ function renderScreen(route: any) {
 }
 
 const acceptTerms = () => fireEvent.press(screen.getByText(/I agree to the/));
+const selectCustomerGender = () => fireEvent.press(screen.getByTestId('profile-gender-male'));
 
 // react-hook-form + zodResolver + themed render is heavy; under full-suite
 // parallel CPU contention the first render can exceed the 5s default. Give
@@ -63,6 +64,7 @@ describe('CompleteProfileScreen — role selection (item 16)', () => {
     renderScreen({ params: {} } as any);
 
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Cara Customer');
+    selectCustomerGender();
     acceptTerms();
     await act(async () => {
       fireEvent.press(screen.getByText('Complete Setup'));
@@ -73,6 +75,7 @@ describe('CompleteProfileScreen — role selection (item 16)', () => {
         name: 'Cara Customer',
         phone: undefined,
         role: 'customer',
+        gender: 'male',
       });
     });
   });
@@ -102,6 +105,7 @@ describe('CompleteProfileScreen — role selection (item 16)', () => {
     fireEvent.press(screen.getByText('Salon Owner'));
     fireEvent.press(screen.getByText('Customer'));
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Switcher');
+    selectCustomerGender();
     acceptTerms();
     await act(async () => {
       fireEvent.press(screen.getByText('Complete Setup'));
@@ -159,6 +163,7 @@ describe('CompleteProfileScreen — failure (item 15)', () => {
     renderScreen({ params: {} } as any);
 
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Fail Case');
+    selectCustomerGender();
     acceptTerms();
     await act(async () => {
       fireEvent.press(screen.getByText('Complete Setup'));

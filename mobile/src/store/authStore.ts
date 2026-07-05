@@ -60,10 +60,11 @@ interface AuthState {
   isOnboardingCompleted: boolean;
   completeOnboarding: () => void;
   completeProfile: (data: {
-    role: 'customer' | 'owner';
+    role: 'customer' | 'owner' | 'employee';
     name: string;
     phone?: string;
     upi_id?: string;
+    gender?: 'male' | 'female';
   }) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
 }
 

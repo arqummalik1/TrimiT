@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from pydantic import BaseModel, EmailStr, Field, model_validator
+from typing import Optional, Literal
 from enum import Enum
 
 class UserRole(str, Enum):
@@ -22,6 +22,8 @@ class UserUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
     push_token: Optional[str] = None
+    gender: Optional[Literal["male", "female"]] = None
+    discovery_audience: Optional[Literal["auto", "men", "women", "all"]] = None
 
 class NotificationPreferencesUpdate(BaseModel):
     push_enabled: Optional[bool] = None
@@ -98,3 +100,12 @@ class CompleteProfileRequest(BaseModel):
     upi_id: Optional[str] = Field(
         None, max_length=256, description="Owner UPI VPA (required for owners), e.g. name@bank."
     )
+    gender: Optional[Literal["male", "female"]] = Field(
+        None, description="Customer gender for personalized discovery."
+    )
+
+    @model_validator(mode="after")
+    def customer_requires_gender(self):
+        if self.role == UserRole.customer and not self.gender:
+            raise ValueError("gender is required for customers")
+        return self

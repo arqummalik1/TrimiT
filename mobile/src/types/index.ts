@@ -4,6 +4,8 @@ export interface User {
   name: string;
   phone?: string;
   role: 'customer' | 'owner';
+  gender?: 'male' | 'female';
+  discovery_audience?: 'auto' | 'men' | 'women' | 'all';
   push_token?: string;
   push_enabled?: boolean;
   notify_bookings?: boolean;
@@ -49,6 +51,8 @@ export interface Salon {
   closed_at?: string | null;
   /** Optional owner reason shown to customers (e.g. "On holiday"). */
   closed_reason?: string | null;
+  /** Who this salon serves — men, women, or unisex. */
+  gender_serve?: 'men' | 'women' | 'unisex';
   /** Salon's UPI ID (VPA, e.g. "salon@bank"). Required to accept UPI payments. */
   upi_id?: string | null;
   /** Optional uploaded UPI QR code image URL. */
@@ -83,6 +87,8 @@ export interface Service {
   price: number;
   duration: number;
   category_id?: string | null;
+  /** men | women | both — meaningful for unisex salons. */
+  audience?: 'men' | 'women' | 'both';
   // ─── Extended fields (backward-compatible, all optional) ─────────────────
   image_url?: string | null;
   original_price?: number | null;     // price before discount

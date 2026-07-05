@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -19,11 +19,18 @@ import { formatPrice, formatDate } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../../lib/featureFlags';
 import { groupServicesByCategory } from '../../lib/serviceCategories';
+import {
+  filterServicesForMenuAudience,
+  salonNeedsMenuAudienceChips,
+  MENU_AUDIENCE_OPTIONS,
+} from '../../lib/genderServe';
+import { FilterChipRow } from '../../components/FilterChipRow';
 
 const SalonDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
+  const [menuAudience, setMenuAudience] = useState('all');
 
   const { data: salon, isLoading, error } = useQuery({
     queryKey: ['salon', id],
@@ -79,7 +86,11 @@ const SalonDetail = () => {
       : `/login?redirect=${encodeURIComponent(`/booking/${salon.id}/${serviceId}`)}`;
 
   const serviceSections = groupServicesByCategory(
-    salon.services ?? [],
+    filterServicesForMenuAudience(
+      salon.services ?? [],
+      salon.gender_serve,
+      salonNeedsMenuAudienceChips(salon.gender_serve) ? menuAudience : 'all',
+    ),
     salon.service_categories ?? [],
   );
 
@@ -187,6 +198,16 @@ const SalonDetail = () => {
           <h2 className="font-heading text-2xl font-bold text-stone-900 mb-6">
             Services
           </h2>
+          {salonNeedsMenuAudienceChips(salon.gender_serve) && (
+            <div className="mb-6">
+              <FilterChipRow
+                options={MENU_AUDIENCE_OPTIONS}
+                value={menuAudience}
+                onChange={setMenuAudience}
+                testIDPrefix="menu-audience"
+              />
+            </div>
+          )}
 
           {serviceSections.length > 0 ? (
             <div className="space-y-8">

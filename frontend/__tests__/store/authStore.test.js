@@ -9,6 +9,7 @@ vi.mock('../../src/lib/api', () => ({
     defaults: { headers: { common: {} } },
     post: vi.fn(),
     get: vi.fn(),
+    patch: vi.fn(),
   }
 }));
 
@@ -159,5 +160,48 @@ describe('authStore', () => {
       refresh_token: 'google-refresh',
     });
     expect(useAuthStore.getState().token).toBe('google-access');
+  });
+
+  it('completeProfile sends gender for customers', async () => {
+    api.post.mockResolvedValueOnce({
+      data: {
+        profile: { role: 'customer', name: 'Alex', gender: 'female' },
+      },
+    });
+    useAuthStore.setState({ user: { id: 'u1', email: 'a@test.com' } });
+
+    const store = useAuthStore.getState();
+    const result = await store.completeProfile({
+      role: 'customer',
+      name: 'Alex',
+      gender: 'female',
+    });
+
+    expect(result.success).toBe(true);
+    expect(api.post).toHaveBeenCalledWith('/auth/complete-profile', {
+      role: 'customer',
+      name: 'Alex',
+      phone: undefined,
+      upi_id: undefined,
+      gender: 'female',
+    });
+    expect(useAuthStore.getState().profile.gender).toBe('female');
+  });
+
+  it('updateProfile patches discovery_audience', async () => {
+    api.patch.mockResolvedValueOnce({
+      data: { profile: { role: 'customer', discovery_audience: 'men' } },
+    });
+    useAuthStore.setState({
+      user: { id: 'u1' },
+      profile: { role: 'customer', discovery_audience: 'auto' },
+    });
+
+    const store = useAuthStore.getState();
+    const result = await store.updateProfile({ discovery_audience: 'men' });
+
+    expect(result.success).toBe(true);
+    expect(api.patch).toHaveBeenCalledWith('/auth/profile', { discovery_audience: 'men' });
+    expect(useAuthStore.getState().profile.discovery_audience).toBe('men');
   });
 });

@@ -17,6 +17,8 @@ import api from '../../lib/api';
 import { formatPrice, getApiErrorMessage } from '../../lib/utils';
 import { buildServicePayload } from '../../lib/servicePayload';
 import { groupServicesByCategory } from '../../lib/serviceCategories';
+import { FilterChipRow } from '../../components/FilterChipRow';
+import { SERVICE_AUDIENCE_OPTIONS } from '../../lib/genderServe';
 
 const ManageServices = () => {
   const navigate = useNavigate();
@@ -29,6 +31,11 @@ const ManageServices = () => {
     price: '',
     duration: 30,
     category_id: '',
+    audience: 'both',
+    is_on_offer: false,
+    discount_percentage: '',
+    offer_end_date: '',
+    offer_tagline: "Grab it before it's gone!",
   });
 
   const { data: salon, isLoading } = useQuery({
@@ -41,6 +48,7 @@ const ManageServices = () => {
 
   const categories = salon?.service_categories ?? [];
   const categoriesExist = categories.length > 0;
+  const isUnisexSalon = salon?.gender_serve === 'unisex';
   const serviceSections = useMemo(
     () => groupServicesByCategory(salon?.services ?? [], categories),
     [salon?.services, categories],
@@ -102,6 +110,7 @@ const ManageServices = () => {
         price: service.price.toString(),
         duration: service.duration,
         category_id: service.category_id || '',
+        audience: service.audience || 'both',
         // Offer fields
         is_on_offer: service.is_on_offer || false,
         discount_percentage: service.discount_percentage || '',
@@ -116,6 +125,7 @@ const ManageServices = () => {
         price: '', 
         duration: 30,
         category_id: categoriesExist ? categories[0]?.id || '' : '',
+        audience: 'both',
         is_on_offer: false,
         discount_percentage: '',
         offer_end_date: '',
@@ -134,6 +144,7 @@ const ManageServices = () => {
       price: '', 
       duration: 30,
       category_id: '',
+      audience: 'both',
       is_on_offer: false,
       discount_percentage: '',
       offer_end_date: '',
@@ -447,6 +458,20 @@ const ManageServices = () => {
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {isUnisexSalon && (
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">
+                    Who is this for?
+                  </label>
+                  <FilterChipRow
+                    options={SERVICE_AUDIENCE_OPTIONS}
+                    value={formData.audience}
+                    onChange={(v) => setFormData({ ...formData, audience: v })}
+                    testIDPrefix="service-audience"
+                  />
                 </div>
               )}
 

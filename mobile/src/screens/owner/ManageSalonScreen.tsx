@@ -34,6 +34,8 @@ import { OwnerDashboardScreenProps, OwnerSettingsScreenProps } from '../../navig
 import { LocationPickerModal } from '../../components/LocationPickerModal';
 import { SalonMapMarker } from '../../components/SalonMapMarker';
 import type { Coordinates } from '../../lib/maps';
+import { FilterChipRow } from '../../components/FilterChipRow';
+import { SALON_SERVE_OPTIONS, SalonGenderServe } from '../../lib/genderServe';
 
 type ManageSalonProps = OwnerDashboardScreenProps<'ManageSalon'> | OwnerSettingsScreenProps<'ManageSalon'>;
 
@@ -48,6 +50,7 @@ interface SalonPayload {
   opening_time: string;
   closing_time: string;
   images: string[];
+  gender_serve: SalonGenderServe;
 }
 
 export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
@@ -81,6 +84,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     opening_time: '09:00',
     closing_time: '21:00',
     images: [] as string[],
+    gender_serve: 'men' as SalonGenderServe,
   });
 
   // Where the map preview / picker opens BEFORE a pin is placed. This is only a
@@ -123,6 +127,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
         opening_time: normalized.opening_time || '09:00',
         closing_time: normalized.closing_time || '21:00',
         images: normalized.images,
+        gender_serve: normalized.gender_serve ?? 'men',
       });
       setLocationSet(hasCoords);
     }
@@ -202,6 +207,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       opening_time: parseResult.data.opening_time,
       closing_time: parseResult.data.closing_time,
       image_url: formData.images[0] || null,
+      gender_serve: formData.gender_serve,
     };
 
     if (salon) {
@@ -416,6 +422,19 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
           </View>
         </View>
 
+        <View style={[styles.card, shadows.sm]}>
+          <Text style={styles.sectionTitle}>Who do you serve?</Text>
+          <Text style={styles.sectionHint}>
+            Helps customers find you on Discover — like Zomato veg filter for salon type.
+          </Text>
+          <FilterChipRow
+            options={SALON_SERVE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            value={formData.gender_serve}
+            onChange={(v) => setFormData((prev) => ({ ...prev, gender_serve: v }))}
+            testIDPrefix="salon-serve"
+          />
+        </View>
+
         {/* Images */}
         <View style={[styles.card, shadows.sm]}>
           <Text style={styles.sectionTitle}>Salon Images</Text>
@@ -506,7 +525,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   sectionTitle: {
     ...typography.h4,
     color: theme.colors.text,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  sectionHint: {
+    ...typography.bodySmall,
+    color: theme.colors.textSecondary,
+    marginBottom: spacing.md,
   },
   row: {
     flexDirection: 'row',
