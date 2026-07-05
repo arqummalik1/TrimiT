@@ -45,18 +45,19 @@ export function navigateToCustomerBookings(
 
 /** Navigate to owner Bookings tab from dashboard or nested stacks. */
 export function navigateToOwnerBookings(
-  navigation: NavigationProp<ParamListBase>
+  navigation: NavigationProp<ParamListBase>,
+  options?: { highlightBookingId?: string },
 ): void {
-  const parent = navigation.getParent();
-  if (parent) {
-    parent.navigate('Bookings' as never);
-    return;
-  }
-  navigation.dispatch(
+  const bookParams = options?.highlightBookingId
+    ? { highlightBookingId: options.highlightBookingId }
+    : undefined;
+
+  const tabNav = navigation.getParent() ?? navigation;
+  tabNav.dispatch(
     CommonActions.navigate({
-      name: 'OwnerTabs',
-      params: { screen: 'Bookings' },
-    })
+      name: 'Bookings',
+      params: bookParams,
+    }),
   );
 }
 

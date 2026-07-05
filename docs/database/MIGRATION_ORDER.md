@@ -43,3 +43,13 @@ Apply manually in the Supabase SQL editor. **Do not rename** files already appli
 - [x] Migration `35_reschedule_holds_capacity.sql` applied
 - [ ] Optional: enable pg_cron in `33` when online pay ships
 - [ ] Re-run `07_check_rls_policies.sql` in SQL editor after deploy
+
+## Critical — new owner salon creation (P0)
+
+**If new owners cannot create a salon (500 / silent rollback), apply immediately:**
+
+| # | File | Why |
+|---|------|-----|
+| 44 | `44_fix_salon_subscription_trigger_fk.sql` | Migration 41's BEFORE INSERT trigger breaks new salon inserts (FK on `subscriptions.salon_id`). **Every new owner is blocked until this runs.** |
+
+After 44, continue with `45` … `61` in numeric order (see `docs/v2_docs/MIGRATION_ORDER_v2.md` when present).

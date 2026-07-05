@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Alert, Text, TouchableOpacity } from 'react-native';
-import { ScreenWrapper } from '../../components/ScreenWrapper';
+import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { spacing, typography } from '../../lib/utils';
@@ -19,6 +20,8 @@ type Props = OwnerSettingsScreenProps<'BankDetails'>;
 export default function BankDetailsScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const tabClearance = TAB_BAR_BASE_HEIGHT + insets.bottom + 24;
   const queryClient = useQueryClient();
 
   const isPendingOnboarding = useOwnerOnboardingStore((state) => state.bankDetailsPending);
@@ -109,7 +112,10 @@ export default function BankDetailsScreen({ navigation, route }: Props) {
         <Text style={styles.headerTitle}>Bank Details</Text>
         <View style={styles.headerRight} />
       </View>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[styles.container, { paddingBottom: tabClearance }]}
+        keyboardShouldPersistTaps="handled"
+      >
         {isPendingOnboarding && (
           <View style={styles.onboardingHeader}>
             <View style={styles.stepIndicator}>

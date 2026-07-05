@@ -236,6 +236,25 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
           </View>
         </View>
 
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>OFFERS</Text>
+          <View style={styles.cardGroup}>
+            <TouchableOpacity
+              style={[styles.cardGroupItem, styles.cardGroupItemLast]}
+              onPress={() => navigation.navigate('MyOffers')}
+            >
+              <View style={[styles.cardGroupIconContainer, { backgroundColor: theme.colors.primary }]}>
+                <Ionicons name="gift" size={16} color={theme.colors.white} />
+              </View>
+              <View style={[styles.cardGroupTextContainer, { marginLeft: 12 }]}>
+                <Text style={styles.cardGroupTitle}>My offers & coupons</Text>
+                <Text style={styles.cardGroupTitleSecondary}>TRIMIT50 and more</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.border} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <NotificationSettingsSection />
 
         {/* Appearance Settings Section */}

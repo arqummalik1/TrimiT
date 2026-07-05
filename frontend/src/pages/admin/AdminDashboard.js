@@ -313,7 +313,10 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
   const [leads, setLeads] = useState([]);
   const [leadsByArea, setLeadsByArea] = useState([]);
   const [leadsTotal, setLeadsTotal] = useState(0);
-  const [view, setView] = useState('dashboard'); // 'dashboard' | 'leads'
+  const [view, setView] = useState('dashboard'); // 'dashboard' | 'leads' | 'campaigns'
+  const [campaigns, setCampaigns] = useState([]);
+  const [campaignSalons, setCampaignSalons] = useState([]);
+  const [campaignsLoading, setCampaignsLoading] = useState(false);
   const [selectedLeadIds, setSelectedLeadIds] = useState(() => new Set());
   const [markingNotified, setMarkingNotified] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -358,6 +361,48 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
   }, [token, onAuthExpired]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  const loadCampaigns = useCallback(async () => {
+    setCampaignsLoading(true);
+    try {
+      const rows = await adminService.getCampaigns(token);
+      setCampaigns(rows);
+      const welcome = rows.find((c) => c.code === 'TRIMIT50') || rows[0];
+      if (welcome?.id) {
+        const salons = await adminService.getCampaignSalons(token, welcome.id);
+        setCampaignSalons(salons);
+      }
+    } catch (err) {
+      if (isAuthError(err)) { onAuthExpired(); return; }
+      alert(getApiErrorMessage(err, 'Could not load campaigns.'));
+    } finally {
+      setCampaignsLoading(false);
+    }
+  }, [token, onAuthExpired]);
+
+  useEffect(() => {
+    if (view === 'campaigns') loadCampaigns();
+  }, [view, loadCampaigns]);
+
+  const toggleCampaignActive = useCallback(async (campaign) => {
+    try {
+      await adminService.updateCampaign(token, campaign.id, { active: !campaign.active });
+      await loadCampaigns();
+    } catch (err) {
+      if (isAuthError(err)) { onAuthExpired(); return; }
+      alert(getApiErrorMessage(err, 'Could not update campaign.'));
+    }
+  }, [token, onAuthExpired, loadCampaigns]);
+
+  const toggleSalonParticipation = useCallback(async (campaignId, salonId, participating) => {
+    try {
+      await adminService.setCampaignSalonExclusions(token, campaignId, [salonId], !participating);
+      await loadCampaigns();
+    } catch (err) {
+      if (isAuthError(err)) { onAuthExpired(); return; }
+      alert(getApiErrorMessage(err, 'Could not update salon.'));
+    }
+  }, [token, onAuthExpired, loadCampaigns]);
 
   const handleGrant = useCallback(async (owner) => {
     setGrantingId(owner.owner_id);
@@ -486,6 +531,7 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
       <div className="mb-6 flex items-center gap-2 border-b border-white/10">
         {[
           { key: 'dashboard', label: 'Dashboard', Icon: ChartLineUp },
+          { key: 'campaigns', label: 'Campaigns', Icon: Sparkle },
           { key: 'leads', label: 'Notify Me', Icon: EnvelopeSimple, badge: leadsTotal },
         ].map(({ key, label, Icon, badge }) => (
           <button
@@ -720,6 +766,64 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
         </SectionCard>
       </div>
       </>
+      )}
+
+      {view === 'campaigns' && (
+      <div className="mb-12">
+        <SectionCard title="Platform campaigns (Lane B)" icon={Sparkle}>
+          <p className="border-b border-white/10 px-5 py-4 text-sm text-slate-400">
+            Welcome <strong className="text-white">TRIMIT50</strong> — flat ₹50, min ₹149, 10-day validity.
+            All salons participate unless excluded below. Lane A salon codes are managed by owners in the app.
+          </p>
+          {campaignsLoading ? (
+            <div className="flex justify-center py-12"><Spinner size={28} className="animate-spin text-orange-400" /></div>
+          ) : campaigns.length === 0 ? (
+            <EmptyState icon={Sparkle} title="No campaigns" subtitle="Apply migration 61 in Supabase." />
+          ) : (
+            <div className="divide-y divide-white/5">
+              {campaigns.map((c) => (
+                <div key={c.id} className="px-5 py-4">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-lg font-bold text-white">{c.code}</span>
+                        <StatusBadge status={c.active ? 'active' : 'cancelled'} />
+                      </div>
+                      <p className="mt-1 text-sm text-slate-400">{c.description}</p>
+                      <p className="mt-2 text-xs text-slate-500">
+                        Flat {formatINR(c.discount_value)} · min {formatINR(c.min_order_value)} · {c.validity_days} days
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => toggleCampaignActive(c)}
+                      className={`rounded-xl border px-4 py-2 text-sm font-semibold ${
+                        c.active ? 'border-rose-500/30 bg-rose-500/10 text-rose-200' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                      }`}
+                    >
+                      {c.active ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </div>
+                  {c.code === 'TRIMIT50' && campaignSalons.length > 0 && (
+                    <div className="mt-4 max-h-64 overflow-y-auto rounded-xl border border-white/10">
+                      {campaignSalons.map((s) => (
+                        <label key={s.id} className="flex cursor-pointer items-center justify-between border-b border-white/5 px-4 py-2 last:border-0">
+                          <span className="text-sm text-slate-200">{s.name} <span className="text-slate-500">· {s.city}</span></span>
+                          <input
+                            type="checkbox"
+                            checked={s.participating}
+                            onChange={() => toggleSalonParticipation(c.id, s.id, s.participating)}
+                            className="h-4 w-4 rounded border-white/20"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+      </div>
       )}
 
       {view === 'leads' && (

@@ -534,6 +534,9 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
                 booking={booking}
                 isOwner
                 compact
+                onPress={() =>
+                  navigateToOwnerBookings(navigation, { highlightBookingId: booking.id })
+                }
                 isLoading={
                   statusMutation.isPending &&
                   statusMutation.variables?.bookingId === booking.id &&

@@ -10,12 +10,15 @@ from core.limiter import limiter
 from dependencies.auth import get_current_user
 from dependencies.subscription import require_active_subscription
 from models.promotions import (
-    PromoCodeValidate, 
+    PromoCodeValidate,
     PromoCodeResponse,
     PromotionCreate,
     PromotionUpdate,
-    PromotionStats
+    PromotionStats,
 )
+from models.campaigns import CheckoutOffersRequest, CheckoutOffersResponse, CampaignGrantResponse
+from services import promo_pricing
+from services import campaigns as campaign_service
 
 logger = logging.getLogger("trimit")
 
@@ -33,34 +36,41 @@ async def validate_promo_code(
     Returns discount amount and final price.
     """
     try:
-        # Call the database function
-        response = await supabase.request(
-            "POST",
-            "rest/v1/rpc/validate_promo_code",
-            json={
-                "p_code": data.code.upper(),
-                "p_salon_id": data.salon_id,
-                "p_user_id": current_user.get("id"),
-                "p_booking_amount": data.booking_amount
-            }
+        platform = await campaign_service.validate_campaign_rpc(
+            code=data.code,
+            salon_id=data.salon_id,
+            user_id=current_user.get("id"),
+            booking_amount=data.booking_amount,
         )
-        
-        if response.status_code != 200:
-            logger.error(f"Promo validation failed: {response.text}")
+        salon = await promo_pricing.validate_salon_promo_rpc(
+            code=data.code,
+            salon_id=data.salon_id,
+            user_id=current_user.get("id"),
+            booking_amount=data.booking_amount,
+        )
+
+        result = None
+        if platform.get("valid"):
+            result = platform
+        elif salon.get("valid"):
+            result = salon
+        else:
+            result = platform if platform.get("error") else salon
+
+        if not result.get("valid"):
             return PromoCodeResponse(
                 valid=False,
-                error="Failed to validate promo code"
+                error=result.get("error", "Invalid promo code"),
             )
-        
-        result = response.json()
-        
+
         return PromoCodeResponse(
-            valid=result.get("valid", False),
-            promo_id=result.get("promo_id"),
+            valid=True,
+            promo_id=result.get("promo_id") or result.get("grant_id"),
+            code=result.get("code"),
             discount_amount=result.get("discount_amount"),
             final_amount=result.get("final_amount"),
             description=result.get("description"),
-            error=result.get("error")
+            source=result.get("source"),
         )
         
     except Exception as e:
@@ -70,22 +80,62 @@ async def validate_promo_code(
             error="An error occurred while validating the promo code"
         )
 
+@router.post("/checkout-offers", response_model=CheckoutOffersResponse)
+@limiter.limit("30/minute")
+async def get_checkout_offers(
+    request: Request,
+    data: CheckoutOffersRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Zomato-style offers list for checkout + auto-apply candidate for welcome voucher."""
+    offers = await promo_pricing.get_checkout_offers(
+        salon_id=data.salon_id,
+        user_id=current_user.get("id"),
+        list_price=data.list_price,
+        offer_price=data.offer_price,
+    )
+    return CheckoutOffersResponse(**offers)
+
+
+@router.get("/my-grants", response_model=list[CampaignGrantResponse])
+async def get_my_grants(current_user: dict = Depends(get_current_user)):
+    """Customer wallet — active platform vouchers (Profile → My Offers)."""
+    grants = await campaign_service.get_user_grants(current_user.get("id"), active_only=False)
+    out = []
+    for g in grants:
+        camp = g.get("platform_campaigns") or {}
+        out.append(
+            CampaignGrantResponse(
+                id=g["id"],
+                code=g["code"],
+                issued_at=g["issued_at"],
+                expires_at=g["expires_at"],
+                redeemed_at=g.get("redeemed_at"),
+                description=camp.get("description"),
+                discount_type=camp.get("discount_type"),
+                discount_value=camp.get("discount_value"),
+                min_order_value=camp.get("min_order_value"),
+                campaign_name=camp.get("name"),
+            )
+        )
+    return out
+
+
 @router.get("/active")
 async def get_active_promotions(
     salon_id: str = None,
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Get all active promotions.
-    If salon_id provided, returns salon-specific + global promos.
+    Active salon promos for checkout display (Lane A only).
     """
-    query = "rest/v1/promotions?active=eq.true&select=*"
-    
-    # Filter by salon or global
-    if salon_id:
-        query += f"&or=(salon_id.is.null,salon_id.eq.{salon_id})"
-    else:
-        query += "&salon_id=is.null"
+    if not salon_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="salon_id is required",
+        )
+
+    query = f"rest/v1/promotions?active=eq.true&salon_id=eq.{salon_id}&select=*"
     
     # Only show non-expired
     query += f"&or=(expires_at.is.null,expires_at.gt.{datetime.now(timezone.utc).isoformat()})"
@@ -113,24 +163,35 @@ async def create_promotion(
     Only admins can create global promos (salon_id = NULL).
     """
     profile = current_user.get("profile")
-    
-    # If salon-specific, verify ownership
-    if promo.salon_id:
-        await assert_salon_owner(str(promo.salon_id), current_user.get("id"))
-    else:
-        # Global promos require admin role (future feature)
-        # For now, block global promos
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Global promotions are not yet supported"
+
+    salon_id = promo.salon_id
+    if not salon_id:
+        salon_response = await supabase.request(
+            "GET",
+            f"rest/v1/salons?owner_id=eq.{current_user.get('id')}&select=id",
+            token=current_user.get("access_token"),
         )
-    
+        if salon_response.status_code != 200 or not salon_response.json():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No salon found for this owner",
+            )
+        salon_id = salon_response.json()[0]["id"]
+        await assert_salon_owner(str(salon_id), current_user.get("id"))
+    else:
+        await assert_salon_owner(str(salon_id), current_user.get("id"))
+
+    promo_payload = promo.model_dump()
+    promo_payload["salon_id"] = salon_id
+    promo_payload.pop("usage_limit", None)
+
     promo_data = {
         "id": str(uuid.uuid4()),
         "code": promo.code.upper(),
         "created_by": current_user.get("id"),
-        **promo.model_dump(),
-        "created_at": datetime.now(timezone.utc).isoformat()
+        **promo_payload,
+        "usage_limit": promo.usage_limit,
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
     
     response = await supabase.request(

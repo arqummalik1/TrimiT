@@ -381,3 +381,127 @@ async def invite_user(
         "role": payload.role,
         "message": f"Invitation prepared for {payload.email}. Contact them manually or implement email sending.",
     }
+
+
+# ── Platform campaigns (Lane B — welcome TRIMIT50, festival offers) ─────────────
+
+from models.campaigns import AdminCampaignUpdate, SalonExclusionRequest, SalonExclusionBulkRequest
+
+
+@router.get("/campaigns")
+@limiter.limit("30/minute")
+async def list_campaigns(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
+    _require_admin(authorization)
+    resp = await supabase.request(
+        "GET",
+        "rest/v1/platform_campaigns?select=*&order=created_at.desc",
+        service_role=True,
+    )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=500, detail="Could not load campaigns")
+    return {"campaigns": resp.json()}
+
+
+@router.patch("/campaigns/{campaign_id}")
+@limiter.limit("20/minute")
+async def update_campaign(
+    request: Request,
+    campaign_id: str,
+    payload: AdminCampaignUpdate,
+    authorization: Optional[str] = Header(None),
+):
+    _require_admin(authorization)
+    data = {k: v for k, v in payload.model_dump().items() if v is not None}
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    resp = await supabase.request(
+        "PATCH",
+        f"rest/v1/platform_campaigns?id=eq.{campaign_id}",
+        service_role=True,
+        json=data,
+    )
+    if resp.status_code not in (200, 204):
+        raise HTTPException(status_code=400, detail="Could not update campaign")
+    return {"status": "updated", "id": campaign_id}
+
+
+@router.get("/campaigns/{campaign_id}/salons")
+@limiter.limit("30/minute")
+async def list_campaign_salon_participation(
+    request: Request,
+    campaign_id: str,
+    authorization: Optional[str] = Header(None),
+):
+    """All salons with excluded flag for admin allowlist UI."""
+    _require_admin(authorization)
+    salons_resp = await supabase.request(
+        "GET",
+        "rest/v1/salons?select=id,name,city&order=name.asc",
+        service_role=True,
+    )
+    excl_resp = await supabase.request(
+        "GET",
+        f"rest/v1/campaign_salon_exclusions?campaign_id=eq.{campaign_id}&select=salon_id",
+        service_role=True,
+    )
+    excluded_ids = {r["salon_id"] for r in (excl_resp.json() or [])} if excl_resp.status_code == 200 else set()
+    salons = salons_resp.json() if salons_resp.status_code == 200 else []
+    return {
+        "salons": [
+            {
+                "id": s["id"],
+                "name": s["name"],
+                "city": s.get("city"),
+                "participating": s["id"] not in excluded_ids,
+            }
+            for s in salons
+        ]
+    }
+
+
+@router.post("/campaigns/{campaign_id}/salon-exclusions")
+@limiter.limit("30/minute")
+async def set_salon_exclusions(
+    request: Request,
+    campaign_id: str,
+    payload: SalonExclusionBulkRequest,
+    authorization: Optional[str] = Header(None),
+):
+    """Exclude or include salons (default all participate; exclusions opt-out)."""
+    _require_admin(authorization)
+    if payload.excluded:
+        rows = [{"campaign_id": campaign_id, "salon_id": sid} for sid in payload.salon_ids]
+        await supabase.request(
+            "POST",
+            "rest/v1/campaign_salon_exclusions",
+            service_role=True,
+            json=rows,
+            headers={"Prefer": "resolution=ignore-duplicates"},
+        )
+    else:
+        for sid in payload.salon_ids:
+            await supabase.request(
+                "DELETE",
+                f"rest/v1/campaign_salon_exclusions?campaign_id=eq.{campaign_id}&salon_id=eq.{sid}",
+                service_role=True,
+            )
+    return {"status": "ok", "count": len(payload.salon_ids)}
+
+
+@router.post("/campaigns/{campaign_id}/include-all-salons")
+@limiter.limit("10/minute")
+async def include_all_salons(
+    request: Request,
+    campaign_id: str,
+    authorization: Optional[str] = Header(None),
+):
+    """Clear all exclusions — welcome offer works at every salon."""
+    _require_admin(authorization)
+    await supabase.request(
+        "DELETE",
+        f"rest/v1/campaign_salon_exclusions?campaign_id=eq.{campaign_id}",
+        service_role=True,
+    )
+    return {"status": "ok", "message": "All salons now participate"}

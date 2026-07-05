@@ -10,10 +10,12 @@ export const ENABLE_MULTI_BOOKING_PER_SLOT =
   process.env.EXPO_PUBLIC_ENABLE_MULTI_BOOKING === 'true' ||
   process.env.EXPO_PUBLIC_ENABLE_MULTI_BOOKING === '1';
 
-/** Owner promo codes screen + promotional notification preference. */
+/** Owner promo codes screen + promotional notification preference. ON by default. */
 export const ENABLE_OWNER_PROMO_MANAGEMENT =
-  process.env.EXPO_PUBLIC_ENABLE_PROMO_MANAGEMENT === 'true' ||
-  process.env.EXPO_PUBLIC_ENABLE_PROMO_MANAGEMENT === '1';
+  process.env.EXPO_PUBLIC_ENABLE_PROMO_MANAGEMENT === 'false' ||
+  process.env.EXPO_PUBLIC_ENABLE_PROMO_MANAGEMENT === '0'
+    ? false
+    : true;
 
 /**
  * TrimiT Pro subscriptions. ON: the backend now enables owner subscriptions

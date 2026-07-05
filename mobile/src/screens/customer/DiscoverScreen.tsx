@@ -50,6 +50,10 @@ import { ServiceAreaGate } from '../../components/ServiceAreaGate';
 import { serviceabilityRepository } from '../../repositories/serviceabilityRepository';
 import { DISCOVER_FALLBACK_COORDS, DISCOVER_INITIAL_DELTA } from '../../lib/maps';
 import { logger } from '../../lib/logger';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { WelcomeVoucherModal } from '../../components/WelcomeVoucherModal';
+import { promotionRepository, CampaignGrant } from '../../repositories/promotionRepository';
+import { useAuthStore } from '../../store/authStore';
 import {
   DISCOVER_SEARCH_DEBOUNCE_MS,
   DISCOVER_CLUSTERING_MIN_MARKERS,
@@ -79,6 +83,9 @@ type DiscoverScreenProps = CustomerDiscoverScreenProps<'DiscoverMain'>;
 
 export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) => {
   const { theme, isDark } = useTheme();
+  const { user } = useAuthStore();
+  const [welcomeGrant, setWelcomeGrant] = useState<CampaignGrant | null>(null);
+  const [showWelcome, setShowWelcome] = useState(false);
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
@@ -136,6 +143,35 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
+
+  useEffect(() => {
+    if (!isFocused || !user?.id || user.role !== 'customer') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const key = `welcome_voucher_shown_${user.id}`;
+        const shown = await AsyncStorage.getItem(key);
+        if (shown || cancelled) return;
+        const grants = await promotionRepository.getMyGrants();
+        const active = grants.find(
+          (g) =>
+            !g.redeemed_at &&
+            new Date(g.expires_at).getTime() > Date.now() &&
+            g.code?.toUpperCase() === 'TRIMIT50',
+        );
+        if (active && !cancelled) {
+          setWelcomeGrant(active);
+          setShowWelcome(true);
+          await AsyncStorage.setItem(key, '1');
+        }
+      } catch (e) {
+        logger.warn(`${LOG} welcome modal check failed`, { error: String(e) });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isFocused, user?.id]);
 
   const latKey = coords?.lat ?? 'none';
   const lngKey = coords?.lng ?? 'none';
@@ -706,6 +742,14 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           }
         />
       )}
+      <WelcomeVoucherModal
+        visible={showWelcome && !!welcomeGrant}
+        code={welcomeGrant?.code || 'TRIMIT50'}
+        discountAmount={welcomeGrant?.discount_value || 50}
+        minOrder={welcomeGrant?.min_order_value || 149}
+        expiresAt={welcomeGrant?.expires_at || new Date().toISOString()}
+        onExplore={() => setShowWelcome(false)}
+      />
     </ScreenWrapper>
   );
 };

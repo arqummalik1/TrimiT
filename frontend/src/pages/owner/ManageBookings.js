@@ -214,11 +214,11 @@ const ManageBookings = () => {
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <User size={18} className="text-stone-400" />
-                        <span className="font-semibold text-stone-900">
+                        <span className="font-medium text-stone-600">
                           {booking.users?.name || 'Customer'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-stone-500">
+                      <div className="flex items-center gap-2 text-xs text-stone-400">
                         <Phone size={14} />
                         {booking.users?.phone || 'N/A'}
                       </div>
@@ -231,23 +231,28 @@ const ManageBookings = () => {
 
                   {/* Service Details */}
                   <div className="bg-stone-50 rounded-xl p-4 mb-4">
-                    <h4 className="font-semibold text-stone-900 mb-2">
+                    <h4 className="font-semibold text-stone-900 mb-3">
                       {booking.services?.name || 'Service'}
                     </h4>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div className="flex items-center gap-2 text-stone-600">
-                        <CalendarCheck size={16} className="text-stone-400" />
+                    <div className="flex flex-wrap gap-x-6 gap-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium text-stone-900">
+                        <CalendarCheck size={16} className="text-stone-500" />
                         {format(new Date(booking.booking_date), 'EEE, d MMM')}
                       </div>
-                      <div className="flex items-center gap-2 text-stone-600">
-                        <Clock size={16} className="text-stone-400" />
+                      <div className="flex items-center gap-2 text-sm font-medium text-stone-900">
+                        <Clock size={16} className="text-stone-500" />
                         {formatTime(booking.time_slot)}
                       </div>
-                      <div className="flex items-center gap-2 text-orange-800 font-semibold">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-orange-800">
                         <CurrencyInr size={16} />
                         {formatPrice(booking.amount || 0)}
                       </div>
                     </div>
+                    {booking.payment_method === 'upi' && booking.booking_reference && (
+                      <p className="mt-3 text-xs text-stone-400">
+                        Ref <span className="font-mono">{booking.booking_reference}</span>
+                      </p>
+                    )}
                   </div>
 
                   {/* Footer */}
@@ -256,11 +261,6 @@ const ManageBookings = () => {
                       <span className={`px-2.5 py-1 rounded-lg text-xs font-medium ${getPaymentStatusColor(booking.payment_status)}`}>
                         Payment: {booking.payment_status}
                       </span>
-                      {booking.payment_method === 'upi' && booking.booking_reference && (
-                        <span className="text-xs text-stone-500">
-                          UPI ref: <span className="font-mono font-medium text-stone-700">{booking.booking_reference}</span>
-                        </span>
-                      )}
                     </div>
 
                     {/* UPI payment verification — single owner action that

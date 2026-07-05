@@ -105,7 +105,40 @@ export const adminService = {
       { lead_ids: leadIds, notified },
       authHeaders(token)
     );
-    return res.data; // { updated, notified }
+    return res.data;
+  },
+
+  getCampaigns: async (token) => {
+    const res = await adminApi.get('/admin/campaigns', authHeaders(token));
+    return res.data?.campaigns ?? [];
+  },
+
+  updateCampaign: async (token, campaignId, data) => {
+    const res = await adminApi.patch(`/admin/campaigns/${campaignId}`, data, authHeaders(token));
+    return res.data;
+  },
+
+  getCampaignSalons: async (token, campaignId) => {
+    const res = await adminApi.get(`/admin/campaigns/${campaignId}/salons`, authHeaders(token));
+    return res.data?.salons ?? [];
+  },
+
+  setCampaignSalonExclusions: async (token, campaignId, salonIds, excluded = true) => {
+    const res = await adminApi.post(
+      `/admin/campaigns/${campaignId}/salon-exclusions`,
+      { salon_ids: salonIds, excluded },
+      authHeaders(token)
+    );
+    return res.data;
+  },
+
+  includeAllCampaignSalons: async (token, campaignId) => {
+    const res = await adminApi.post(
+      `/admin/campaigns/${campaignId}/include-all-salons`,
+      {},
+      authHeaders(token)
+    );
+    return res.data;
   },
 };
 

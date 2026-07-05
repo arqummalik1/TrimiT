@@ -1561,3 +1561,10 @@ Every future session should do these things:
   - Web `LocationPicker.js`: default map center changed Delhi → Jammu (launch city) for a sensible starting camera before a pin is placed.
   - Backend already requires latitude/longitude on `SalonCreate` (done earlier) — this closes the client gap so owners can't submit a wrong default.
 - **Verified:** no diagnostics; esbuild JSX check passed on web files.
+
+### Salon create 500 + parlor onboarding gap (2026-07-05)
+- **Root cause (prod):** `POST /api/v1/salons/` returns 500 for new owners — almost certainly **migration 44 not applied** (`subscriptions_salon_id_fk` trigger from migration 41). Third retry showed "no internet" (timeout after server errors, not necessarily offline).
+- **Also:** mobile calls `GET /promotions/my-grants` → 405 on prod (promo backend not deployed yet). Silenced 404/405 in `promotionService.getMyGrants`; Discover welcome modal gated to `customer` role only.
+- **Backend:** hardened `create_salon` — `exclude_none` payload, service-role insert after owner check, safe PostgREST JSON parsing, migration-44 hint in logs.
+- **Parlor:** no separate flow today — all owners use "Create salon". Recommend `venue_type` / `serves` enum at salon setup (not owner gender). Product decision pending.
+- **Action required:** apply `database/44_fix_salon_subscription_trigger_fk.sql` in Supabase, then deploy backend branch with promo routes when ready.

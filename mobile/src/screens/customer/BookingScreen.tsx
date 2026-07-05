@@ -28,7 +28,7 @@ import {
   parseISO,
   isValid,
 } from "date-fns";
-import { Salon, TimeSlot, SlotsResponse } from "../../types";
+import { Salon, TimeSlot, SlotsResponse, Service } from "../../types";
 import {
   fonts,
   borderRadius,
@@ -67,7 +67,8 @@ import {
 import { salonRepository } from "../../repositories/salonRepository";
 import { getSalonClosedState, getClosedLabel } from "../../lib/salonAvailability";
 import { bookingRepository } from "../../repositories/bookingRepository";
-import { promotionRepository } from "../../repositories/promotionRepository";
+import { promotionRepository, CheckoutOffer } from "../../repositories/promotionRepository";
+import { CheckoutOffersSection } from "../../components/booking/CheckoutOffersSection";
 import { upiIntentService } from "../../services/upiIntentService";
 import PaymentMethodPicker from "../../components/booking/PaymentMethodPicker";
 import { createBookingStyles } from "../../components/booking/styles";
@@ -81,6 +82,14 @@ import type {
   AvailableStaffResponse,
   StaffWithServices,
 } from "../../types/staff";
+
+function getServiceListPrice(service: Service | undefined): number {
+  if (!service) return 0;
+  if (service.is_on_offer && service.original_price != null) {
+    return Number(service.original_price);
+  }
+  return Number(service.price ?? 0);
+}
 
 export const BookingScreen: React.FC<
   CustomerDiscoverScreenProps<"Booking">
@@ -144,8 +153,13 @@ export const BookingScreen: React.FC<
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
   const [promoDiscount, setPromoDiscount] = useState(0);
+  const [promoFinalAmount, setPromoFinalAmount] = useState<number | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [validatingPromo, setValidatingPromo] = useState(false);
+  const [showManualPromo, setShowManualPromo] = useState(false);
+  const [salonOffers, setSalonOffers] = useState<CheckoutOffer[]>([]);
+  const [platformOffers, setPlatformOffers] = useState<CheckoutOffer[]>([]);
+  const autoApplyDoneRef = useRef(false);
 
   // Staff selection state
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
@@ -202,6 +216,9 @@ export const BookingScreen: React.FC<
   });
 
   const service = salon?.services?.find((s) => s.id === serviceId);
+  const listPrice = useMemo(() => getServiceListPrice(service), [service]);
+  const payableTotal =
+    promoApplied && promoFinalAmount != null ? promoFinalAmount : effectivePrice;
 
   // Default to UPI when the salon has a UPI ID configured — it's the
   // recommended payment method. Falls back to cash if no UPI ID.
@@ -501,6 +518,65 @@ export const BookingScreen: React.FC<
     }
   }, [timeLeft]);
 
+  const applyOffer = useCallback((offer: CheckoutOffer) => {
+    setPromoCode(offer.code);
+    setPromoApplied(true);
+    setPromoDiscount(offer.discount_amount || 0);
+    setPromoFinalAmount(offer.final_amount);
+    setPromoError(null);
+    analytics.track("promo_applied", {
+      code: offer.code,
+      source: offer.source,
+      discount: offer.discount_amount,
+      final_amount: offer.final_amount,
+    });
+  }, []);
+
+  const clearPromo = useCallback(() => {
+    setPromoCode("");
+    setPromoApplied(false);
+    setPromoDiscount(0);
+    setPromoFinalAmount(null);
+    setPromoError(null);
+  }, []);
+
+  // Load checkout offers + auto-apply welcome TRIMIT50 when eligible
+  useEffect(() => {
+    if (!salonId || !service || effectivePrice <= 0) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const offers = await promotionRepository.getCheckoutOffers({
+          salon_id: salonId,
+          list_price: listPrice,
+          offer_price: effectivePrice,
+        });
+        if (cancelled) return;
+
+        setSalonOffers(offers.salon_offers || []);
+        setPlatformOffers(offers.platform_offers || []);
+
+        if (!promoApplied && offers.auto_apply && !autoApplyDoneRef.current) {
+          autoApplyDoneRef.current = true;
+          applyOffer(offers.auto_apply);
+          analytics.track("promo_applied", {
+            code: offers.auto_apply.code,
+            source: offers.auto_apply.source,
+            auto_applied: true,
+          });
+        }
+      } catch (e) {
+        logger.warn("[BookingScreen] checkout offers failed", { error: String(e) });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [salonId, service, listPrice, effectivePrice, promoApplied, applyOffer]);
+
   // Validate promo code with proper error handling and analytics
   const handleApplyPromo = useCallback(async () => {
     if (!promoCode.trim()) {
@@ -508,7 +584,7 @@ export const BookingScreen: React.FC<
       return;
     }
 
-    if (!service?.price) {
+    if (listPrice <= 0) {
       setPromoError("Service price not available");
       return;
     }
@@ -516,78 +592,46 @@ export const BookingScreen: React.FC<
     setValidatingPromo(true);
     setPromoError(null);
 
-    const startTime = Date.now();
-
     try {
       const response = await promotionRepository.validatePromoCode({
         code: promoCode.trim().toUpperCase(),
         salon_id: salonId,
-        booking_amount: service.price,
+        booking_amount: listPrice,
       });
-
-      const validationTime = Date.now() - startTime;
 
       if (response.valid) {
+        const finalAmount = response.final_amount ?? listPrice;
+        if (finalAmount >= effectivePrice) {
+          clearPromo();
+          setPromoError("The salon offer is already better than this code");
+          return;
+        }
         setPromoApplied(true);
         setPromoDiscount(response.discount_amount || 0);
+        setPromoFinalAmount(finalAmount);
         setPromoError(null);
-
-        // Track successful promo application
-        analytics.track("promo_applied", {
-          code: promoCode.trim().toUpperCase(),
-          discount: response.discount_amount,
-          original_amount: service.price,
-          final_amount: response.final_amount,
-          validation_time: validationTime,
-        });
-
         Alert.alert(
-          "Promo Applied! 🎉",
+          "Offer applied",
           `You saved ${formatPrice(response.discount_amount || 0)}`,
-          [{ text: "Great!", style: "default" }],
         );
       } else {
-        setPromoApplied(false);
-        setPromoDiscount(0);
+        clearPromo();
         setPromoError(response.error || "Invalid promo code");
-
-        // Track failed promo attempt
-        analytics.track("promo_failed", {
-          code: promoCode.trim().toUpperCase(),
-          error: response.error,
-          validation_time: validationTime,
-        });
       }
     } catch (error: unknown) {
-      setPromoApplied(false);
-      setPromoDiscount(0);
-
+      clearPromo();
       const appErr = handleApiError(error);
-      const errorMessage = appErr.message || "Failed to validate promo code";
-
-      setPromoError(errorMessage);
-
-      // Track validation error
-      analytics.track("promo_validation_error", {
-        code: promoCode.trim().toUpperCase(),
-        error: errorMessage,
-      });
+      setPromoError(appErr.message || "Failed to validate promo code");
     } finally {
       setValidatingPromo(false);
     }
-  }, [promoCode, salonId, service?.price]);
+  }, [promoCode, salonId, listPrice, effectivePrice, clearPromo]);
 
   const handleRemovePromo = useCallback(() => {
-    analytics.track("promo_removed", {
-      code: promoCode.trim().toUpperCase(),
-      discount: promoDiscount,
-    });
-
-    setPromoCode("");
-    setPromoApplied(false);
-    setPromoDiscount(0);
-    setPromoError(null);
-  }, [promoCode, promoDiscount]);
+    analytics.track("promo_removed", { code: promoCode });
+    autoApplyDoneRef.current = true;
+    clearPromo();
+  }, [promoCode, clearPromo]);
 
   // Staff selection handlers
   const handleSelectStaff = useCallback(
@@ -1489,6 +1533,23 @@ export const BookingScreen: React.FC<
           />
         )}
 
+        {/* Offers & coupons (before payment — Zomato order) */}
+        <CheckoutOffersSection
+          salonName={salon?.name}
+          salonOffers={salonOffers}
+          platformOffers={platformOffers}
+          selectedCode={promoApplied ? promoCode : null}
+          manualCode={promoCode}
+          onManualCodeChange={setPromoCode}
+          onSelectOffer={applyOffer}
+          onRemoveOffer={handleRemovePromo}
+          onApplyManual={handleApplyPromo}
+          validating={validatingPromo}
+          error={promoError}
+          showManualInput={showManualPromo}
+          onToggleManual={() => setShowManualPromo((v) => !v)}
+        />
+
         {/* Payment Method */}
         <PaymentMethodPicker
           selected={selectedPaymentMethod}
@@ -1496,90 +1557,6 @@ export const BookingScreen: React.FC<
           salonHasUpi={!!salon?.upi_id}
           styles={pickerStyles}
         />
-
-        {/* Promo Code Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="pricetag" size={20} color={theme.colors.primary} />
-            <Text style={styles.sectionTitle}>Promo Code</Text>
-          </View>
-
-          {!promoApplied ? (
-            <View style={styles.promoInputContainer}>
-              <View style={styles.promoInputWrapper}>
-                <Ionicons
-                  name="ticket-outline"
-                  size={20}
-                  color={theme.colors.textSecondary}
-                  style={{ marginLeft: 16 }}
-                />
-                <TextInput
-                  style={styles.promoInput}
-                  placeholder="Enter promo code"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={promoCode}
-                  onChangeText={(text) => {
-                    setPromoCode(text.toUpperCase());
-                    setPromoError(null);
-                  }}
-                  autoCapitalize="characters"
-                  editable={!validatingPromo}
-                />
-              </View>
-              <TouchableOpacity
-                style={[
-                  styles.applyPromoButton,
-                  validatingPromo && styles.applyPromoButtonDisabled,
-                ]}
-                onPress={handleApplyPromo}
-                disabled={validatingPromo || !promoCode.trim()}
-              >
-                {validatingPromo ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={theme.colors.textInverse}
-                  />
-                ) : (
-                  <Text style={styles.applyPromoText}>Apply</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.promoAppliedContainer}>
-              <View style={styles.promoAppliedContent}>
-                <Ionicons
-                  name="checkmark-circle"
-                  size={24}
-                  color={theme.colors.success}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.promoAppliedCode}>{promoCode}</Text>
-                  <Text style={styles.promoAppliedSavings}>
-                    You saved {formatPrice(promoDiscount)}!
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity onPress={handleRemovePromo}>
-                <Ionicons
-                  name="close-circle"
-                  size={24}
-                  color={theme.colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {promoError && (
-            <View style={styles.promoErrorContainer}>
-              <Ionicons
-                name="alert-circle"
-                size={16}
-                color={theme.colors.error}
-              />
-              <Text style={styles.promoErrorText}>{promoError}</Text>
-            </View>
-          )}
-        </View>
 
         {selectedSlot && (
           <View style={styles.bookingSummary}>
@@ -1622,7 +1599,7 @@ export const BookingScreen: React.FC<
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Original Price</Text>
                   <Text style={[styles.summaryValue, styles.strikethrough]}>
-                    {formatPrice(effectivePrice)}
+                    {formatPrice(listPrice)}
                   </Text>
                 </View>
                 <View style={styles.summaryRow}>
@@ -1648,7 +1625,7 @@ export const BookingScreen: React.FC<
             <View style={[styles.summaryRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalValue}>
-                {formatPrice(effectivePrice - promoDiscount)}
+                {formatPrice(payableTotal)}
               </Text>
             </View>
           </View>

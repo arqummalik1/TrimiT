@@ -15,9 +15,11 @@ class PromoCodeValidate(BaseModel):
 class PromoCodeResponse(BaseModel):
     valid: bool
     promo_id: Optional[str] = None
+    code: Optional[str] = None
     discount_amount: Optional[float] = None
     final_amount: Optional[float] = None
     description: Optional[str] = None
+    source: Optional[str] = None  # salon | platform
     error: Optional[str] = None
 
 class PromotionCreate(BaseModel):

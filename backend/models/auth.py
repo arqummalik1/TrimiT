@@ -93,7 +93,7 @@ class CompleteProfileRequest(BaseModel):
     """
     role: UserRole = Field(..., description="User role: 'customer' or 'owner'. Required.")
     name: str = Field(..., min_length=1, max_length=100, description="Full display name.")
-    phone: Optional[str] = Field(None, max_length=20, description="Phone number (optional).")
+    phone: str = Field(..., min_length=10, max_length=20, description="Indian mobile (required).")
     upi_id: Optional[str] = Field(
         None, max_length=256, description="Owner UPI VPA (required for owners), e.g. name@bank."
     )

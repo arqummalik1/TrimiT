@@ -38,6 +38,31 @@ def _sync_salon_image_fields(data: dict) -> dict:
         data["images"] = [data["image_url"]]
     return data
 
+
+def _safe_response_json(response) -> Optional[object]:
+    try:
+        return response.json()
+    except Exception:
+        logger.error(
+            "[postgrest] invalid JSON status=%s body=%s",
+            response.status_code,
+            (response.text or "")[:500],
+        )
+        return None
+
+
+def _first_postgrest_row(data: Optional[object]) -> Optional[dict]:
+    """PostgREST may return a list or a single object with Prefer: return=representation."""
+    if isinstance(data, list) and data and isinstance(data[0], dict):
+        return data[0]
+    if isinstance(data, dict):
+        if data.get("id"):
+            return data
+        # PostgREST error payload — not a row.
+        if data.get("code") and data.get("message"):
+            return None
+    return None
+
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371  # Earth's radius in km
     dlat = radians(lat2 - lat1)
@@ -182,70 +207,95 @@ async def get_salon(salon_id: str):
 @router.post("/")
 async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_current_user)):
     logger.debug("[CREATE_SALON] user=%s", current_user.get("id"))
-    
-    profile = current_user.get("profile")
-    if not profile or profile.get("role") != "owner":
-        logger.error(f"[CREATE_SALON] User {current_user.get('id')} is not an owner: {profile}")
-        raise HTTPException(status_code=403, detail="Only owners can create salons")
-    
-    # Check if owner already has a salon
-    check_existing = await supabase.request(
-        "GET", 
-        f"rest/v1/salons?owner_id=eq.{current_user.get('id')}&select=id",
-        token=current_user.get("access_token")
-    )
-    if check_existing.status_code == 200 and check_existing.json():
-        logger.error(f"[CREATE_SALON] User {current_user.get('id')} already has a salon")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="You already have a salon registered. Please update the existing one."
+
+    try:
+        profile = current_user.get("profile")
+        if not profile or profile.get("role") != "owner":
+            logger.error(
+                "[CREATE_SALON] User %s is not an owner: %s",
+                current_user.get("id"),
+                profile,
+            )
+            raise HTTPException(status_code=403, detail="Only owners can create salons")
+
+        owner_id = current_user.get("id")
+
+        # Check if owner already has a salon
+        check_existing = await supabase.request(
+            "GET",
+            f"rest/v1/salons?owner_id=eq.{owner_id}&select=id",
+            token=current_user.get("access_token"),
+        )
+        existing_rows = _safe_response_json(check_existing)
+        if check_existing.status_code == 200 and existing_rows:
+            logger.error("[CREATE_SALON] User %s already has a salon", owner_id)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You already have a salon registered. Please update the existing one.",
+            )
+
+        payload = salon.model_dump(exclude_none=True)
+        payload = _sync_salon_image_fields(payload)
+
+        # Prefill the salon's UPI ID from the owner's signup UPI (users.upi_id) when
+        # the create form didn't supply one — so "Pay with UPI" works immediately.
+        if not payload.get("upi_id"):
+            owner_upi = (profile or {}).get("upi_id")
+            if owner_upi:
+                payload["upi_id"] = owner_upi
+
+        salon_data = {
+            "id": str(uuid.uuid4()),
+            "owner_id": owner_id,
+            **payload,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        logger.debug("[CREATE_SALON] creating salon for owner=%s", owner_id)
+
+        # Service role insert: owner verified above; avoids RLS edge cases on first salon.
+        response = await supabase.request(
+            "POST",
+            "rest/v1/salons",
+            json=salon_data,
+            service_role=True,
         )
 
-    payload = salon.model_dump()
-    payload = _sync_salon_image_fields(payload)
+        if settings.ENVIRONMENT != "production":
+            logger.debug("[CREATE_SALON] status=%s", response.status_code)
 
-    # Prefill the salon's UPI ID from the owner's signup UPI (users.upi_id) when
-    # the create form didn't supply one — so "Pay with UPI" works immediately.
-    if not payload.get("upi_id"):
-        owner_upi = (profile or {}).get("upi_id")
-        if owner_upi:
-            payload["upi_id"] = owner_upi
+        if response.status_code not in [200, 201]:
+            error_detail = response.text or ""
+            logger.error("[CREATE_SALON] Failed to create salon: %s", error_detail)
+            if "subscriptions_salon_id_fkey" in error_detail or "link_salon_to_subscription" in error_detail:
+                logger.error(
+                    "[CREATE_SALON] Likely missing migration 44 — apply "
+                    "database/44_fix_salon_subscription_trigger_fk.sql in Supabase."
+                )
+            raise HTTPException(
+                status_code=400,
+                detail="We couldn't save your salon right now. Please try again in a moment.",
+            )
 
-    salon_data = {
-        "id": str(uuid.uuid4()),
-        "owner_id": current_user.get("id"),
-        **payload,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    
-    logger.debug("[CREATE_SALON] creating salon for owner=%s", current_user.get("id"))
-    
-    response = await supabase.request("POST", "rest/v1/salons", json=salon_data, token=current_user.get("access_token"))
-    
-    if settings.ENVIRONMENT != "production":
-        logger.debug("[CREATE_SALON] status=%s", response.status_code)
-    
-    if response.status_code not in [200, 201]:
-        error_detail = response.text
-        logger.error(f"[CREATE_SALON] Failed to create salon: {error_detail}")
+        row = _first_postgrest_row(_safe_response_json(response))
+        if not row:
+            logger.error("[CREATE_SALON] Salon created but no row in response")
+            raise HTTPException(
+                status_code=500,
+                detail="Salon created but no data returned",
+            )
 
-        # Keep the real PostgREST/DB reason in server logs (above) for debugging,
-        # but never surface raw DB text to the client (RULES: no raw error strings).
-        # Return a safe, user-facing string detail — web renders detail directly and
-        # mobile now surfaces curated validation messages.
+        if settings.ENVIRONMENT != "production":
+            logger.debug("[CREATE_SALON] Success salon_id=%s", row.get("id"))
+        return row
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("[CREATE_SALON] unexpected error: %s", exc)
         raise HTTPException(
-            status_code=400,
+            status_code=500,
             detail="We couldn't save your salon right now. Please try again in a moment.",
         )
-        
-    res_data = response.json()
-    if not res_data:
-        logger.error("[CREATE_SALON] Salon created but no data returned")
-        raise HTTPException(status_code=500, detail="Salon created but no data returned")
-        
-    if settings.ENVIRONMENT != "production":
-        logger.debug("[CREATE_SALON] Success salon_id=%s", res_data[0].get("id"))
-    return res_data[0]
 
 @router.patch("/{salon_id}")
 async def update_salon(salon_id: str, data: SalonUpdate, current_user: dict = Depends(require_active_subscription)):

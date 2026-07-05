@@ -11,7 +11,8 @@ import {
   Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { ScreenWrapper } from '../../components/ScreenWrapper';
+import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
@@ -45,6 +46,9 @@ type SettingsProps = OwnerSettingsScreenProps<'SettingsMain'>;
 export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
   const { theme, themeMode, setThemeMode } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const tabClearance = TAB_BAR_BASE_HEIGHT + insets.bottom + 16;
+  const saveFooterHeight = 76;
   const queryClient = useQueryClient();
   const { deleteAccount, isLoading: authLoading } = useAuthStore();
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -196,7 +200,11 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
           <View style={styles.headerRight} />
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: tabClearance }}
+        >
           {/* No Salon Card */}
           <View style={styles.infoCard}>
             <Ionicons name="storefront-outline" size={32} color={theme.colors.textSecondary} />
@@ -360,7 +368,13 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
         <View style={styles.headerRight} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: hasChanges ? tabClearance + saveFooterHeight : tabClearance,
+        }}
+      >
         {/* Salon Info Card */}
         <View style={styles.infoCard}>
           <Image
@@ -711,7 +725,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
 
       {/* Save Button */}
       {hasChanges && (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: tabClearance }]}>
           <Button
             title="Save Changes"
             onPress={handleSave}
@@ -966,7 +980,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   footer: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
     backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,

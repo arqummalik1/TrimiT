@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,11 +28,15 @@ import { showToast } from '../../store/toastStore';
 import { Booking, Salon } from '../../types';
 import { OwnerTabScreenProps } from '../../navigation/types';
 import { useVerifyPayment, useRejectPayment } from '../../hooks/usePayment';
+import { useRoute } from '@react-navigation/native';
 
 const STATUSES = ['all', 'pending', 'confirmed', 'completed', 'cancelled'] as const;
 type StatusFilter = (typeof STATUSES)[number];
 
 export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps<'Bookings'>) {
+  const route = useRoute<OwnerTabScreenProps<'Bookings'>['route']>();
+  const highlightBookingId = route.params?.highlightBookingId;
+  const listRef = useRef<FlatList<Booking>>(null);
   const { theme } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
@@ -121,6 +125,16 @@ export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps
       const dateB = new Date(b.created_at).getTime();
       return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
     });
+
+  useEffect(() => {
+    if (!highlightBookingId || filteredBookings.length === 0) return;
+    const index = filteredBookings.findIndex((b) => b.id === highlightBookingId);
+    if (index < 0) return;
+    const timer = setTimeout(() => {
+      listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.2 });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [highlightBookingId, filteredBookings]);
 
   if (isLoading) {
     return (
@@ -216,8 +230,15 @@ export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps
 
       {/* Bookings List */}
       <FlatList
+        ref={listRef}
         data={filteredBookings}
         keyExtractor={(item) => item.id}
+        onScrollToIndexFailed={(info) => {
+          listRef.current?.scrollToOffset({
+            offset: info.averageItemLength * info.index,
+            animated: true,
+          });
+        }}
         contentContainerStyle={[styles.listContent, { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 }]}
         refreshControl={
           <RefreshControl
@@ -239,6 +260,7 @@ export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps
           <BookingCard
             booking={item}
             isOwner
+            highlighted={item.id === highlightBookingId}
             isLoading={
               statusMutation.isPending &&
               statusMutation.variables?.bookingId === item.id &&

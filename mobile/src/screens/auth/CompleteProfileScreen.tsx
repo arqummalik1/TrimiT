@@ -18,10 +18,9 @@ const profileSchema = z
     name: z.string().min(2, 'Name must be at least 2 characters'),
     phone: z
       .string()
-      .optional()
-      .or(z.literal(''))
-      .refine((val) => !val || phoneRegex.test(val), {
-        message: 'Phone number must be a valid 10-digit number (e.g. 9876543210)',
+      .min(10, 'Phone number is required')
+      .refine((val) => phoneRegex.test(val), {
+        message: 'Enter a valid 10-digit Indian mobile (e.g. 9876543210)',
       }),
     role: z.enum(['customer', 'owner']),
     upi_id: z.string().optional().or(z.literal('')),
@@ -87,7 +86,7 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
     setLocalError(null);
     setIsSubmitting(true);
     
-    const formattedPhone = data.phone ? `+91${data.phone}` : undefined;
+    const formattedPhone = `+91${data.phone.replace(/\D/g, '').slice(-10)}`;
     
     const result = await completeProfile({
       name: data.name,
@@ -107,6 +106,11 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
             result.errorCode === 'UPI_REQUIRED'
               ? 'UPI ID is required so customers can pay you'
               : 'Enter a valid UPI ID (e.g. glowsalon@okaxis)',
+        });
+      } else if (result.errorCode === 'PHONE_ALREADY_REGISTERED') {
+        setError('phone', {
+          type: 'server',
+          message: 'This mobile number is already registered.',
         });
       } else {
         setLocalError(result.error || 'Failed to complete profile');
@@ -201,7 +205,7 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
               name="phone"
               render={({ field: { onChange, onBlur, value } }) => (
                 <Input
-                  label="Phone Number (Optional)"
+                  label="Phone Number (Required)"
                   placeholder="98765 43210"
                   prefix="+91"
                   value={value}

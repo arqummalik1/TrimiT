@@ -65,6 +65,7 @@ export type CustomerDiscoverStackParamList = {
 
 export type ProfileStackParamList = {
   ProfileMain: undefined;
+  MyOffers: undefined;
   PrivacyPolicy: undefined;
   Terms: undefined;
   Contact: undefined;
@@ -103,7 +104,7 @@ export type OwnerSettingsStackParamList = {
 
 export type OwnerTabParamList = {
   Dashboard: NavigatorScreenParams<OwnerDashboardStackParamList>;
-  Bookings: undefined;
+  Bookings: { highlightBookingId?: string } | undefined;
   Services: { openAddService?: boolean } | undefined;
   Settings: NavigatorScreenParams<OwnerSettingsStackParamList>;
 };

@@ -21,6 +21,7 @@ from models.bookings import (
 from models.promotions import PromoCodeValidate
 from models.reschedule import RescheduleRequest
 from services import booking_push
+from services import promo_pricing
 from services import salon_availability
 
 logger = logging.getLogger("trimit")
@@ -777,52 +778,36 @@ async def create_booking(
             },
         )
 
-    # Calculate amount (with promo if provided)
-    original_amount = float(service.get("price", 0))
-    final_amount = original_amount
-    discount_amount = 0.0
-    promo_code_upper = None
+    # Best single discount: service offer OR salon/platform promo (Lane A / Lane B)
+    pricing = await promo_pricing.resolve_checkout_pricing(
+        service=service,
+        salon_id=data.salon_id,
+        user_id=user_id,
+        promo_code=data.promo_code,
+    )
 
-    if data.promo_code:
-        promo_code_upper = data.promo_code.upper()
-        # Validate promo code
-        promo_response = await supabase.request(
-            "POST",
-            "rest/v1/rpc/validate_promo_code",
-            json={
-                "p_code": promo_code_upper,
-                "p_salon_id": data.salon_id,
-                "p_user_id": user_id,
-                "p_booking_amount": original_amount,
+    if pricing.get("promo_error"):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "INVALID_PROMO",
+                "message": pricing["promo_error"],
             },
         )
 
-        if promo_response.status_code == 200:
-            promo_result = promo_response.json()
-            if promo_result.get("valid"):
-                discount_amount = float(promo_result.get("discount_amount", 0))
-                final_amount = float(promo_result.get("final_amount", original_amount))
-                logger.info(
-                    f"Promo {promo_code_upper} applied: discount={discount_amount}, final={final_amount}"
-                )
-            else:
-                # Invalid promo - return error
-                raise HTTPException(
-                    status_code=400,
-                    detail={
-                        "code": "INVALID_PROMO",
-                        "message": promo_result.get("error", "Invalid promo code"),
-                    },
-                )
-        else:
-            logger.error(f"Promo validation failed: {promo_response.text}")
-            raise HTTPException(
-                status_code=400,
-                detail={
-                    "code": "PROMO_ERROR",
-                    "message": "Failed to validate promo code",
-                },
-            )
+    original_amount = float(pricing["original_amount"])
+    final_amount = float(pricing["final_amount"])
+    discount_amount = float(pricing["discount_amount"])
+    promo_code_upper = pricing.get("promo_code")
+
+    if promo_code_upper:
+        logger.info(
+            "Promo %s applied (%s): discount=%s final=%s",
+            promo_code_upper,
+            pricing.get("discount_source"),
+            discount_amount,
+            final_amount,
+        )
 
     # Hold enforcement is handled atomically inside create_atomic_booking RPC
     # (migration 29 line 183: requires v_has_own_hold for single-booking salons).

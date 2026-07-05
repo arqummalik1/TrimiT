@@ -7,7 +7,7 @@ This document tracks outstanding bugs, tech debt, and enhancements across the co
 ## Target Version: v1.1.0
 
 ### Critical (P0)
-*None currently blocking the app.*
+- [ ] **C-0: New owner salon creation blocked** — Apply `database/44_fix_salon_subscription_trigger_fk.sql` in Supabase SQL editor if not already applied. Migration 41's trigger prevents every new salon insert (FK violation). Mobile shows 500 / "no internet" on retry. Backend hardening landed locally; **DB fix is required on prod**.
 - [ ] **C-1: Google Maps API Key Restrictions** (Google Cloud) - Lock down the Maps API key to the Android package name + release SHA-1 + debug SHA-1, and only enable the required Maps SDKs. Set a billing budget. (Config only, no app code change).
 
 ### High (P1)

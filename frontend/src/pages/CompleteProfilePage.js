@@ -79,8 +79,8 @@ const CompleteProfilePage = () => {
       setFieldError('Please enter your full name (at least 2 characters).');
       return;
     }
-    if (phone && !isValidNationalPhone(phone)) {
-      setFieldError(phoneValidationHint());
+    if (!phone || !isValidNationalPhone(phone)) {
+      setFieldError('Please enter your 10-digit mobile number.');
       return;
     }
 
@@ -104,7 +104,7 @@ const CompleteProfilePage = () => {
     const result = await completeProfile({
       role,
       name: name.trim(),
-      phone: phone ? toE164(phone) : undefined,
+      phone: toE164(phone),
       upi_id: role === 'owner' ? trimmedUpi : undefined,
     });
 

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Booking } from '../types';
@@ -13,6 +13,10 @@ interface BookingCardProps {
   booking: Booking;
   isOwner?: boolean;
   compact?: boolean;
+  /** Tap card body — e.g. dashboard recent activity → bookings list */
+  onPress?: () => void;
+  /** Visual emphasis when navigated from dashboard */
+  highlighted?: boolean;
   /** Pending: confirm / reject in flight */
   isLoading?: boolean;
   /** Confirmed: mark complete in flight */
@@ -38,6 +42,8 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
   booking,
   isOwner = false,
   compact = false,
+  onPress,
+  highlighted = false,
   isLoading = false,
   isCompleting = false,
   onCancel,
@@ -60,8 +66,6 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
   const bookingStatus   = statusColors[booking.status]    ?? { bg: theme.colors.surfaceSecondary, text: theme.colors.textSecondary };
   const paymentStatus   = paymentColors[booking.payment_status] ?? { bg: theme.colors.surfaceSecondary, text: theme.colors.textSecondary };
 
-  // UPI bookings awaiting the owner's verification. Verify is allowed from
-  // 'waiting_verification' (primary case) plus 'initiated' and 'timeout'.
   const isUpiAwaitingVerification =
     booking.payment_method === 'upi' &&
     (booking.payment_verification_status === 'waiting_verification' ||
@@ -77,8 +81,10 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
     }
   };
 
-  return (
-    <View style={styles.container}>
+  const phone = isOwner ? booking.users?.phone : booking.salons?.phone;
+
+  const cardBody = (
+    <>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.headerRow}>
@@ -94,45 +100,51 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
               <Text style={styles.serviceName} numberOfLines={1}>
                 {getServiceDisplayName(booking)}
               </Text>
-              <Text style={styles.salonName} numberOfLines={1}>
+              <Text style={styles.subtitleName} numberOfLines={1}>
                 {isOwner ? booking.users?.name : booking.salons?.name}
               </Text>
             </View>
           </View>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: bookingStatus.bg }]}>
-          {getStatusIcon()}
-          <Text style={[styles.statusText, { color: bookingStatus.text }]}>
-            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-          </Text>
+        <View style={styles.headerRight}>
+          <View style={[styles.statusBadge, { backgroundColor: bookingStatus.bg }]}>
+            {getStatusIcon()}
+            <Text style={[styles.statusText, { color: bookingStatus.text }]}>
+              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+            </Text>
+          </View>
+          {onPress && (
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.textTertiary} style={styles.chevron} />
+          )}
         </View>
       </View>
 
-      <View style={styles.details}>
-        <View style={styles.detailRow}>
-          <Ionicons name="calendar" size={16} color={theme.colors.textSecondary} />
-          <Text style={styles.detailText}>{formatDate(booking.booking_date)}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Ionicons name="time" size={16} color={theme.colors.textSecondary} />
-          <Text style={styles.detailText}>{formatTime(booking.time_slot)}</Text>
-        </View>
-        {!isOwner && booking.salons?.phone && (
+      <View style={[styles.details, compact && styles.detailsCompact]}>
+        <View style={styles.primaryDetailsRow}>
           <View style={styles.detailRow}>
-            <Ionicons name="call" size={16} color={theme.colors.textSecondary} />
-            <Text style={styles.detailText}>{booking.salons.phone}</Text>
+            <Ionicons name="calendar" size={16} color={theme.colors.text} />
+            <Text style={styles.detailPrimaryText}>{formatDate(booking.booking_date)}</Text>
           </View>
-        )}
-        {isOwner && booking.users?.phone && (
           <View style={styles.detailRow}>
-            <Ionicons name="call" size={16} color={theme.colors.textSecondary} />
-            <Text style={styles.detailText}>{booking.users.phone}</Text>
+            <Ionicons name="time" size={16} color={theme.colors.text} />
+            <Text style={styles.detailPrimaryText}>{formatTime(booking.time_slot)}</Text>
           </View>
-        )}
-        {!!booking.booking_reference && (
-          <View style={styles.detailRow}>
-            <Ionicons name="pricetag" size={16} color={theme.colors.textSecondary} />
-            <Text style={styles.detailText}>{booking.booking_reference}</Text>
+        </View>
+
+        {(phone || booking.booking_reference) && (
+          <View style={styles.mutedDetailsRow}>
+            {phone ? (
+              <View style={styles.detailRow}>
+                <Ionicons name="call" size={14} color={theme.colors.textTertiary} />
+                <Text style={styles.detailMutedText}>{phone}</Text>
+              </View>
+            ) : null}
+            {!!booking.booking_reference && (
+              <View style={styles.detailRow}>
+                <Ionicons name="pricetag" size={14} color={theme.colors.textTertiary} />
+                <Text style={styles.detailMutedText}>Ref {booking.booking_reference}</Text>
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -149,7 +161,6 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
           </View>
 
           <View style={styles.actions}>
-            {/* Owner: verify UPI payment (verifies payment AND confirms booking). */}
             {isOwner && isUpiAwaitingVerification && (
               <>
                 {isVerifying ? (
@@ -187,7 +198,6 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
               </>
             )}
 
-            {/* Customer: reschedule (pending or confirmed) */}
             {!isOwner &&
               (booking.status === 'pending' || booking.status === 'confirmed') &&
               onReschedule && (
@@ -201,7 +211,6 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
                 </TouchableOpacity>
               )}
 
-            {/* Customer: rate completed visit */}
             {!isOwner && booking.status === 'completed' && onWriteReview && (
               <TouchableOpacity
                 style={styles.reviewButton}
@@ -214,7 +223,6 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
               </TouchableOpacity>
             )}
 
-            {/* Customer: cancel pending */}
             {!isOwner && booking.status === 'pending' && onCancel && (
               <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
                 <Ionicons name="close-circle-outline" size={18} color={theme.colors.error} />
@@ -222,7 +230,6 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
               </TouchableOpacity>
             )}
 
-            {/* Customer: get directions (confirmed / completed) */}
             {!isOwner &&
               (booking.status === 'confirmed' || booking.status === 'completed') &&
               booking.salons?.latitude &&
@@ -242,7 +249,6 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
                 </TouchableOpacity>
               )}
 
-            {/* Owner: confirm / reject pending (non-UPI-verification bookings) */}
             {isOwner && booking.status === 'pending' && !isUpiAwaitingVerification && (
               <>
                 {isLoading ? (
@@ -266,7 +272,6 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
               </>
             )}
 
-            {/* Owner: mark confirmed booking as complete */}
             {isOwner && booking.status === 'confirmed' && onComplete && (
               <TouchableOpacity
                 style={styles.completeButton}
@@ -286,7 +291,28 @@ const BookingCardComponent: React.FC<BookingCardProps> = ({
           </View>
         </View>
       )}
-    </View>
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.container,
+          highlighted && styles.containerHighlighted,
+          pressed && styles.containerPressed,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={`View booking for ${getServiceDisplayName(booking)}`}
+      >
+        {cardBody}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={[styles.container, highlighted && styles.containerHighlighted]}>{cardBody}</View>
   );
 };
 
@@ -300,6 +326,14 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.colors.border,
       marginBottom: 12,
     },
+    containerPressed: {
+      backgroundColor: theme.colors.surfaceSecondary,
+      borderColor: theme.colors.border,
+    },
+    containerHighlighted: {
+      borderColor: theme.colors.primary,
+      borderWidth: 1.5,
+    },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -307,6 +341,10 @@ const createStyles = (theme: Theme) =>
       marginBottom: 12,
     },
     headerLeft: { flex: 1 },
+    headerRight: {
+      alignItems: 'flex-end',
+      gap: 6,
+    },
     headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -334,9 +372,12 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.text,
       marginBottom: 2,
     },
-    salonName: {
-      ...typography.bodySmallMedium,
+    subtitleName: {
+      ...typography.bodySmall,
       color: theme.colors.textSecondary,
+    },
+    chevron: {
+      marginTop: 2,
     },
     statusBadge: {
       flexDirection: 'row',
@@ -350,22 +391,39 @@ const createStyles = (theme: Theme) =>
       ...typography.captionMedium,
     },
     details: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 16,
+      gap: 8,
       marginBottom: 12,
       paddingBottom: 12,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
+    },
+    detailsCompact: {
+      marginBottom: 0,
+      paddingBottom: 0,
+      borderBottomWidth: 0,
+    },
+    primaryDetailsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 16,
+    },
+    mutedDetailsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
     },
     detailRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
     },
-    detailText: {
-      ...typography.bodySmall,
-      color: theme.colors.textSecondary,
+    detailPrimaryText: {
+      ...typography.bodySmallMedium,
+      color: theme.colors.text,
+    },
+    detailMutedText: {
+      ...typography.caption,
+      color: theme.colors.textTertiary,
     },
     footer: {
       flexDirection: 'row',

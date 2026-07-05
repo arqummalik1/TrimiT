@@ -30,6 +30,8 @@ from services.user_profile import (
     fetch_profile_service_role,
     create_new_profile,
 )
+from services.phone import normalize_india_phone, is_valid_india_phone
+from services import campaigns as campaign_service
 from services.auth_signup import (
     try_idempotent_signup,
     perform_supabase_signup,
@@ -535,8 +537,37 @@ async def complete_profile(
 
     # Salon owners are paid directly via UPI, so a valid UPI ID is required at
     # signup. Validated here (after the model) so we return a structured error.
-    upi_id = (data.upi_id or "").strip()
     is_owner = data.role.value == "owner"
+
+    phone_e164 = normalize_india_phone(data.phone)
+    if not phone_e164:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "PHONE_REQUIRED",
+                "message": "A valid 10-digit Indian mobile number is required.",
+            },
+        )
+
+    # Block duplicate customer phones (welcome voucher anti-abuse)
+    if not is_owner:
+        dup = await supabase.request(
+            "GET",
+            f"rest/v1/users?phone=eq.{phone_e164}&role=eq.customer&select=id",
+            service_role=True,
+        )
+        if dup.status_code == 200 and dup.json():
+            existing_id = dup.json()[0].get("id")
+            if existing_id != user_id:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "code": "PHONE_ALREADY_REGISTERED",
+                        "message": "This mobile number is already registered.",
+                    },
+                )
+
+    upi_id = (data.upi_id or "").strip()
     if is_owner:
         import re as _re
 
@@ -557,7 +588,7 @@ async def complete_profile(
             email=email,
             role=data.role.value,
             name=data.name,
-            phone=data.phone,
+            phone=phone_e164,
             upi_id=upi_id if is_owner else None,
         )
     except ValueError as e:
@@ -587,7 +618,19 @@ async def complete_profile(
         user_id[:8] if user_id else "?",
         profile.get("role"),
     )
-    return {"profile": profile, "message": "Profile created successfully"}
+
+    welcome_grant = None
+    if profile.get("role") == "customer":
+        welcome_grant = await campaign_service.issue_welcome_grant(
+            user_id=user_id,
+            phone=phone_e164,
+        )
+
+    return {
+        "profile": profile,
+        "message": "Profile created successfully",
+        "welcome_grant": welcome_grant,
+    }
 
 
 @router.post("/validate-reset-token")
