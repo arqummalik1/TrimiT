@@ -2,7 +2,7 @@
  * Build POST/PATCH body for salon services (matches mobile ManageServicesScreen).
  * Omits invalid empty strings that cause FastAPI 422 validation errors.
  */
-export function buildServicePayload(data) {
+export function buildServicePayload(data, categoriesExist = false) {
   const priceNum = parseFloat(data.price);
   const duration = parseInt(String(data.duration), 10);
 
@@ -10,12 +10,19 @@ export function buildServicePayload(data) {
     return null;
   }
 
+  if (categoriesExist && !data.category_id) {
+    return null;
+  }
+
+  const category_id = data.category_id || null;
+
   const base = {
     name: data.name.trim(),
     description: data.description?.trim() || undefined,
     duration,
     image_url: data.image_url || undefined,
     is_on_offer: Boolean(data.is_on_offer),
+    category_id,
   };
 
   if (data.is_on_offer && data.discount_percentage != null && data.discount_percentage !== '') {

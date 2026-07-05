@@ -1,0 +1,14 @@
+---
+description: Benchmark UX against Zomato/Swiggy/Blinkit patterns
+alwaysApply: true
+---
+
+# Product benchmark
+
+TrimiT is the **Zomato/Swiggy of salons** (walk-in, not delivery). For each feature:
+
+1. Check how those apps handle the same flow (menu sections, offers, checkout).
+2. Match proven patterns — don't invent UX from scratch.
+3. Salon-specific: categories → services → book slot → pay at salon.
+
+Home stylist booking is **out of scope** until explicitly planned.

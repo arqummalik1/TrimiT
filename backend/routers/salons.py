@@ -190,7 +190,13 @@ async def get_salon(salon_id: str):
     else:
         salon["avg_rating"] = 0
         salon["review_count"] = 0
-        
+
+    cat_resp = await supabase.request(
+        "GET",
+        f"rest/v1/service_categories?salon_id=eq.{salon_id}&active=eq.true&select=*&order=sort_order.asc,name.asc",
+    )
+    salon["service_categories"] = cat_resp.json() if cat_resp.status_code == 200 else []
+
     return salon
 
 @router.post("/")

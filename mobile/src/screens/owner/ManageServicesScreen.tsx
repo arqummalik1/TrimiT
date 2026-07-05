@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   Modal,
   Alert,
@@ -12,10 +11,10 @@ import {
   Platform,
   ScrollView,
   RefreshControl,
+  SectionList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -38,7 +37,8 @@ import { getUserFacingMessage } from '../../lib/userFacingError';
 import { queryKeys } from '../../lib/queryKeys';
 import { useOwnerSalonQuery } from '../../hooks/useOwnerSalonQuery';
 import { useOwnerOnboardingStore } from '../../store/ownerOnboardingStore';
-import type { OwnerTabParamList } from '../../navigation/types';
+import type { OwnerServicesScreenProps } from '../../navigation/types';
+import { groupServicesByCategory } from '../../lib/serviceCategories';
 
 const EMPTY_FORM = {
   name: '',
@@ -46,13 +46,14 @@ const EMPTY_FORM = {
   price: '',
   duration: '30',
   image_url: '' as string,
+  category_id: '' as string,
   is_on_offer: false,
   discount_percentage: '',
 };
 
-type ServicesRoute = RouteProp<OwnerTabParamList, 'Services'>;
+type ServicesRoute = OwnerServicesScreenProps<'ServicesMain'>;
 
-function buildServicePayload(data: typeof EMPTY_FORM) {
+function buildServicePayload(data: typeof EMPTY_FORM, categoriesExist: boolean) {
   const price = parseFloat(data.price);
   const duration = parseInt(data.duration, 10);
   if (!data.name.trim() || Number.isNaN(price) || price <= 0 || Number.isNaN(duration) || duration <= 0) {
@@ -67,23 +68,25 @@ function buildServicePayload(data: typeof EMPTY_FORM) {
     }
     discount = parsedDiscount;
   }
+  if (categoriesExist && !data.category_id) {
+    return null;
+  }
   return {
     name: data.name.trim(),
     description: data.description.trim() || undefined,
     price,
     duration,
     image_url: data.image_url || null,
+    category_id: data.category_id || null,
     is_on_offer: data.is_on_offer,
     discount_percentage: discount,
   };
 }
 
-export default function ManageServicesScreen() {
+export default function ManageServicesScreen({ navigation, route }: ServicesRoute) {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
-  const route = useRoute<ServicesRoute>();
-  const navigation = useNavigation<BottomTabNavigationProp<OwnerTabParamList, 'Services'>>();
   const queryClient = useQueryClient();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -92,6 +95,12 @@ export default function ManageServicesScreen() {
   const [showSetupBanner, setShowSetupBanner] = useState(false);
 
   const { data: salon, isLoading, isError, error, refetch, isRefetching } = useOwnerSalonQuery();
+  const categories = salon?.service_categories ?? [];
+  const categoriesExist = categories.length > 0;
+  const serviceSections = useMemo(
+    () => groupServicesByCategory(salon?.services ?? [], categories),
+    [salon?.services, categories],
+  );
 
   const openModal = useCallback((service?: Service) => {
     if (service) {
@@ -102,6 +111,7 @@ export default function ManageServicesScreen() {
         price: String(service.price),
         duration: String(service.duration),
         image_url: service.image_url || '',
+        category_id: service.category_id || '',
         is_on_offer: service.is_on_offer ?? false,
         discount_percentage: service.discount_percentage
           ? String(service.discount_percentage)
@@ -145,9 +155,14 @@ export default function ManageServicesScreen() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof EMPTY_FORM) => {
-      const payload = buildServicePayload(data);
+      const payload = buildServicePayload(data, categoriesExist);
       if (!payload || !salon?.id) {
-        throw { kind: 'validation' as const, message: 'Please fill in name, price, and duration.' };
+        throw {
+          kind: 'validation' as const,
+          message: categoriesExist
+            ? 'Please fill name, price, duration, and category.'
+            : 'Please fill in name, price, and duration.',
+        };
       }
       return salonRepository.createService(salon.id, payload);
     },
@@ -173,9 +188,14 @@ export default function ManageServicesScreen() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof EMPTY_FORM }) => {
-      const payload = buildServicePayload(data);
+      const payload = buildServicePayload(data, categoriesExist);
       if (!payload || !salon?.id) {
-        throw { kind: 'validation' as const, message: 'Please fill in name, price, and duration.' };
+        throw {
+          kind: 'validation' as const,
+          message: categoriesExist
+            ? 'Please fill name, price, duration, and category.'
+            : 'Please fill in name, price, and duration.',
+        };
       }
       return salonRepository.updateService(salon.id, id, payload);
     },
@@ -223,15 +243,23 @@ export default function ManageServicesScreen() {
       return;
     }
 
-    const payload = buildServicePayload({
-      ...formData,
-      name: parseResult.data.name,
-      price: parseResult.data.price.toString(),
-      duration: parseResult.data.duration.toString(),
-      discount_percentage: parseResult.data.discount_percentage?.toString() || '',
-    });
+    const payload = buildServicePayload(
+      {
+        ...formData,
+        name: parseResult.data.name,
+        price: parseResult.data.price.toString(),
+        duration: parseResult.data.duration.toString(),
+        discount_percentage: parseResult.data.discount_percentage?.toString() || '',
+      },
+      categoriesExist,
+    );
     if (!payload) {
-      showToast('Please fill in name, price, and duration', 'error');
+      showToast(
+        categoriesExist
+          ? 'Please fill name, price, duration, and pick a category'
+          : 'Please fill in name, price, and duration',
+        'error',
+      );
       return;
     }
     if (editingService) {
@@ -264,6 +292,24 @@ export default function ManageServicesScreen() {
 
   const services = salon?.services || [];
   const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  const tryOpenAddService = () => {
+    if (!categoriesExist) {
+      Alert.alert(
+        'Create categories first',
+        'Add menu sections (Hair, Face, etc.) before adding services.',
+        [
+          { text: 'Later', style: 'cancel' },
+          {
+            text: 'Manage categories',
+            onPress: () => navigation.navigate('ManageCategories'),
+          },
+        ],
+      );
+      return;
+    }
+    openModal();
+  };
 
   if (isLoading) {
     return (
@@ -306,25 +352,48 @@ export default function ManageServicesScreen() {
     <ScreenWrapper variant="tab">
       <View style={styles.header}>
         <Text style={styles.title}>Services</Text>
-        <TouchableOpacity style={styles.addButton} onPress={() => openModal()}>
-          <Ionicons name="add" size={22} color={theme.colors.background} />
-          <Text style={styles.addButtonText}>Add</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.categoriesButton}
+            onPress={() => navigation.navigate('ManageCategories')}
+          >
+            <Ionicons name="albums-outline" size={18} color={theme.colors.primary} />
+            <Text style={styles.categoriesButtonText}>Categories</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addButton} onPress={tryOpenAddService}>
+            <Ionicons name="add" size={22} color={theme.colors.background} />
+            <Text style={styles.addButtonText}>Add</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {showSetupBanner && services.length === 0 ? (
         <OwnerSetupBanner
           title="Salon created — nice work!"
-          message="Customers book services, not just salons. Add your first service with a photo and price to go live."
-          ctaLabel="Add your first service"
-          onPress={() => openModal()}
+          message="Create categories first, then add services with photos and prices."
+          ctaLabel="Set up categories"
+          onPress={() => navigation.navigate('ManageCategories')}
           onDismiss={() => setShowSetupBanner(false)}
         />
       ) : null}
 
-      <FlatList
-        data={services}
+      {!categoriesExist && services.length === 0 ? (
+        <View style={styles.hintBox}>
+          <Text style={styles.hintText}>
+            Start with categories (Hair, Face, Beard) — then add services under each.
+          </Text>
+          <Button
+            title="Set up categories"
+            onPress={() => navigation.navigate('ManageCategories')}
+            style={{ marginTop: spacing.sm }}
+          />
+        </View>
+      ) : null}
+
+      <SectionList
+        sections={serviceSections}
         keyExtractor={(item) => item.id}
+        stickySectionHeadersEnabled={false}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 },
@@ -338,19 +407,18 @@ export default function ManageServicesScreen() {
           />
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="pricetag-outline" size={48} color={theme.colors.textTertiary} />
-            <Text style={styles.emptyTitle}>No Services Yet</Text>
-            <Text style={styles.emptyText}>
-              Add haircuts, styling, and other services so customers can book you.
-            </Text>
-            <Button
-              title="Add your first service"
-              onPress={() => openModal()}
-              style={{ marginTop: spacing.lg }}
-            />
-          </View>
+          categoriesExist ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="pricetag-outline" size={48} color={theme.colors.textTertiary} />
+              <Text style={styles.emptyTitle}>No Services Yet</Text>
+              <Text style={styles.emptyText}>Add services under your categories.</Text>
+              <Button title="Add service" onPress={tryOpenAddService} style={{ marginTop: spacing.lg }} />
+            </View>
+          ) : null
         }
+        renderSectionHeader={({ section: { title } }) => (
+          <Text style={styles.sectionHeader}>{title}</Text>
+        )}
         renderItem={({ item }) => (
           <ServiceCard
             service={item}
@@ -411,6 +479,31 @@ export default function ManageServicesScreen() {
                 placeholder="e.g., Haircut"
                 icon={<Ionicons name="cut-outline" size={20} color={theme.colors.textSecondary} />}
               />
+
+              {categoriesExist ? (
+                <View style={styles.categoryBlock}>
+                  <Text style={styles.categoryLabel}>Category *</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.categoryChips}>
+                      {categories.map((cat) => {
+                        const selected = formData.category_id === cat.id;
+                        return (
+                          <TouchableOpacity
+                            key={cat.id}
+                            style={[styles.chip, selected && styles.chipSelected]}
+                            onPress={() => setFormData((p) => ({ ...p, category_id: cat.id }))}
+                          >
+                            <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                              {cat.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                </View>
+              ) : null}
+
               <Input
                 label="Description"
                 value={formData.description}
@@ -516,6 +609,27 @@ const createStyles = (theme: Theme) =>
     title: {
       ...typography.h2,
       color: theme.colors.text,
+      flex: 1,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    categoriesButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.full,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    categoriesButtonText: {
+      ...typography.caption,
+      color: theme.colors.primary,
+      fontWeight: '600',
     },
     addButton: {
       flexDirection: 'row',
@@ -533,6 +647,50 @@ const createStyles = (theme: Theme) =>
     listContent: {
       paddingHorizontal: spacing.xl,
     },
+    sectionHeader: {
+      ...typography.bodySemiBold,
+      color: theme.colors.textSecondary,
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
+      paddingHorizontal: spacing.xl,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+      fontSize: 12,
+    },
+    hintBox: {
+      marginHorizontal: spacing.xl,
+      marginBottom: spacing.md,
+      padding: spacing.lg,
+      borderRadius: borderRadius.lg,
+      backgroundColor: theme.colors.surfaceSecondary,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    hintText: {
+      ...typography.bodySmall,
+      color: theme.colors.textSecondary,
+    },
+    categoryBlock: { marginBottom: spacing.md },
+    categoryLabel: {
+      ...typography.bodySmallMedium,
+      color: theme.colors.textSecondary,
+      marginBottom: spacing.sm,
+    },
+    categoryChips: { flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xs },
+    chip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.full,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+    },
+    chipSelected: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    chipText: { ...typography.bodySmall, color: theme.colors.text },
+    chipTextSelected: { color: theme.colors.textInverse, fontWeight: '600' },
     emptyContainer: {
       flex: 1,
       justifyContent: 'center',

@@ -26,9 +26,10 @@
 - **Persistent login**: cold start trusts persisted token, only 401 clears.
 - **Forward-only migrations.** Apply manually in Supabase SQL Editor.
 - **Deploy posture**: Render (backend) + Vercel (web) auto-deploy from `main`.
-  After fixes, merge `zero-point-ten` → `main` and push both.
+  **Never merge or push to `main` unless the user explicitly asks.** Push feature branches only when requested.
+- **Test-driven**: Every code change updates/adds unit tests (mobile, web, backend). All tests must pass before delivery. See `.cursor/rules/test-driven.mdc`.
 - **Documentation discipline**: update `docs/REMAINING_ISSUES.md` and
   `docs/PROGRESS.md` in the same commit as the code change.
-- **Communication**: concise, show-don't-tell, root cause, no filler.
+- **Communication**: concise, show-don't-tell, root cause, no filler. **Bullet points only** — see `.cursor/rules/concise-output.mdc`.
 
 If RULES.md and this file ever drift, RULES.md wins.

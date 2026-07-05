@@ -1,0 +1,31 @@
+---
+description: Test-driven delivery for mobile, web, and backend
+alwaysApply: true
+---
+
+# Test-driven development
+
+TrimiT is test-driven across **mobile**, **web (frontend)**, and **backend**.
+
+## On every change
+
+- Any change to a screen, component, hook, service, repository, navigation, router, or util → **update or add unit tests** in the same pass.
+- New feature = new tests covering real behavior (not trivial asserts).
+
+## Before delivering
+
+1. Run the relevant test suite(s).
+2. **All tests must pass** before reporting done.
+3. If tests fail, fix and re-run until green — do not hand off broken tests.
+
+## Commands
+
+- Mobile: `cd mobile && CI=true npm test -- --watchman=false`
+- Web: `cd frontend && npm test`
+- Backend: `cd backend && python3 -m pytest` (or project venv)
+
+## Scope
+
+- Mobile: Jest + React Native Testing Library
+- Web: Vitest + Testing Library
+- Backend: pytest + MockSupabase

@@ -97,6 +97,16 @@ async def get_owner_salon(current_user: dict = Depends(get_current_user)):
     else:
         logger.warning(f"[GET_OWNER_SALON] Failed to fetch services: {services_response.text}")
         salon['services'] = []
+
+    categories_response = await supabase.request(
+        "GET",
+        f"rest/v1/service_categories?salon_id=eq.{salon_id}&select=*&order=sort_order.asc,name.asc",
+        token=current_user.get("access_token"),
+    )
+    if categories_response.status_code == 200:
+        salon['service_categories'] = categories_response.json() or []
+    else:
+        salon['service_categories'] = []
     
     logger.info(f"[GET_OWNER_SALON] Returning salon with {len(salon.get('services', []))} services")
     return salon

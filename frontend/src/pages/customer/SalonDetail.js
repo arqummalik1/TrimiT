@@ -18,6 +18,7 @@ import api from '../../lib/api';
 import { formatPrice, formatDate } from '../../lib/utils';
 import { useAuthStore } from '../../store/authStore';
 import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../../lib/featureFlags';
+import { groupServicesByCategory } from '../../lib/serviceCategories';
 
 const SalonDetail = () => {
   const { id } = useParams();
@@ -76,6 +77,11 @@ const SalonDetail = () => {
     isAuthenticated
       ? `/booking/${salon.id}/${serviceId}`
       : `/login?redirect=${encodeURIComponent(`/booking/${salon.id}/${serviceId}`)}`;
+
+  const serviceSections = groupServicesByCategory(
+    salon.services ?? [],
+    salon.service_categories ?? [],
+  );
 
   return (
     <div className="min-h-screen bg-stone-50 pb-24" data-testid="salon-detail">
@@ -182,9 +188,15 @@ const SalonDetail = () => {
             Services
           </h2>
 
-          {salon.services?.length > 0 ? (
-            <div className="space-y-4">
-              {salon.services.map((service, index) => (
+          {serviceSections.length > 0 ? (
+            <div className="space-y-8">
+              {serviceSections.map((section) => (
+                <div key={section.categoryId ?? section.title}>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500 mb-4">
+                    {section.title}
+                  </h3>
+                  <div className="space-y-4">
+                    {section.data.map((service, index) => (
                 <motion.div
                   key={service.id}
                   initial={{ opacity: 0, x: -20 }}
@@ -285,6 +297,9 @@ const SalonDetail = () => {
                     )}
                   </div>
                 </motion.div>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           ) : (

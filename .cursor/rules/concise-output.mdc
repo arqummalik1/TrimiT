@@ -1,0 +1,13 @@
+---
+description: Keep responses short — bullets only, no token waste
+alwaysApply: true
+---
+
+# Concise output (mandatory)
+
+- **Default to short.** Bullet points, plain English. Only what the user needs to decide or act.
+- **No long audits, essays, or repeated context** unless the user explicitly asks for a full report.
+- **Plans**: max ~8–12 bullets + one-line recommendation. No giant tables or mermaid unless requested.
+- **After code changes**: what changed, why, how to verify — a few bullets, not a walkthrough.
+- **Skip**: filler, restating the question, engagement bait, "say the word and I'll…"
+- **Expand only when**: user asks for detail, security/debug needs evidence, or approval doc is explicitly requested.

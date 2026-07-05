@@ -58,10 +58,21 @@ export interface Salon {
   account_holder_name?: string | null;
   created_at: string;
   services?: Service[];
+  service_categories?: ServiceCategory[];
   reviews?: Review[];
   avg_rating?: number;
   review_count?: number;
   distance?: number;
+}
+
+export interface ServiceCategory {
+  id: string;
+  salon_id: string;
+  name: string;
+  sort_order: number;
+  active: boolean;
+  service_count?: number;
+  created_at?: string;
 }
 
 export interface Service {
@@ -71,6 +82,7 @@ export interface Service {
   description?: string;
   price: number;
   duration: number;
+  category_id?: string | null;
   // ─── Extended fields (backward-compatible, all optional) ─────────────────
   image_url?: string | null;
   original_price?: number | null;     // price before discount

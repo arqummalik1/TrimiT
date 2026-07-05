@@ -1,4 +1,4 @@
-# TrimiT Migration Order (V2 — through 56)
+# TrimiT Migration Order (V2 — through 57)
 
 Apply **forward-only** in the Supabase SQL Editor. Never edit applied migrations.
 
@@ -26,6 +26,7 @@ All production migrations live in `/database/`. Migrations **52–54** were prev
 | **54** | **`54_service_areas_and_waitlist.sql`** | Jammu geofence + waitlist |
 | **55** | **`55_staff_app_login.sql`** | Employee role + staff app login link |
 | **56** | **`56_reschedule_auth_hardening.sql`** | `auth.uid()` on reschedule RPC |
+| **57** | **`57_service_categories.sql`** | `service_categories` table + `services.category_id` FK |
 
 ## Verify in production
 

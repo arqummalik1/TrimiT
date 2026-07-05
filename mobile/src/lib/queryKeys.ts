@@ -1,5 +1,6 @@
 export const queryKeys = {
   ownerSalon: ['ownerSalon'] as const,
+  ownerCategories: ['ownerCategories'] as const,
   ownerAnalytics: (period: string, salonId?: string) =>
     ['ownerAnalytics', period, salonId] as const,
   ownerBookings: ['ownerBookings'] as const,

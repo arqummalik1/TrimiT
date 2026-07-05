@@ -130,7 +130,7 @@ class ServiceCreate(BaseModel):
     description: Optional[str] = None
     price: int
     duration: int  # in minutes
-    category: Optional[str] = None
+    category_id: Optional[str] = None
     image_url: Optional[str] = None
     is_on_offer: bool = False
     discount_percentage: Optional[int] = None
@@ -143,7 +143,7 @@ class ServiceUpdate(BaseModel):
     description: Optional[str] = None
     price: Optional[int] = None
     duration: Optional[int] = None
-    category: Optional[str] = None
+    category_id: Optional[str] = None
     image_url: Optional[str] = None
     is_on_offer: Optional[bool] = None
     discount_percentage: Optional[int] = None
