@@ -60,7 +60,7 @@ try:
     from routers import salons
     from routers import bookings
     from routers import payments
-    from routers import promotions
+    from routers import promotions, service_categories
     from routers import staff_availability
     from routers import staff
     from routers import owner
@@ -115,7 +115,7 @@ if settings.SENTRY_DSN:
 app = FastAPI(
     title="TrimiT API",
     description="Backend API for TrimiT Salon Booking App",
-    version="1.1.0"
+    version="1.0.2"
 )
 
 # Exception Handlers
@@ -164,6 +164,7 @@ v1_router.include_router(salons.router)
 v1_router.include_router(bookings.router)
 v1_router.include_router(payments.router)
 v1_router.include_router(promotions.router)
+v1_router.include_router(service_categories.router)
 v1_router.include_router(staff_availability.router)
 v1_router.include_router(staff.router)
 v1_router.include_router(owner.router)

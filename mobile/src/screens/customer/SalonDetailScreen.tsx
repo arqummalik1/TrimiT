@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,14 @@ import { isAppError } from '../../types/error';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
 import { SalonDetailParamsSchema } from '../../navigation/params';
 import { normalizeSalon } from '../../lib/salonImage';
+import { groupServicesByCategory } from '../../lib/serviceCategories';
+import {
+  filterServicesForMenuAudience,
+  salonNeedsMenuAudienceChips,
+  MENU_AUDIENCE_OPTIONS,
+  MenuAudienceFilter,
+} from '../../lib/genderServe';
+import { FilterChipRow } from '../../components/FilterChipRow';
 import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../../lib/featureFlags';
 import { showToast } from '../../store/toastStore';
 
@@ -78,6 +86,18 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const notBookable =
     ENABLE_SUBSCRIPTION_ENFORCEMENT && salon?.subscription_active === false;
+
+  const [menuAudience, setMenuAudience] = useState<MenuAudienceFilter>('all');
+  const showMenuAudienceChips = salonNeedsMenuAudienceChips(salon?.gender_serve);
+
+  const serviceSections = useMemo(() => {
+    const filtered = filterServicesForMenuAudience(
+      salon?.services ?? [],
+      salon?.gender_serve,
+      showMenuAudienceChips ? menuAudience : 'all',
+    );
+    return groupServicesByCategory(filtered, salon?.service_categories ?? []);
+  }, [salon?.services, salon?.service_categories, salon?.gender_serve, menuAudience, showMenuAudienceChips]);
 
   const handleViewService = (service: Service) => {
     // Viewing is always allowed — even for a frozen salon, customers can browse
@@ -247,15 +267,30 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           {/* Services */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Services</Text>
-
-            {salon.services && salon.services.length > 0 ? (
-              salon.services.map((service) => (
-                <ServiceCard
-                  key={service.id}
-                  service={service}
-                  variant="customer"
-                  onPress={() => handleViewService(service)}
+            {showMenuAudienceChips && (
+              <View style={styles.menuChips}>
+                <FilterChipRow
+                  options={MENU_AUDIENCE_OPTIONS}
+                  value={menuAudience}
+                  onChange={setMenuAudience}
+                  testIDPrefix="menu-audience"
                 />
+              </View>
+            )}
+
+            {serviceSections.length > 0 ? (
+              serviceSections.map((section) => (
+                <View key={section.categoryId ?? section.title}>
+                  <Text style={styles.categoryHeading}>{section.title}</Text>
+                  {section.data.map((service) => (
+                    <ServiceCard
+                      key={service.id}
+                      service={service}
+                      variant="customer"
+                      onPress={() => handleViewService(service)}
+                    />
+                  ))}
+                </View>
               ))
             ) : (
               <View style={styles.emptyServices}>
@@ -514,6 +549,18 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 26,
     color: theme.colors.text,
     marginBottom: 20,
+  },
+  categoryHeading: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    marginTop: 8,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  menuChips: {
+    marginBottom: spacing.md,
   },
   emptyServices: {
     alignItems: 'center',

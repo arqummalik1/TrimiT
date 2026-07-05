@@ -37,7 +37,8 @@ const MyBookings = () => {
   const navigate = useNavigate();
   const { success, error, info } = useToastStore();
   const { addNotification } = useNotificationStore();
-  const { profile } = useAuthStore();
+  // P0-4 Security Fix: Get token from auth store for authenticated realtime subscription
+  const { profile, token } = useAuthStore();
   const [activeChannel, setActiveChannel] = useState(null);
   const [statusUpdates, setStatusUpdates] = useState([]);
 
@@ -131,16 +132,17 @@ const MyBookings = () => {
 
   // Subscribe to real-time booking status updates
   useEffect(() => {
-    if (!profile?.id) return;
+    if (!profile?.id || !token) return;
 
-    const channel = subscribeToUserBookings(profile.id, handleBookingUpdate);
+    // P0-4 Security Fix: Pass token for authenticated realtime subscription
+    const channel = subscribeToUserBookings(profile.id, handleBookingUpdate, token);
 
     setActiveChannel(channel);
 
     return () => {
       unsubscribeFromChannel(channel);
     };
-  }, [profile?.id, handleBookingUpdate]);
+  }, [profile?.id, token, handleBookingUpdate]);
 
   const cancelMutation = useMutation({
     mutationFn: bookingRepository.cancelBooking,

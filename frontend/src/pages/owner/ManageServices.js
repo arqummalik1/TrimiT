@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { 
@@ -10,13 +10,18 @@ import {
   CurrencyInr,
   Scissors,
   FloppyDisk,
-  X
+  X,
+  SquaresFour
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import { formatPrice, getApiErrorMessage } from '../../lib/utils';
 import { buildServicePayload } from '../../lib/servicePayload';
+import { groupServicesByCategory } from '../../lib/serviceCategories';
+import { FilterChipRow } from '../../components/FilterChipRow';
+import { SERVICE_AUDIENCE_OPTIONS } from '../../lib/genderServe';
 
 const ManageServices = () => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingService, setEditingService] = useState(null);
@@ -25,6 +30,12 @@ const ManageServices = () => {
     description: '',
     price: '',
     duration: 30,
+    category_id: '',
+    audience: 'both',
+    is_on_offer: false,
+    discount_percentage: '',
+    offer_end_date: '',
+    offer_tagline: "Grab it before it's gone!",
   });
 
   const { data: salon, isLoading } = useQuery({
@@ -35,11 +46,23 @@ const ManageServices = () => {
     },
   });
 
+  const categories = salon?.service_categories ?? [];
+  const categoriesExist = categories.length > 0;
+  const isUnisexSalon = salon?.gender_serve === 'unisex';
+  const serviceSections = useMemo(
+    () => groupServicesByCategory(salon?.services ?? [], categories),
+    [salon?.services, categories],
+  );
+
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const payload = buildServicePayload(data);
+      const payload = buildServicePayload(data, categoriesExist);
       if (!payload) {
-        throw new Error('Please fill in name, price, and duration.');
+        throw new Error(
+          categoriesExist
+            ? 'Please fill name, price, duration, and pick a category.'
+            : 'Please fill in name, price, and duration.',
+        );
       }
       const response = await api.post(`/salons/${salon.id}/services`, payload);
       return response.data;
@@ -52,9 +75,13 @@ const ManageServices = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }) => {
-      const payload = buildServicePayload(data);
+      const payload = buildServicePayload(data, categoriesExist);
       if (!payload) {
-        throw new Error('Please fill in name, price, and duration.');
+        throw new Error(
+          categoriesExist
+            ? 'Please fill name, price, duration, and pick a category.'
+            : 'Please fill in name, price, and duration.',
+        );
       }
       const response = await api.patch(`/salons/${salon.id}/services/${id}`, payload);
       return response.data;
@@ -82,6 +109,8 @@ const ManageServices = () => {
         description: service.description || '',
         price: service.price.toString(),
         duration: service.duration,
+        category_id: service.category_id || '',
+        audience: service.audience || 'both',
         // Offer fields
         is_on_offer: service.is_on_offer || false,
         discount_percentage: service.discount_percentage || '',
@@ -95,6 +124,8 @@ const ManageServices = () => {
         description: '', 
         price: '', 
         duration: 30,
+        category_id: categoriesExist ? categories[0]?.id || '' : '',
+        audience: 'both',
         is_on_offer: false,
         discount_percentage: '',
         offer_end_date: '',
@@ -112,6 +143,8 @@ const ManageServices = () => {
       description: '', 
       price: '', 
       duration: 30,
+      category_id: '',
+      audience: 'both',
       is_on_offer: false,
       discount_percentage: '',
       offer_end_date: '',
@@ -119,10 +152,27 @@ const ManageServices = () => {
     });
   };
 
+  const tryOpenAddService = () => {
+    if (!categoriesExist) {
+      const go = window.confirm(
+        'Create menu categories (Hair, Face, etc.) before adding services.\n\nOpen Categories now?',
+      );
+      if (go) {
+        navigate('/owner/categories');
+      }
+      return;
+    }
+    openModal();
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!buildServicePayload(formData)) {
-      window.alert('Please fill in name, price, and duration. For offers, set a discount between 1–99%.');
+    if (!buildServicePayload(formData, categoriesExist)) {
+      window.alert(
+        categoriesExist
+          ? 'Please fill name, price, duration, and pick a category. For offers, set discount 1–99%.'
+          : 'Please fill in name, price, and duration. For offers, set a discount between 1–99%.',
+      );
       return;
     }
     if (editingService) {
@@ -210,19 +260,46 @@ const ManageServices = () => {
               Manage services for {salon.name}
             </p>
           </div>
-          <button
-            onClick={() => openModal()}
-            data-testid="add-service-btn"
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus size={20} />
-            Add Service
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/owner/categories"
+              data-testid="manage-categories-link"
+              className="flex items-center gap-2 px-4 py-2 rounded-full border border-stone-200 text-stone-700 hover:bg-stone-100 transition-colors"
+            >
+              <SquaresFour size={18} />
+              Categories
+            </Link>
+            <button
+              onClick={tryOpenAddService}
+              data-testid="add-service-btn"
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus size={20} />
+              Add Service
+            </button>
+          </div>
         </motion.div>
 
-        {salon.services?.length > 0 ? (
-          <div className="space-y-4">
-            {salon.services.map((service, index) => (
+        {!categoriesExist && (salon.services?.length ?? 0) === 0 && (
+          <div className="mb-6 p-5 rounded-2xl bg-orange-50 border border-orange-100">
+            <p className="text-sm text-stone-600 mb-3">
+              Start with categories (Hair, Face, Beard) — then add services under each section.
+            </p>
+            <Link to="/owner/categories" className="btn-primary inline-flex text-sm">
+              Set up categories
+            </Link>
+          </div>
+        )}
+
+        {serviceSections.length > 0 ? (
+          <div className="space-y-8">
+            {serviceSections.map((section) => (
+              <div key={section.categoryId ?? section.title}>
+                <h2 className="text-xs font-bold uppercase tracking-wider text-stone-500 mb-4">
+                  {section.title}
+                </h2>
+                <div className="space-y-4">
+                  {section.data.map((service, index) => (
               <motion.div
                 key={service.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -310,6 +387,9 @@ const ManageServices = () => {
                   </div>
                 </div>
               </motion.div>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         ) : (
@@ -326,7 +406,7 @@ const ManageServices = () => {
               Add your first service to start accepting bookings
             </p>
             <button
-              onClick={() => openModal()}
+              onClick={tryOpenAddService}
               className="btn-primary inline-flex items-center gap-2"
             >
               <Plus size={20} />
@@ -357,6 +437,44 @@ const ManageServices = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
+              {categoriesExist && (
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">
+                    Category *
+                  </label>
+                  <div className="flex flex-wrap gap-2" data-testid="service-category-chips">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, category_id: cat.id })}
+                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                          formData.category_id === cat.id
+                            ? 'bg-orange-800 text-white border-orange-800'
+                            : 'bg-white text-stone-700 border-stone-200 hover:border-orange-300'
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {isUnisexSalon && (
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-2">
+                    Who is this for?
+                  </label>
+                  <FilterChipRow
+                    options={SERVICE_AUDIENCE_OPTIONS}
+                    value={formData.audience}
+                    onChange={(v) => setFormData({ ...formData, audience: v })}
+                    testIDPrefix="service-audience"
+                  />
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-2">
                   Service Name *

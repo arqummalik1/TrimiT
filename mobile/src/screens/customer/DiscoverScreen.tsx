@@ -50,6 +50,15 @@ import { ServiceAreaGate } from '../../components/ServiceAreaGate';
 import { serviceabilityRepository } from '../../repositories/serviceabilityRepository';
 import { DISCOVER_FALLBACK_COORDS, DISCOVER_INITIAL_DELTA } from '../../lib/maps';
 import { logger } from '../../lib/logger';
+import { useAuthStore } from '../../store/authStore';
+import {
+  DiscoverChip,
+  DISCOVER_CHIP_OPTIONS,
+  discoverChipToApiFilter,
+  defaultDiscoverChip,
+  salonMatchesDiscoverFilter,
+} from '../../lib/genderServe';
+import { FilterChipRow } from '../../components/FilterChipRow';
 import {
   DISCOVER_SEARCH_DEBOUNCE_MS,
   DISCOVER_CLUSTERING_MIN_MARKERS,
@@ -84,6 +93,17 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   const isFocused = useIsFocused();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const { user } = useAuthStore();
+  const [discoverChip, setDiscoverChip] = useState<DiscoverChip>(() => defaultDiscoverChip(user));
+
+  useEffect(() => {
+    setDiscoverChip(defaultDiscoverChip(user));
+  }, [user?.discovery_audience, user?.gender]);
+
+  const discoverApiFilter = useMemo(
+    () => discoverChipToApiFilter(discoverChip, user),
+    [discoverChip, user],
+  );
 
   // ── Hide-on-scroll search bar (Twitter/Gmail pattern) ──────────────────────
   // diffClamp gives the classic behaviour automatically: scroll DOWN → the bar
@@ -152,7 +172,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     isRefetching,
     isFetching,
   } = useInfiniteQuery({
-    queryKey: ['salons', 'discover', 'nearby', latKey, lngKey],
+    queryKey: ['salons', 'discover', 'nearby', latKey, lngKey, discoverChip, discoverApiFilter ?? 'all'],
     enabled: locationReady,
     staleTime: 5 * 60 * 1000,
     refetchOnMount: 'always',
@@ -166,6 +186,9 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
       }
       params.append('limit', '20');
       params.append('offset', pageParam.toString());
+      if (discoverApiFilter) {
+        params.append('gender_serve', discoverApiFilter);
+      }
 
       logger.info(`${LOG} salons query`, {
         pageParam,
@@ -224,9 +247,10 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   const isOutOfArea = serviceability?.serviceable === false;
 
   const filteredSalons = useMemo(() => {
-    if (!debouncedSearchQuery) return allSalons;
+    let list = allSalons.filter((s) => salonMatchesDiscoverFilter(s, discoverApiFilter));
+    if (!debouncedSearchQuery) return list;
     const query = debouncedSearchQuery.toLowerCase();
-    const filtered = allSalons.filter(
+    list = list.filter(
       (s) =>
         s.name.toLowerCase().includes(query) ||
         s.address.toLowerCase().includes(query) ||
@@ -234,11 +258,10 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     );
     logger.debug(`${LOG} search filter`, {
       query,
-      before: allSalons.length,
-      after: filtered.length,
+      count: list.length,
     });
-    return filtered;
-  }, [allSalons, debouncedSearchQuery]);
+    return list;
+  }, [allSalons, debouncedSearchQuery, discoverApiFilter]);
 
   const mapMarkersData = useMemo(() => {
     const markers: { salon: Salon; coordinate: { latitude: number; longitude: number } }[] = [];
@@ -596,6 +619,15 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
         </Animated.View>
       </View>
 
+      <View style={styles.discoverChips}>
+        <FilterChipRow
+          options={DISCOVER_CHIP_OPTIONS}
+          value={discoverChip}
+          onChange={setDiscoverChip}
+          testIDPrefix="discover"
+        />
+      </View>
+
       {showBodySkeleton ? (
         <SalonListSkeleton />
       ) : isOutOfArea && serviceability ? (
@@ -731,6 +763,13 @@ const createStyles = (theme: Theme) =>
     },
     searchInner: {
       paddingTop: spacing.lg,
+    },
+    discoverChips: {
+      paddingHorizontal: spacing.xl,
+      paddingBottom: spacing.sm,
+      backgroundColor: theme.colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
     },
     title: {
       fontFamily: fonts.heading,

@@ -53,10 +53,10 @@ export function navigateOwnerToServices(
     const state = parent.getState?.();
     const names = state?.routeNames as string[] | undefined;
     if (names?.includes('Services')) {
-      (parent.navigate as (name: string, p?: { openAddService?: boolean }) => void)(
-        'Services',
-        params
-      );
+      (parent.navigate as (name: string, p?: object) => void)('Services', {
+        screen: 'ServicesMain',
+        params,
+      });
       return true;
     }
     parent = parent.getParent?.() as NavigationProp<ParamListBase> | undefined;

@@ -25,6 +25,8 @@ import { salonRepository } from '../repositories/salonRepository';
 import type { StaffWithServices, StaffCreateInput, StaffUpdateInput } from '../types/staff';
 import { DEFAULT_WORKING_HOURS } from '../types/staff';
 import WorkingHoursEditor from './WorkingHoursEditor';
+import { ImageUploadField } from './ImageUploadField';
+import { uploadStaffImage } from '../services/uploadService';
 
 interface StaffFormModalProps {
   visible: boolean;
@@ -48,6 +50,7 @@ const StaffFormModal: React.FC<StaffFormModalProps> = ({
   const [bio, setBio] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [workingHours, setWorkingHours] = useState(DEFAULT_WORKING_HOURS);
   const [daysOff, setDaysOff] = useState<string[]>([]);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -63,6 +66,7 @@ const StaffFormModal: React.FC<StaffFormModalProps> = ({
       setBio(staff.bio || '');
       setPhone(staff.phone || '');
       setEmail(staff.email || '');
+      setImageUrl(staff.image_url || '');
       setWorkingHours(staff.working_hours);
       setDaysOff(staff.days_off);
       setSelectedServices(staff.services.map(s => s.id));
@@ -72,12 +76,19 @@ const StaffFormModal: React.FC<StaffFormModalProps> = ({
       setBio('');
       setPhone('');
       setEmail('');
+      setImageUrl('');
       setWorkingHours(DEFAULT_WORKING_HOURS);
       setDaysOff([]);
       setSelectedServices([]);
     }
     setErrors({});
   }, [staff, visible]);
+
+  const handleImageUpload = useCallback(
+    (localUri: string, onProgress: (pct: number) => void) =>
+      uploadStaffImage(localUri, onProgress),
+    []
+  );
 
   // Fetch salon services
   const { data: services } = useQuery({
@@ -154,6 +165,8 @@ const StaffFormModal: React.FC<StaffFormModalProps> = ({
       return;
     }
 
+    const photoUrl = imageUrl.trim() || null;
+
     if (isEditMode && staff) {
       // Update existing staff
       const updates: StaffUpdateInput = {
@@ -161,6 +174,7 @@ const StaffFormModal: React.FC<StaffFormModalProps> = ({
         bio: bio.trim() || undefined,
         phone: phone.trim() || undefined,
         email: email.trim() || undefined,
+        image_url: photoUrl,
         working_hours: workingHours,
         days_off: daysOff,
       };
@@ -174,6 +188,7 @@ const StaffFormModal: React.FC<StaffFormModalProps> = ({
         bio: bio.trim() || undefined,
         phone: phone.trim() || undefined,
         email: email.trim() || undefined,
+        image_url: photoUrl,
         working_hours: workingHours,
         days_off: daysOff,
         is_active: true,
@@ -189,6 +204,7 @@ const StaffFormModal: React.FC<StaffFormModalProps> = ({
     bio,
     phone,
     email,
+    imageUrl,
     workingHours,
     daysOff,
     salonId,
@@ -239,6 +255,16 @@ const StaffFormModal: React.FC<StaffFormModalProps> = ({
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
+            <ImageUploadField
+              label="Profile photo"
+              value={imageUrl}
+              onChange={setImageUrl}
+              onUpload={handleImageUpload}
+              aspect={[1, 1]}
+              disabled={isLoading}
+              testID="staff-profile-photo"
+            />
+
             {/* Name */}
             <View style={styles.formGroup}>
               <Text style={styles.label}>

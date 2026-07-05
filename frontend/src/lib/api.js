@@ -140,6 +140,12 @@ api.interceptors.response.use(
           config?.headers?.authorization ||
           api.defaults.headers.common?.Authorization
       );
+      try {
+        const { useAuthStore } = await import('../store/authStore');
+        useAuthStore.getState().logout?.();
+      } catch {
+        clearPersistedAuth();
+      }
       clearPersistedAuth();
       delete api.defaults.headers.common.Authorization;
 

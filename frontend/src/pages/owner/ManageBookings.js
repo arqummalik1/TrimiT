@@ -19,12 +19,15 @@ import api from '../../lib/api';
 import { useToastStore } from '../../store/toastStore';
 import { useVerifyPayment, useRejectPayment } from '../../hooks/usePayment';
 import { formatPrice, formatTime, getStatusColor, getPaymentStatusColor } from '../../lib/utils';
+import { useAuthStore } from '../../store/authStore';
+import { subscribeToSalonBookings, unsubscribeFromChannel } from '../../lib/supabase';
 
 const ManageBookings = () => {
   const queryClient = useQueryClient();
   const { success, error } = useToastStore();
   const verifyPayment = useVerifyPayment();
   const rejectPayment = useRejectPayment();
+  const { token } = useAuthStore();
 
   const { data: salon, isLoading: salonLoading } = useQuery({
     queryKey: ['ownerSalon'],
@@ -58,6 +61,21 @@ const ManageBookings = () => {
       return timeB.localeCompare(timeA);
     });
   }, [rawBookings]);
+
+  React.useEffect(() => {
+    if (!salon?.id || !token) return;
+
+    const channel = subscribeToSalonBookings(
+      salon.id,
+      () => {
+        queryClient.invalidateQueries(['ownerBookings']);
+        queryClient.invalidateQueries(['ownerAnalytics']);
+      },
+      token,
+    );
+
+    return () => unsubscribeFromChannel(channel);
+  }, [salon?.id, token, queryClient]);
 
   // Accept booking mutation
   const acceptMutation = useMutation({

@@ -34,15 +34,11 @@ import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
+import { isGoogleLoginVisible } from '../../config/auth';
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// Google Sign-In is built but NOT yet verified end-to-end (mobile + web), so it
-// is hidden for launch. Flip to true once tested to re-enable the button — no
-// other change needed.
-const GOOGLE_LOGIN_ENABLED = false;
 
 interface ValidationErrors {
   email?: string;
@@ -305,8 +301,8 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
 
-            {/* Divider + Google — hidden until Google login is verified */}
-            {GOOGLE_LOGIN_ENABLED && (
+            {/* Google sign-in */}
+            {isGoogleLoginVisible() && (
               <>
                 <View style={styles.dividerRow}>
                   <View style={styles.dividerLine} />
@@ -314,7 +310,7 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
                   <View style={styles.dividerLine} />
                 </View>
 
-                <GoogleSignInButton />
+                <GoogleSignInButton label="Sign in with Google" />
               </>
             )}
           </View>

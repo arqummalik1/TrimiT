@@ -92,14 +92,14 @@ def test_customers_success(client, monkeypatch):
 # ── public pageview tracking ──────────────────────────────────────────────────
 
 def test_pageview_records(client, mock_supabase):
-    mock_supabase.post("/rest/v1/page_views").mock(return_value=Response(201, json={}))
+    mock_supabase.post("/rest/v1/page_views").return_value = Response(201, json={})
     resp = client.post("/api/v1/analytics/pageview", json={"path": "/", "session_id": "s1"})
     assert resp.status_code == status.HTTP_200_OK
     assert resp.json()["status"] == "ok"
 
 
 def test_pageview_best_effort_on_db_error(client, mock_supabase):
-    mock_supabase.post("/rest/v1/page_views").mock(return_value=Response(500, json={}))
+    mock_supabase.post("/rest/v1/page_views").return_value = Response(500, json={})
     resp = client.post("/api/v1/analytics/pageview", json={"path": "/explore"})
     # Never fail the client over analytics.
     assert resp.status_code == status.HTTP_200_OK

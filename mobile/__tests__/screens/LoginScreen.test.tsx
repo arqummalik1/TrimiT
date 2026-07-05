@@ -23,6 +23,10 @@ const mockStore = {
   isOnboardingCompleted: true,
 };
 
+jest.mock('../../src/config/auth', () => ({
+  isGoogleLoginVisible: () => true,
+}));
+
 jest.mock('../../src/store/authStore', () => {
   const useAuthStoreMock = (selector?: (s: any) => any) => {
     if (typeof selector === 'function') {
@@ -122,6 +126,13 @@ describe('LoginScreen', () => {
         merge: true,
       });
     });
+  });
+
+  it('renders Google sign-in when enabled', () => {
+    const navigation = { navigate: jest.fn(), getState: jest.fn(() => ({ routes: [] })) } as any;
+    renderScreen(navigation);
+    expect(screen.getByTestId('google-signin')).toBeTruthy();
+    expect(screen.getByText('Sign in with Google')).toBeTruthy();
   });
 
   it('toggles to password mode and validates password', () => {

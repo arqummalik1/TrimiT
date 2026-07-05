@@ -33,7 +33,6 @@ class Settings(BaseSettings):
     ADMIN_DASHBOARD_PIN: Optional[str] = None
 
     # Payment Providers
-    STRIPE_SECRET_KEY: Optional[str] = None
 
     # ── Subscriptions (TrimiT Pro) ──────────────────────────────────────────
     # ENFORCEMENT ON: owners get a free trial; when it lapses (and no active paid
@@ -85,9 +84,7 @@ class Settings(BaseSettings):
     # (e.g. flip Jammu 30 → 50 km instantly). Unset/blank/<=0 → use the DB value.
     SERVICE_AREA_RADIUS_KM: Optional[float] = None
 
-    # API Keys
-    GOOGLE_MAPS_API_KEY: Optional[str] = None
-    GEMINI_API_KEY: Optional[str] = None
+
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE, env_file_encoding="utf-8", extra="ignore"

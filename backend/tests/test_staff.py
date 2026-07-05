@@ -189,7 +189,7 @@ def test_assign_service_rejects_service_from_other_salon(client, mock_supabase):
 # ── available staff (public, graceful degradation) ──────────────────────────
 
 def test_available_staff_degrades_gracefully(client, mock_supabase):
-    # RPC failure -> returns any_available=True with empty list (production continuity).
+    # RPC failure -> safe failure: any_available=False (do not proceed as if staff exist).
     mock_supabase.post("/rest/v1/rpc/get_available_staff").return_value = Response(
         500, json={}
     )
@@ -198,5 +198,5 @@ def test_available_staff_degrades_gracefully(client, mock_supabase):
     )
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
-    assert body["any_available"] is True
+    assert body["any_available"] is False
     assert body["available_staff"] == []

@@ -12,6 +12,7 @@ Pattern (mirrors test_priority.py / test_early_access.py):
 
 from fastapi import status
 from httpx import Response
+import pytest
 
 
 def test_me_requires_auth(client):
@@ -109,3 +110,147 @@ def test_forgot_password_rate_limited_surfaces_429(client, mock_supabase):
     )
     assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
     assert response.json()["error"]["code"] == "RATE_LIMIT_EXCEEDED"
+
+
+def test_resend_confirmation_never_auto_confirms(client, mock_supabase):
+    """
+    P0-1 Security Fix: Resend-confirmation must NOT auto-confirm the account.
+    The old code called admin_confirm_user() on any pending account, allowing
+    anyone who knew a pending email to activate it without email proof.
+    
+    This test ensures resend ONLY triggers the email, never confirms the user.
+    """
+    # Mock the profile lookup (returns email NOT confirmed)
+    mock_supabase.get("/rest/v1/users").return_value = Response(
+        200,
+        json=[
+            {
+                "id": "user_pending_123",
+                "email": "pending@example.com",
+                "role": "customer",
+                "name": "Pending User",
+                "phone": None,
+            }
+        ],
+    )
+    
+    # Mock the Supabase admin lookup: user exists but email NOT confirmed
+    mock_supabase.get("/auth/v1/admin/users/user_pending_123").return_value = Response(
+        200,
+        json={
+            "id": "user_pending_123",
+            "email": "pending@example.com",
+            "email_confirmed_at": None,  # NOT confirmed
+            "created_at": "2024-01-01T00:00:00Z",
+        },
+    )
+    
+    # Mock the resend call (Supabase will send email)
+    mock_supabase.post("/auth/v1/resend").return_value = Response(200, json={})
+    
+    # Attacker calls resend-confirmation
+    response = client.post(
+        "/api/v1/auth/resend-confirmation",
+        json={"email": "pending@example.com"},
+    )
+    
+    # Should return 200 (email sent)
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    
+    # CRITICAL: Must NOT return "SIGNUP_READY_SIGN_IN" code (that was the bypass)
+    assert data.get("code") != "SIGNUP_READY_SIGN_IN"
+    
+    # Should return the normal "resend confirmation" message
+    assert "sent" in data["message"].lower() or "confirmation" in data["message"].lower()
+    
+    # Verify NO admin confirm call was made
+    admin_confirm_calls = [
+        (method, path) for method, path, kwargs in mock_supabase.called
+        if method == "PUT" and "/auth/v1/admin/users/" in path
+    ]
+    assert len(admin_confirm_calls) == 0, "resend must NEVER call admin confirm"
+
+
+def test_resend_confirmation_rate_limit_never_auto_confirms(client, mock_supabase):
+    """P0-1: Email rate limit on resend must not admin-confirm the pending account."""
+    mock_supabase.get("/rest/v1/users").return_value = Response(
+        200,
+        json=[
+            {
+                "id": "user_pending_456",
+                "email": "pending2@example.com",
+                "role": "customer",
+                "name": "Pending",
+                "phone": None,
+            }
+        ],
+    )
+    mock_supabase.get("/auth/v1/admin/users/user_pending_456").return_value = Response(
+        200,
+        json={
+            "id": "user_pending_456",
+            "email": "pending2@example.com",
+            "email_confirmed_at": None,
+        },
+    )
+    mock_supabase.post("/auth/v1/resend").return_value = Response(
+        429,
+        json={"error_code": "over_email_send_rate_limit", "msg": "email rate limit exceeded"},
+    )
+
+    response = client.post(
+        "/api/v1/auth/resend-confirmation",
+        json={"email": "pending2@example.com"},
+    )
+
+    assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+    data = response.json()
+    assert data["error"]["details"].get("code") == "AUTH_PROVIDER_EMAIL_QUOTA"
+    assert data["error"]["details"].get("code") != "SIGNUP_READY_SIGN_IN"
+
+    admin_confirm_calls = [
+        (method, path)
+        for method, path, _kwargs in mock_supabase.called
+        if method == "PUT" and "/auth/v1/admin/users/" in path
+    ]
+    assert len(admin_confirm_calls) == 0
+
+
+@pytest.mark.asyncio
+async def test_jwt_metadata_cannot_escalate_role(mock_supabase):
+    """
+    P0-2: DB role is authoritative — JWT user_metadata role=owner must not upgrade customer.
+    """
+    from services.user_profile import resolve_profile_for_user
+
+    mock_supabase.get("/rest/v1/users").return_value = Response(
+        200,
+        json=[
+            {
+                "id": "cust-1",
+                "email": "cust@example.com",
+                "role": "customer",
+                "name": "Customer",
+            }
+        ],
+    )
+
+    profile = await resolve_profile_for_user(
+        "cust-1",
+        "cust@example.com",
+        user_metadata={"role": "owner", "name": "Hacker"},
+        user_jwt="fake-jwt-token",
+    )
+
+    assert profile is not None
+    assert profile["role"] == "customer"
+    assert profile["role"] != "owner"
+
+    # JWT fallback path must not be used when service-role row exists
+    jwt_reads = [
+        (m, p)
+        for m, p, kwargs in mock_supabase.called
+        if m == "GET" and "rest/v1/users" in p and kwargs.get("token")
+    ]
+    assert len(jwt_reads) == 0

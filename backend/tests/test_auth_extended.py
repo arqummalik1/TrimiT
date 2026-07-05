@@ -158,7 +158,7 @@ def test_complete_profile_success(client, mock_supabase):
         
         response = client.post(
             "/api/v1/auth/complete-profile",
-            json={"role": "customer", "name": "Test User", "phone": "+919876543210"}
+            json={"role": "customer", "name": "Test User", "phone": "+919876543210", "gender": "male"}
         )
         assert response.status_code == status.HTTP_200_OK
         data = response.json()

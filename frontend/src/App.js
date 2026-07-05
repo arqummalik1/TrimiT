@@ -27,6 +27,7 @@ import MyBookings from "./pages/customer/MyBookings";
 import OwnerDashboard from "./pages/owner/OwnerDashboard";
 import ManageSalon from "./pages/owner/ManageSalon";
 import ManageServices from "./pages/owner/ManageServices";
+import ManageCategories from "./pages/owner/ManageCategories";
 import ManageBookings from "./pages/owner/ManageBookings";
 import SettingsPage from "./pages/owner/SettingsPage";
 import SubscriptionPage from "./pages/owner/SubscriptionPage";
@@ -271,6 +272,16 @@ function App() {
               <ProtectedRoute allowedRoles={["owner"]}>
                 <OwnerSubscriptionGate>
                   <ManageServices />
+                </OwnerSubscriptionGate>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/owner/categories"
+            element={
+              <ProtectedRoute allowedRoles={["owner"]}>
+                <OwnerSubscriptionGate>
+                  <ManageCategories />
                 </OwnerSubscriptionGate>
               </ProtectedRoute>
             }

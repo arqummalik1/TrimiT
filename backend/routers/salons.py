@@ -3,6 +3,7 @@ from typing import List, Optional
 from datetime import datetime, date, timedelta, timezone
 import uuid
 import logging
+import hmac
 from math import radians, sin, cos, sqrt, atan2
 
 from core.supabase import supabase
@@ -12,8 +13,7 @@ from dependencies.auth import get_current_user
 from dependencies.subscription import require_active_subscription
 from models.salons import SalonCreate, SalonUpdate, ServiceCreate, ServiceUpdate, SalonAvailabilityUpdate
 from services import salon_availability
-
-logger = logging.getLogger("trimit")
+from services.gender_serve import normalize_discover_filter, salon_matches_discover_filter, default_service_audience_for_salon
 
 router = APIRouter(prefix="/salons", tags=["Salons"])
 
@@ -54,6 +54,7 @@ async def _fallback_nearby_salons(
     search: Optional[str],
     limit: int,
     offset: int,
+    gender_filter: Optional[str] = None,
 ) -> List[dict]:
     """
     Used when RPC get_nearby_salons_v1 is missing or errors (e.g. migration not applied).
@@ -68,6 +69,21 @@ async def _fallback_nearby_salons(
 
     enriched: List[dict] = []
     for s in rows:
+        if not salon_matches_discover_filter(s.get("gender_serve"), gender_filter):
+            continue
+        if not s.get("subscription_active", True):
+            continue
+        if s.get("accepting_bookings") is False:
+            continue
+        closed_until = s.get("closed_until")
+        if closed_until:
+            try:
+                closed_dt = datetime.fromisoformat(str(closed_until).replace("Z", "+00:00"))
+                if closed_dt > datetime.now(timezone.utc):
+                    continue
+            except (ValueError, TypeError):
+                if s.get("accepting_bookings") is False:
+                    continue
         lat, lon = s.get("latitude"), s.get("longitude")
         if lat is None or lon is None:
             continue
@@ -107,7 +123,8 @@ async def get_salons(
     radius: float = 10.0,
     search: Optional[str] = None,
     limit: int = 20,
-    offset: int = 0
+    offset: int = 0,
+    gender_serve: Optional[str] = None,
 ):
     limit = min(max(limit, 1), 100)
     offset = max(offset, 0)
@@ -116,6 +133,8 @@ async def get_salons(
     p_lat = lat if lat is not None else 0.0
     p_lng = lng if lng is not None else 0.0
     
+    gender_filter = normalize_discover_filter(gender_serve)
+
     # Call the spatial pagination RPC
     rpc_payload = {
         "p_lat": p_lat,
@@ -123,7 +142,8 @@ async def get_salons(
         "p_radius_km": radius,
         "p_search": search,
         "p_limit": limit,
-        "p_offset": offset
+        "p_offset": offset,
+        "p_gender_serve": gender_filter,
     }
     
     response = await supabase.request(
@@ -134,7 +154,7 @@ async def get_salons(
     
     if response.status_code != 200:
         logger.error(f"RPC get_nearby_salons_v1 failed ({response.status_code}): {response.text}")
-        salons = await _fallback_nearby_salons(p_lat, p_lng, radius, search, limit, offset)
+        salons = await _fallback_nearby_salons(p_lat, p_lng, radius, search, limit, offset, gender_filter)
     else:
         salons = response.json()
 
@@ -176,7 +196,13 @@ async def get_salon(salon_id: str):
     else:
         salon["avg_rating"] = 0
         salon["review_count"] = 0
-        
+
+    cat_resp = await supabase.request(
+        "GET",
+        f"rest/v1/service_categories?salon_id=eq.{salon_id}&active=eq.true&select=*&order=sort_order.asc,name.asc",
+    )
+    salon["service_categories"] = cat_resp.json() if cat_resp.status_code == 200 else []
+
     return salon
 
 @router.post("/")
@@ -339,7 +365,8 @@ async def run_availability(request: Request, authorization: Optional[str] = Head
     """
     if not settings.ADMIN_API_TOKEN:
         raise HTTPException(status_code=404, detail="Not Found")
-    if not authorization or authorization.split(" ", 1)[-1].strip() != settings.ADMIN_API_TOKEN:
+    token = authorization.split(" ", 1)[-1].strip() if authorization else ""
+    if not token or not hmac.compare_digest(token, settings.ADMIN_API_TOKEN):
         raise HTTPException(status_code=401, detail="Unauthorized")
     from services import salon_availability_notifications as avail_notify
     result = await avail_notify.run_availability_sweep()
@@ -350,6 +377,15 @@ async def create_service(salon_id: str, service: ServiceCreate, current_user: di
     # Ownership check... (omitted for brevity in this step, but I'll include it)
     await assert_salon_owner(salon_id, current_user.get("id"))
 
+    salon_resp = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{salon_id}&select=gender_serve",
+        service_role=True,
+    )
+    salon_gender = "unisex"
+    if salon_resp.status_code == 200 and salon_resp.json():
+        salon_gender = salon_resp.json()[0].get("gender_serve") or "unisex"
+
     service_data = {
         "id": str(uuid.uuid4()),
         "salon_id": salon_id,
@@ -358,6 +394,8 @@ async def create_service(salon_id: str, service: ServiceCreate, current_user: di
         **service.model_dump(exclude_none=True),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+    if not service_data.get("audience"):
+        service_data["audience"] = default_service_audience_for_salon(salon_gender)
     ins = await supabase.request("POST", "rest/v1/services", json=service_data, token=current_user.get("access_token"))
     if ins.status_code not in (200, 201):
         logger.error(f"[create_service] insert failed: {ins.status_code} {ins.text}")

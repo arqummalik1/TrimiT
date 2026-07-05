@@ -5,6 +5,8 @@ import { User, Phone, Storefront, Users, Wallet } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
+import { FilterChipRow } from '../components/FilterChipRow';
+import { CUSTOMER_GENDER_OPTIONS } from '../lib/genderServe';
 import {
   sanitizePhoneInput,
   isValidNationalPhone,
@@ -38,6 +40,7 @@ const CompleteProfilePage = () => {
   } = useAuthStore();
 
   const [role, setRole] = useState('customer');
+  const [gender, setGender] = useState('male');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [upiId, setUpiId] = useState('');
@@ -101,11 +104,17 @@ const CompleteProfilePage = () => {
       return;
     }
 
+    if (role === 'customer' && !gender) {
+      setFieldError('Please select how we should personalize your salon discovery.');
+      return;
+    }
+
     const result = await completeProfile({
       role,
       name: name.trim(),
       phone: phone ? toE164(phone) : undefined,
       upi_id: role === 'owner' ? trimmedUpi : undefined,
+      gender: role === 'customer' ? gender : undefined,
     });
 
     if (result.success) {
@@ -203,6 +212,18 @@ const CompleteProfilePage = () => {
                 </button>
               </div>
             </div>
+
+            {role === 'customer' && (
+              <div>
+                <h2 className="text-sm font-medium text-stone-700 mb-3">I usually book at</h2>
+                <FilterChipRow
+                  options={CUSTOMER_GENDER_OPTIONS}
+                  value={gender}
+                  onChange={setGender}
+                  testIDPrefix="profile-gender"
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-2">

@@ -17,7 +17,7 @@ def test_owner_salon_requires_auth(client):
 
 def test_owner_salon_404_when_none(client, mock_supabase):
     app = client.app
-    _override_user(app, {"id": "owner1", "access_token": "tok"})
+    _override_user(app, {"id": "owner1", "access_token": "tok", "profile": {"role": "owner"}})
     try:
         mock_supabase.get("/rest/v1/salons").return_value = Response(200, json=[])
         response = client.get("/api/v1/owner/salon")
@@ -28,7 +28,7 @@ def test_owner_salon_404_when_none(client, mock_supabase):
 
 def test_owner_salon_returns_salon_with_services(client, mock_supabase):
     app = client.app
-    _override_user(app, {"id": "owner1", "access_token": "tok"})
+    _override_user(app, {"id": "owner1", "access_token": "tok", "profile": {"role": "owner"}})
     try:
         mock_supabase.get("/rest/v1/salons").return_value = Response(
             200, json=[{"id": "s1", "name": "Cuts", "images": ["http://img/1.jpg"]}]

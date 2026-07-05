@@ -57,8 +57,10 @@ async def create_staff(
         )
     
     # Create staff member
-    staff_dict = staff_data.model_dump()
+    staff_dict = staff_data.model_dump(exclude_none=True)
     staff_dict["salon_id"] = str(staff_data.salon_id)
+    if staff_dict.get("image_url") == "":
+        staff_dict.pop("image_url", None)
     
     result = await supabase.request(
         "POST",
@@ -203,7 +205,9 @@ async def update_staff(
     
     # Update staff
     update_dict = staff_data.model_dump(exclude_unset=True)
-    
+    if "image_url" in update_dict and update_dict["image_url"] == "":
+        update_dict["image_url"] = None
+
     if not update_dict:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -224,6 +228,66 @@ async def update_staff(
         )
     
     return result.json()[0]
+
+
+@router.post("/{staff_id}/invite-app")
+@limiter.limit("10/minute")
+async def invite_staff_to_app(
+    request: Request,
+    staff_id: UUID,
+    current_user: dict = Depends(require_active_subscription),
+):
+    """
+    Owner: invite a staff member to log into the TrimiT app as an employee.
+
+    Sets app_access_status=pending. The employee must sign up with the same
+    phone number and choose 'Salon Employee' at complete-profile.
+    """
+    token = current_user.get("access_token")
+    staff_check = await supabase.request(
+        "GET",
+        f"rest/v1/staff?id=eq.{staff_id}&select=salon_id,phone,email,user_id,app_access_status",
+        token=token,
+    )
+    if staff_check.status_code != 200 or not staff_check.json():
+        raise HTTPException(status_code=404, detail="Staff member not found")
+
+    staff_row = staff_check.json()[0]
+    salon_check = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{staff_row['salon_id']}&owner_id=eq.{current_user['id']}&select=id",
+        token=token,
+    )
+    if salon_check.status_code != 200 or not salon_check.json():
+        raise HTTPException(status_code=403, detail="You don't have permission to invite this staff member")
+
+    if staff_row.get("user_id") and staff_row.get("app_access_status") == "active":
+        return {"message": "This staff member already has app access.", "status": "active"}
+
+    phone = (staff_row.get("phone") or "").strip()
+    if not phone:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "PHONE_REQUIRED",
+                "message": "Add a phone number to this staff profile before inviting them to the app.",
+            },
+        )
+
+    patch = await supabase.request(
+        "PATCH",
+        f"rest/v1/staff?id=eq.{staff_id}",
+        json={"app_access_status": "pending"},
+        token=token,
+    )
+    if patch.status_code not in (200, 204):
+        raise HTTPException(status_code=400, detail="Failed to create app invite")
+
+    return {
+        "message": "Invite created. Ask them to download TrimiT, sign up with this phone number, and choose Salon Employee.",
+        "status": "pending",
+        "phone_hint": phone[-4:].rjust(len(phone), "*") if len(phone) >= 4 else "****",
+    }
 
 
 @router.delete("/{staff_id}", status_code=status.HTTP_204_NO_CONTENT)

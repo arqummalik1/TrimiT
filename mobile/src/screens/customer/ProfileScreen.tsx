@@ -30,6 +30,9 @@ import {
 } from '../../lib/accountDeletion';
 import { NotificationSettingsSection } from '../../components/NotificationSettingsSection';
 import { SignOutButton } from '../../components/SignOutButton';
+import { FilterChipRow } from '../../components/FilterChipRow';
+import { DISCOVERY_PREF_OPTIONS, DiscoveryAudience } from '../../lib/genderServe';
+import { authService } from '../../services/authService';
 
 export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'ProfileMain'>) {
   const { theme, themeMode, setThemeMode } = useTheme();
@@ -39,6 +42,10 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [discoveryAudience, setDiscoveryAudience] = useState<DiscoveryAudience>(
+    user?.discovery_audience ?? 'auto',
+  );
+  const [savingDiscovery, setSavingDiscovery] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '+91 ');
 
@@ -73,6 +80,23 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
       showToast(appErr.message, 'error');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSaveDiscovery = async (value: DiscoveryAudience) => {
+    setDiscoveryAudience(value);
+    setSavingDiscovery(true);
+    try {
+      await authService.updateProfile({ discovery_audience: value });
+      if (user) {
+        setUser({ ...user, discovery_audience: value }, token);
+      }
+      showToast('Discovery preference updated', 'success');
+    } catch (error) {
+      showToast(handleApiError(error).message, 'error');
+      setDiscoveryAudience(user?.discovery_audience ?? 'auto');
+    } finally {
+      setSavingDiscovery(false);
     }
   };
 
@@ -235,6 +259,28 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
             </View>
           </View>
         </View>
+
+        {user?.role === 'customer' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>DISCOVERY</Text>
+            <View style={styles.cardGroup}>
+              <View style={[styles.cardGroupItem, styles.cardGroupItemLast, { flexDirection: 'column', alignItems: 'stretch' }]}>
+                <Text style={[styles.cardGroupTitle, { marginBottom: spacing.sm }]}>
+                  Salons shown near you
+                </Text>
+                <FilterChipRow
+                  options={DISCOVERY_PREF_OPTIONS}
+                  value={discoveryAudience}
+                  onChange={handleSaveDiscovery}
+                  testIDPrefix="discovery-pref"
+                />
+                {savingDiscovery && (
+                  <ActivityIndicator style={{ marginTop: spacing.sm }} color={theme.colors.primary} />
+                )}
+              </View>
+            </View>
+          </View>
+        )}
 
         <NotificationSettingsSection />
 

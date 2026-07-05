@@ -70,4 +70,10 @@ export default defineConfig({
     sourcemap: true,
   },
   publicDir: 'public',
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.js',
+    css: true,
+  },
 });

@@ -85,6 +85,19 @@ const StaffManagementScreen: React.FC<StaffManagementScreenProps> = ({ navigatio
     },
   });
 
+  const inviteMutation = useMutation({
+    mutationFn: (staffId: string) => staffRepository.inviteStaffToApp(staffId),
+    onSuccess: (data) => {
+      Alert.alert('Invite sent', data.message);
+      queryClient.invalidateQueries({ queryKey: ['salonStaff'] });
+    },
+    onError: (error: any) => {
+      const detail = error.response?.data?.detail;
+      const message = typeof detail === 'object' ? detail.message : detail;
+      Alert.alert('Could not invite', message || 'Failed to create app invite');
+    },
+  });
+
   // Filter and sort staff
   const filteredAndSortedStaff = useMemo(() => {
     if (!staffList) return [];
@@ -132,6 +145,24 @@ const StaffManagementScreen: React.FC<StaffManagementScreenProps> = ({ navigatio
     setSelectedStaff(staff);
     setProfileVisible(true);
   }, []);
+
+  const handleInviteToApp = useCallback((staff: StaffWithServices) => {
+    if (!staff.phone) {
+      Alert.alert(
+        'Phone required',
+        'Add a phone number to this staff profile first, then invite them to the app.',
+      );
+      return;
+    }
+    Alert.alert(
+      'Invite to TrimiT app',
+      `${staff.name} can log in as a Salon Employee using phone ${staff.phone}. They must choose "Salon Employee" when completing their profile.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Send invite', onPress: () => inviteMutation.mutate(staff.id) },
+      ],
+    );
+  }, [inviteMutation]);
 
   const handleDeleteStaff = useCallback((staff: StaffWithServices) => {
     Alert.alert(
@@ -225,6 +256,13 @@ const StaffManagementScreen: React.FC<StaffManagementScreenProps> = ({ navigatio
           <View style={styles.cardActions}>
             <TouchableOpacity
               style={styles.actionButton}
+              onPress={() => handleInviteToApp(staff)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="phone-portrait-outline" size={20} color={theme.colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
               onPress={() => handleEditStaff(staff)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
@@ -258,7 +296,7 @@ const StaffManagementScreen: React.FC<StaffManagementScreenProps> = ({ navigatio
         )}
       </TouchableOpacity>
     );
-  }, [theme, handleViewProfile, handleEditStaff, handleDeleteStaff, styles]);
+  }, [theme, handleViewProfile, handleEditStaff, handleDeleteStaff, handleInviteToApp, styles]);
 
   // Render empty state
   const renderEmpty = useCallback(() => {

@@ -9,6 +9,7 @@ import { supabase, syncSupabaseAuthSession } from '../lib/supabase';
 import { QueryClient } from '@tanstack/react-query';
 import { isAppError } from '../types/error';
 import { logger } from '../lib/logger';
+import { translateGoogleAuthError } from '../lib/googleAuthErrors';
 
 interface AuthState {
   user: User | null;
@@ -59,10 +60,11 @@ interface AuthState {
   isOnboardingCompleted: boolean;
   completeOnboarding: () => void;
   completeProfile: (data: {
-    role: 'customer' | 'owner';
+    role: 'customer' | 'owner' | 'employee';
     name: string;
     phone?: string;
     upi_id?: string;
+    gender?: 'male' | 'female';
   }) => Promise<{ success: boolean; error?: string; errorCode?: string }>;
 }
 
@@ -474,8 +476,9 @@ export const useAuthStore = create<AuthState>()(
           });
 
           if (error || !data?.session?.access_token) {
-            const message =
-              error?.message || 'Google sign-in failed. Please try again.';
+            const message = translateGoogleAuthError(
+              error?.message || 'Google sign-in failed. Please try again.',
+            );
             set({ isLoading: false, error: message });
             return { success: false, error: message };
           }
