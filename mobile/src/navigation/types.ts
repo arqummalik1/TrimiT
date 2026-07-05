@@ -102,10 +102,15 @@ export type OwnerSettingsStackParamList = {
   BankDetails: undefined;
 };
 
+export type OwnerServicesStackParamList = {
+  ServicesMain: { openAddService?: boolean } | undefined;
+  ManageCategories: undefined;
+};
+
 export type OwnerTabParamList = {
   Dashboard: NavigatorScreenParams<OwnerDashboardStackParamList>;
   Bookings: { highlightBookingId?: string } | undefined;
-  Services: { openAddService?: boolean } | undefined;
+  Services: NavigatorScreenParams<OwnerServicesStackParamList>;
   Settings: NavigatorScreenParams<OwnerSettingsStackParamList>;
 };
 
@@ -165,6 +170,15 @@ export type OwnerDashboardScreenProps<T extends keyof OwnerDashboardStackParamLi
 export type OwnerSettingsScreenProps<T extends keyof OwnerSettingsStackParamList> =
   CompositeScreenProps<
     NativeStackScreenProps<OwnerSettingsStackParamList, T>,
+    CompositeScreenProps<
+      BottomTabScreenProps<OwnerTabParamList>,
+      NativeStackScreenProps<RootStackParamList>
+    >
+  >;
+
+export type OwnerServicesScreenProps<T extends keyof OwnerServicesStackParamList> =
+  CompositeScreenProps<
+    NativeStackScreenProps<OwnerServicesStackParamList, T>,
     CompositeScreenProps<
       BottomTabScreenProps<OwnerTabParamList>,
       NativeStackScreenProps<RootStackParamList>

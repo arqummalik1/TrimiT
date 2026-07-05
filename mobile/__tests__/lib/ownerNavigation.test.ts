@@ -59,7 +59,10 @@ describe('navigateOwnerToServices', () => {
 
     const result = navigateOwnerToServices(nav as any);
     expect(result).toBe(true);
-    expect(tabNav.navigate).toHaveBeenCalledWith('Services', undefined);
+    expect(tabNav.navigate).toHaveBeenCalledWith('Services', {
+      screen: 'ServicesMain',
+      params: undefined,
+    });
   });
 
   it('passes openAddService param when provided', () => {
@@ -68,7 +71,10 @@ describe('navigateOwnerToServices', () => {
     const nav = createMockNav({ getParent: () => tabNav });
 
     navigateOwnerToServices(nav as any, { openAddService: true });
-    expect(tabNav.navigate).toHaveBeenCalledWith('Services', { openAddService: true });
+    expect(tabNav.navigate).toHaveBeenCalledWith('Services', {
+      screen: 'ServicesMain',
+      params: { openAddService: true },
+    });
   });
 
   it('returns false when Services tab is not found', () => {

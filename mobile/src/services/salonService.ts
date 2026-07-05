@@ -63,6 +63,7 @@ export const salonService = {
       price: number;
       duration: number;
       image_url?: string | null;
+      category_id?: string | null;
       is_on_offer?: boolean;
       discount_percentage?: number | null;
     }

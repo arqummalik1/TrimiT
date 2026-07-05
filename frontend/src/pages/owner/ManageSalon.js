@@ -19,6 +19,8 @@ import api from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
 import { uploadImage, deleteImage } from '../../lib/supabase';
 import LocationPicker from '../../components/LocationPicker';
+import { FilterChipRow } from '../../components/FilterChipRow';
+import { SALON_SERVE_OPTIONS } from '../../lib/genderServe';
 
 const ManageSalon = () => {
   const navigate = useNavigate();
@@ -47,6 +49,7 @@ const ManageSalon = () => {
     opening_time: '09:00',
     closing_time: '21:00',
     images: [],
+    gender_serve: 'men',
   });
   // TRUE only once the owner actually places a pin (or an existing salon loaded
   // with real coords). No silent default — Save is blocked until this is true.
@@ -69,6 +72,7 @@ const ManageSalon = () => {
         opening_time: salon.opening_time || '09:00',
         closing_time: salon.closing_time || '21:00',
         images: salon.images || [],
+        gender_serve: salon.gender_serve || 'men',
       });
       setLocationSet(hasCoords);
     }
@@ -383,6 +387,19 @@ const ManageSalon = () => {
                 </p>
               )}
             </div>
+          </div>
+
+          <div className="mb-8">
+            <h2 className="font-heading text-lg font-bold text-stone-900 mb-2">Who do you serve?</h2>
+            <p className="text-sm text-stone-500 mb-4">
+              Helps customers find you on Discover.
+            </p>
+            <FilterChipRow
+              options={SALON_SERVE_OPTIONS}
+              value={formData.gender_serve}
+              onChange={(v) => setFormData((prev) => ({ ...prev, gender_serve: v }))}
+              testIDPrefix="salon-serve"
+            />
           </div>
 
           {/* Timings */}

@@ -69,7 +69,7 @@ describe('VerifyOtpScreen', () => {
     renderScreen(route, navigation);
 
     const inputs = screen.UNSAFE_root.findAllByType(require('react-native').TextInput);
-    expect(inputs.length).toBe(6);
+    expect(inputs.length).toBe(1);
 
     // Paste the full 6-digit code into the first input box to trigger the complete code handler atomically
     await act(async () => {

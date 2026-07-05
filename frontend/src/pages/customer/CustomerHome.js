@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -19,6 +19,14 @@ import { useServiceability } from '../../hooks/useServiceability';
 import ServiceAreaGate from '../../components/discovery/ServiceAreaGate';
 import ServiceCityNotice from '../../components/discovery/ServiceCityNotice';
 import GoogleSalonMap from '../../components/discovery/GoogleSalonMap';
+import { useAuthStore } from '../../store/authStore';
+import { FilterChipRow, SalonTypeBadge } from '../../components/FilterChipRow';
+import {
+  DISCOVER_CHIP_OPTIONS,
+  defaultDiscoverChip,
+  discoverChipToApiFilter,
+  salonMatchesDiscoverFilter,
+} from '../../lib/genderServe';
 
 const CustomerHome = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,9 +51,20 @@ const CustomerHome = () => {
     }
   }, []);
 
+  const { user } = useAuthStore();
+  const [discoverChip, setDiscoverChip] = useState(() => defaultDiscoverChip(user));
+  const discoverApiFilter = useMemo(
+    () => discoverChipToApiFilter(discoverChip, user),
+    [discoverChip, user],
+  );
+
+  useEffect(() => {
+    setDiscoverChip(defaultDiscoverChip(user));
+  }, [user?.discovery_audience, user?.gender]);
+
   // Fetch salons
-  const { data: salons, isLoading } = useQuery({
-    queryKey: ['salons', searchQuery, userLocation],
+  const { data: salonsRaw, isLoading } = useQuery({
+    queryKey: ['salons', searchQuery, userLocation, discoverChip, discoverApiFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchQuery) params.append('search', searchQuery);
@@ -54,11 +73,17 @@ const CustomerHome = () => {
         params.append('lng', userLocation.lng);
         params.append('radius', 50);
       }
+      if (discoverApiFilter) params.append('gender_serve', discoverApiFilter);
       const response = await api.get(`/salons/?${params.toString()}`);
       const body = response.data;
       return Array.isArray(body) ? body : body?.data ?? [];
     },
   });
+
+  const salons = useMemo(
+    () => (salonsRaw ?? []).filter((s) => salonMatchesDiscoverFilter(s, discoverApiFilter)),
+    [salonsRaw, discoverApiFilter],
+  );
 
   // Serviceability gate — only when the visitor shared their location.
   const { data: serviceability } = useServiceability(userLocation);
@@ -128,6 +153,15 @@ const CustomerHome = () => {
                   Map
                 </button>
               </div>
+            </div>
+
+            <div className="mt-4" data-testid="discover-chips">
+              <FilterChipRow
+                options={DISCOVER_CHIP_OPTIONS}
+                value={discoverChip}
+                onChange={setDiscoverChip}
+                testIDPrefix="discover"
+              />
             </div>
           </motion.div>
         </div>
@@ -213,10 +247,13 @@ const SalonCard = ({ salon }) => {
 
         {/* Content */}
         <div className="p-5">
-          <div className="flex items-start justify-between mb-2">
-            <h3 className="font-heading text-lg font-bold text-stone-900 line-clamp-1">
-              {salon.name}
-            </h3>
+          <div className="flex items-start justify-between mb-2 gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <h3 className="font-heading text-lg font-bold text-stone-900 line-clamp-1">
+                {salon.name}
+              </h3>
+              <SalonTypeBadge genderServe={salon.gender_serve} />
+            </div>
             {salon.avg_rating > 0 && (
               <div className="flex items-center gap-1 bg-emerald-100 px-2 py-1 rounded-lg">
                 <Star size={14} weight="fill" className="text-emerald-700" />

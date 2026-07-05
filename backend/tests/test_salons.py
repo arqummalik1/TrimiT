@@ -82,6 +82,8 @@ def _salon_payload():
         "address": "1 MG Road",
         "city": "Bengaluru",
         "phone": "+919876543210",
+        "latitude": 12.9716,
+        "longitude": 77.5946,
     }
 
 

@@ -17,7 +17,7 @@ async def fetch_booking_push_context(booking_id: str, token: str) -> Optional[Di
     resp = await supabase.request(
         "GET",
         f"rest/v1/bookings?id=eq.{booking_id}&select=id,user_id,status,booking_date,time_slot,amount,payment_method,payment_status,services(name),salons(owner_id,name)",
-        token=token,
+        service_role=True,
     )
     if resp.status_code != 200 or not resp.json():
         return None
@@ -192,14 +192,14 @@ async def after_status_change(
     booking_date = ctx.get("booking_date", "")
     time_slot = ctx.get("time_slot", "")
 
-    if new_status == "completed" and role == "owner" and customer_id:
+    if new_status == "completed" and role in ("owner", "employee") and customer_id:
         await push_dispatch.notify_customer_booking_completed(
             customer_id=customer_id,
             booking_id=booking_id,
         )
         return
 
-    if new_status == "confirmed" and role == "owner" and customer_id:
+    if new_status == "confirmed" and role in ("owner", "employee") and customer_id:
         await push_dispatch.notify_customer_booking_confirmed(
             customer_id=customer_id,
             booking_id=booking_id,
@@ -210,7 +210,7 @@ async def after_status_change(
         return
 
     if new_status == "cancelled":
-        if role == "owner" and customer_id:
+        if role in ("owner", "employee") and customer_id:
             if old_status == "pending":
                 await push_dispatch.notify_customer_booking_rejected(
                     customer_id=customer_id,
@@ -266,7 +266,7 @@ async def after_reschedule(
             body=f"{cname} moved {service_name} to {nd} at {nt} (was {od} {ot}).",
             initiated_by="customer",
         )
-    elif user_role == "owner" and customer_uid:
+    elif user_role in ("owner", "employee") and customer_uid:
         await push_dispatch.notify_booking_rescheduled(
             recipient_user_id=customer_uid,
             booking_id=booking_id,

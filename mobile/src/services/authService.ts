@@ -7,16 +7,17 @@ interface SignupPayload {
   password: string;
   name: string;
   phone?: string;
-  role: 'customer' | 'owner';
+  role: 'customer' | 'owner' | 'employee';
 }
 
 /** Typed payload for POST /auth/complete-profile (new OTP post-auth path). */
 interface CompleteProfilePayload {
-  role: 'customer' | 'owner';
+  role: 'customer' | 'owner' | 'employee';
   name: string;
   phone?: string;
   /** Owner UPI ID (VPA, e.g. "glowsalon@okaxis"). Required for owners. */
   upi_id?: string;
+  gender?: 'male' | 'female';
 }
 
 export const authService = {
@@ -37,7 +38,12 @@ export const authService = {
     return apiClient.post('/auth/resend-confirmation', { email });
   },
 
-  updateProfile: async (data: Partial<{ name: string; phone: string }>): Promise<AxiosResponse> => {
+  updateProfile: async (data: Partial<{
+    name: string;
+    phone: string;
+    gender: 'male' | 'female';
+    discovery_audience: 'auto' | 'men' | 'women' | 'all';
+  }>): Promise<AxiosResponse> => {
     return apiClient.patch('/auth/profile', data);
   },
 

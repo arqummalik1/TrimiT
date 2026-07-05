@@ -86,6 +86,8 @@ export interface StaffCreateInput {
   bio?: string;
   phone?: string;
   email?: string;
+  /** Public URL from POST /uploads/staff-image */
+  image_url?: string | null;
   working_hours?: WorkingHours;
   days_off?: string[];
   is_active?: boolean;
@@ -96,6 +98,8 @@ export interface StaffUpdateInput {
   bio?: string;
   phone?: string;
   email?: string;
+  /** Public URL, or null/empty to clear */
+  image_url?: string | null;
   working_hours?: WorkingHours;
   days_off?: string[];
   is_active?: boolean;

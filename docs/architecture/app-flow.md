@@ -1,117 +1,67 @@
-# Application Flow
+# TrimiT — App Flow (Current)
 
-High-level journeys across TrimiT's three clients sharing one FastAPI backend and Supabase database.
+Last updated: 2026-07-04. Matches production code on branch `zero-point-ten`.
 
----
+## Product
 
-## System context
+TrimiT is a salon marketplace for India (₹, English UI). One mobile app (Expo) and one web app (Vite) share a FastAPI backend and Supabase Postgres.
 
-```mermaid
-flowchart TB
-    subgraph clients [Clients]
-        M[Mobile Expo]
-        W[Web CRA]
-    end
-    subgraph backend [Backend Render]
-        API[FastAPI /api/v1]
-    end
-    subgraph data [Supabase]
-        Auth[Auth JWT]
-        DB[(Postgres + RLS)]
-        RT[Realtime]
-        ST[Storage]
-    end
-    M --> API
-    W --> API
-    M --> RT
-    W --> RT
-    API --> Auth
-    API --> DB
-    M --> ST
-    W --> ST
-    API --> Expo[Expo Push API]
+## Roles
+
+| Role | Who | App experience |
+|------|-----|----------------|
+| `customer` | End user booking grooming | Discover → salon → book → pay (cash/UPI) → reviews |
+| `owner` | Salon owner | Owner dashboard: bookings, services, staff, subscription, UPI |
+| `employee` | Staff invited by owner (migration 55) | Same owner tabs for **their salon only** — manage bookings when owner is away |
+
+## Staff: two concepts
+
+1. **Staff profile** (`public.staff`) — bookable stylist shown to customers during booking (name, photo, working hours).
+2. **Staff app login** (`staff.user_id` + role `employee`) — employee logs into the app to accept/reject bookings.
+
+These are linked: owner adds staff → invites to app → employee signs up with same phone → gets owner dashboard access.
+
+## Mobile navigation
+
+```
+Onboarding → Auth (OTP) → Complete Profile → CustomerTabs | OwnerTabs
 ```
 
----
+- `owner` or `employee` → **OwnerTabs** (dashboard, bookings, services, staff, settings)
+- `customer` → **CustomerTabs** (discover, bookings, profile)
 
-## User roles
+## Web navigation
 
-| Role | Primary client | Capabilities |
-|------|----------------|--------------|
-| Customer | Mobile (primary), Web | Discover, book, pay, review |
-| Owner | Mobile + Web | Manage salon, services, bookings, promos, staff |
+Marketing (`/`), explore, customer booking (`/book/:salonId/:serviceId`), owner routes under `/owner/*`.
 
----
+## Realtime (Supabase)
 
-## Customer journey (happy path)
+| Surface | Subscription |
+|---------|----------------|
+| Customer my bookings | `subscribeToUserBookings(userId, token)` |
+| Customer booking slots | Authenticated channel on `bookings` + `slot_holds` for salon |
+| Owner dashboard / manage bookings | `subscribeToSalonBookings(salonId, token)` |
+| Mobile owner tabs | `useRealtimeBookings` invalidates React Query caches |
 
-```mermaid
-sequenceDiagram
-    participant C as Customer App
-    participant API as FastAPI
-    participant DB as Supabase
-    participant E as Expo Push
+All authenticated realtime channels pass the user's JWT via `createAuthenticatedClient(token)` so RLS applies.
 
-    C->>API: POST /auth/login
-    API->>DB: Validate JWT / profile
-    C->>API: GET /salons?lat&lng
-    API->>DB: Nearby salons RPC
-    C->>API: GET /bookings/slots
-    API->>DB: Bookings + holds
-    C->>API: POST /bookings/reserve
-    API->>DB: reserve_slot_v1
-    C->>API: POST /bookings
-    API->>DB: create_atomic_booking
-    alt Razorpay
-        C->>API: POST /payments/create-order
-        C->>C: Razorpay WebView
-        C->>API: POST /payments/verify
-    end
-    API->>E: Push to owner
-    Note over C,E: Owner accepts → completes
-    API->>E: Push to customer
-```
+## Payment model (customer bookings)
 
----
+**UPI manual verification** (not Razorpay checkout):
 
-## Owner journey (happy path)
+1. Customer selects UPI → backend stores intent on booking
+2. Customer pays salon VPA in UPI app
+3. Owner/employee verifies or rejects in app
+4. Booking completes only after verification
 
-1. Sign up as **owner** → create salon profile
-2. Add services + optional staff
-3. Receive push / realtime alert on new booking
-4. Accept booking → mark completed
-5. Customer receives completion push + can leave review
+**Razorpay** is used only for **owner TrimiT Pro subscriptions**, not customer booking checkout.
 
----
+## Serviceability
 
-## Cross-client data flow
+Users outside Jammu geofence see “not in your city yet” + waitlist (`service_areas`, migration 54).
 
-| Data | Source of truth | Client cache |
-|------|-----------------|--------------|
-| User profile | `users` table | Zustand persist |
-| Salons/services | Postgres | React Query |
-| Bookings | Postgres | React Query + Realtime |
-| Slots | Computed server-side | React Query (short TTL) |
-| Push prefs | `users` columns | Refetch on settings save |
+## Deploy
 
----
-
-## Module map
-
-| Module | Mobile screens | Web pages | API prefix |
-|--------|----------------|-----------|------------|
-| Auth | `screens/auth/*` | `pages/Login*` | `/auth` |
-| Discover | `DiscoverScreen` | `CustomerHome` | `/salons` |
-| Booking | `BookingScreen` | `BookingPage` | `/bookings` |
-| Payments | `PaymentScreen` | — | `/payments` |
-| Owner | `owner/*` | `owner/*` | `/owner`, `/salons` |
-| Reviews | `WriteReviewScreen` | — | `/reviews` |
-| Promos | `PromoManagementScreen` | — | `/promotions` |
-
----
-
-## Related docs
-
-- [auth-flow.md](./auth-flow.md)
-- [booking-flow.md](./booking-flow.md)
-- [backend-flow.md](./backend-flow.md)
+- Backend: Render (auto from `main`)
+- Web: Vercel (`trimit.online`)
+- Mobile: Google Play via EAS

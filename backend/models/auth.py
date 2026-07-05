@@ -1,10 +1,11 @@
-from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from pydantic import BaseModel, EmailStr, Field, model_validator
+from typing import Optional, Literal
 from enum import Enum
 
 class UserRole(str, Enum):
     customer = "customer"
     owner = "owner"
+    employee = "employee"
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -21,6 +22,8 @@ class UserUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
     push_token: Optional[str] = None
+    gender: Optional[Literal["male", "female"]] = None
+    discovery_audience: Optional[Literal["auto", "men", "women", "all"]] = None
 
 class NotificationPreferencesUpdate(BaseModel):
     push_enabled: Optional[bool] = None
@@ -91,9 +94,18 @@ class CompleteProfileRequest(BaseModel):
     UPI), and ignored for customers. Validated in the handler so we can return a
     structured error.
     """
-    role: UserRole = Field(..., description="User role: 'customer' or 'owner'. Required.")
+    role: UserRole = Field(..., description="User role: 'customer', 'owner', or 'employee'. Required.")
     name: str = Field(..., min_length=1, max_length=100, description="Full display name.")
     phone: str = Field(..., min_length=10, max_length=20, description="Indian mobile (required).")
     upi_id: Optional[str] = Field(
         None, max_length=256, description="Owner UPI VPA (required for owners), e.g. name@bank."
     )
+    gender: Optional[Literal["male", "female"]] = Field(
+        None, description="Customer gender for personalized discovery."
+    )
+
+    @model_validator(mode="after")
+    def customer_requires_gender(self):
+        if self.role == UserRole.customer and not self.gender:
+            raise ValueError("gender is required for customers")
+        return self

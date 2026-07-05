@@ -158,6 +158,7 @@ describe('CompleteProfileScreen', () => {
     renderScreen(route);
 
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Cathy Cust');
+    fireEvent.press(screen.getByTestId('profile-gender-female'));
     fireEvent.press(screen.getByText(/I agree to the/));
 
     await act(async () => {
@@ -170,6 +171,7 @@ describe('CompleteProfileScreen', () => {
         phone: undefined,
         role: 'customer',
         upi_id: undefined,
+        gender: 'female',
       });
     });
   });

@@ -43,7 +43,7 @@ async def get_available_staff(
             booking_date=booking_date,
             time_slot=time_slot,
             available_staff=[],
-            any_available=True,
+            any_available=False,
         )
 
     rows = response.json() or []

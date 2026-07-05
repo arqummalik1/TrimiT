@@ -10,6 +10,8 @@ import { Button } from '../../components/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { RootScreenProps } from '../../navigation/types';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
+import { FilterChipRow } from '../../components/FilterChipRow';
+import { CUSTOMER_GENDER_OPTIONS } from '../../lib/genderServe';
 
 const phoneRegex = /^[6-9]\d{9}$/;
 const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
@@ -22,13 +24,31 @@ const profileSchema = z
       .refine((val) => phoneRegex.test(val), {
         message: 'Enter a valid 10-digit Indian mobile (e.g. 9876543210)',
       }),
-    role: z.enum(['customer', 'owner']),
+    role: z.enum(['customer', 'owner', 'employee']),
+    gender: z.enum(['male', 'female']).optional(),
     upi_id: z.string().optional().or(z.literal('')),
     termsAccepted: z.boolean().refine((val) => val === true, {
       message: 'You must accept the terms and conditions',
     }),
   })
   .superRefine((data, ctx) => {
+    if (data.role === 'employee') {
+      const phone = (data.phone ?? '').trim();
+      if (!phone || !phoneRegex.test(phone)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['phone'],
+          message: 'Use the phone number your salon owner registered for you',
+        });
+      }
+    }
+    if (data.role === 'customer' && !data.gender) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['gender'],
+        message: 'Please select how we should personalize your salon discovery',
+      });
+    }
     // UPI ID is REQUIRED for owners — customers must not see/submit it.
     if (data.role !== 'owner') return;
     const upi = (data.upi_id ?? '').trim();
@@ -73,6 +93,7 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
       name: prefilled.prefilledName || '',
       phone: prefilled.prefilledPhone ? prefilled.prefilledPhone.replace(/^\+91/, '') : '',
       role: prefilled.prefilledRole || 'customer',
+      gender: undefined,
       upi_id: '',
       termsAccepted: false,
     },
@@ -92,6 +113,7 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
       name: data.name,
       phone: formattedPhone,
       role: data.role,
+      gender: data.role === 'customer' ? data.gender : undefined,
       // Only owners send a UPI ID; customers never do.
       upi_id: data.role === 'owner' ? (data.upi_id ?? '').trim() : undefined,
     });
@@ -178,8 +200,47 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
               </Text>
               <Text style={[styles.roleDesc, selectedRole === 'owner' && styles.roleDescActive]}>Managing my business</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.roleCard, selectedRole === 'employee' && styles.roleCardActive]}
+              onPress={() => setValue('role', 'employee')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.iconContainer, selectedRole === 'employee' && styles.iconContainerActive]}>
+                <Ionicons
+                  name="people-outline"
+                  color={selectedRole === 'employee' ? (theme.isDark ? theme.colors.textInverse : theme.colors.text) : theme.colors.textSecondary}
+                  size={24}
+                />
+              </View>
+              <Text style={[styles.roleTitle, selectedRole === 'employee' && styles.roleTitleActive]}>
+                Salon Employee
+              </Text>
+              <Text style={[styles.roleDesc, selectedRole === 'employee' && styles.roleDescActive]}>
+                Invited by my salon owner
+              </Text>
+            </TouchableOpacity>
           </View>
           {errors.role && <Text style={styles.fieldErrorText}>{errors.role.message}</Text>}
+
+          {selectedRole === 'customer' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.sectionTitle}>I usually book at</Text>
+              <Controller
+                control={control}
+                name="gender"
+                render={({ field: { onChange, value } }) => (
+                  <FilterChipRow
+                    options={CUSTOMER_GENDER_OPTIONS}
+                    value={value ?? 'male'}
+                    onChange={onChange}
+                    testIDPrefix="profile-gender"
+                  />
+                )}
+              />
+              {errors.gender && <Text style={styles.fieldErrorText}>{errors.gender.message}</Text>}
+            </View>
+          )}
 
           <View style={styles.inputGroup}>
             <Controller
@@ -205,7 +266,11 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
               name="phone"
               render={({ field: { onChange, onBlur, value } }) => (
                 <Input
-                  label="Phone Number (Required)"
+                  label={
+                    selectedRole === 'employee'
+                      ? 'Phone Number *'
+                      : 'Phone Number (Required)'
+                  }
                   placeholder="98765 43210"
                   prefix="+91"
                   value={value}

@@ -12,14 +12,14 @@ from core.supabase import supabase
 
 logger = logging.getLogger("trimit")
 
-VALID_ROLES = frozenset({"customer", "owner"})
+VALID_ROLES = frozenset({"customer", "owner", "employee"})
 
 
 def normalize_role(value: Any) -> str:
     """
     Validate and normalise a role string.
 
-    Raises ValueError for any value that is not 'customer' or 'owner'.
+    Raises ValueError for any value that is not 'customer', 'owner', or 'employee'.
     This is intentional — callers must always supply an explicit, validated
     role. Silently defaulting to 'customer' masks bugs and was the root
     cause of the onboarding role-assignment issue.
@@ -174,13 +174,15 @@ async def create_new_profile(
     name: str,
     phone: Optional[str],
     upi_id: Optional[str] = None,
+    gender: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Create a brand-new profile row in public.users.
 
-    This is the ONLY entry point for new profile creation. It is called
+    This is the production entry point for new profile creation. It is called
     exclusively by POST /auth/complete-profile after the user is authenticated
-    but has no profile row yet.
+    but has no profile row yet. (Staging AUTH_AUTO_CONFIRM_SIGNUP uses a separate
+    dev-only path.)
 
     Idempotent: if a row already exists for this user_id, returns it without
     error. This handles retries and the case where the user calls the endpoint
@@ -213,6 +215,8 @@ async def create_new_profile(
     # Owner UPI captured at signup (prefills their salon's UPI ID later).
     if upi_id and validated_role == "owner":
         profile_data["upi_id"] = upi_id.strip()
+    if gender and validated_role == "customer":
+        profile_data["gender"] = gender
 
     logger.info(
         "create_new_profile: inserting profile user=%s role=%s",
@@ -232,25 +236,17 @@ async def resolve_profile_for_user(
     """
     Definitive profile for login /auth/me: service-role read first, then user JWT.
     If the profile is missing in the database, returns None (onboarding/profile completion required).
+    
+    SECURITY: DB role is the ONLY source of truth. JWT metadata is NEVER trusted for role.
+    P0-2 Fix: Removed JWT metadata role upgrade to prevent escalation attacks.
+
+    Role assignment for new users happens exclusively via POST /auth/complete-profile
+    (OTP flow). Legacy /auth/signup with AUTH_AUTO_CONFIRM_SIGNUP may create a profile
+    in staging only — never in production OTP flow.
     """
     row = await fetch_profile_service_role(user_id)
     if row:
-        meta_role = role_from_user_metadata(user_metadata)
-        if meta_role == "owner" and normalize_role_safe(row.get("role")) == "customer":
-            logger.warning(
-                "resolve_profile_for_user: upgrading customer→owner from metadata user=%s",
-                user_id[:8] if user_id else "?",
-            )
-            row = await upsert_user_profile(
-                user_id,
-                {
-                    "id": user_id,
-                    "role": "owner",
-                    "email": row.get("email") or email,
-                    "name": row.get("name") or (email.split("@")[0] if email else "User"),
-                },
-                prefer_incoming_role=True,
-            )
+        # P0-2 Security Fix: DB role is immutable, JWT metadata is ignored.
         return row
 
     if user_jwt:

@@ -4,6 +4,24 @@ import TrimitLogo from '../components/brand/TrimitLogo';
 import { getSupabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 
+/** Map Supabase OAuth URL errors to user-facing copy. */
+function translateOAuthError(raw) {
+  const msg = (raw || '').toLowerCase();
+  if (msg.includes('already registered') || msg.includes('already exists')) {
+    return (
+      'An account with this email already exists. Sign in with your email OTP or password, ' +
+      'then link Google from account settings — or use the same Google account you signed up with.'
+    );
+  }
+  if (msg.includes('identity') && msg.includes('link')) {
+    return 'This Google account could not be linked. Try signing in with the method you used originally.';
+  }
+  if (msg.includes('access_denied') || msg.includes('cancel')) {
+    return 'Google sign-in was cancelled.';
+  }
+  return raw || 'We could not complete Google sign-in. Please try again.';
+}
+
 /**
  * OAuth callback landing page (Google).
  *
@@ -36,7 +54,7 @@ const AuthCallbackPage = () => {
         hashParams.get('error_description') ||
         hashParams.get('error');
       if (oauthError) {
-        setError(oauthError);
+        setError(translateOAuthError(oauthError));
         return;
       }
 

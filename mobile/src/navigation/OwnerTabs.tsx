@@ -5,7 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { OwnerTabParamList, OwnerSettingsStackParamList } from './types';
+import { OwnerTabParamList, OwnerSettingsStackParamList, OwnerServicesStackParamList } from './types';
 import { useTheme } from '../theme/ThemeContext';
 import { FloatingTabBar } from '../components/FloatingTabBar';
 import { salonRepository } from '../repositories/salonRepository';
@@ -25,6 +25,7 @@ const devLog = (...args: unknown[]) => {
 import OwnerStack from './OwnerStack';
 import ManageBookingsScreen from '../screens/owner/ManageBookingsScreen';
 import ManageServicesScreen from '../screens/owner/ManageServicesScreen';
+import ManageCategoriesScreen from '../screens/owner/ManageCategoriesScreen';
 import StaffManagementScreen from '../screens/owner/StaffManagementScreen';
 import PromoManagementScreen from '../screens/owner/PromoManagementScreen';
 import SettingsScreen from '../screens/owner/SettingsScreen';
@@ -40,6 +41,16 @@ import PaymentsHelpScreen from '../screens/legal/PaymentsHelpScreen';
 import BankDetailsScreen from '../screens/owner/BankDetailsScreen';
 
 const Tab = createBottomTabNavigator<OwnerTabParamList>();
+
+const ServicesStack = createNativeStackNavigator<OwnerServicesStackParamList>();
+function ServicesStackScreen() {
+  return (
+    <ServicesStack.Navigator screenOptions={{ headerShown: false }}>
+      <ServicesStack.Screen name="ServicesMain" component={ManageServicesScreen} />
+      <ServicesStack.Screen name="ManageCategories" component={ManageCategoriesScreen} />
+    </ServicesStack.Navigator>
+  );
+}
 
 // Settings needs its own stack so it can navigate to ManageSalon, Staff, and Promos
 const SettingsStack = createNativeStackNavigator<OwnerSettingsStackParamList>();
@@ -192,7 +203,7 @@ export default function OwnerTabs() {
         />
         <Tab.Screen
           name="Services"
-          component={ManageServicesScreen}
+          component={ServicesStackScreen}
           options={{
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="pricetag" size={size} color={color} />

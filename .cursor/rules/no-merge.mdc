@@ -1,0 +1,11 @@
+---
+description: Never merge or push to main without explicit user approval
+alwaysApply: true
+---
+
+# Git — no implicit merge
+
+- **Never** merge branches (`git merge`, PR merge, squash merge) unless the user **explicitly** asks.
+- **Never** push to `main` / `master` unless the user **explicitly** asks.
+- Pushing the **current feature branch** is OK when asked; default is push only, no merge.
+- If deploy needs `main`, tell the user and wait for approval — do not merge "to help."

@@ -9,6 +9,7 @@ import { Theme } from '../theme/tokens';
 import { normalizeSalon, resolveSalonImageSource } from '../lib/salonImage';
 import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../lib/featureFlags';
 import { getSalonClosedState } from '../lib/salonAvailability';
+import { SalonTypeBadge } from './FilterChipRow';
 
 interface SalonCardProps {
   salon: Salon;
@@ -75,9 +76,12 @@ const SalonCardComponent: React.FC<SalonCardProps> = ({ salon: rawSalon, onPress
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.name} numberOfLines={1}>
-            {salon.name}
-          </Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.name} numberOfLines={1}>
+              {salon.name}
+            </Text>
+            <SalonTypeBadge genderServe={salon.gender_serve} />
+          </View>
           {(salon.avg_rating ?? 0) > 0 && (
             <View style={styles.ratingBadge}>
               <Ionicons name="star" size={12} color={theme.colors.star} />
@@ -179,12 +183,18 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'space-between',
       marginBottom: spacing.xs,
     },
-    name: {
+    titleRow: {
       flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginRight: spacing.sm,
+    },
+    name: {
+      flexShrink: 1,
       fontFamily: fonts.heading,
       fontSize: 22,
       color: theme.colors.text,
-      marginRight: 8,
     },
     ratingBadge: {
       flexDirection: 'row',

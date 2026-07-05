@@ -395,10 +395,11 @@ export const authRepository = {
    * to retry on network failure. The backend enforces role assignment.
    */
   async completeProfile(data: {
-    role: 'customer' | 'owner';
+    role: 'customer' | 'owner' | 'employee';
     name: string;
     phone?: string;
     upi_id?: string;
+    gender?: 'male' | 'female';
   }): Promise<{ success: boolean; profile?: User; error?: string; errorCode?: string }> {
     try {
       const response = await authService.completeProfile(data);

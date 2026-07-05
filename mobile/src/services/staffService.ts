@@ -85,4 +85,9 @@ export const staffService = {
     const response = await apiClient.get(`/staff/salon/${salonId}/performance`);
     return response.data;
   },
+
+  inviteStaffToApp: async (staffId: string): Promise<{ message: string; status: string }> => {
+    const response = await apiClient.post(`/staff/${staffId}/invite-app`);
+    return response.data;
+  },
 };

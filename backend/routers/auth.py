@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException, Depends, status
 from fastapi.responses import JSONResponse
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 import httpx
 import logging
@@ -39,7 +39,6 @@ from services.auth_signup import (
     resend_confirmation_email,
     check_existing_signup_state,
     pending_confirmation_response,
-    salvage_rate_limited_signup,
     login_with_password,
     _ensure_profile,
     admin_confirm_user,
@@ -285,8 +284,10 @@ async def login(request: Request, data: UserLogin):
 @limiter.limit("5/minute")
 async def resend_confirmation(request: Request, data: ResendConfirmationRequest):
     """Resend the signup confirmation email."""
-    body = await resend_confirmation_email(data.email)
-    return body
+    status_code, body = await resend_confirmation_email(data.email)
+    if status_code >= 400:
+        raise HTTPException(status_code=status_code, detail=body)
+    return JSONResponse(status_code=status_code, content=body)
 
 
 @router.post("/forgot-password")
@@ -538,34 +539,63 @@ async def complete_profile(
     # Salon owners are paid directly via UPI, so a valid UPI ID is required at
     # signup. Validated here (after the model) so we return a structured error.
     is_owner = data.role.value == "owner"
+    is_employee = data.role.value == "employee"
 
-    phone_e164 = normalize_india_phone(data.phone)
-    if not phone_e164:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "code": "PHONE_REQUIRED",
-                "message": "A valid 10-digit Indian mobile number is required.",
-            },
-        )
+    phone_e164: Optional[str] = None
 
-    # Block duplicate customer phones (welcome voucher anti-abuse)
-    if not is_owner:
-        dup = await supabase.request(
-            "GET",
-            f"rest/v1/users?phone=eq.{phone_e164}&role=eq.customer&select=id",
-            service_role=True,
-        )
-        if dup.status_code == 200 and dup.json():
-            existing_id = dup.json()[0].get("id")
-            if existing_id != user_id:
-                raise HTTPException(
-                    status_code=422,
-                    detail={
-                        "code": "PHONE_ALREADY_REGISTERED",
-                        "message": "This mobile number is already registered.",
-                    },
-                )
+    if is_employee:
+        phone = (data.phone or "").strip()
+        if not phone:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "PHONE_REQUIRED",
+                    "message": "Phone number is required. Use the same number your salon owner registered for you.",
+                },
+            )
+        from services.salon_access import link_employee_from_pending_invite
+
+        linked = await link_employee_from_pending_invite(user_id, phone, email)
+        if not linked:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "NO_STAFF_INVITE",
+                    "message": (
+                        "No pending app invite found for this phone. "
+                        "Ask your salon owner to add you as staff and tap Invite to App."
+                    ),
+                },
+            )
+        phone_e164 = normalize_india_phone(phone) or phone
+    else:
+        phone_e164 = normalize_india_phone(data.phone)
+        if not phone_e164:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "PHONE_REQUIRED",
+                    "message": "A valid 10-digit Indian mobile number is required.",
+                },
+            )
+
+        # Block duplicate customer phones (welcome voucher anti-abuse)
+        if not is_owner:
+            dup = await supabase.request(
+                "GET",
+                f"rest/v1/users?phone=eq.{phone_e164}&role=eq.customer&select=id",
+                service_role=True,
+            )
+            if dup.status_code == 200 and dup.json():
+                existing_id = dup.json()[0].get("id")
+                if existing_id != user_id:
+                    raise HTTPException(
+                        status_code=422,
+                        detail={
+                            "code": "PHONE_ALREADY_REGISTERED",
+                            "message": "This mobile number is already registered.",
+                        },
+                    )
 
     upi_id = (data.upi_id or "").strip()
     if is_owner:
@@ -590,6 +620,7 @@ async def complete_profile(
             name=data.name,
             phone=phone_e164,
             upi_id=upi_id if is_owner else None,
+            gender=data.gender,
         )
     except ValueError as e:
         raise HTTPException(
