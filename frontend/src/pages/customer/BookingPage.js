@@ -106,6 +106,8 @@ const BookingPage = () => {
       )
       .subscribe();
 
+    channel._trimitRealtimeClient = client;
+
     return () => {
       unsubscribeFromChannel(channel);
     };

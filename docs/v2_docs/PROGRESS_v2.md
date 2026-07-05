@@ -1,6 +1,7 @@
 # TrimiT - V2 Progress
 
 ## Accomplished (2026-07-05)
+- **Security fixes (CodeAnt audit):** P0-1 resend no longer auto-confirms on email rate limit; signup idempotent path skips early profile writes; JWT role test is behavioral; web OTP redirect sanitized; realtime channel cleanup fixed.
 - **Migrations 57 + 58 applied in Supabase SQL Editor:** `service_categories`, salon `gender_serve`, customer `gender` / `discovery_audience`, service `audience`, updated `get_nearby_salons_v1` filter.
 - **Gender serve G0–G5 (mobile + web parity):** Salon type (Men's salon / Parlor / Unisex); customer gender at signup (`CompleteProfilePage`); Discover chips; Account discovery preference; unisex menu + service audience chips. Themed `FilterChipRow` + tests (mobile + web).
 - **Service categories (C1–C4):** Mobile + web owner categories, grouped services, customer menu sections.

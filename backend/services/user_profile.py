@@ -179,9 +179,10 @@ async def create_new_profile(
     """
     Create a brand-new profile row in public.users.
 
-    This is the ONLY entry point for new profile creation. It is called
+    This is the production entry point for new profile creation. It is called
     exclusively by POST /auth/complete-profile after the user is authenticated
-    but has no profile row yet.
+    but has no profile row yet. (Staging AUTH_AUTO_CONFIRM_SIGNUP uses a separate
+    dev-only path.)
 
     Idempotent: if a row already exists for this user_id, returns it without
     error. This handles retries and the case where the user calls the endpoint
@@ -238,12 +239,14 @@ async def resolve_profile_for_user(
     
     SECURITY: DB role is the ONLY source of truth. JWT metadata is NEVER trusted for role.
     P0-2 Fix: Removed JWT metadata role upgrade to prevent escalation attacks.
+
+    Role assignment for new users happens exclusively via POST /auth/complete-profile
+    (OTP flow). Legacy /auth/signup with AUTH_AUTO_CONFIRM_SIGNUP may create a profile
+    in staging only — never in production OTP flow.
     """
     row = await fetch_profile_service_role(user_id)
     if row:
         # P0-2 Security Fix: DB role is immutable, JWT metadata is ignored.
-        # Role can ONLY be set at account creation via /complete-profile.
-        # Owner role requires UPI validation at signup - no post-signup escalation possible.
         return row
 
     if user_jwt:

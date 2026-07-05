@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
 import { useToastStore } from '../store/toastStore';
 import SuccessOverlay from '../components/ui/SuccessOverlay';
+import { safeInternalPath } from '../lib/utils';
 
 export default function VerifyOtpPage() {
   const navigate = useNavigate();
@@ -12,8 +13,7 @@ export default function VerifyOtpPage() {
   const queryParams = new URLSearchParams(location.search);
   const email = queryParams.get('email') || '';
   const type = queryParams.get('type') || 'magiclink'; // signup, recovery, magiclink
-  // P0-3 Security Fix: Read redirect param from query string (passed from LoginPage)
-  const redirectParam = queryParams.get('redirect');
+  const redirectParam = safeInternalPath(queryParams.get('redirect'));
 
   const { verifyOtp, sendOtp, isLoading, error: authError, clearError } = useAuthStore();
 

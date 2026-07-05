@@ -2,6 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { getEnv } from "../config/env";
 
 let supabaseClient = null;
+/** One realtime client per access token — avoids duplicate websocket connections. */
+const authenticatedClients = new Map();
 
 function requireSupabaseConfig() {
   const supabaseUrl = getEnv("SUPABASE_URL");
@@ -35,15 +37,26 @@ export const supabase = new Proxy(
   },
 );
 
-// Create authenticated client for realtime subscriptions
+// Create authenticated client for realtime subscriptions (reused per token)
 export const createAuthenticatedClient = (token) => {
+  if (!token) {
+    return getSupabase();
+  }
+  if (authenticatedClients.has(token)) {
+    return authenticatedClients.get(token);
+  }
   const { supabaseUrl, supabaseAnonKey } = requireSupabaseConfig();
   const client = createClient(supabaseUrl, supabaseAnonKey);
-  if (token) {
-    client.realtime.setAuth(token);
-  }
+  client.realtime.setAuth(token);
+  authenticatedClients.set(token, client);
   return client;
 };
+
+/** Tag channel with owning client so cleanup uses the correct instance. */
+function tagRealtimeChannel(client, channel) {
+  channel._trimitRealtimeClient = client;
+  return channel;
+}
 
 // ==========================================
 // REALTIME SUBSCRIPTIONS
@@ -57,7 +70,8 @@ export const createAuthenticatedClient = (token) => {
  * @returns {object} - Supabase realtime channel
  */
 export const subscribeToBookings = (salonId, date, onChange) => {
-  const channel = supabase
+  const client = getSupabase();
+  const channel = client
     .channel(`bookings:${salonId}:${date}`)
     .on(
       "postgres_changes",
@@ -78,7 +92,7 @@ export const subscribeToBookings = (salonId, date, onChange) => {
     )
     .subscribe();
 
-  return channel;
+  return tagRealtimeChannel(client, channel);
 };
 
 /**
@@ -89,7 +103,7 @@ export const subscribeToBookings = (salonId, date, onChange) => {
  * @returns {object} - Supabase realtime channel
  */
 export const subscribeToSalonBookings = (salonId, onChange, token = null) => {
-  const client = token ? createAuthenticatedClient(token) : supabase;
+  const client = token ? createAuthenticatedClient(token) : getSupabase();
   const channelName = `salon-${salonId}-${Math.random().toString(36).substring(7)}`;
 
   const channel = client
@@ -108,7 +122,7 @@ export const subscribeToSalonBookings = (salonId, onChange, token = null) => {
     )
     .subscribe();
 
-  return channel;
+  return tagRealtimeChannel(client, channel);
 };
 
 /**
@@ -119,10 +133,9 @@ export const subscribeToSalonBookings = (salonId, onChange, token = null) => {
  * @returns {object} - Supabase realtime channel
  */
 export const subscribeToUserBookings = (userId, onChange, token = null) => {
-  // P0-4 Security Fix: Use authenticated client so RLS policies can enforce access
-  const client = token ? createAuthenticatedClient(token) : supabase;
+  const client = token ? createAuthenticatedClient(token) : getSupabase();
   const channelName = `user-bookings:${userId}-${Math.random().toString(36).substring(7)}`;
-  
+
   const channel = client
     .channel(channelName)
     .on(
@@ -139,16 +152,25 @@ export const subscribeToUserBookings = (userId, onChange, token = null) => {
     )
     .subscribe();
 
-  return channel;
+  return tagRealtimeChannel(client, channel);
 };
 
 /**
- * Unsubscribe from a channel
+ * Unsubscribe and remove a channel on the client that created it.
  * @param {object} channel - The channel to unsubscribe
  */
 export const unsubscribeFromChannel = (channel) => {
-  if (channel) {
+  if (!channel) return;
+  const client = channel._trimitRealtimeClient || getSupabase();
+  try {
     channel.unsubscribe();
+  } catch {
+    // channel may already be torn down
+  }
+  try {
+    client.removeChannel(channel);
+  } catch {
+    // ignore double-remove
   }
 };
 

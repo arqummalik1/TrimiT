@@ -37,7 +37,6 @@ from services.auth_signup import (
     resend_confirmation_email,
     check_existing_signup_state,
     pending_confirmation_response,
-    salvage_rate_limited_signup,
     login_with_password,
     _ensure_profile,
     admin_confirm_user,

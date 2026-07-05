@@ -15,7 +15,6 @@ from urllib.parse import quote
 from config import settings
 from core.supabase import supabase
 from models.auth import UserCreate
-from models.auth import UserRole
 from services.auth_errors import map_supabase_signup_error, safe_auth_response_json
 from services.user_profile import upsert_user_profile
 
@@ -94,6 +93,10 @@ def _is_email_confirmed(auth_user: Dict[str, Any]) -> bool:
 
 
 async def _ensure_profile(user_id: str, payload: UserCreate) -> Dict[str, Any]:
+    """
+    Dev/staging only — AUTH_AUTO_CONFIRM_SIGNUP creates a profile without
+    complete-profile. Production OTP users must use POST /auth/complete-profile.
+    """
     profile_data = {
         "id": user_id,
         "email": _normalize_email(payload.email),
@@ -179,14 +182,13 @@ async def try_idempotent_signup(user: UserCreate) -> Optional[Tuple[int, Dict[st
         )
 
     if user_id:
-        await _ensure_profile(user_id, user)
-        # Force a fresh confirmation email/OTP send for the pending user
+        # Do not create public.users here — role assignment belongs on
+        # POST /auth/complete-profile after the user proves email ownership.
         resend_status, resend_body = await resend_confirmation_email(user.email)
-        
-        # If the user was successfully auto-confirmed via admin_confirm_user
-        if resend_status == 200 and resend_body.get("code") == "SIGNUP_READY_SIGN_IN":
-            return 202, resend_body
-            
+
+        if resend_status == 429:
+            return resend_status, resend_body
+
         return await pending_confirmation_response(
             email=_normalize_email(user.email),
             user_id=user_id,
@@ -199,47 +201,6 @@ async def try_idempotent_signup(user: UserCreate) -> Optional[Tuple[int, Dict[st
         user_id=None,
         message="This email already has a pending account. Check your inbox (and spam), or sign in if we already activated your account.",
         resent=False,
-    )
-
-
-async def salvage_rate_limited_signup(
-    user: UserCreate,
-    *,
-    auth_user_id: Optional[str] = None,
-) -> Optional[Tuple[int, Dict[str, Any]]]:
-    """
-    When Supabase blocks sending email, the auth user is often still created.
-    Confirm via admin API so the user can sign in without another email.
-    """
-    auth_user: Optional[Dict[str, Any]] = None
-    if auth_user_id:
-        auth_user = await _fetch_auth_user_admin(auth_user_id)
-    if not auth_user:
-        auth_user = await find_auth_user_by_email_admin(user.email)
-    if not auth_user:
-        return None
-
-    user_id = auth_user.get("id")
-    if not user_id:
-        return None
-
-    if not _is_email_confirmed(auth_user):
-        ok = await admin_confirm_user(user_id)
-        if not ok:
-            logger.error("admin_confirm_user failed user_id=%s", user_id)
-            return None
-        logger.info("Salvaged signup via admin confirm user_id=%s email=%s", user_id[:8], user.email)
-
-    await _ensure_profile(user_id, user)
-
-    return await pending_confirmation_response(
-        email=_normalize_email(user.email),
-        user_id=user_id,
-        message=(
-            "Your account is ready. Email delivery was paused due to provider limits, "
-            "but we activated your account. Tap Go to sign in and use your password."
-        ),
-        code="SIGNUP_READY_SIGN_IN",
     )
 
 
@@ -266,8 +227,6 @@ async def perform_supabase_signup(user: UserCreate) -> Tuple[int, Dict[str, Any]
             "message": "Account created. Please check your email for the verification link/OTP to complete your registration."
         }
     return resp.status_code, safe_auth_response_json(resp)
-
-
 
 
 async def perform_admin_signup(user: UserCreate) -> Tuple[int, Dict[str, Any]]:
@@ -360,33 +319,11 @@ async def resend_confirmation_email(email: str) -> Tuple[int, Dict[str, Any]]:
 
     err_code, err_msg = map_supabase_signup_error(resp)
     if err_code == "EMAIL_RATE_LIMIT":
-        auth_user = await find_auth_user_by_email_admin(email_norm)
-        if auth_user and auth_user.get("id"):
-            meta = auth_user.get("user_metadata") or {}
-            # Password is unused — admin_confirm_user bypasses it. Use a
-            # long random placeholder so UserCreate's validator is happy
-            # without leaking a real credential if the repo is exposed.
-            import secrets
-            salvage_user = UserCreate(
-                email=email_norm,
-                password=secrets.token_urlsafe(32),
-                name=str(meta.get("name") or "User"),
-                phone=str(meta.get("phone") or "") or None,
-                role=UserRole.owner if meta.get("role") == "owner" else UserRole.customer,
-            )
-            salvaged = await salvage_rate_limited_signup(salvage_user)
-            if salvaged:
-                return salvaged[0], salvaged[1]
-
         return (
             429,
             {
                 "code": "AUTH_PROVIDER_EMAIL_QUOTA",
-                "message": (
-                    "You've made several email requests. New messages are paused for about an hour. "
-                    "Check spam for an earlier confirmation link, then try again later with a single "
-                    "request — repeated sign-ups won't send more emails until then."
-                ),
+                "message": err_msg,
             },
         )
     return 400, {"code": err_code, "message": err_msg}

@@ -12,6 +12,7 @@ Pattern (mirrors test_priority.py / test_early_access.py):
 
 from fastapi import status
 from httpx import Response
+import pytest
 
 
 def test_me_requires_auth(client):
@@ -171,39 +172,85 @@ def test_resend_confirmation_never_auto_confirms(client, mock_supabase):
     assert len(admin_confirm_calls) == 0, "resend must NEVER call admin confirm"
 
 
-def test_jwt_metadata_cannot_escalate_role(client, mock_supabase):
+def test_resend_confirmation_rate_limit_never_auto_confirms(client, mock_supabase):
+    """P0-1: Email rate limit on resend must not admin-confirm the pending account."""
+    mock_supabase.get("/rest/v1/users").return_value = Response(
+        200,
+        json=[
+            {
+                "id": "user_pending_456",
+                "email": "pending2@example.com",
+                "role": "customer",
+                "name": "Pending",
+                "phone": None,
+            }
+        ],
+    )
+    mock_supabase.get("/auth/v1/admin/users/user_pending_456").return_value = Response(
+        200,
+        json={
+            "id": "user_pending_456",
+            "email": "pending2@example.com",
+            "email_confirmed_at": None,
+        },
+    )
+    mock_supabase.post("/auth/v1/resend").return_value = Response(
+        429,
+        json={"error_code": "over_email_send_rate_limit", "msg": "email rate limit exceeded"},
+    )
+
+    response = client.post(
+        "/api/v1/auth/resend-confirmation",
+        json={"email": "pending2@example.com"},
+    )
+
+    assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+    data = response.json()
+    assert data["error"]["details"].get("code") == "AUTH_PROVIDER_EMAIL_QUOTA"
+    assert data["error"]["details"].get("code") != "SIGNUP_READY_SIGN_IN"
+
+    admin_confirm_calls = [
+        (method, path)
+        for method, path, _kwargs in mock_supabase.called
+        if method == "PUT" and "/auth/v1/admin/users/" in path
+    ]
+    assert len(admin_confirm_calls) == 0
+
+
+@pytest.mark.asyncio
+async def test_jwt_metadata_cannot_escalate_role(mock_supabase):
     """
-    P0-2 Security Fix: JWT metadata with role=owner must NOT upgrade a customer to owner.
-    
-    **What was broken:**
-    - Old code in user_profile.py lines 220-235 upgraded customer→owner if JWT metadata said "owner"
-    - Attacker could sign up as customer, manipulate JWT metadata, become owner without UPI
-    
-    **The fix:** 
-    - Removed JWT metadata role upgrade logic from resolve_profile_for_user()
-    - DB role is now the ONLY source of truth, JWT metadata is completely ignored
-    - File: backend/services/user_profile.py (lines 220-235 removed)
-    
-    **This test verifies:** The fix is in place (code review) and resolve_profile no longer has escalation path.
+    P0-2: DB role is authoritative — JWT user_metadata role=owner must not upgrade customer.
     """
-    # Visual inspection confirms fix: resolve_profile_for_user() no longer contains
-    # the meta_role upgrade logic. The function now returns profile directly from DB
-    # without checking or upgrading based on JWT metadata.
-    
-    # Import the function to ensure it exists and compiles without error
     from services.user_profile import resolve_profile_for_user
-    
-    # Read the source to verify the fix is in place
-    import inspect
-    source = inspect.getsource(resolve_profile_for_user)
-    
-    # Critical assertions: JWT metadata upgrade code must NOT be present
-    assert "meta_role = role_from_user_metadata" not in source, \
-        "P0-2 REGRESSION: JWT metadata role extraction found - escalation path exists!"
-    assert "upgrading customer→owner" not in source, \
-        "P0-2 REGRESSION: Role upgrade logic found - escalation path exists!"
-    assert "prefer_incoming_role=True" not in source, \
-        "P0-2 REGRESSION: Role preference logic found in resolve_profile - escalation path exists!"
-    
-    # Success: The fix is confirmed in place
-    pass
+
+    mock_supabase.get("/rest/v1/users").return_value = Response(
+        200,
+        json=[
+            {
+                "id": "cust-1",
+                "email": "cust@example.com",
+                "role": "customer",
+                "name": "Customer",
+            }
+        ],
+    )
+
+    profile = await resolve_profile_for_user(
+        "cust-1",
+        "cust@example.com",
+        user_metadata={"role": "owner", "name": "Hacker"},
+        user_jwt="fake-jwt-token",
+    )
+
+    assert profile is not None
+    assert profile["role"] == "customer"
+    assert profile["role"] != "owner"
+
+    # JWT fallback path must not be used when service-role row exists
+    jwt_reads = [
+        (m, p)
+        for m, p, kwargs in mock_supabase.called
+        if m == "GET" and "rest/v1/users" in p and kwargs.get("token")
+    ]
+    assert len(jwt_reads) == 0
