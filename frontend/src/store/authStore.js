@@ -188,6 +188,12 @@ export const useAuthStore = create(
         set({ isLoading: true, error: null });
         try {
           api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+          if (refreshToken) {
+            await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+          }
 
           const response = await api.get("/auth/me");
           const userData = response.data;

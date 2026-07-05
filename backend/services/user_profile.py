@@ -12,14 +12,14 @@ from core.supabase import supabase
 
 logger = logging.getLogger("trimit")
 
-VALID_ROLES = frozenset({"customer", "owner"})
+VALID_ROLES = frozenset({"customer", "owner", "employee"})
 
 
 def normalize_role(value: Any) -> str:
     """
     Validate and normalise a role string.
 
-    Raises ValueError for any value that is not 'customer' or 'owner'.
+    Raises ValueError for any value that is not 'customer', 'owner', or 'employee'.
     This is intentional — callers must always supply an explicit, validated
     role. Silently defaulting to 'customer' masks bugs and was the root
     cause of the onboarding role-assignment issue.

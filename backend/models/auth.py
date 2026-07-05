@@ -5,6 +5,7 @@ from enum import Enum
 class UserRole(str, Enum):
     customer = "customer"
     owner = "owner"
+    employee = "employee"
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -91,7 +92,7 @@ class CompleteProfileRequest(BaseModel):
     UPI), and ignored for customers. Validated in the handler so we can return a
     structured error.
     """
-    role: UserRole = Field(..., description="User role: 'customer' or 'owner'. Required.")
+    role: UserRole = Field(..., description="User role: 'customer', 'owner', or 'employee'. Required.")
     name: str = Field(..., min_length=1, max_length=100, description="Full display name.")
     phone: Optional[str] = Field(None, max_length=20, description="Phone number (optional).")
     upi_id: Optional[str] = Field(

@@ -7,12 +7,12 @@ interface SignupPayload {
   password: string;
   name: string;
   phone?: string;
-  role: 'customer' | 'owner';
+  role: 'customer' | 'owner' | 'employee';
 }
 
 /** Typed payload for POST /auth/complete-profile (new OTP post-auth path). */
 interface CompleteProfilePayload {
-  role: 'customer' | 'owner';
+  role: 'customer' | 'owner' | 'employee';
   name: string;
   phone?: string;
   /** Owner UPI ID (VPA, e.g. "glowsalon@okaxis"). Required for owners. */

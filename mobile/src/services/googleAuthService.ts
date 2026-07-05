@@ -13,8 +13,22 @@
  * clear error instead of crashing.
  * ─────────────────────────────────────────────────────────────────────────────
  */
+import Constants from 'expo-constants';
+import { NativeModules } from 'react-native';
 import { buildConfig } from '../lib/buildConfig';
 import { logger } from '../lib/logger';
+
+/**
+ * True only in dev/release binaries that embed RNGoogleSignin.
+ * Expo Go never ships this native module — loading the JS package there
+ * triggers TurboModuleRegistry.getEnforcing(...) and crashes the app.
+ */
+export function isGoogleSignInNativeAvailable(): boolean {
+  if (Constants.appOwnership === 'expo') {
+    return false;
+  }
+  return Boolean(NativeModules.RNGoogleSignin);
+}
 
 type GoogleSigninModule = {
   GoogleSignin: {
@@ -32,11 +46,14 @@ type GoogleSigninModule = {
 
 /** Lazily require the native module; returns null if it isn't in this binary. */
 function loadGoogleSignin(): GoogleSigninModule | null {
+  if (!isGoogleSignInNativeAvailable()) {
+    return null;
+  }
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require('@react-native-google-signin/google-signin') as GoogleSigninModule;
   } catch (err) {
-    logger.warn('[GoogleAuth] native module unavailable (Expo Go?)', { err: String(err) });
+    logger.warn('[GoogleAuth] native module unavailable', { err: String(err) });
     return null;
   }
 }
@@ -117,7 +134,7 @@ export async function signInWithGoogle(): Promise<GoogleSignInOutcome> {
 
 /** Best-effort native Google sign-out. Safe no-op when module/config absent. */
 export async function signOutGoogle(): Promise<void> {
-  if (!configured) return;
+  if (!configured || !isGoogleSignInNativeAvailable()) return;
   const mod = loadGoogleSignin();
   if (!mod) return;
   try {

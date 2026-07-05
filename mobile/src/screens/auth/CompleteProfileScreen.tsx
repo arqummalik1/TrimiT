@@ -23,13 +23,23 @@ const profileSchema = z
       .refine((val) => !val || phoneRegex.test(val), {
         message: 'Phone number must be a valid 10-digit number (e.g. 9876543210)',
       }),
-    role: z.enum(['customer', 'owner']),
+    role: z.enum(['customer', 'owner', 'employee']),
     upi_id: z.string().optional().or(z.literal('')),
     termsAccepted: z.boolean().refine((val) => val === true, {
       message: 'You must accept the terms and conditions',
     }),
   })
   .superRefine((data, ctx) => {
+    if (data.role === 'employee') {
+      const phone = (data.phone ?? '').trim();
+      if (!phone || !phoneRegex.test(phone)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['phone'],
+          message: 'Use the phone number your salon owner registered for you',
+        });
+      }
+    }
     // UPI ID is REQUIRED for owners — customers must not see/submit it.
     if (data.role !== 'owner') return;
     const upi = (data.upi_id ?? '').trim();
@@ -174,6 +184,26 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
               </Text>
               <Text style={[styles.roleDesc, selectedRole === 'owner' && styles.roleDescActive]}>Managing my business</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.roleCard, selectedRole === 'employee' && styles.roleCardActive]}
+              onPress={() => setValue('role', 'employee')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.iconContainer, selectedRole === 'employee' && styles.iconContainerActive]}>
+                <Ionicons
+                  name="people-outline"
+                  color={selectedRole === 'employee' ? (theme.isDark ? theme.colors.textInverse : theme.colors.text) : theme.colors.textSecondary}
+                  size={24}
+                />
+              </View>
+              <Text style={[styles.roleTitle, selectedRole === 'employee' && styles.roleTitleActive]}>
+                Salon Employee
+              </Text>
+              <Text style={[styles.roleDesc, selectedRole === 'employee' && styles.roleDescActive]}>
+                Invited by my salon owner
+              </Text>
+            </TouchableOpacity>
           </View>
           {errors.role && <Text style={styles.fieldErrorText}>{errors.role.message}</Text>}
 
@@ -201,7 +231,7 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
               name="phone"
               render={({ field: { onChange, onBlur, value } }) => (
                 <Input
-                  label="Phone Number (Optional)"
+                  label={selectedRole === 'employee' ? 'Phone Number *' : 'Phone Number (Optional)'}
                   placeholder="98765 43210"
                   prefix="+91"
                   value={value}

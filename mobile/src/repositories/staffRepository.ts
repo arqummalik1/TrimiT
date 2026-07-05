@@ -50,4 +50,8 @@ export const staffRepository = {
   async getPerformance(salonId: string): Promise<StaffPerformance[]> {
     return await staffService.getSalonStaffPerformance(salonId);
   },
+
+  async inviteStaffToApp(staffId: string): Promise<{ message: string; status: string }> {
+    return await staffService.inviteStaffToApp(staffId);
+  },
 };

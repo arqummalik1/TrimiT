@@ -6,11 +6,8 @@ import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
 import GoogleSignInButton from '../components/auth/GoogleSignInButton';
+import { GOOGLE_LOGIN_ENABLED } from '../config/auth';
 import { safeInternalPath } from '../lib/utils';
-
-// Google login is built but not yet verified end-to-end; hidden for launch.
-// Flip to true once tested to re-enable.
-const GOOGLE_LOGIN_ENABLED = false;
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -184,7 +181,6 @@ const LoginPage = () => {
             </div>
           </form>
 
-          {/* Divider + Google — hidden until Google login is verified */}
           {GOOGLE_LOGIN_ENABLED && (
             <>
               <div className="flex items-center gap-3 my-6">
@@ -193,7 +189,7 @@ const LoginPage = () => {
                 <div className="flex-1 h-px bg-stone-200" />
               </div>
 
-              <GoogleSignInButton />
+              <GoogleSignInButton label="Sign in with Google" />
             </>
           )}
 

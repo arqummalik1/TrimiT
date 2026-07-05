@@ -134,17 +134,13 @@ def test_resend_confirmation_never_auto_confirms(client, mock_supabase):
     )
     
     # Mock the Supabase admin lookup: user exists but email NOT confirmed
-    mock_supabase.get("/auth/v1/admin/users").return_value = Response(
+    mock_supabase.get("/auth/v1/admin/users/user_pending_123").return_value = Response(
         200,
         json={
-            "users": [
-                {
-                    "id": "user_pending_123",
-                    "email": "pending@example.com",
-                    "email_confirmed_at": None,  # NOT confirmed
-                    "created_at": "2024-01-01T00:00:00Z",
-                }
-            ]
+            "id": "user_pending_123",
+            "email": "pending@example.com",
+            "email_confirmed_at": None,  # NOT confirmed
+            "created_at": "2024-01-01T00:00:00Z",
         },
     )
     
@@ -169,8 +165,8 @@ def test_resend_confirmation_never_auto_confirms(client, mock_supabase):
     
     # Verify NO admin confirm call was made
     admin_confirm_calls = [
-        req for req in mock_supabase.calls 
-        if req.request.method == "PUT" and "/auth/v1/admin/users/" in str(req.request.url)
+        (method, path) for method, path, kwargs in mock_supabase.called
+        if method == "PUT" and "/auth/v1/admin/users/" in path
     ]
     assert len(admin_confirm_calls) == 0, "resend must NEVER call admin confirm"
 

@@ -1,165 +1,92 @@
-# Authentication Flow
+# TrimiT — Auth Flow (Current)
 
-Aligned reference for **mobile** and **web** — goal: identical behavior for sign-in, session, roles, and logout.
-
----
+Last updated: 2026-07-04.
 
 ## Stack
 
-| Component | Technology |
-|-----------|------------|
-| Identity provider | Supabase Auth |
-| API auth | `Authorization: Bearer <access_token>` |
-| Profile | `public.users` (role: `customer` \| `owner`) |
-| Backend validation | `dependencies/auth.get_current_user` |
+- **Supabase Auth** — OTP email, JWT access + refresh tokens
+- **FastAPI** — `dependencies/auth.py` validates JWT, loads `public.users` profile
+- **Clients** — persist token on cold start; only **401** clears session (not network errors)
 
----
+## Google sign-in (web)
 
-## Sign-up flow
-
-```mermaid
-sequenceDiagram
-    participant App
-    participant API as POST /auth/signup
-    participant SA as Supabase Auth
-    participant DB as users table
-
-    App->>API: email, password, role, profile
-    API->>SA: signUp
-    SA-->>API: user + session (or confirmation pending)
-    API->>DB: UPSERT users (service role)
-    API-->>App: token + user / 202 confirmation
-    App->>App: persist token (SecureStore / localStorage)
-    App->>App: setAuthorizationHeader(token)
+```
+Client                         Supabase                    Backend
+  | signInWithOAuth(google)  ->  Google consent
+  | <- redirect /auth/callback?code=...
+  | exchangeCodeForSession
+  | GET /auth/me (Bearer JWT)  ->  get_current_user + public.users
+  | -> /complete-profile if no profile row, else role-based home
 ```
 
-| Step | Mobile | Web | Aligned? |
-|------|--------|-----|----------|
-| Role selection | `RoleSelect` → `SignupScreen` | SignupPage role picker | ✅ |
-| Terms acceptance | Checkbox | Checkbox (silent fail bug on web) | ⚠️ |
-| Email confirmation | Dedicated screen | Dedicated screen | ✅ |
-| Profile row created | Backend service role | Same | ✅ |
+- **One email = one account:** enable Supabase Dashboard → Auth → **Link identities**
+  (auto-link same verified email across OTP and Google). `public.users` is keyed by
+  `auth.users.id`; linked identities share one id and one profile.
+- Redirect URLs: `https://trimit.online/auth/callback` (+ localhost for dev). See `frontend/env.example`.
 
----
+## Sign-up / login (OTP)
 
-## Sign-in flow
-
-```mermaid
-sequenceDiagram
-    participant App
-    participant API as POST /auth/login
-    participant SA as Supabase Auth
-
-    App->>API: email, password
-    API->>SA: signInWithPassword
-    SA-->>API: session
-    API-->>App: access_token, refresh_token, user
-    App->>App: persist + navigate by role
-    App->>API: GET /auth/me (bootstrap)
+```
+Client                    Backend                      Supabase
+  | POST /auth/send-otp  ->  forward OTP request    ->  auth/v1/otp
+  | POST /auth/verify-otp -> verify token           ->  auth/v1/verify
+  |                       <- access_token + refresh
+  | POST /auth/complete-profile (if no users row)
+  |                       -> create public.users row (role enforced server-side)
 ```
 
-| Step | Mobile | Web | Aligned? |
-|------|--------|-----|----------|
-| Token storage | SecureStore | localStorage | ⚠️ Security differs |
-| Refresh token stored | Yes | No | ❌ |
-| Header injection | apiClient interceptor | axios interceptor | ✅ |
-| Role routing | CustomerTabs / OwnerTabs | `/discover` vs `/owner/*` | ✅ |
-| Owner hasSalon check | Weak (per-screen empty) | `hasSalon` in store | ⚠️ |
+### Complete profile
 
----
+Mandatory after first OTP when no `public.users` row exists.
+
+| Role | Requirements |
+|------|----------------|
+| `customer` | name |
+| `owner` | name + **UPI ID** (required) |
+| `employee` | name + **phone** (must match pending staff invite) |
+
+Role is set **once** at complete-profile. JWT metadata cannot escalate role (P0-2 fix).
+
+## Employee invite flow
+
+1. Owner creates staff with phone in Staff Management
+2. Owner: `POST /staff/{id}/invite-app` → `staff.app_access_status = pending`
+3. Employee downloads app, OTP login, complete-profile as **Salon Employee** with same phone
+4. Backend links `staff.user_id`, sets `app_access_status = active`, creates `users.role = employee`
+5. Employee navigates to OwnerTabs for that salon
 
 ## Session persistence
 
-### Cold start
+### Mobile (`authStore.ts`)
 
-1. Rehydrate Zustand from storage
-2. `initializeAuth()` → `GET /auth/me`
-3. Valid → set user, role, optional `hasSalon`
-4. Invalid → `clearSession()` (+ `sessionExpired` flag on mobile)
+- Token in secure storage; `initializeAuth` trusts persisted token
+- Background `GET /auth/me` refresh; 401 → `clearSession({ sessionExpired: true })`
+- Supabase Realtime: `syncSupabaseAuthSession` for websocket auth
+- **Google sign-in:** native account picker → `signInWithIdToken` → `/auth/me` (same profile gate as OTP)
 
-### Mobile extras
-- `syncSupabaseAuthSession(token, refreshToken)` for Realtime RLS
-- Duplicate init from `App.tsx` + `onRehydrateStorage` (redundant call)
+### Web (`authStore.js`)
 
-### Web gaps
-- No Supabase `setAuth` on restore → realtime subscriptions may not filter correctly
-- 401 interceptor clears storage + `window.location = '/login'` (hard redirect)
+- Zustand persist; 401 interceptor clears storage **and** calls `logout()`
 
----
+## Blocked / deleted users (migration 52)
 
-## Logout
+Admin sets `users.is_blocked` or `users.deleted_at`. `get_current_user` rejects with **403** before any handler runs.
 
-| Action | Mobile | Web |
-|--------|--------|-----|
-| Clear token | ✅ | ✅ |
-| Clear Zustand | ✅ | ✅ |
-| Clear React Query | ✅ | ❌ |
-| Supabase signOut | ✅ | N/A |
-| Navigate to login | ✅ Auth stack | ✅ redirect |
+## Token refresh
 
----
+Both clients retry once on 401 using Supabase `setSession` with refresh token before clearing session.
 
-## Password reset
+## Security rules
 
-| Step | Mobile | Web |
-|------|--------|-----|
-| Request reset email | `ForgotPasswordScreen` → API | `ForgotPasswordPage` → API |
-| Handle recovery link | Opens **browser** | `ResetPasswordPage` + hash token |
-| Validate token | — | `validate-reset-token` |
-| Set new password | — | `resetPassword` in store |
+- Production requires real `JWT_SECRET`
+- Non-production JWT decode without signature only when `ENVIRONMENT != production`
+- Rate limits on OTP, signup, forgot-password
+- Resend-confirmation **never** auto-confirms (P0-1)
 
-**Alignment gap:** Mobile needs deep link handler (`trimit://reset`) or universal link to match web.
+## API auth header
 
----
-
-## Protected routes
-
-### Mobile (`navigation/index.tsx`)
 ```
-!isAuthenticated → AuthStack
-user.role === 'owner' → OwnerTabs
-else → CustomerTabs
+Authorization: Bearer <supabase_access_jwt>
 ```
 
-### Web (`App.js`)
-```
-ProtectedRoute:
-  !isAuthenticated → /login
-  wrong role → /
-```
-
----
-
-## API signing (mutations)
-
-| Client | Signs requests? |
-|--------|---------------|
-| Mobile | Yes (`lib/security.ts`) when secret set |
-| Web | **No** |
-
-**Action:** Implement web signing OR disable `SignatureMiddleware` until both clients ready.
-
----
-
-## Auth alignment checklist
-
-- [ ] Web stores refresh token (optional but recommended)
-- [ ] Web syncs Supabase session for realtime
-- [ ] Mobile in-app password reset screen
-- [ ] Fix web signup terms silent failure
-- [ ] Fix web `LoginPage` rememberMe arity
-- [ ] Unified owner `hasSalon` redirect
-- [ ] Web API signing
-- [ ] Single canonical `PUBLIC_SITE_URL` for reset emails
-
----
-
-## Environment variables
-
-| Var | Mobile | Web | Backend |
-|-----|--------|-----|---------|
-| Supabase URL | `EXPO_PUBLIC_*` | `REACT_APP_*` | `SUPABASE_URL` |
-| Anon key | `EXPO_PUBLIC_*` | `REACT_APP_*` | `SUPABASE_ANON_KEY` |
-| API URL | `EXPO_PUBLIC_API_URL` | `REACT_APP_API_URL` | — |
-| JWT secret | — | — | `JWT_SECRET` |
-| Signing secret | `EXPO_PUBLIC_API_SIGNING_SECRET` | **missing** | `API_SIGNING_SECRET` |
+Mutating POSTs also send `Idempotency-Key` (booking create requires it).

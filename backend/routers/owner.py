@@ -8,6 +8,12 @@ from pydantic import BaseModel, field_validator
 
 from core.supabase import supabase
 from config import settings
+from services.salon_access import (
+    assert_salon_manager,
+    get_managed_salon_ids,
+    get_primary_salon_for_manager,
+    is_salon_manager_role,
+)
 from dependencies.auth import get_current_user
 from dependencies.subscription import require_active_subscription
 
@@ -44,35 +50,27 @@ def _mask_account_number(acct: Optional[str]) -> Optional[str]:
 @router.get("/salon")
 async def get_owner_salon(current_user: dict = Depends(get_current_user)):
     """
-    Get the salon associated with the current owner.
-    Returns 404 if no salon exists yet.
+    Get the salon for the current owner or linked staff employee.
+    Returns 404 if no salon is associated.
     """
     user_id = current_user.get("id")
-    
-    logger.debug("[GET_OWNER_SALON] Fetching salon for user %s", user_id)
-    
-    # Step 1: Query salon WITHOUT services join to isolate any RLS issues
-    response = await supabase.request(
-        "GET", 
-        f"rest/v1/salons?owner_id=eq.{user_id}&select=*", 
-        token=current_user.get("access_token")
+    profile = current_user.get("profile") or {}
+    role = profile.get("role", "customer")
+
+    if not is_salon_manager_role(role):
+        raise HTTPException(status_code=403, detail="Salon access required")
+
+    logger.debug("[GET_OWNER_SALON] Fetching salon for user %s role=%s", user_id, role)
+
+    salon = await get_primary_salon_for_manager(
+        user_id,
+        role,
+        token=current_user.get("access_token"),
     )
-    
-    if settings.ENVIRONMENT != "production":
-        logger.debug("[GET_OWNER_SALON] status=%s", response.status_code)
-    
-    if response.status_code != 200:
-        logger.error(f"[GET_OWNER_SALON] Failed to fetch owner salon: {response.text}")
-        raise HTTPException(status_code=500, detail="Failed to fetch salon data")
-    
-    salons = response.json()
-    logger.info(f"[GET_OWNER_SALON] Found {len(salons)} salons")
-    
-    if not salons:
-        logger.warning(f"[GET_OWNER_SALON] No salon found for user {user_id}")
-        raise HTTPException(status_code=404, detail="No salon found for this owner")
-    
-    salon = salons[0]
+
+    if not salon:
+        logger.warning("[GET_OWNER_SALON] No salon found for user %s", user_id)
+        raise HTTPException(status_code=404, detail="No salon found for this account")
     # Align thumbnail fields for mobile (images[] + image_url)
     images = salon.get("images") or []
     if isinstance(images, list) and images and not salon.get("image_url"):
@@ -109,11 +107,16 @@ async def get_owner_analytics(period: str = "today", current_user: dict = Depend
     Get business analytics for the current owner's salon.
     """
     user_id = current_user.get("id")
-    
+    profile = current_user.get("profile") or {}
+    role = profile.get("role", "customer")
+
+    if role == "employee":
+        raise HTTPException(status_code=403, detail="Only salon owners can view analytics")
+
     # 1. Get the owner's salon ID
     salon_resp = await supabase.request(
-        "GET", 
-        f"rest/v1/salons?owner_id=eq.{user_id}&select=id", 
+        "GET",
+        f"rest/v1/salons?owner_id=eq.{user_id}&select=id",
         token=current_user.get("access_token")
     )
     
@@ -212,15 +215,13 @@ async def get_owner_analytics(period: str = "today", current_user: dict = Depend
 # ── Bank details \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 async def _get_owner_salon_id(current_user: dict) -> str:
-    """Fetch the owner's salon ID or raise 404."""
-    resp = await supabase.request(
-        "GET",
-        f"rest/v1/salons?owner_id=eq.{current_user.get('id')}&select=id",
-        token=current_user.get("access_token"),
-    )
-    if resp.status_code != 200 or not resp.json():
-        raise HTTPException(status_code=404, detail="No salon found for this owner")
-    return resp.json()[0]["id"]
+    """Fetch salon ID for owner or linked employee."""
+    profile = current_user.get("profile") or {}
+    role = profile.get("role", "customer")
+    salon_ids = await get_managed_salon_ids(current_user.get("id"), role)
+    if not salon_ids:
+        raise HTTPException(status_code=404, detail="No salon found for this account")
+    return salon_ids[0]
 
 
 @router.get("/bank-details")

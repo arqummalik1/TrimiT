@@ -148,7 +148,7 @@ export const subscribeToUserBookings = (userId, onChange, token = null) => {
  */
 export const unsubscribeFromChannel = (channel) => {
   if (channel) {
-    supabase.removeChannel(channel);
+    channel.unsubscribe();
   }
 };
 

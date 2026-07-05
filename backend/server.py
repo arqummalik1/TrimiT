@@ -115,7 +115,7 @@ if settings.SENTRY_DSN:
 app = FastAPI(
     title="TrimiT API",
     description="Backend API for TrimiT Salon Booking App",
-    version="1.1.0"
+    version="1.0.2"
 )
 
 # Exception Handlers

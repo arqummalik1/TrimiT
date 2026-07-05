@@ -22,6 +22,7 @@ from models.promotions import PromoCodeValidate
 from models.reschedule import RescheduleRequest
 from services import booking_push
 from services import salon_availability
+from services.salon_access import assert_salon_manager, get_managed_salon_ids, is_salon_manager_role
 
 logger = logging.getLogger("trimit")
 
@@ -36,19 +37,11 @@ async def list_bookings_for_salon(
     salon_id: str,
     current_user: dict = Depends(get_current_user),
 ):
-    """Owner: bookings for a salon they own (RLS also enforces)."""
+    """Owner/employee: bookings for a salon they manage."""
     token = current_user.get("access_token")
-    own = await supabase.request(
-        "GET",
-        f"rest/v1/salons?id=eq.{salon_id}&select=owner_id",
-        token=token,
-    )
-    if (
-        own.status_code != 200
-        or not own.json()
-        or own.json()[0].get("owner_id") != current_user.get("id")
-    ):
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    profile = current_user.get("profile") or {}
+    role = profile.get("role", "customer")
+    await assert_salon_manager(salon_id, current_user.get("id"), role)
     resp = await supabase.request(
         "GET",
         f"rest/v1/bookings?salon_id=eq.{salon_id}&select={BOOKING_LIST_SELECT}&order=created_at.desc",
@@ -66,15 +59,10 @@ async def list_my_bookings(current_user: dict = Depends(get_current_user)):
     profile = current_user.get("profile") or {}
     role = profile.get("role", "customer")
 
-    if role == "owner":
-        salon_resp = await supabase.request(
-            "GET",
-            f"rest/v1/salons?owner_id=eq.{current_user.get('id')}&select=id",
-            token=token,
-        )
-        if salon_resp.status_code != 200 or not salon_resp.json():
+    if is_salon_manager_role(role):
+        salon_ids = await get_managed_salon_ids(current_user.get("id"), role)
+        if not salon_ids:
             return []
-        salon_ids = [s["id"] for s in salon_resp.json()]
         salon_filter = ",".join(salon_ids)
         resp = await supabase.request(
             "GET",
@@ -112,18 +100,8 @@ async def update_booking_status(
     role = profile.get("role", "customer")
     uid = current_user.get("id")
 
-    if role == "owner":
-        salon = await supabase.request(
-            "GET",
-            f"rest/v1/salons?id=eq.{booking['salon_id']}&select=owner_id",
-            token=token,
-        )
-        if (
-            salon.status_code != 200
-            or not salon.json()
-            or salon.json()[0].get("owner_id") != uid
-        ):
-            raise HTTPException(status_code=403, detail="Unauthorized")
+    if is_salon_manager_role(role):
+        await assert_salon_manager(booking["salon_id"], uid, role)
     else:
         if booking.get("user_id") != uid:
             raise HTTPException(status_code=403, detail="Unauthorized")
@@ -134,7 +112,7 @@ async def update_booking_status(
 
     patch_json: dict = {"status": body.status.value}
 
-    if role == "owner" and body.status == BookingStatus.completed:
+    if is_salon_manager_role(role) and body.status == BookingStatus.completed:
         b_full = await supabase.request(
             "GET",
             f"rest/v1/bookings?id=eq.{booking_id}&select=payment_method,payment_status,payment_verification_status",
@@ -610,18 +588,8 @@ async def get_booking(booking_id: str, current_user: dict = Depends(get_current_
     role = profile.get("role", "customer")
     uid = current_user.get("id")
 
-    if role == "owner":
-        salon = await supabase.request(
-            "GET",
-            f"rest/v1/salons?id=eq.{booking['salon_id']}&select=owner_id",
-            token=token,
-        )
-        if (
-            salon.status_code != 200
-            or not salon.json()
-            or salon.json()[0].get("owner_id") != uid
-        ):
-            raise HTTPException(status_code=403, detail="Unauthorized")
+    if is_salon_manager_role(role):
+        await assert_salon_manager(booking["salon_id"], uid, role)
     else:
         if booking.get("user_id") != uid:
             raise HTTPException(status_code=403, detail="Unauthorized")

@@ -12,6 +12,16 @@ logger = logging.getLogger("trimit")
 user_profile_cache = TTLCache(maxsize=1000, ttl=30)
 
 
+def _raise_if_profile_blocked(profile_row: Optional[dict]) -> None:
+    """Reject blocked or soft-deleted users (migration 52)."""
+    if not profile_row:
+        return
+    if profile_row.get("is_blocked"):
+        raise HTTPException(status_code=403, detail="Your account has been blocked. Contact support.")
+    if profile_row.get("deleted_at"):
+        raise HTTPException(status_code=403, detail="This account has been deactivated.")
+
+
 def _build_cached_user_data(
     user_id: str,
     email: Optional[str],
@@ -89,6 +99,7 @@ async def get_current_user(authorization: str = Header(None)):
 
             if user_id in user_profile_cache:
                 cached = user_profile_cache[user_id]
+                _raise_if_profile_blocked(cached.get("profile"))
                 return _build_cached_user_data(
                     user_id,
                     cached.get("email"),
@@ -102,6 +113,7 @@ async def get_current_user(authorization: str = Header(None)):
                 payload.get("user_metadata"),
                 user_jwt=token,
             )
+            _raise_if_profile_blocked(profile_row)
 
             user_data = _build_cached_user_data(
                 user_id,
@@ -133,6 +145,7 @@ async def get_current_user(authorization: str = Header(None)):
                 user_info.get("user_metadata"),
                 user_jwt=token,
             )
+            _raise_if_profile_blocked(profile_row)
 
             user_data = _build_cached_user_data(
                 user_id,

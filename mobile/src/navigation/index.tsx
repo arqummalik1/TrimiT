@@ -31,7 +31,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Auth" component={AuthStack} />
       ) : !profileComplete ? (
         <Stack.Screen name="CompleteProfile" component={CompleteProfileScreen} />
-      ) : role === 'owner' ? (
+      ) : role === 'owner' || role === 'employee' ? (
         <Stack.Screen name="OwnerTabs" component={OwnerTabs} />
       ) : (
         <Stack.Screen name="CustomerTabs" component={CustomerTabs} />

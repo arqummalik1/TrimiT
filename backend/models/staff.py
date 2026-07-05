@@ -44,11 +44,12 @@ class WorkingHours(BaseModel):
 # =====================================================
 
 class StaffBase(BaseModel):
-    """Base staff model"""
+    """Base staff model (staff = stylist in TrimiT)."""
     name: str = Field(..., min_length=2, max_length=100)
     bio: Optional[str] = None
     phone: Optional[str] = Field(None, pattern=r"^\+?[0-9]{10,15}$")
     email: Optional[str] = None
+    image_url: Optional[str] = None
     working_hours: Optional[Dict[str, Any]] = None
     days_off: List[str] = []  # ISO date strings
     is_active: bool = True
@@ -65,6 +66,7 @@ class StaffUpdate(BaseModel):
     bio: Optional[str] = None
     phone: Optional[str] = Field(None, pattern=r"^\+?[0-9]{10,15}$")
     email: Optional[str] = None
+    image_url: Optional[str] = None
     working_hours: Optional[Dict[str, Any]] = None
     days_off: Optional[List[str]] = None
     is_active: Optional[bool] = None
@@ -74,7 +76,6 @@ class StaffResponse(StaffBase):
     """Staff response with computed fields"""
     id: UUID
     salon_id: UUID
-    image_url: Optional[str] = None
     average_rating: Decimal = Field(default=Decimal("0.00"))
     total_reviews: int = 0
     total_bookings: int = 0

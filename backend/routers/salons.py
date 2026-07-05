@@ -3,6 +3,7 @@ from typing import List, Optional
 from datetime import datetime, date, timedelta, timezone
 import uuid
 import logging
+import hmac
 from math import radians, sin, cos, sqrt, atan2
 
 from core.supabase import supabase
@@ -68,6 +69,19 @@ async def _fallback_nearby_salons(
 
     enriched: List[dict] = []
     for s in rows:
+        if not s.get("subscription_active", True):
+            continue
+        if s.get("accepting_bookings") is False:
+            continue
+        closed_until = s.get("closed_until")
+        if closed_until:
+            try:
+                closed_dt = datetime.fromisoformat(str(closed_until).replace("Z", "+00:00"))
+                if closed_dt > datetime.now(timezone.utc):
+                    continue
+            except (ValueError, TypeError):
+                if s.get("accepting_bookings") is False:
+                    continue
         lat, lon = s.get("latitude"), s.get("longitude")
         if lat is None or lon is None:
             continue
@@ -339,7 +353,8 @@ async def run_availability(request: Request, authorization: Optional[str] = Head
     """
     if not settings.ADMIN_API_TOKEN:
         raise HTTPException(status_code=404, detail="Not Found")
-    if not authorization or authorization.split(" ", 1)[-1].strip() != settings.ADMIN_API_TOKEN:
+    token = authorization.split(" ", 1)[-1].strip() if authorization else ""
+    if not token or not hmac.compare_digest(token, settings.ADMIN_API_TOKEN):
         raise HTTPException(status_code=401, detail="Unauthorized")
     from services import salon_availability_notifications as avail_notify
     result = await avail_notify.run_availability_sweep()

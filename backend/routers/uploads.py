@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 import logging
 import httpx
-from datetime import datetime, timezone
 import uuid
 import io
 
@@ -34,11 +33,13 @@ def _normalize_image_bytes(data: bytes) -> bytes:
         return out.getvalue()
 
 
-@router.post("/service-image")
-async def upload_service_image(
-    current_user: dict = Depends(get_current_user),
-    file: UploadFile = File(...),
-):
+async def _upload_owner_image(
+    *,
+    current_user: dict,
+    file: UploadFile,
+    folder: str,
+    log_label: str,
+) -> dict:
     profile = current_user.get("profile") or {}
     if profile.get("role") != "owner":
         raise HTTPException(
@@ -72,7 +73,7 @@ async def upload_service_image(
     try:
         data = _normalize_image_bytes(data)
     except Exception as exc:
-        logger.warning("[upload_service_image] decode failed: %s", exc)
+        logger.warning("[%s] decode failed: %s", log_label, exc)
         raise HTTPException(
             status_code=400,
             detail={"code": "INVALID_IMAGE", "message": "File is not a valid image"},
@@ -89,7 +90,7 @@ async def upload_service_image(
 
     content_type = "image/jpeg"
     bucket = "salon-images"
-    path = f"services/{current_user.get('id')}/{uuid.uuid4().hex}.jpg"
+    path = f"{folder}/{current_user.get('id')}/{uuid.uuid4().hex}.jpg"
 
     url = f"{settings.SUPABASE_URL.rstrip('/')}/storage/v1/object/{bucket}/{path}"
     headers = {
@@ -103,7 +104,7 @@ async def upload_service_image(
         resp = await client.put(url, headers=headers, content=data)
 
     if resp.status_code not in (200, 201):
-        logger.error("[upload_service_image] failed: %s %s", resp.status_code, resp.text[:200])
+        logger.error("[%s] failed: %s %s", log_label, resp.status_code, resp.text[:200])
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -118,3 +119,30 @@ async def upload_service_image(
         "path": path,
         "public_url": _public_storage_url(bucket, path),
     }
+
+
+@router.post("/service-image")
+async def upload_service_image(
+    current_user: dict = Depends(get_current_user),
+    file: UploadFile = File(...),
+):
+    return await _upload_owner_image(
+        current_user=current_user,
+        file=file,
+        folder="services",
+        log_label="upload_service_image",
+    )
+
+
+@router.post("/staff-image")
+async def upload_staff_image(
+    current_user: dict = Depends(get_current_user),
+    file: UploadFile = File(...),
+):
+    """Upload a staff (stylist) profile photo. Returns public_url for staff.image_url."""
+    return await _upload_owner_image(
+        current_user=current_user,
+        file=file,
+        folder="staff",
+        log_label="upload_staff_image",
+    )
