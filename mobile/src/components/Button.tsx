@@ -24,6 +24,7 @@ interface ButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   icon?: React.ReactNode;
+  testID?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -37,6 +38,7 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
   icon,
+  testID,
 }) => {
   const { theme } = useTheme();
   
@@ -151,6 +153,7 @@ export const Button: React.FC<ButtonProps> = ({
   return (
     <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
       <TouchableOpacity
+        testID={testID}
         style={getButtonStyle()}
         onPress={onPress}
         disabled={disabled || effectiveStatus === 'loading' || effectiveStatus === 'success'}

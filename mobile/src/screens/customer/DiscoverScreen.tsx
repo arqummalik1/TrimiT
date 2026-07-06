@@ -99,7 +99,6 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   const isFocused = useIsFocused();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
-  const { user } = useAuthStore();
   const [discoverChip, setDiscoverChip] = useState<DiscoverChip>(() => defaultDiscoverChip(user));
 
   useEffect(() => {

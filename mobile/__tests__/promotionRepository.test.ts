@@ -37,9 +37,17 @@ describe('promotionService', () => {
   it('createPromotion POSTs /promotions/ with the payload', async () => {
     mockedApi.post.mockResolvedValue({ data: { id: 'p2' } } as any);
 
-    const result = await promotionService.createPromotion({ code: 'SAVE10' });
+    const result = await promotionService.createPromotion({
+      code: 'SAVE10',
+      discount_type: 'percentage',
+      discount_value: 10,
+    });
 
-    expect(mockedApi.post).toHaveBeenCalledWith('/promotions/', { code: 'SAVE10' });
+    expect(mockedApi.post).toHaveBeenCalledWith('/promotions/', {
+      code: 'SAVE10',
+      discount_type: 'percentage',
+      discount_value: 10,
+    });
     expect(result).toEqual({ id: 'p2' });
   });
 

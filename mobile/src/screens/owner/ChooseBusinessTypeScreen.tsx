@@ -9,14 +9,16 @@ import {
   BUSINESS_TYPE_PICKER_OPTIONS,
   SalonGenderServe,
 } from '../../lib/genderServe';
-import {
-  OwnerDashboardScreenProps,
-  OwnerSettingsScreenProps,
-} from '../../navigation/types';
+import type { NavigationProp } from '@react-navigation/native';
 
-type Props =
-  | OwnerDashboardScreenProps<'ChooseBusinessType'>
-  | OwnerSettingsScreenProps<'ChooseBusinessType'>;
+type ChooseBusinessTypeParams = {
+  ChooseBusinessType: undefined;
+  ManageSalon: { gender_serve: SalonGenderServe } | undefined;
+};
+
+type Props = {
+  navigation: NavigationProp<ChooseBusinessTypeParams, 'ChooseBusinessType'>;
+};
 
 const ICON_MAP = {
   cut: 'cut-outline' as const,
@@ -128,7 +130,7 @@ const createStyles = (theme: Theme) =>
       borderRadius: borderRadius.lg,
       borderWidth: 2,
       borderColor: theme.colors.border,
-      backgroundColor: theme.colors.card,
+      backgroundColor: theme.colors.surface,
       gap: spacing.md,
     },
     cardActive: {

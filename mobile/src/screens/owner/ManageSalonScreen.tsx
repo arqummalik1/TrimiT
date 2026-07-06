@@ -25,7 +25,7 @@ import { Salon } from '../../types';
 import { getUserFacingMessage } from '../../lib/userFacingError';
 import { salonRepository } from '../../repositories/salonRepository';
 import { queryKeys } from '../../lib/queryKeys';
-import { navigateOwnerToServices, resetOwnerDashboardToMain } from '../../lib/ownerNavigation';
+import { navigateOwnerToChooseBusinessType, navigateOwnerToServices, resetOwnerDashboardToMain } from '../../lib/ownerNavigation';
 import { useOwnerOnboardingStore } from '../../store/ownerOnboardingStore';
 import { uploadServiceImage } from '../../services/uploadService';
 import { normalizeSalon } from '../../lib/salonImage';
@@ -99,7 +99,9 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     if (salon) return;
     const picked = route.params?.gender_serve;
     if (!picked) {
-      navigation.replace('ChooseBusinessType');
+      if (!navigateOwnerToChooseBusinessType(navigation)) {
+        (navigation as OwnerDashboardScreenProps<'ManageSalon'>['navigation']).replace('ChooseBusinessType');
+      }
       return;
     }
     setFormData((prev) => ({ ...prev, gender_serve: picked }));

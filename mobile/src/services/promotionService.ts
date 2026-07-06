@@ -27,7 +27,7 @@ export interface CampaignGrant {
 
 function mapPromotion(row: Record<string, unknown>): Promotion {
   return {
-    ...(row as Promotion),
+    ...(row as unknown as Promotion),
     max_uses: (row.usage_limit as number | null) ?? null,
     used_count: (row.used_count as number) ?? 0,
   };
