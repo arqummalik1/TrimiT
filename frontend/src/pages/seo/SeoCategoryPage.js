@@ -8,12 +8,37 @@ import { usePublicSalons } from '../../hooks/usePublicSalons';
 import FaqSection from '../../components/landing/sections/FaqSection';
 import { explorePath } from '../../config/jammu';
 import StickyMobileCta from '../../components/landing/StickyMobileCta';
+import { HOMEPAGE_FAQ } from '../../config/faq';
+
+function pageFaq(page) {
+  if (page.faq?.length) return page.faq;
+  if (page.faqIndexStart != null && page.faqIndexEnd != null) {
+    return HOMEPAGE_FAQ.slice(page.faqIndexStart, page.faqIndexEnd);
+  }
+  return [];
+}
+
+function browseCtaLabel(page) {
+  if (page.genderServe === 'women') return 'Browse beauty parlours';
+  if (page.genderServe === 'men') return "Browse men's salons";
+  if (page.path?.includes('booking')) return 'Book online now';
+  if (page.path?.includes('near-me')) return 'Find parlours near me';
+  return 'Browse salons & parlours';
+}
+
+function listingsHeading(page) {
+  if (page.genderServe === 'women') return 'Beauty parlours on TrimiT';
+  if (page.genderServe === 'men') return "Men's salons on TrimiT";
+  return 'Salons & parlours on TrimiT';
+}
 
 export default function SeoCategoryPage() {
   const { pathname } = useLocation();
   const page = getSeoPageByPath(pathname);
+  const faqItems = page ? pageFaq(page) : [];
   const { data: salons, isLoading } = usePublicSalons({
     search: page?.exploreQuery || '',
+    gender_serve: page?.genderServe,
     limit: 6,
   });
 
@@ -41,10 +66,10 @@ export default function SeoCategoryPage() {
             </h1>
             <p className="text-stone-600 text-lg max-w-3xl leading-relaxed mb-6">{page.intro}</p>
             <Link
-              to={explorePath({ q: page.exploreQuery })}
+              to={explorePath({ q: page.exploreQuery, gender_serve: page.genderServe })}
               className="btn-primary inline-flex items-center gap-2"
             >
-              Browse all salons
+              {browseCtaLabel(page)}
               <ArrowRight size={18} weight="bold" />
             </Link>
           </motion.div>
@@ -65,7 +90,9 @@ export default function SeoCategoryPage() {
       </section>
 
       <section className="py-12 px-4 max-w-6xl mx-auto">
-        <h2 className="font-heading text-2xl font-bold text-stone-900 mb-6">Available salons</h2>
+        <h2 className="font-heading text-2xl font-bold text-stone-900 mb-6">
+          {listingsHeading(page)}
+        </h2>
         {isLoading ? (
           <motion.div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
@@ -88,7 +115,7 @@ export default function SeoCategoryPage() {
         )}
       </section>
 
-      {page.faq?.length > 0 && <FaqSection items={page.faq} title={`${page.h1} — FAQ`} />}
+      {faqItems.length > 0 && <FaqSection items={faqItems} title={`${page.h1} — FAQ`} />}
       <StickyMobileCta />
     </>
   );

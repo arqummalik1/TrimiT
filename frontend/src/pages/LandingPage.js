@@ -57,7 +57,7 @@ const LandingPage = () => (
     <OwnerGrowthSection />
     <SocialProofSection />
     <AppDownloadSection />
-    <FaqSection />
+    <FaqSection title="Salons, beauty parlours & booking in Jammu — FAQs" />
     <SeoContentSection />
     <BlogPreviewSection />
     <FinalCtaSection />

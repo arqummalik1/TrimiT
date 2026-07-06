@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { transform } from 'esbuild';
+import seoData from './src/config/seo-data.json';
 
 /** CRA used .js for JSX — pre-transform for Vite import analysis */
 function jsxInJs() {
@@ -21,27 +22,7 @@ function jsxInJs() {
 }
 
 /** Marketing routes pre-rendered to static HTML for SEO (post-build). */
-export const PRERENDER_ROUTES = [
-  '/',
-  '/explore',
-  '/for-salons',
-  '/blog',
-  '/salons-in-jammu',
-  '/best-haircut-in-jammu',
-  '/beard-trimming-jammu',
-  '/spa-services-jammu',
-  '/beauty-parlours-jammu',
-  '/mens-salon-jammu',
-  '/bridal-makeup-jammu',
-  '/blog/best-salon-booking-tips-jammu',
-  '/blog/mens-grooming-guide-jammu',
-  '/blog/spa-wellness-jammu',
-  '/signup',
-  '/login',
-  '/contact',
-  '/privacy',
-  '/terms',
-];
+export const PRERENDER_ROUTES = seoData.STATIC_ROUTES.map((r) => r.path);
 
 export default defineConfig({
   plugins: [jsxInJs(), react()],

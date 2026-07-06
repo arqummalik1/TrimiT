@@ -117,19 +117,23 @@ ${routes
 </urlset>
 `;
 
+  const seoAllowPaths = staticRoutes
+    .map((r) => r.path)
+    .filter(
+      (p) =>
+        p !== '/' &&
+        !p.startsWith('/login') &&
+        !p.startsWith('/signup') &&
+        !p.startsWith('/privacy') &&
+        !p.startsWith('/terms') &&
+        !p.startsWith('/contact') &&
+        !p.startsWith('/help/')
+    );
+
   const robots = `# TrimiT (${siteUrl})
 User-agent: *
 Allow: /
-Allow: /explore
-Allow: /for-salons
-Allow: /blog
-Allow: /salons-in-jammu
-Allow: /best-haircut-in-jammu
-Allow: /beard-trimming-jammu
-Allow: /spa-services-jammu
-Allow: /beauty-parlours-jammu
-Allow: /mens-salon-jammu
-Allow: /bridal-makeup-jammu
+${seoAllowPaths.map((p) => `Allow: ${p}`).join('\n')}
 Allow: /salon/
 Disallow: /discover
 Disallow: /booking/

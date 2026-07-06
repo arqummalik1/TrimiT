@@ -33,7 +33,7 @@ BLOG_POSTS.forEach((post) => {
   SEO_BY_PATH[`/blog/${post.slug}`] = {
     title: `${post.title} | TrimiT Blog`,
     description: post.excerpt,
-    keywords: 'salon booking Jammu, TrimiT blog',
+    keywords: post.seoKeywords || 'salon booking Jammu, TrimiT blog',
   };
 });
 

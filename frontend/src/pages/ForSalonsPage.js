@@ -10,16 +10,20 @@ import { PROMO, isOfferActive } from '../config/promotions';
 
 const OWNER_FAQ = [
   {
-    q: 'Is it free to list my business on TrimiT?',
-    a: 'Yes — salon, beauty parlour, and unisex studio owners can create a profile and list services for free. Start receiving online bookings through your dashboard.',
+    q: 'Is it free to list my salon or beauty parlour on TrimiT?',
+    a: "Yes — men's salon, beauty parlour, and unisex studio owners can create a profile and list services for free. Start receiving online bookings through your dashboard.",
+  },
+  {
+    q: "Can I list a men's salon, beauty parlour, or unisex studio?",
+    a: "Yes. When you sign up, choose your business type — men's salon for gents grooming, beauty parlour for women's services, or unisex for both. Your listing copy and customer badges match your type.",
   },
   {
     q: 'What can I manage in the owner dashboard?',
-    a: 'Bookings, services, your business profile, schedules, and customer notifications — all in one place.',
+    a: "Bookings, services, your business profile, schedules, and customer notifications — whether you run a men's salon, beauty parlour, or unisex studio.",
   },
   {
-    q: 'How do customers find my business?',
-    a: 'Customers searching for salons, beauty parlours, and grooming services in Jammu & Kashmir discover your profile on TrimiT and book available slots.',
+    q: 'How do customers find my salon or parlour?',
+    a: "Customers searching for men's salons, beauty parlours, parlour near me, and salon booking in Jammu discover your profile on TrimiT and book available slots.",
   },
 ];
 
@@ -159,7 +163,7 @@ export default function ForSalonsPage() {
         </div>
       </section>
 
-      <FaqSection items={OWNER_FAQ} title="Questions from salon owners" />
+      <FaqSection items={OWNER_FAQ} title="Questions from salon & parlour owners" />
 
       <section className="py-16 px-4 bg-orange-800 text-center">
         <h2 className="font-heading text-3xl font-bold text-white mb-6">

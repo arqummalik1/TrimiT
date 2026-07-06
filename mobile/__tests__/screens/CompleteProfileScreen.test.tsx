@@ -158,6 +158,7 @@ describe('CompleteProfileScreen', () => {
     renderScreen(route);
 
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Cathy Cust');
+    fireEvent.changeText(screen.getByPlaceholderText('98765 43210'), '9876543210');
     fireEvent.press(screen.getByTestId('profile-gender-female'));
     fireEvent.press(screen.getByText(/I agree to the/));
 
@@ -168,7 +169,7 @@ describe('CompleteProfileScreen', () => {
     await waitFor(() => {
       expect(mockCompleteProfile).toHaveBeenCalledWith({
         name: 'Cathy Cust',
-        phone: undefined,
+        phone: '+919876543210',
         role: 'customer',
         upi_id: undefined,
         gender: 'female',

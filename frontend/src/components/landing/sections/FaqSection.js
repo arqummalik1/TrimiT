@@ -37,7 +37,10 @@ function FaqItem({ q, a, index }) {
   );
 }
 
-export default function FaqSection({ items = HOMEPAGE_FAQ, title = 'Salon booking in Jammu — FAQs' }) {
+export default function FaqSection({
+  items = HOMEPAGE_FAQ,
+  title = "Salon & beauty parlour booking in Jammu — FAQs",
+}) {
   return (
     <section className="py-16 sm:py-20 px-4 bg-white" aria-labelledby="faq-heading">
       <div className="max-w-3xl mx-auto">

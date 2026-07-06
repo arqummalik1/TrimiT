@@ -27,10 +27,19 @@ export default function LocalSeoSections() {
               <p className="text-stone-600 leading-relaxed mb-6">{block.description}</p>
               <motion.div className="flex flex-wrap gap-3">
                 <Link
-                  to={explorePath({ q: block.exploreQuery })}
+                  to={explorePath({ q: block.exploreQuery, gender_serve: block.genderServe })}
                   className="btn-primary inline-flex items-center gap-2 text-sm"
                 >
-                  Browse {block.id === 'women' ? 'beauty parlours' : block.id === 'mens' ? "men's salons" : 'businesses'}
+                  Browse{' '}
+                  {block.genderServe === 'women'
+                    ? 'beauty parlours'
+                    : block.genderServe === 'men'
+                      ? "men's salons"
+                      : block.id === 'women'
+                        ? 'beauty parlours'
+                        : block.id === 'mens'
+                          ? "men's salons"
+                          : 'salons & parlours'}
                   <ArrowRight size={16} weight="bold" />
                 </Link>
                 <Link

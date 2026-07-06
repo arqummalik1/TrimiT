@@ -31,7 +31,7 @@ describe('promotionService', () => {
     const result = await promotionService.getOwnerPromotions();
 
     expect(mockedApi.get).toHaveBeenCalledWith('/promotions/owner');
-    expect(result).toEqual([{ id: 'p1' }]);
+    expect(result).toEqual([{ id: 'p1', max_uses: null, used_count: 0 }]);
   });
 
   it('createPromotion POSTs /promotions/ with the payload', async () => {
@@ -48,7 +48,7 @@ describe('promotionService', () => {
       discount_type: 'percentage',
       discount_value: 10,
     });
-    expect(result).toEqual({ id: 'p2' });
+    expect(result).toEqual({ id: 'p2', max_uses: null, used_count: 0 });
   });
 
   it('updatePromotion PATCHes /promotions/:id', async () => {
@@ -57,7 +57,7 @@ describe('promotionService', () => {
     const result = await promotionService.updatePromotion('p1', { active: false });
 
     expect(mockedApi.patch).toHaveBeenCalledWith('/promotions/p1', { active: false });
-    expect(result).toEqual({ id: 'p1', active: false });
+    expect(result).toEqual({ id: 'p1', active: false, max_uses: null, used_count: 0 });
   });
 
   it('deletePromotion DELETEs /promotions/:id and resolves void', async () => {

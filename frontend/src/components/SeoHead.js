@@ -171,8 +171,31 @@ export default function SeoHead() {
     }
 
     const seoPage = getSeoPageByPath(pathname);
-    if (seoPage?.faq?.length) {
-      injectJsonLd('trimit-jsonld-faq', faqSchema(seoPage.faq));
+    if (seoPage) {
+      const pageFaq =
+        seoPage.faq?.length > 0
+          ? seoPage.faq
+          : seoPage.faqIndexStart != null && seoPage.faqIndexEnd != null
+            ? HOMEPAGE_FAQ.slice(seoPage.faqIndexStart, seoPage.faqIndexEnd)
+            : [];
+      if (pageFaq.length) {
+        injectJsonLd('trimit-jsonld-faq', faqSchema(pageFaq));
+      }
+      injectJsonLd('trimit-jsonld-local', {
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        name: seoPage.h1,
+        description: seoPage.description || seo.description,
+        url: canonical,
+        inLanguage: 'en-IN',
+        isPartOf: { '@type': 'WebSite', name: 'TrimiT', url: `${PUBLIC_SITE_URL}/` },
+        about: {
+          '@type': 'Service',
+          name: seoPage.h1,
+          areaServed: { '@type': 'City', name: JAMMU_CITY.label },
+          provider: { '@type': 'Organization', name: 'TrimiT' },
+        },
+      });
     }
 
     const blogSlug = pathname.startsWith('/blog/') ? pathname.replace('/blog/', '') : null;

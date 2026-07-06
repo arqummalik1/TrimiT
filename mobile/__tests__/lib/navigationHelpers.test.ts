@@ -56,23 +56,40 @@ describe('navigateToCustomerBookings', () => {
 });
 
 describe('navigateToOwnerBookings', () => {
-  it('navigates via parent when available', () => {
+  it('dispatches Bookings via parent tab navigator when available', () => {
     const nav = createMockNavigation();
-    const parentNav = { navigate: jest.fn() } as any;
+    const parentNav = { dispatch: jest.fn(), navigate: jest.fn() } as any;
     nav.getParent.mockReturnValue(parentNav);
 
     navigateToOwnerBookings(nav as any);
-    expect(parentNav.navigate).toHaveBeenCalledWith('Bookings');
+    expect(parentNav.dispatch).toHaveBeenCalledWith(
+      CommonActions.navigate({
+        name: 'Bookings',
+        params: undefined,
+      })
+    );
   });
 
-  it('dispatches CommonActions when no parent available', () => {
+  it('dispatches Bookings on the current navigator when no parent', () => {
     const nav = createMockNavigation();
 
     navigateToOwnerBookings(nav as any);
     expect(nav.dispatch).toHaveBeenCalledWith(
       CommonActions.navigate({
-        name: 'OwnerTabs',
-        params: { screen: 'Bookings' },
+        name: 'Bookings',
+        params: undefined,
+      })
+    );
+  });
+
+  it('passes highlightBookingId when provided', () => {
+    const nav = createMockNavigation();
+
+    navigateToOwnerBookings(nav as any, { highlightBookingId: 'b-123' });
+    expect(nav.dispatch).toHaveBeenCalledWith(
+      CommonActions.navigate({
+        name: 'Bookings',
+        params: { highlightBookingId: 'b-123' },
       })
     );
   });

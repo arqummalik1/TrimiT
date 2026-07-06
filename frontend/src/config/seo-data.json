@@ -1,69 +1,306 @@
 {
   "DEFAULT_SEO": {
-    "title": "TrimiT — Book Salons & Saloons in Jammu | Haircut, Beard, Spa",
-    "description": "Book premium salons & hair saloons in Jammu online. Haircuts, beard grooming, spa, and beauty parlour appointments with live slots and instant confirmation. List your salon/saloon free on TrimiT.",
-    "keywords": "salon booking Jammu, saloon booking Jammu, best salons in Jammu, best saloons in Jammu, haircut Jammu, beard grooming Jammu, spa Jammu, saloon near me Jammu, salon near me Jammu, beauty parlour Jammu, TrimiT, trim it"
+    "title": "TrimiT — Book Salons & Beauty Parlours in Jammu | Near Me",
+    "description": "Book men's salons, beauty parlours & unisex studios in Jammu online. Parlour near me, salon booking, live slots & instant confirmation. Best saloons & beauty parlours in Jammu & Kashmir on TrimiT.",
+    "keywords": "beauty parlour near me Jammu, parlour near me Jammu, salon near me Jammu, saloon near me Jammu, best beauty parlours Jammu, best parlours Jammu, best saloons Jammu, salon booking Jammu, saloon booking Jammu, parlour booking Jammu, beauty parlour booking Jammu, men's salon Jammu, unisex salon Jammu, TrimiT"
   },
   "HOMEPAGE_FAQ": [
     {
-      "q": "How do I book a salon or saloon appointment in Jammu on TrimiT?",
-      "a": "Search for a service, salon, or saloon on TrimiT, pick an available time slot, and confirm your booking. You can browse salons and saloons in Jammu without an account; sign up when you are ready to book."
+      "q": "How do I find a beauty parlour near me in Jammu?",
+      "a": "Open TrimiT Explore, allow location, and filter by beauty parlours. Compare women's parlours by rating, services like facial and threading, and live slots — then book online without calling."
     },
     {
-      "q": "Is TrimiT available for salon/saloon booking near me in Jammu?",
-      "a": "Yes. TrimiT lists salons and saloons across Jammu with distance sorting when you allow location, or defaults to central Jammu so you can find premium saloons near you in Jammu quickly."
+      "q": "How do I find a men's salon or saloon near me in Jammu?",
+      "a": "On TrimiT, browse men's salons and gents saloons sorted by distance. Filter for haircuts, beard grooming, or men's packages and book a live slot in minutes."
     },
     {
-      "q": "Can I pay at the salon or saloon?",
-      "a": "Many partner salons and saloons support pay-at-salon/cash-at-salon. Service prices are shown before you book so you know what to expect."
+      "q": "Can I book salon and beauty parlour appointments online in Jammu?",
+      "a": "Yes. TrimiT supports salon booking for men's grooming and beauty parlour booking for women's services — live availability, instant confirmation, and pay-at-venue on many listings."
     },
     {
-      "q": "How do salon/saloon owners list on TrimiT?",
-      "a": "Salon and saloon owners can list for free by signing up as an owner, creating a salon profile, and adding services. You will receive online bookings through your owner dashboard."
+      "q": "What is the difference between a salon and a beauty parlour on TrimiT?",
+      "a": "Men's salons and gents saloons focus on haircuts, beard care, and grooming. Women's beauty parlours offer facials, threading, waxing, hair styling, and bridal packages. Unisex studios serve both."
     },
     {
-      "q": "What services can I book in Jammu?",
-      "a": "Haircuts, beard grooming, spa and wellness, facials, bridal makeup, beauty parlour, and beauty saloon services — all bookable through TrimiT in Jammu."
+      "q": "What is the best beauty parlour in Jammu?",
+      "a": "The best parlour depends on your service — facial, threading, bridal makeup, or hair. TrimiT shows ratings, reviews, and starting prices so you can compare top women's beauty parlours in Jammu."
     },
     {
-      "q": "Do I need the Android app to book a saloon slot?",
-      "a": "You can explore salons and saloons on the web. For the best booking experience and notifications, download the TrimiT Android app."
+      "q": "What is the best men's saloon or salon in Jammu?",
+      "a": "For haircuts and beard grooming, sort men's salons and gents saloons by rating on TrimiT. Real customer reviews help you pick the best saloon in Jammu for your style and budget."
     },
     {
-      "q": "Are salon and saloon listings verified?",
-      "a": "Salons and saloons on TrimiT are real businesses with profiles managed by owners. Customer reviews help you choose trusted professionals."
+      "q": "Does TrimiT list unisex salons in Jammu?",
+      "a": "Yes. Unisex salons and studios on TrimiT offer haircuts, facials, and grooming for men and women under one roof — book with live slots online."
     },
     {
-      "q": "Can I cancel or reschedule a booking?",
-      "a": "After signing in, manage your saloon/salon bookings from My Bookings. Cancellation policies may vary by salon."
+      "q": "What women's services can I book at beauty parlours?",
+      "a": "Facials, threading, waxing, hair styling, manicure, pedicure, bridal makeup, and full beauty packages — all bookable at women's parlours in Jammu on TrimiT."
+    },
+    {
+      "q": "What men's services can I book at salons and saloons?",
+      "a": "Haircuts, fades, beard trimming, hot-towel shave, hair colour, and men's grooming packages — book at men's salons and gents saloons in Jammu on TrimiT."
+    },
+    {
+      "q": "How do salon and beauty parlour owners list on TrimiT?",
+      "a": "Sign up as a business owner, choose men's salon, beauty parlour, or unisex studio, create your profile, and add services. Listing is free during our launch offer."
+    },
+    {
+      "q": "Do I need the Android app to book a salon or parlour?",
+      "a": "You can explore and book on trimit.online. The Android app adds appointment reminders and the best experience for owners managing bookings."
+    },
+    {
+      "q": "Are salon and parlour listings on TrimiT verified?",
+      "a": "Every listing is a real men's salon, women's beauty parlour, or unisex studio managed by the owner. Customer ratings help you choose trusted professionals in Jammu."
     }
   ],
   "SEO_PAGES": [
     {
+      "path": "/salon-near-me-jammu",
+      "title": "Salon Near Me Jammu | Men's & Unisex — TrimiT",
+      "description": "Find a salon or saloon near me in Jammu. Men's haircuts, grooming & unisex studios — book live slots online on TrimiT.",
+      "keywords": "salon near me Jammu, saloon near me Jammu, men's salon near me Jammu, gents saloon near me, haircut near me Jammu",
+      "h1": "Salon & saloon near me in Jammu",
+      "intro": "Need a salon near you in Jammu? TrimiT lists men's salons, gents saloons, and unisex studios across Jammu & Kashmir — sorted by distance when you share location. Book haircuts and grooming online without calling.",
+      "exploreQuery": "salon",
+      "faq": [
+        {
+          "q": "How do I find the nearest men's salon in Jammu?",
+          "a": "Use TrimiT Explore with location enabled. Men's salons and gents saloons are sorted by distance so you find a salon near me quickly."
+        },
+        {
+          "q": "Can I book a men's haircut online in Jammu?",
+          "a": "Yes — browse men's salons, pick a live slot, and confirm your haircut or grooming appointment in minutes on TrimiT."
+        },
+        {
+          "q": "What men's services are available at salons near me?",
+          "a": "Haircuts, beard trimming, hot-towel shave, hair colour, and men's grooming packages at gents saloons across Jammu."
+        },
+        {
+          "q": "Are there women's beauty parlours on TrimiT too?",
+          "a": "Yes. TrimiT also lists women's beauty parlours for facials, threading, waxing, and bridal — filter by business type on Explore."
+        }
+      ],
+      "relatedPaths": ["/salon-booking-jammu", "/mens-salon-jammu", "/best-saloons-jammu"]
+    },
+    {
+      "path": "/beauty-parlour-near-me-jammu",
+      "title": "Beauty Parlour Near Me Jammu | Book Online — TrimiT",
+      "description": "Find a beauty parlour near me in Jammu. Compare women's parlours, facials, threading & hair — book live slots online on TrimiT.",
+      "keywords": "beauty parlour near me Jammu, parlour near me Jammu, beauty parlor near me Jammu, women's parlour near me, facial near me Jammu, beauty parlour Jammu",
+      "h1": "Beauty parlour near me in Jammu",
+      "intro": "Looking for a beauty parlour near you in Jammu? TrimiT lists women's beauty parlours across Gandhinagar, Trikuta Nagar, and all major areas — with live slots, ratings, and online parlour booking. No phone calls, no waiting.",
+      "exploreQuery": "beauty parlour",
+      "genderServe": "women",
+      "faq": [
+        {
+          "q": "How do I find the nearest beauty parlour in Jammu?",
+          "a": "Use TrimiT Explore, allow location, and filter beauty parlours. Listings are sorted by distance so you find a parlour near me quickly."
+        },
+        {
+          "q": "Can I book a parlour slot for today?",
+          "a": "Yes — check live availability on each women's parlour profile and confirm your facial, threading, or hair appointment in minutes."
+        },
+        {
+          "q": "What services do women's beauty parlours offer in Jammu?",
+          "a": "Facials, threading, waxing, hair styling, manicure, pedicure, bridal makeup, and full beauty packages — bookable online on TrimiT."
+        },
+        {
+          "q": "Can men book at a beauty parlour on TrimiT?",
+          "a": "Beauty parlours on TrimiT are women's businesses. Men can book at men's salons, gents saloons, or unisex studios on the same platform."
+        }
+      ],
+      "relatedPaths": ["/best-beauty-parlours-jammu", "/parlour-booking-jammu", "/beauty-parlours-jammu"]
+    },
+    {
+      "path": "/best-beauty-parlours-jammu",
+      "title": "Best Beauty Parlours in Jammu | Top Rated — TrimiT",
+      "description": "Discover the best beauty parlours in Jammu. Compare top-rated women's parlours for facial, hair, threading & bridal — book online.",
+      "keywords": "best beauty parlours Jammu, best parlours Jammu, top beauty parlour Jammu, best women's salon Jammu, best facial Jammu",
+      "h1": "Best beauty parlours in Jammu",
+      "intro": "Compare the best beauty parlours in Jammu by rating, reviews, and service menu. TrimiT helps you book top women's parlours for facials, hair styling, threading, waxing, and bridal packages — all online.",
+      "exploreQuery": "beauty parlour",
+      "genderServe": "women",
+      "faq": [
+        {
+          "q": "Which is the best beauty parlour in Jammu?",
+          "a": "Rankings change by service and neighbourhood. Use TrimiT ratings and reviews to pick the best women's parlour for facials, threading, or bridal."
+        },
+        {
+          "q": "How are beauty parlours rated on TrimiT?",
+          "a": "Ratings come from real customers who booked and visited. Sort parlours by rating to find the best beauty parlours in Jammu."
+        },
+        {
+          "q": "Can I compare parlour prices before booking?",
+          "a": "Yes — each beauty parlour profile shows starting prices for facials, waxing, hair, and packages before you confirm."
+        },
+        {
+          "q": "Where can men book grooming in Jammu?",
+          "a": "Men's salons and gents saloons are listed separately on TrimiT — browse men's grooming for haircuts and beard care."
+        }
+      ],
+      "relatedPaths": ["/beauty-parlour-near-me-jammu", "/bridal-makeup-jammu", "/beauty-parlours-jammu"]
+    },
+    {
+      "path": "/parlour-booking-jammu",
+      "title": "Parlour Booking Jammu | Book Beauty Parlour Online — TrimiT",
+      "description": "Beauty parlour booking in Jammu made easy. Book women's parlours online with live slots, instant confirmation & pay at parlour.",
+      "keywords": "parlour booking Jammu, beauty parlour booking Jammu, parlor booking Jammu, book parlour online Jammu, women's parlour booking",
+      "h1": "Beauty parlour booking in Jammu",
+      "intro": "Skip the phone calls — book your beauty parlour appointment in Jammu online. TrimiT shows live slots at women's parlours across Jammu & Kashmir so you can reserve facial, hair, or full beauty packages in under a minute.",
+      "exploreQuery": "beauty parlour",
+      "genderServe": "women",
+      "faq": [
+        {
+          "q": "How does beauty parlour booking work on TrimiT?",
+          "a": "Choose a women's parlour, pick a service, select a live slot, and confirm. You receive instant booking confirmation — no phone call needed."
+        },
+        {
+          "q": "Is parlour booking in Jammu free for customers?",
+          "a": "Yes. Browsing and booking beauty parlours on TrimiT is free. Pay at the parlour after your service unless online payment is offered."
+        },
+        {
+          "q": "Can I book bridal packages at parlours online?",
+          "a": "Yes — many beauty parlours in Jammu list bridal makeup and pre-wedding packages with bookable slots on TrimiT."
+        },
+        {
+          "q": "Can I also book a men's salon on TrimiT?",
+          "a": "Absolutely. TrimiT covers men's salons, beauty parlours, and unisex studios — use salon booking for gents grooming or Explore to filter by type."
+        }
+      ],
+      "relatedPaths": ["/beauty-parlour-near-me-jammu", "/salon-booking-jammu", "/best-beauty-parlours-jammu"]
+    },
+    {
+      "path": "/salon-booking-jammu",
+      "title": "Salon Booking Jammu | Book Saloon Online — TrimiT",
+      "description": "Salon & saloon booking in Jammu — men's haircuts, beard grooming, women's services. Live slots, instant confirmation on TrimiT.",
+      "keywords": "salon booking Jammu, saloon booking Jammu, book salon online Jammu, book saloon Jammu, salon appointment Jammu, online salon booking Jammu",
+      "h1": "Salon & saloon booking in Jammu",
+      "intro": "TrimiT is Jammu's online salon booking platform for men's salons, beauty parlours, and unisex studios. Search by service, pick a live slot, and confirm your appointment — salon booking in Jammu without the hassle.",
+      "exploreQuery": "",
+      "faq": [
+        {
+          "q": "Is online salon booking free for customers?",
+          "a": "Yes. Browsing and booking on TrimiT is free for customers. You pay at the salon or parlour unless online payment is offered."
+        },
+        {
+          "q": "Can I book a men's salon and a beauty parlour on the same app?",
+          "a": "Yes. TrimiT is one platform for men's salons, women's beauty parlours, and unisex studios — filter by business type on Explore."
+        },
+        {
+          "q": "What is the difference between salon booking and parlour booking?",
+          "a": "Salon booking typically covers men's haircuts and grooming at gents saloons. Parlour booking covers women's beauty services like facial, threading, and bridal at beauty parlours."
+        },
+        {
+          "q": "Do I get instant confirmation for salon appointments?",
+          "a": "Yes — live slots update in real time. When you book a men's salon or parlour slot, confirmation is instant on TrimiT."
+        }
+      ],
+      "relatedPaths": ["/salons-in-jammu", "/best-saloons-jammu", "/mens-salon-jammu"]
+    },
+    {
+      "path": "/best-saloons-jammu",
+      "title": "Best Saloons in Jammu | Top Salons — TrimiT",
+      "description": "Find the best saloons & salons in Jammu. Men's grooming, haircuts, beard & women's beauty — compare ratings and book online.",
+      "keywords": "best saloons Jammu, best salons Jammu, top saloon Jammu, best gents saloon Jammu, best hair saloon Jammu",
+      "h1": "Best saloons & salons in Jammu",
+      "intro": "Whether you want a gents saloon for a sharp haircut or a premium salon for grooming packages, TrimiT ranks the best saloons in Jammu by real customer reviews. Book the best salon near you online.",
+      "exploreQuery": "salon",
+      "faq": [
+        {
+          "q": "How do I find the best saloon in Jammu for men?",
+          "a": "Filter men's salons on TrimiT and sort by rating. Gents saloons with strong reviews for haircuts and beard grooming rank highest."
+        },
+        {
+          "q": "Are women's beauty parlours included in best saloons?",
+          "a": "TrimiT lists both separately — best saloons for men's grooming and best beauty parlours for women's services each have dedicated pages."
+        },
+        {
+          "q": "Can I book the best saloon near me online?",
+          "a": "Yes — top-rated salons and saloons in Jammu show live slots. Book online without visiting or calling first."
+        }
+      ],
+      "relatedPaths": ["/salon-booking-jammu", "/mens-salon-jammu", "/best-haircut-in-jammu"]
+    },
+    {
+      "path": "/unisex-salons-jammu",
+      "title": "Unisex Salons Jammu | Book Online — TrimiT",
+      "description": "Unisex salons in Jammu for men & women. Haircuts, facials & grooming under one roof — book live slots on TrimiT.",
+      "keywords": "unisex salon Jammu, unisex parlour Jammu, family salon Jammu, men and women salon Jammu",
+      "h1": "Unisex salons in Jammu",
+      "intro": "One studio, services for everyone. Browse unisex salons in Jammu on TrimiT — book haircuts, facials, and grooming for men and women with live availability.",
+      "exploreQuery": "unisex",
+      "faq": [
+        {
+          "q": "What is a unisex salon on TrimiT?",
+          "a": "A unisex salon or studio serves both men and women — haircuts, facials, and grooming under one roof. Book either service type online."
+        },
+        {
+          "q": "Can couples book at a unisex salon in Jammu?",
+          "a": "Many unisex studios offer services for men and women. Check each listing for couple packages and book separate or combined slots."
+        },
+        {
+          "q": "How is a unisex salon different from a men's salon or beauty parlour?",
+          "a": "Men's salons focus on gents grooming. Beauty parlours focus on women's beauty. Unisex salons offer both in one business."
+        }
+      ],
+      "relatedPaths": ["/salons-in-jammu", "/mens-salon-jammu", "/beauty-parlours-jammu"]
+    },
+    {
       "path": "/salons-in-jammu",
       "title": "Salons & Saloons in Jammu | Book Online — TrimiT",
-      "description": "Browse salons and hair saloons in Jammu and book haircuts, grooming, spa, and beauty services online. Verified listings with live slots on TrimiT.",
-      "keywords": "salons in Jammu, saloons in Jammu, salon booking Jammu, saloon booking Jammu, best salons Jammu, best saloons Jammu, salon near me Jammu, saloon near me Jammu, TrimiT, trim it",
-      "h1": "Salons & Saloons in Jammu — book online",
-      "faqIndexStart": 0,
-      "faqIndexEnd": 5,
-      "relatedPaths": ["/best-haircut-in-jammu", "/beard-trimming-jammu", "/spa-services-jammu"]
+      "description": "Browse salons, beauty parlours & unisex studios in Jammu. Salon booking with live slots — men's grooming, women's beauty & more.",
+      "keywords": "salons in Jammu, saloons in Jammu, salon booking Jammu, saloon booking Jammu, salon near me Jammu, saloon near me Jammu, beauty parlour Jammu",
+      "h1": "Salons, beauty parlours & saloons in Jammu",
+      "intro": "TrimiT is the grooming marketplace for Jammu & Kashmir — men's salons, women's beauty parlours, and unisex studios in one place. Compare listings, read reviews, and book online.",
+      "faq": [
+        {
+          "q": "What types of businesses are listed in Jammu on TrimiT?",
+          "a": "Men's salons, gents saloons, women's beauty parlours, and unisex studios — all bookable online with live slots across Jammu & Kashmir."
+        },
+        {
+          "q": "How do I book a men's salon vs a beauty parlour?",
+          "a": "On Explore, filter by men's salon for haircuts and beard grooming, or beauty parlour for facials, threading, and women's packages."
+        },
+        {
+          "q": "Can I find salons and parlours near me in Jammu?",
+          "a": "Yes — enable location on TrimiT to sort men's salons and women's parlours by distance from you."
+        },
+        {
+          "q": "Is salon and parlour booking free on TrimiT?",
+          "a": "Booking is free for customers. You pay at the salon or parlour after your service unless the listing offers online payment."
+        },
+        {
+          "q": "How do owners list a salon or parlour?",
+          "a": "Sign up as a business owner, pick men's salon, beauty parlour, or unisex, add services, and start receiving online bookings."
+        }
+      ],
+      "relatedPaths": ["/salon-booking-jammu", "/beauty-parlour-near-me-jammu", "/best-saloons-jammu"]
     },
     {
       "path": "/best-haircut-in-jammu",
-      "title": "Best Haircut & Hair Saloon in Jammu | Book Salons — TrimiT",
+      "title": "Best Haircut & Hair Saloon in Jammu | Book Online — TrimiT",
       "description": "Find the best hair salons & saloons and haircuts in Jammu. Book men's and women's haircut appointments online with live availability.",
-      "keywords": "best haircut Jammu, hair salon Jammu, hair saloon Jammu, haircut near me Jammu, saloon near me Jammu, book haircut online, book saloon online",
+      "keywords": "best haircut Jammu, hair salon Jammu, hair saloon Jammu, haircut near me Jammu, saloon near me Jammu, book haircut online",
       "h1": "Best haircut & hair saloon in Jammu",
+      "intro": "From precision fades to layered cuts and bridal blowouts — find the best haircut in Jammu at top-rated hair saloons. Book online with live slots on TrimiT.",
       "exploreQuery": "haircut",
       "faq": [
         {
-          "q": "How much does a haircut cost in Jammu?",
-          "a": "Prices vary by salon and service. TrimiT shows starting prices on each salon profile before you book."
+          "q": "How much does a men's haircut cost in Jammu?",
+          "a": "Prices vary by gents saloon and style. TrimiT shows starting prices on each men's salon profile before you book."
+        },
+        {
+          "q": "Can women book a haircut at a beauty parlour?",
+          "a": "Yes — women's beauty parlours on TrimiT offer hair styling, cuts, and colour. Filter beauty parlours for women's haircut services."
         },
         {
           "q": "Can I book a same-day haircut in Jammu?",
-          "a": "Yes — check live slots on TrimiT for same-day availability at salons/saloons near you."
+          "a": "Yes — check live slots on TrimiT for same-day availability at men's salons, gents saloons, and beauty parlours near you."
+        },
+        {
+          "q": "Where do men book haircuts vs women?",
+          "a": "Men typically book at men's salons and gents saloons. Women can book hair services at beauty parlours or unisex salons on TrimiT."
         }
       ],
       "relatedPaths": ["/salons-in-jammu", "/mens-salon-jammu", "/beauty-parlours-jammu"]
@@ -72,77 +309,159 @@
       "path": "/beard-trimming-jammu",
       "title": "Beard Trimming Jammu | Men's Grooming Saloon — TrimiT",
       "description": "Book beard trimming and grooming in Jammu. Expert barbers and gents saloons with online slots and reviews.",
-      "keywords": "beard trimming Jammu, beard grooming Jammu, barber Jammu, saloon Jammu, gents saloon Jammu, men grooming Jammu",
+      "keywords": "beard trimming Jammu, beard grooming Jammu, barber Jammu, gents saloon Jammu, men grooming Jammu",
       "h1": "Beard trimming & grooming saloon in Jammu",
+      "intro": "Expert beard trimming, shaping, and hot-towel shaves at top gents saloons in Jammu. Book men's grooming online — no waiting.",
       "exploreQuery": "beard",
-      "faq": [],
+      "genderServe": "men",
+      "faq": [
+        {
+          "q": "Where can I get beard trimming in Jammu?",
+          "a": "Men's salons and gents saloons across Jammu offer beard trimming, shaping, and hot-towel shaves — book online on TrimiT."
+        },
+        {
+          "q": "Can I book beard grooming at a beauty parlour?",
+          "a": "Beard grooming is a men's service — book at men's salons or gents saloons on TrimiT. Women's beauty parlours focus on facials, threading, and hair."
+        },
+        {
+          "q": "How much does beard trimming cost in Jammu?",
+          "a": "Prices vary by salon. Each men's salon profile on TrimiT shows starting prices for beard trim and grooming packages."
+        }
+      ],
       "relatedPaths": ["/mens-salon-jammu", "/best-haircut-in-jammu"]
     },
     {
       "path": "/spa-services-jammu",
-      "title": "Spa Services Jammu | Book Spa & Massage Saloon — TrimiT",
-      "description": "Spa booking in Jammu — massages, wellness, and relaxation. Compare beauty salons & wellness saloons and book slots online.",
-      "keywords": "spa Jammu, spa booking Jammu, spa services Jammu, massage Jammu, wellness saloon Jammu",
+      "title": "Spa Services Jammu | Book Spa & Massage — TrimiT",
+      "description": "Spa booking in Jammu — massages, wellness, and relaxation. Compare salons & wellness centres and book slots online.",
+      "keywords": "spa Jammu, spa booking Jammu, spa services Jammu, massage Jammu, wellness salon Jammu",
       "h1": "Spa & wellness services in Jammu",
+      "intro": "Relax with spa booking in Jammu — head massages, body treatments, and couple packages at trusted wellness salons. Reserve your slot on TrimiT.",
       "exploreQuery": "spa",
-      "faq": [],
+      "faq": [
+        {
+          "q": "Can I book spa services for men and women in Jammu?",
+          "a": "Yes — spa and wellness listings on TrimiT include head massages and body treatments at salons, parlours, and wellness centres for men and women."
+        },
+        {
+          "q": "Is spa booking available at beauty parlours?",
+          "a": "Many women's beauty parlours offer facial and head spa packages. Men's salons may offer hair spa and grooming treatments — check each listing."
+        },
+        {
+          "q": "How do I book a spa appointment online in Jammu?",
+          "a": "Search spa on TrimiT Explore, pick a salon or parlour, choose a live slot, and confirm — instant booking confirmation."
+        }
+      ],
       "relatedPaths": ["/salons-in-jammu", "/beauty-parlours-jammu"]
     },
     {
       "path": "/beauty-parlours-jammu",
-      "title": "Beauty Parlours Jammu | Book Women Beauty Saloons — TrimiT",
-      "description": "Women's beauty parlours & beauty saloons in Jammu — facials, threading, waxing, and hair. Book online on TrimiT.",
-      "keywords": "beauty parlour Jammu, women salon Jammu, beauty saloon Jammu, facial Jammu, beauty services Jammu",
-      "h1": "Beauty parlours & women saloons in Jammu",
+      "title": "Beauty Parlours Jammu | Women's Parlour Booking — TrimiT",
+      "description": "Women's beauty parlours in Jammu — facials, threading, waxing, hair & bridal. Book beauty parlour online on TrimiT.",
+      "keywords": "beauty parlour Jammu, beauty parlor Jammu, women salon Jammu, women's parlour Jammu, facial Jammu, parlour booking Jammu",
+      "h1": "Beauty parlours in Jammu",
+      "intro": "Discover women's beauty parlours in Jammu for facials, threading, waxing, hair styling, and bridal services. Book beauty parlour appointments online with live slots.",
       "exploreQuery": "beauty parlour",
-      "faq": [],
-      "relatedPaths": ["/bridal-makeup-jammu", "/best-haircut-in-jammu"]
+      "genderServe": "women",
+      "faq": [
+        {
+          "q": "What services do women's beauty parlours in Jammu offer?",
+          "a": "Facials, threading, waxing, hair styling, manicure, pedicure, bridal makeup, and full beauty packages — all bookable online on TrimiT."
+        },
+        {
+          "q": "How is a beauty parlour different from a men's salon?",
+          "a": "Beauty parlours on TrimiT are women's businesses focused on beauty and grooming. Men's salons focus on haircuts, beard care, and gents grooming."
+        },
+        {
+          "q": "Can I book a beauty parlour near me in Jammu?",
+          "a": "Yes — enable location on TrimiT to find women's parlours sorted by distance, then book facial, threading, or hair slots online."
+        },
+        {
+          "q": "Are men's grooming services available on TrimiT too?",
+          "a": "Yes — browse men's salons and gents saloons separately for haircuts, beard trimming, and men's packages."
+        }
+      ],
+      "relatedPaths": ["/beauty-parlour-near-me-jammu", "/best-beauty-parlours-jammu", "/bridal-makeup-jammu"]
     },
     {
       "path": "/mens-salon-jammu",
-      "title": "Men's Salon & Gents Saloon Jammu | Grooming & Haircuts — TrimiT",
+      "title": "Men's Salon Jammu | Gents Saloon & Grooming — TrimiT",
       "description": "Men's salons & gents saloons in Jammu for haircuts, beard care, and grooming packages. Book online with TrimiT.",
-      "keywords": "men salon Jammu, gents saloon Jammu, mens grooming Jammu, barber shop Jammu, barber saloon Jammu",
+      "keywords": "men salon Jammu, men's salon Jammu, gents saloon Jammu, mens grooming Jammu, barber shop Jammu",
       "h1": "Men's salon & gents saloon in Jammu",
+      "intro": "Modern men's salons and barber saloons in Jammu for haircuts, beard care, and grooming packages. Book men's salon appointments online — sorted by distance and rating.",
       "exploreQuery": "men salon",
-      "faq": [],
-      "relatedPaths": ["/beard-trimming-jammu", "/best-haircut-in-jammu"]
+      "genderServe": "men",
+      "faq": [
+        {
+          "q": "What services do men's salons in Jammu offer?",
+          "a": "Haircuts, fades, beard trimming, hot-towel shave, hair colour, and men's grooming packages at gents saloons across Jammu."
+        },
+        {
+          "q": "How do I book a men's salon online?",
+          "a": "Browse men's salons on TrimiT, pick a service, select a live slot, and confirm — no phone call needed."
+        },
+        {
+          "q": "Can women book at a men's salon?",
+          "a": "Men's salons serve men's grooming. Women can book at beauty parlours or unisex salons on the same TrimiT platform."
+        },
+        {
+          "q": "What is the best gents saloon near me?",
+          "a": "Enable location on TrimiT, filter men's salons, and sort by rating to find the best gents saloon near you in Jammu."
+        }
+      ],
+      "relatedPaths": ["/beard-trimming-jammu", "/best-haircut-in-jammu", "/best-saloons-jammu"]
     },
     {
       "path": "/bridal-makeup-jammu",
-      "title": "Bridal Makeup Jammu | Book Bridal Salons & Artists — TrimiT",
-      "description": "Bridal makeup services in Jammu — book trials and wedding day makeup artists or premium salons/saloons online on TrimiT.",
-      "keywords": "bridal makeup Jammu, wedding makeup Jammu, bridal artist Jammu, bridal saloon Jammu",
+      "title": "Bridal Makeup Jammu | Book Bridal Salons — TrimiT",
+      "description": "Bridal makeup in Jammu — book trials and wedding day artists or premium beauty parlours online on TrimiT.",
+      "keywords": "bridal makeup Jammu, wedding makeup Jammu, bridal artist Jammu, bridal parlour Jammu",
       "h1": "Bridal makeup & styling in Jammu",
+      "intro": "Plan your wedding look with top bridal makeup artists and beauty parlours in Jammu. Browse portfolios, book trials, and reserve your wedding day slot on TrimiT.",
       "exploreQuery": "bridal makeup",
-      "faq": [],
+      "genderServe": "women",
+      "faq": [
+        {
+          "q": "Where can I book bridal makeup in Jammu?",
+          "a": "Women's beauty parlours and bridal artists on TrimiT list wedding makeup, trials, and pre-wedding packages with online booking."
+        },
+        {
+          "q": "Can I book a bridal makeup trial online?",
+          "a": "Yes — many parlours offer trial slots on TrimiT. Book a trial before your wedding day to finalise your look."
+        },
+        {
+          "q": "Is bridal makeup only at beauty parlours?",
+          "a": "Bridal makeup is primarily offered at women's beauty parlours and bridal studios on TrimiT — not at men's gents saloons."
+        }
+      ],
       "relatedPaths": ["/beauty-parlours-jammu", "/spa-services-jammu"]
     }
   ],
   "SEO_BY_PATH": {
     "/explore": {
-      "title": "Explore Salons & Saloons in Jammu | TrimiT",
-      "description": "Search and book premium salons and saloons in Jammu. Compare ratings, services, and live appointment slots on TrimiT.",
-      "keywords": "explore salons Jammu, explore saloons Jammu, salon near me Jammu, saloon near me Jammu, book salon Jammu, book saloon Jammu"
+      "title": "Explore Salons & Beauty Parlours in Jammu | TrimiT",
+      "description": "Search salons, beauty parlours & unisex studios in Jammu. Parlour near me, salon booking, live slots — book online on TrimiT.",
+      "keywords": "explore salons Jammu, beauty parlour near me, salon near me Jammu, parlour booking Jammu, book salon Jammu"
     },
     "/for-salons": {
-      "title": "List Your Salon & Saloon Free | TrimiT for Owners",
-      "description": "Take your salon or saloon online with TrimiT. Get more bookings, manage your calendar, and grow your business in Jammu.",
-      "keywords": "salon software India, list saloon online, list saloon online, salon booking system Jammu"
+      "title": "List Your Salon or Beauty Parlour Free | TrimiT for Owners",
+      "description": "Take your salon, beauty parlour, or unisex studio online in Jammu. Free listing, online bookings, owner dashboard on TrimiT.",
+      "keywords": "list salon online Jammu, list beauty parlour online, salon software India, parlour booking system Jammu"
     },
     "/blog": {
-      "title": "Salon & Saloon Booking Guides Jammu | TrimiT Blog",
-      "description": "Tips for booking salons, grooming, and spa services in Jammu.",
-      "keywords": "salon tips Jammu, saloon tips Jammu, grooming guide, TrimiT blog"
+      "title": "Salon & Parlour Booking Guides Jammu | TrimiT Blog",
+      "description": "Guides for salon booking, beauty parlour near me, and grooming in Jammu.",
+      "keywords": "salon tips Jammu, beauty parlour guide Jammu, grooming guide, TrimiT blog"
     },
     "/login": {
-      "title": "Sign In | TrimiT Salon Booking",
-      "description": "Sign in to your TrimiT account to manage salon bookings and appointments.",
+      "title": "Sign In | TrimiT Salon & Parlour Booking",
+      "description": "Sign in to your TrimiT account to manage salon and parlour bookings.",
       "keywords": "TrimiT login, salon booking sign in"
     },
     "/signup": {
-      "title": "Create Account | TrimiT Salon Booking",
-      "description": "Create a free TrimiT account to book salon services and manage your appointments.",
+      "title": "Create Account | TrimiT Salon & Parlour Booking",
+      "description": "Create a free TrimiT account to book salons and beauty parlours in Jammu.",
       "keywords": "TrimiT sign up, create salon booking account"
     },
     "/forgot-password": {
@@ -167,7 +486,7 @@
     },
     "/terms": {
       "title": "Terms of Service | TrimiT",
-      "description": "TrimiT terms of service for customers and salon owners.",
+      "description": "TrimiT terms of service for customers and business owners.",
       "keywords": "TrimiT terms of service, salon booking terms"
     },
     "/contact": {
@@ -177,8 +496,8 @@
     },
     "/help/payments": {
       "title": "Payments Help Center | TrimiT",
-      "description": "How payments work on TrimiT — pay online or at the salon, failed payments, refunds, fees, and how salon owners get paid directly to their bank.",
-      "keywords": "TrimiT payments, payment failed, refund, salon payout, commission, online payment safe"
+      "description": "How payments work on TrimiT — pay at salon/parlour, refunds, and owner payouts.",
+      "keywords": "TrimiT payments, payment failed, refund, salon payout"
     }
   },
   "STATIC_ROUTES": [
@@ -186,16 +505,25 @@
     { "path": "/explore", "changefreq": "daily", "priority": "0.95" },
     { "path": "/for-salons", "changefreq": "weekly", "priority": "0.9" },
     { "path": "/blog", "changefreq": "weekly", "priority": "0.7" },
-    { "path": "/salons-in-jammu", "changefreq": "weekly", "priority": "0.85" },
+    { "path": "/beauty-parlour-near-me-jammu", "changefreq": "weekly", "priority": "0.92" },
+    { "path": "/salon-near-me-jammu", "changefreq": "weekly", "priority": "0.9" },
+    { "path": "/best-beauty-parlours-jammu", "changefreq": "weekly", "priority": "0.9" },
+    { "path": "/parlour-booking-jammu", "changefreq": "weekly", "priority": "0.9" },
+    { "path": "/salon-booking-jammu", "changefreq": "weekly", "priority": "0.92" },
+    { "path": "/best-saloons-jammu", "changefreq": "weekly", "priority": "0.88" },
+    { "path": "/unisex-salons-jammu", "changefreq": "weekly", "priority": "0.85" },
+    { "path": "/salons-in-jammu", "changefreq": "weekly", "priority": "0.9" },
     { "path": "/best-haircut-in-jammu", "changefreq": "weekly", "priority": "0.85" },
     { "path": "/beard-trimming-jammu", "changefreq": "weekly", "priority": "0.85" },
     { "path": "/spa-services-jammu", "changefreq": "weekly", "priority": "0.85" },
-    { "path": "/beauty-parlours-jammu", "changefreq": "weekly", "priority": "0.85" },
-    { "path": "/mens-salon-jammu", "changefreq": "weekly", "priority": "0.85" },
+    { "path": "/beauty-parlours-jammu", "changefreq": "weekly", "priority": "0.92" },
+    { "path": "/mens-salon-jammu", "changefreq": "weekly", "priority": "0.88" },
     { "path": "/bridal-makeup-jammu", "changefreq": "weekly", "priority": "0.85" },
     { "path": "/blog/best-salon-booking-tips-jammu", "changefreq": "monthly", "priority": "0.6" },
     { "path": "/blog/mens-grooming-guide-jammu", "changefreq": "monthly", "priority": "0.6" },
     { "path": "/blog/spa-wellness-jammu", "changefreq": "monthly", "priority": "0.6" },
+    { "path": "/blog/beauty-parlour-near-me-jammu", "changefreq": "monthly", "priority": "0.65" },
+    { "path": "/blog/salon-parlour-booking-jammu", "changefreq": "monthly", "priority": "0.65" },
     { "path": "/signup", "changefreq": "monthly", "priority": "0.8" },
     { "path": "/login", "changefreq": "monthly", "priority": "0.6" },
     { "path": "/contact", "changefreq": "monthly", "priority": "0.6" },

@@ -16,6 +16,8 @@ import { SOCIAL_INSTAGRAM, SOCIAL_FACEBOOK } from '../config/contact';
 
 const MARKETING_ROUTES = [
   { to: '/explore', label: 'Explore marketplace' },
+  { to: '/beauty-parlour-near-me-jammu', label: 'Parlour near me' },
+  { to: '/salon-booking-jammu', label: 'Salon booking Jammu' },
   { to: '/for-salons', label: 'For business owners' },
   { to: '/blog', label: 'Blog' },
   { to: '/salons-in-jammu', label: 'Salons in Jammu' },

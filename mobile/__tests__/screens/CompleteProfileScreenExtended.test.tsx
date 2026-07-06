@@ -64,6 +64,7 @@ describe('CompleteProfileScreen — role selection (item 16)', () => {
     renderScreen({ params: {} } as any);
 
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Cara Customer');
+    fireEvent.changeText(screen.getByPlaceholderText('98765 43210'), '9876543210');
     selectCustomerGender();
     acceptTerms();
     await act(async () => {
@@ -73,7 +74,7 @@ describe('CompleteProfileScreen — role selection (item 16)', () => {
     await waitFor(() => {
       expect(mockCompleteProfile).toHaveBeenCalledWith({
         name: 'Cara Customer',
-        phone: undefined,
+        phone: '+919876543210',
         role: 'customer',
         gender: 'male',
       });
@@ -85,6 +86,7 @@ describe('CompleteProfileScreen — role selection (item 16)', () => {
 
     fireEvent.press(screen.getByText('Business owner'));
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Olive Owner');
+    fireEvent.changeText(screen.getByPlaceholderText('98765 43210'), '9876543210');
     // Owners must provide a UPI ID (customers get paid directly to it).
     fireEvent.changeText(screen.getByPlaceholderText('glowsalon@okaxis'), 'olive@okaxis');
     acceptTerms();
@@ -105,6 +107,7 @@ describe('CompleteProfileScreen — role selection (item 16)', () => {
     fireEvent.press(screen.getByText('Business owner'));
     fireEvent.press(screen.getByText('Customer'));
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Switcher');
+    fireEvent.changeText(screen.getByPlaceholderText('98765 43210'), '9876543210');
     selectCustomerGender();
     acceptTerms();
     await act(async () => {
@@ -163,6 +166,7 @@ describe('CompleteProfileScreen — failure (item 15)', () => {
     renderScreen({ params: {} } as any);
 
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Fail Case');
+    fireEvent.changeText(screen.getByPlaceholderText('98765 43210'), '9876543210');
     selectCustomerGender();
     acceptTerms();
     await act(async () => {
