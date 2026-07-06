@@ -18,6 +18,9 @@ import {
 import adminService from '../../services/adminService';
 import { getAdminToken, setAdminToken, clearAdminToken } from '../../lib/adminAuth';
 import { getApiErrorMessage } from '../../lib/utils';
+import {
+  detailViewTitle, filterOwnersByView, salonServeLabel, statCardViewMap,
+} from '../../lib/adminDashboardHelpers';
 
 // TrimiT Brand Colors
 const BRAND = {
@@ -195,7 +198,7 @@ function PinLock({ onUnlocked }) {
 }
 
 // UI Components
-function StatCard({ icon: Icon, label, value, sub, accent = 'orange', trend, loading }) {
+function StatCard({ icon: Icon, label, value, sub, accent = 'orange', trend, loading, onClick }) {
   const accents = {
     orange: 'from-orange-500/20 to-orange-500/5 text-orange-300 ring-orange-500/20',
     emerald: 'from-emerald-500/20 to-emerald-500/5 text-emerald-300 ring-emerald-500/20',
@@ -204,8 +207,13 @@ function StatCard({ icon: Icon, label, value, sub, accent = 'orange', trend, loa
     rose: 'from-rose-500/20 to-rose-500/5 text-rose-300 ring-rose-500/20',
     amber: 'from-amber-500/20 to-amber-500/5 text-amber-300 ring-amber-500/20',
   };
+  const Tag = onClick ? 'button' : 'div';
   return (
-    <div className="group overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 p-5 transition hover:border-white/20">
+    <Tag
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`group w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 p-5 text-left transition hover:border-white/20 ${onClick ? 'cursor-pointer hover:bg-slate-900/80 focus:outline-none focus:ring-2 focus:ring-orange-500/40' : ''}`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
@@ -221,7 +229,10 @@ function StatCard({ icon: Icon, label, value, sub, accent = 'orange', trend, loa
           <Icon size={22} weight="duotone" />
         </div>
       </div>
-    </div>
+      {onClick && !loading && (
+        <p className="mt-3 text-xs font-medium text-orange-300/80 opacity-0 transition group-hover:opacity-100">Tap for details →</p>
+      )}
+    </Tag>
   );
 }
 
@@ -306,6 +317,207 @@ const STATUS_FILTERS = [
   { value: 'blocked', label: 'Blocked' },
 ];
 
+function DetailRow({ label, value }) {
+  return (
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+      <dt className="shrink-0 text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className="text-sm text-slate-200 sm:text-right">{value || <span className="text-slate-600">—</span>}</dd>
+    </div>
+  );
+}
+
+function OwnerDetailModal({ open, owner, onClose }) {
+  if (!open || !owner) return null;
+  return (
+    <Modal open={open} onClose={onClose} title={owner.salon_name || owner.name || 'Salon details'} size="lg">
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={owner.subscription_status || 'none'} />
+          {owner.is_trial && typeof owner.trial_days_remaining === 'number' && (
+            <span className="rounded-full bg-sky-500/15 px-2.5 py-1 text-xs font-semibold text-sky-300">{owner.trial_days_remaining} trial days left</span>
+          )}
+          {owner.gender_serve && (
+            <span className="rounded-full bg-violet-500/15 px-2.5 py-1 text-xs font-semibold text-violet-200">{salonServeLabel(owner.gender_serve)}</span>
+          )}
+        </div>
+        <dl className="space-y-3 rounded-xl border border-white/10 bg-slate-950/40 p-4">
+          <DetailRow label="Owner" value={owner.name} />
+          <DetailRow label="Salon" value={owner.salon_name} />
+          <DetailRow label="Type" value={salonServeLabel(owner.gender_serve)} />
+          <DetailRow label="City" value={owner.city} />
+          <DetailRow label="Address" value={owner.salon_address} />
+          <DetailRow label="Owner email" value={owner.email} />
+          <DetailRow label="Owner phone" value={owner.phone} />
+          <DetailRow label="Salon phone" value={owner.salon_phone} />
+          <DetailRow label="UPI ID" value={owner.upi_id} />
+          <DetailRow label="Hours" value={owner.opening_time && owner.closing_time ? `${owner.opening_time} – ${owner.closing_time}` : null} />
+          <DetailRow label="Joined" value={formatDateShort(owner.created_at)} />
+          <DetailRow label="Period ends" value={formatDateShort(owner.current_period_end)} />
+        </dl>
+        {owner.about && (
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">About</p>
+            <p className="text-sm text-slate-300">{owner.about}</p>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function DetailPanelModal({
+  open, view, onClose, owners, customers, salons, bookings, overview, loading, onSelectOwner, onSelectSalon,
+}) {
+  if (!open || !view) return null;
+
+  const subs = overview?.subscriptions || {};
+  const visitors = overview?.visitors || {};
+
+  let body = null;
+  if (view === 'revenue') {
+    body = (
+      <dl className="space-y-3">
+        <DetailRow label="MRR" value={formatINR(subs.mrr)} />
+        <DetailRow label="ARR" value={formatINR(subs.arr)} />
+        <DetailRow label="Total collected" value={formatINR(subs.total_revenue_collected)} />
+        <DetailRow label="Active subscriptions" value={formatNumber(subs.active)} />
+        <DetailRow label="Trialing" value={formatNumber(subs.trialing)} />
+        <DetailRow label="Expired / lapsed" value={formatNumber(subs.expired_or_lapsed)} />
+      </dl>
+    );
+  } else if (view === 'visitors') {
+    body = (
+      <dl className="space-y-3">
+        <DetailRow label="Page views (24h)" value={formatNumber(visitors.page_views_24h)} />
+        <DetailRow label="Page views (7d)" value={formatNumber(visitors.page_views_7d)} />
+        <DetailRow label="Page views (30d)" value={formatNumber(visitors.page_views_30d)} />
+        <DetailRow label="Unique visitors (30d)" value={formatNumber(visitors.unique_visitors_30d)} />
+      </dl>
+    );
+  } else if (view === 'customers') {
+    body = customers.length === 0 ? <EmptyState icon={UsersThree} title="No customers" /> : (
+      <div className="max-h-[60vh] overflow-y-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-slate-500">
+              <th className="px-2 py-2 font-medium">Name</th>
+              <th className="px-2 py-2 font-medium">Email</th>
+              <th className="px-2 py-2 font-medium">Phone</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {customers.map((c) => (
+              <tr key={c.id}>
+                <td className="px-2 py-3 font-medium text-white">{c.name || '—'}</td>
+                <td className="px-2 py-3 text-slate-300">{c.email || '—'}</td>
+                <td className="px-2 py-3 text-slate-400">{c.phone || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  } else if (view === 'salons') {
+    body = loading ? <TableSkeleton cols={4} rows={5} /> : salons.length === 0 ? <EmptyState icon={Buildings} title="No salons" /> : (
+      <div className="max-h-[60vh] overflow-y-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-slate-500">
+              <th className="px-2 py-2 font-medium">Salon</th>
+              <th className="px-2 py-2 font-medium">Owner</th>
+              <th className="px-2 py-2 font-medium">Type</th>
+              <th className="px-2 py-2 font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {salons.map((s) => (
+              <tr
+                key={s.id}
+                onClick={() => onSelectSalon?.(s)}
+                className={`transition ${onSelectSalon ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
+              >
+                <td className="px-2 py-3">
+                  <div className="font-medium text-white">{s.name || '—'}</div>
+                  <div className="text-xs text-slate-500">{s.city || '—'}</div>
+                </td>
+                <td className="px-2 py-3 text-slate-300">{s.owner_name || '—'}</td>
+                <td className="px-2 py-3 text-slate-400">{salonServeLabel(s.gender_serve)}</td>
+                <td className="px-2 py-3"><StatusBadge status={s.subscription_status || 'none'} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  } else if (view === 'bookings') {
+    body = loading ? <TableSkeleton cols={5} rows={5} /> : bookings.length === 0 ? <EmptyState icon={CalendarCheck} title="No bookings" /> : (
+      <div className="max-h-[60vh] overflow-y-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-slate-500">
+              <th className="px-2 py-2 font-medium">Customer</th>
+              <th className="px-2 py-2 font-medium">Salon</th>
+              <th className="px-2 py-2 font-medium">When</th>
+              <th className="px-2 py-2 font-medium">Status</th>
+              <th className="px-2 py-2 font-medium">Amount</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {bookings.map((b) => (
+              <tr key={b.id}>
+                <td className="px-2 py-3 text-slate-200">{b.customer_name || '—'}</td>
+                <td className="px-2 py-3">
+                  <div className="text-slate-200">{b.salon_name || '—'}</div>
+                  <div className="text-xs text-slate-500">{b.service_name || ''}</div>
+                </td>
+                <td className="px-2 py-3 text-slate-400">{formatDateShort(b.booking_date)} {b.time_slot}</td>
+                <td className="px-2 py-3 capitalize text-slate-300">{b.status || '—'}</td>
+                <td className="px-2 py-3 text-slate-200">{formatINR(b.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  } else {
+    const rows = filterOwnersByView(owners, view);
+    body = rows.length === 0 ? <EmptyState icon={Storefront} title="No matches" /> : (
+      <div className="max-h-[60vh] overflow-y-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-slate-500">
+              <th className="px-2 py-2 font-medium">Owner</th>
+              <th className="px-2 py-2 font-medium">Salon</th>
+              <th className="px-2 py-2 font-medium">Type</th>
+              <th className="px-2 py-2 font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {rows.map((o) => (
+              <tr
+                key={o.owner_id}
+                onClick={() => onSelectOwner?.(o)}
+                className="cursor-pointer transition hover:bg-white/[0.04]"
+              >
+                <td className="px-2 py-3 font-medium text-white">{o.name || '—'}</td>
+                <td className="px-2 py-3 text-slate-300">{o.salon_name || '—'}</td>
+                <td className="px-2 py-3 text-slate-400">{salonServeLabel(o.gender_serve)}</td>
+                <td className="px-2 py-3"><StatusBadge status={o.subscription_status || 'none'} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={detailViewTitle(view)} size="xl">
+      {body}
+    </Modal>
+  );
+}
+
 function DashboardShell({ token, onLock, onAuthExpired }) {
   const [overview, setOverview] = useState(null);
   const [owners, setOwners] = useState([]);
@@ -334,6 +546,63 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
   const [revenueData] = useState(generateRevenueTrend);
   const [userGrowthData] = useState(generateUserGrowth);
   const [bookingsData] = useState(generateBookingsByStatus);
+  const [salons, setSalons] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [detailView, setDetailView] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [selectedOwner, setSelectedOwner] = useState(null);
+  const cardViews = useMemo(() => statCardViewMap(), []);
+
+  const openDetail = useCallback(async (cardKey) => {
+    const view = cardViews[cardKey];
+    if (!view) return;
+    setDetailView(view);
+    if (view === 'salons' || view === 'bookings') {
+      setDetailLoading(true);
+      try {
+        if (view === 'salons') {
+          const rows = await adminService.getSalons(token);
+          setSalons(rows);
+        } else {
+          const rows = await adminService.getBookings(token);
+          setBookings(rows);
+        }
+      } catch (err) {
+        if (isAuthError(err)) { onAuthExpired(); return; }
+        alert(getApiErrorMessage(err, 'Could not load details.'));
+        setDetailView(null);
+      } finally {
+        setDetailLoading(false);
+      }
+    }
+  }, [token, onAuthExpired, cardViews]);
+
+  const handleSelectSalon = useCallback((salon) => {
+    const owner = owners.find((o) => o.owner_id === salon.owner_id);
+    if (owner) {
+      setDetailView(null);
+      setSelectedOwner(owner);
+      return;
+    }
+    setDetailView(null);
+    setSelectedOwner({
+      owner_id: salon.owner_id,
+      name: salon.owner_name,
+      email: salon.owner_email,
+      phone: salon.owner_phone,
+      salon_name: salon.name,
+      city: salon.city,
+      salon_address: salon.address,
+      salon_phone: salon.phone,
+      upi_id: salon.upi_id,
+      gender_serve: salon.gender_serve,
+      subscription_status: salon.subscription_status,
+      is_trial: salon.is_trial,
+      trial_days_remaining: salon.trial_days_remaining,
+      opening_time: salon.opening_time,
+      closing_time: salon.closing_time,
+    });
+  }, [owners]);
 
   const loadAll = useCallback(async ({ silent } = {}) => {
     if (silent) setRefreshing(true); else setLoading(true);
@@ -558,24 +827,24 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
       <>
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard icon={Storefront} accent="orange" label="Salon Owners" value={formatNumber(totals.owners)} loading={loading} />
-        <StatCard icon={UsersThree} accent="sky" label="Customers" value={formatNumber(totals.customers)} loading={loading} />
-        <StatCard icon={Buildings} accent="violet" label="Salons" value={formatNumber(totals.salons)} loading={loading} />
-        <StatCard icon={CalendarCheck} accent="emerald" label="Bookings" value={formatNumber(totals.bookings)} loading={loading} />
+        <StatCard icon={Storefront} accent="orange" label="Salon Owners" value={formatNumber(totals.owners)} loading={loading} onClick={() => openDetail('owners')} />
+        <StatCard icon={UsersThree} accent="sky" label="Customers" value={formatNumber(totals.customers)} loading={loading} onClick={() => openDetail('customers')} />
+        <StatCard icon={Buildings} accent="violet" label="Salons" value={formatNumber(totals.salons)} loading={loading} onClick={() => openDetail('salons')} />
+        <StatCard icon={CalendarCheck} accent="emerald" label="Bookings" value={formatNumber(totals.bookings)} loading={loading} onClick={() => openDetail('bookings')} />
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard icon={Wallet} accent="emerald" label="MRR" value={formatINR(subs.mrr)} loading={loading} />
-        <StatCard icon={ChartLineUp} accent="emerald" label="ARR" value={formatINR(subs.arr)} loading={loading} />
-        <StatCard icon={CurrencyInr} accent="orange" label="Revenue" value={formatINR(subs.total_revenue_collected)} loading={loading} />
-        <StatCard icon={CheckCircle} accent="sky" label="Active Subs" value={formatNumber(subs.active)} sub={`${formatNumber(subs.trialing)} trialing`} loading={loading} />
+        <StatCard icon={Wallet} accent="emerald" label="MRR" value={formatINR(subs.mrr)} loading={loading} onClick={() => openDetail('mrr')} />
+        <StatCard icon={ChartLineUp} accent="emerald" label="ARR" value={formatINR(subs.arr)} loading={loading} onClick={() => openDetail('arr')} />
+        <StatCard icon={CurrencyInr} accent="orange" label="Revenue" value={formatINR(subs.total_revenue_collected)} loading={loading} onClick={() => openDetail('revenue')} />
+        <StatCard icon={CheckCircle} accent="sky" label="Active Subs" value={formatNumber(subs.active)} sub={`${formatNumber(subs.trialing)} trialing`} loading={loading} onClick={() => openDetail('active')} />
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard icon={Sparkle} accent="amber" label="Trials" value={formatNumber(subs.trialing)} loading={loading} />
-        <StatCard icon={WarningCircle} accent="rose" label="Expired" value={formatNumber(subs.expired_or_lapsed)} loading={loading} />
-        <StatCard icon={Eye} accent="violet" label="Views (24h)" value={formatNumber(visitors.page_views_24h)} sub={`${formatNumber(visitors.page_views_7d)} in 7d`} loading={loading} />
-        <StatCard icon={UserCircle} accent="orange" label="Visitors (30d)" value={formatNumber(visitors.unique_visitors_30d)} loading={loading} />
+        <StatCard icon={Sparkle} accent="amber" label="Trials" value={formatNumber(subs.trialing)} loading={loading} onClick={() => openDetail('trials')} />
+        <StatCard icon={WarningCircle} accent="rose" label="Expired" value={formatNumber(subs.expired_or_lapsed)} loading={loading} onClick={() => openDetail('expired')} />
+        <StatCard icon={Eye} accent="violet" label="Views (24h)" value={formatNumber(visitors.page_views_24h)} sub={`${formatNumber(visitors.page_views_7d)} in 7d`} loading={loading} onClick={() => openDetail('views')} />
+        <StatCard icon={UserCircle} accent="orange" label="Visitors (30d)" value={formatNumber(visitors.unique_visitors_30d)} loading={loading} onClick={() => openDetail('visitors')} />
       </div>
 
       {/* Charts */}
@@ -673,14 +942,18 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {filteredOwners.map((o) => (
-                    <tr key={o.owner_id} className="transition hover:bg-white/[0.03]">
+                    <tr
+                      key={o.owner_id}
+                      onClick={() => setSelectedOwner(o)}
+                      className="cursor-pointer transition hover:bg-white/[0.03]"
+                    >
                       <td className="px-5 py-4">
                         <div className="font-medium text-white">{o.name || '—'}</div>
                         <div className="text-xs text-slate-500">Joined {formatDateShort(o.created_at)}</div>
                       </td>
                       <td className="px-5 py-4">
                         <div className="text-slate-200">{o.salon_name || '—'}</div>
-                        <div className="text-xs text-slate-500">{o.city || '—'}</div>
+                        <div className="text-xs text-slate-500">{o.city || '—'}{o.gender_serve ? ` · ${salonServeLabel(o.gender_serve)}` : ''}</div>
                       </td>
                       <td className="px-5 py-4">
                         <div className="text-slate-300">{o.email || '—'}</div>
@@ -692,7 +965,7 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
                         {o.is_trial && typeof o.trial_days_remaining === 'number' ? <span className="text-sky-300">{o.trial_days_remaining} days left</span> : <span className="text-slate-500">—</span>}
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <button onClick={() => handleGrant(o)} disabled={grantingId === o.owner_id} className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/20 disabled:opacity-50">
                             {grantingId === o.owner_id ? <Spinner size={12} className="animate-spin" /> : <CheckCircle size={12} weight="bold" />} Grant
                           </button>
@@ -943,6 +1216,26 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
 
       {/* Invite Modal */}
       <InviteModal open={inviteModal.open} onClose={() => setInviteModal({ open: false, type: null })} type={inviteModal.type} onInvite={handleInvite} loading={actionLoading} />
+
+      <DetailPanelModal
+        open={Boolean(detailView)}
+        view={detailView}
+        onClose={() => setDetailView(null)}
+        owners={owners}
+        customers={customers}
+        salons={salons}
+        bookings={bookings}
+        overview={overview}
+        loading={detailLoading}
+        onSelectOwner={(o) => { setDetailView(null); setSelectedOwner(o); }}
+        onSelectSalon={handleSelectSalon}
+      />
+
+      <OwnerDetailModal
+        open={Boolean(selectedOwner)}
+        owner={selectedOwner}
+        onClose={() => setSelectedOwner(null)}
+      />
     </div>
   );
 }

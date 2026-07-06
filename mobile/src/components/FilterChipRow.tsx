@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useTheme, Theme } from '../theme/ThemeContext';
 import { spacing, borderRadius, typography } from '../theme/tokens';
+import { salonTypeLabel } from '../lib/genderServe';
 
 export interface ChipOption<T extends string> {
   value: T;
@@ -57,12 +58,7 @@ export function SalonTypeBadge({ genderServe = 'unisex' }: SalonTypeBadgeProps) 
   const { theme } = useTheme();
   const styles = useMemo(() => createBadgeStyles(theme), [theme]);
 
-  const label =
-    genderServe === 'men'
-      ? "Men's"
-      : genderServe === 'women'
-        ? 'Parlor'
-        : 'Unisex';
+  const label = salonTypeLabel(genderServe);
 
   return (
     <View style={styles.badge} testID={`salon-type-${genderServe}`}>

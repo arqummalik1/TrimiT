@@ -1,5 +1,7 @@
 # Promo system — two lanes
 
+> **Full guide:** See `DEVELOPER_GUIDE.md` for salon/parlor, admin access, file map, and gaps.
+
 ## Lane A — Salon promos (owner-funded)
 
 - Owners create codes in **Settings → Promo Codes** (mobile).

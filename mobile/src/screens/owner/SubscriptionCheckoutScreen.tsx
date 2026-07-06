@@ -12,7 +12,11 @@ import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { OwnerSettingsScreenProps } from '../../navigation/types';
-import { useCreateSubscription, useVerifySubscription } from '../../hooks/useSubscription';
+import {
+  useCreateSubscription,
+  useVerifySubscription,
+  useSubscription,
+} from '../../hooks/useSubscription';
 import { useAuthStore } from '../../store/authStore';
 import { handleApiError } from '../../lib/errorHandler';
 import { isAppError } from '../../types/error';
@@ -20,9 +24,12 @@ import { showToast } from '../../store/toastStore';
 import RazorpayCheckoutModal from '../../components/RazorpayCheckoutModal';
 import { SUPPORT_EMAIL as CONTACT_EMAIL } from '../../lib/contactInfo';
 import { CreateSubscriptionResponse } from '../../types/subscription';
-type Props = OwnerSettingsScreenProps<'SubscriptionCheckout'>;
+import {
+  formatMonthlySubscriptionLabel,
+  formatSubscribeCta,
+} from '../../lib/subscriptionPricing';
 
-const PRICE_LABEL = '₹299 / month';
+type Props = OwnerSettingsScreenProps<'SubscriptionCheckout'>;
 
 /** A real Razorpay order needs both ids to drive the hosted checkout. */
 function isLaunchableOrder(o: CreateSubscriptionResponse): boolean {
@@ -33,16 +40,20 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const user = useAuthStore((s) => s.user);
+  const { data: sub, isLoading: subLoading } = useSubscription();
 
   const createSub = useCreateSubscription();
   const verifySub = useVerifySubscription();
 
   const [order, setOrder] = useState<CreateSubscriptionResponse | null>(null);
   const [checkoutVisible, setCheckoutVisible] = useState(false);
-  // Friendly, non-crashing message shown when online subscribe isn't available
-  // yet (gateway keys not configured → backend 503) or the SDK can't run.
   const [unavailableMessage, setUnavailableMessage] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [billingNote, setBillingNote] = useState<string | null>(null);
+
+  const amountPaise = order?.amount ?? sub?.amount ?? 29900;
+  const priceLabel = formatMonthlySubscriptionLabel(amountPaise);
+  const subscribeCta = formatSubscribeCta(amountPaise);
 
   const gatewayUnavailableCopy =
     `In-app subscription payment is coming soon. To activate TrimiT Pro now, ` +
@@ -50,6 +61,7 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleSubscribe = () => {
     setUnavailableMessage(null);
+    setBillingNote(null);
     createSub.mutate(undefined, {
       onSuccess: (data) => {
         if (data.already_active) {
@@ -57,18 +69,21 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
           navigation.goBack();
           return;
         }
+        if (data.billing_starts_at) {
+          setBillingNote(
+            `Your free trial continues — Razorpay may show a small authorization now. ` +
+              `Your first ${formatMonthlySubscriptionLabel(data.amount)} charge starts when your trial ends.`,
+          );
+        }
         if (isLaunchableOrder(data)) {
           setOrder(data);
           setCheckoutVisible(true);
         } else {
-          // Backend returned a non-launchable payload (no SDK path) — fall back
-          // to the friendly message instead of attempting a broken checkout.
           setUnavailableMessage(gatewayUnavailableCopy);
         }
       },
       onError: (error: unknown) => {
         const appErr = isAppError(error) ? error : handleApiError(error);
-        // 503 SUBSCRIPTION_GATEWAY_UNAVAILABLE → not an error, just "not ready yet".
         if (appErr.status === 503 || appErr.code === 'SUBSCRIPTION_GATEWAY_UNAVAILABLE') {
           setUnavailableMessage(gatewayUnavailableCopy);
           return;
@@ -101,7 +116,7 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
     });
   };
 
-  const isWorking = createSub.isPending || verifying;
+  const isWorking = createSub.isPending || verifying || subLoading;
 
   return (
     <ScreenWrapper variant="stack">
@@ -111,7 +126,7 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>TrimiT Pro</Text>
-          <Text style={styles.headerSubtitle}>{PRICE_LABEL}</Text>
+          <Text style={styles.headerSubtitle}>{priceLabel}</Text>
         </View>
       </View>
 
@@ -121,12 +136,22 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
             <Ionicons name="star" size={28} color={theme.colors.primary} />
           </View>
           <Text style={styles.planTitle}>TrimiT Pro</Text>
-          <Text style={styles.planPrice}>₹299<Text style={styles.planPer}> / month</Text></Text>
+          <Text style={styles.planPrice}>
+            {formatMonthlySubscriptionLabel(amountPaise).replace(' / month', '')}
+            <Text style={styles.planPer}> / month</Text>
+          </Text>
           <Text style={styles.planBlurb}>
-            Keep your salon listed and bookable, with the full dashboard, bookings,
+            Keep your business listed and bookable, with the full dashboard, bookings,
             services, staff and analytics unlocked.
           </Text>
         </View>
+
+        {billingNote ? (
+          <View style={styles.infoBox}>
+            <Ionicons name="information-circle" size={20} color={theme.colors.primary} />
+            <Text style={[styles.infoText, { color: theme.colors.text }]}>{billingNote}</Text>
+          </View>
+        ) : null}
 
         {unavailableMessage ? (
           <View style={styles.infoBox}>
@@ -146,14 +171,14 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
           ) : (
             <>
               <Ionicons name="card" size={18} color="#FFFFFF" />
-              <Text style={styles.primaryBtnText}>Subscribe ₹299/month</Text>
+              <Text style={styles.primaryBtnText}>{subscribeCta}</Text>
             </>
           )}
         </TouchableOpacity>
 
         <Text style={styles.secureNote}>
-          <Ionicons name="lock-closed" size={12} color={theme.colors.textSecondary} /> Payments are
-          processed securely by Razorpay.
+          <Ionicons name="lock-closed" size={12} color={theme.colors.textSecondary} /> Amount shown
+          in Razorpay matches your TrimiT Pro plan ({priceLabel}).
         </Text>
       </ScrollView>
 

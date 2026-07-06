@@ -4,10 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { Theme } from '../theme/tokens';
 import { SubscriptionStatusView } from '../types/subscription';
+import { formatMonthlySubscriptionLabel } from '../lib/subscriptionPricing';
 
 interface Props {
   status: SubscriptionStatusView;
   onPress: () => void;
+  monthlyAmountPaise?: number;
 }
 
 type Tone = 'info' | 'warning' | 'danger';
@@ -20,7 +22,7 @@ interface BannerContent {
   cta: string;
 }
 
-function resolveContent(s: SubscriptionStatusView): BannerContent | null {
+function resolveContent(s: SubscriptionStatusView, monthlyAmountPaise: number): BannerContent | null {
   if (s.status === 'active') return null; // nothing to nag about
 
   if (s.status === 'trial') {
@@ -39,7 +41,7 @@ function resolveContent(s: SubscriptionStatusView): BannerContent | null {
       tone: 'warning',
       icon: 'time',
       title: `${d} day${d === 1 ? '' : 's'} left in your free trial`,
-      subtitle: 'Subscribe to TrimiT Pro (₹299/mo) to avoid interruption.',
+      subtitle: `Subscribe to TrimiT Pro (${formatMonthlySubscriptionLabel(monthlyAmountPaise)}) to avoid interruption.`,
       cta: 'Subscribe',
     };
   }
@@ -77,9 +79,9 @@ function resolveContent(s: SubscriptionStatusView): BannerContent | null {
   return null;
 }
 
-export const SubscriptionBanner: React.FC<Props> = ({ status, onPress }) => {
+export const SubscriptionBanner: React.FC<Props> = ({ status, onPress, monthlyAmountPaise = 29900 }) => {
   const { theme } = useTheme();
-  const content = resolveContent(status);
+  const content = resolveContent(status, monthlyAmountPaise);
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   if (!content) return null;

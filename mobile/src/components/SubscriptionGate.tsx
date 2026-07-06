@@ -4,8 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useNavigationState } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
 import { Theme } from '../theme/tokens';
-import { useSubscriptionStatus } from '../hooks/useSubscription';
+import { useSubscriptionStatus, useSubscription } from '../hooks/useSubscription';
 import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../lib/featureFlags';
+import { formatMonthlySubscriptionLabel } from '../lib/subscriptionPricing';
 
 // Routes where the freeze must NOT block — otherwise a lapsed owner can open
 // checkout but can't interact with it (dead-end). The payment flow stays usable.
@@ -32,6 +33,7 @@ export const SubscriptionGate: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<any>();
   const { data: status, isLoading, isError } = useSubscriptionStatus();
+  const { data: subscription } = useSubscription();
   const activeRoute = useNavigationState(getActiveRouteName);
 
   if (!ENABLE_SUBSCRIPTION_ENFORCEMENT) return null;
@@ -69,6 +71,8 @@ export const SubscriptionGate: React.FC = () => {
     navigation.navigate('Settings', { screen: 'SubscriptionCheckout', initial: false });
   };
 
+  const monthlyLabel = formatMonthlySubscriptionLabel(subscription?.amount ?? 29900);
+
   return (
     <Modal transparent visible animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
       <View style={styles.overlay} pointerEvents="auto">
@@ -78,8 +82,8 @@ export const SubscriptionGate: React.FC = () => {
           </View>
           <Text style={styles.title}>Subscription required</Text>
           <Text style={styles.body}>
-            Your TrimiT Pro subscription is inactive. Subscribe to ₹299/month to
-            unlock your dashboard, bookings, services and keep your salon visible
+            Your TrimiT Pro subscription is inactive. Subscribe to {monthlyLabel} to
+            unlock your dashboard, bookings, services and keep your business visible
             to customers.
           </Text>
           <TouchableOpacity style={styles.primaryBtn} onPress={goSubscribe}>

@@ -40,7 +40,7 @@ import { BookingsTrendChart, PopularServicesChart, StatusDistributionChart } fro
 import { showToast } from '../../store/toastStore';
 import BookingCard from '../../components/BookingCard';
 import { SubscriptionBanner } from '../../components/SubscriptionBanner';
-import { useSubscriptionStatus } from '../../hooks/useSubscription';
+import { useSubscriptionStatus, useSubscription } from '../../hooks/useSubscription';
 import { ENABLE_SUBSCRIPTIONS } from '../../lib/featureFlags';
 import { OwnerSetupBanner } from '../../components/OwnerSetupBanner';
 import { useVerifyPayment, useRejectPayment } from '../../hooks/usePayment';
@@ -218,6 +218,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
   const queryClient = useQueryClient();
 
   const { data: subscriptionStatus } = useSubscriptionStatus();
+  const { data: subscription } = useSubscription();
 
   // UPI onboarding nudge. TrimiT never collects money — to accept UPI the salon
   // must store a UPI ID. Surface a dashboard banner until one is set.
@@ -344,9 +345,12 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
       <ScreenWrapper variant="tab">
         <EmptyState
           icon="storefront-outline"
-          title="Create Your Salon"
-          message="Set up your salon profile, then add services so customers can book you."
-          action={{ label: 'Create Salon', onPress: () => navigation.navigate('ManageSalon') }}
+          title="Set up your business"
+          message="Create your salon, beauty parlour, or unisex studio — then add services so customers can book you."
+          action={{
+            label: 'Get started',
+            onPress: () => navigation.navigate('ChooseBusinessType'),
+          }}
         />
       </ScreenWrapper>
     );
@@ -478,6 +482,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
         {ENABLE_SUBSCRIPTIONS && subscriptionStatus ? (
           <SubscriptionBanner
             status={subscriptionStatus}
+            monthlyAmountPaise={subscription?.amount}
             onPress={openSubscription}
           />
         ) : null}

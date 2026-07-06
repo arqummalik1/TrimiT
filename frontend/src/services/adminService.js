@@ -55,6 +55,18 @@ export const adminService = {
     return res.data?.customers ?? [];
   },
 
+  /** All salons with owner contact + subscription status. */
+  getSalons: async (token) => {
+    const res = await adminApi.get('/admin/dashboard/salons', authHeaders(token));
+    return res.data?.salons ?? [];
+  },
+
+  /** Recent bookings with salon + customer names. */
+  getBookings: async (token) => {
+    const res = await adminApi.get('/admin/dashboard/bookings', authHeaders(token));
+    return res.data?.bookings ?? [];
+  },
+
   /** Activate/extend an owner's subscription by N days (manual grant). */
   grantSubscription: async (token, ownerId, days = 30) => {
     const res = await adminApi.post(

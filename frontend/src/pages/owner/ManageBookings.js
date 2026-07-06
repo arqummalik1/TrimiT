@@ -168,13 +168,13 @@ const ManageBookings = () => {
         <div className="text-center">
           <CalendarCheck size={64} weight="duotone" className="mx-auto text-stone-300 mb-4" />
           <h2 className="font-heading text-2xl font-bold text-stone-700 mb-2">
-            Create Your Salon First
+            Set up your business
           </h2>
           <p className="text-stone-500 mb-6">
-            You need to create a salon before viewing bookings.
+            Choose your business type and create your profile before viewing bookings.
           </p>
-          <Link to="/owner/salon" className="btn-primary">
-            Create Salon
+          <Link to="/owner/choose-type" className="btn-primary">
+            Get started
           </Link>
         </div>
       </div>

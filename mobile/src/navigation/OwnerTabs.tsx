@@ -30,6 +30,7 @@ import StaffManagementScreen from '../screens/owner/StaffManagementScreen';
 import PromoManagementScreen from '../screens/owner/PromoManagementScreen';
 import SettingsScreen from '../screens/owner/SettingsScreen';
 import ManageSalonScreen from '../screens/owner/ManageSalonScreen';
+import ChooseBusinessTypeScreen from '../screens/owner/ChooseBusinessTypeScreen';
 import SubscriptionScreen from '../screens/owner/SubscriptionScreen';
 import SubscriptionCheckoutScreen from '../screens/owner/SubscriptionCheckoutScreen';
 import PaymentHistoryScreen from '../screens/owner/PaymentHistoryScreen';
@@ -58,6 +59,7 @@ function SettingsStackScreen() {
   return (
     <SettingsStack.Navigator screenOptions={{ headerShown: false }}>
       <SettingsStack.Screen name="SettingsMain" component={SettingsScreen} />
+      <SettingsStack.Screen name="ChooseBusinessType" component={ChooseBusinessTypeScreen} />
       <SettingsStack.Screen name="ManageSalon" component={ManageSalonScreen} />
       <SettingsStack.Screen name="StaffManagement" component={StaffManagementScreen} />
       <SettingsStack.Screen name="PromoManagement" component={PromoManagementScreen} />

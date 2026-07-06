@@ -8,6 +8,7 @@ import { HeroAccentIllustration } from '../LandingIllustrations';
 import PhoneMockup from '../mockups/PhoneMockup';
 import AnimatedCounter from '../AnimatedCounter';
 import { JAMMU_CITY, explorePath } from '../../../config/jammu';
+import { MARKET_AUDIENCE_OPTIONS, audienceExplorePath } from '../../../config/marketAudience';
 import { isOfferActive, PROMO } from '../../../config/promotions';
 
 export default function HeroSection() {
@@ -68,7 +69,7 @@ export default function HeroSection() {
             <motion.div custom={0} initial="hidden" animate="show" variants={stagger}>
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-dark text-orange-200 text-xs font-semibold tracking-widest uppercase">
                 <Sparkle size={14} weight="fill" className="text-orange-300" />
-                Salon booking in {JAMMU_CITY.region}
+                Salons &amp; beauty parlours · {JAMMU_CITY.region}
               </span>
             </motion.div>
 
@@ -79,7 +80,7 @@ export default function HeroSection() {
               variants={stagger}
               className="font-heading text-3xl sm:text-5xl md:text-6xl font-extrabold text-white leading-[1.05] tracking-tight mt-6 mb-5"
             >
-              Book premium salons in{' '}
+              Book salons &amp; beauty parlours in{' '}
               <span className="text-orange-400">{JAMMU_CITY.region}</span> within minutes
             </motion.h1>
 
@@ -90,8 +91,8 @@ export default function HeroSection() {
               variants={stagger}
               className="text-base sm:text-lg text-stone-200/95 max-w-xl leading-relaxed mb-6"
             >
-              Discover verified salons, check live slots, and get instant appointment confirmation —
-              haircut, beard grooming, spa, and bridal services across Jammu &amp; Kashmir.
+              Discover men&apos;s salons, women&apos;s beauty parlours, and unisex studios with live
+              slots and instant confirmation — live in Jammu today, expanding across India.
             </motion.p>
 
             <motion.form
@@ -108,7 +109,7 @@ export default function HeroSection() {
                   type="search"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Haircut, beard, spa..."
+                  placeholder="Haircut, facial, bridal..."
                   className="w-full bg-transparent text-white placeholder:text-stone-400 text-sm sm:text-base focus:outline-none"
                   aria-label="Search salons or services"
                 />
@@ -131,6 +132,27 @@ export default function HeroSection() {
               initial="hidden"
               animate="show"
               variants={stagger}
+              className="flex flex-wrap gap-2 mb-4"
+              role="tablist"
+              aria-label="Browse by business type"
+            >
+              {MARKET_AUDIENCE_OPTIONS.map((opt) => (
+                <Link
+                  key={opt.id}
+                  to={audienceExplorePath(opt)}
+                  data-testid={`hero-audience-${opt.id}`}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white/10 border border-white/20 text-stone-100 hover:bg-white/20 hover:border-orange-300/50 transition-colors"
+                >
+                  {opt.title}
+                </Link>
+              ))}
+            </motion.div>
+
+            <motion.div
+              custom={5}
+              initial="hidden"
+              animate="show"
+              variants={stagger}
               className="flex flex-wrap gap-2 mb-8 text-xs text-stone-300"
             >
               {['Verified listings', 'Live availability', 'Pay at salon'].map((badge) => (
@@ -150,7 +172,7 @@ export default function HeroSection() {
             </motion.div>
 
             <motion.div
-              custom={5}
+              custom={6}
               initial="hidden"
               animate="show"
               variants={stagger}
@@ -162,22 +184,22 @@ export default function HeroSection() {
                 className="btn-primary w-full sm:w-auto inline-flex items-center justify-center gap-2 text-base px-8 py-4 shadow-lg shadow-orange-900/40"
               >
                 <Users size={22} weight="bold" />
-                Find salons
+                Explore marketplace
                 <ArrowRight size={20} weight="bold" />
               </Link>
               <Link
-                to={PROMO.ctaPath}
+                to="/signup?role=owner"
                 data-testid="hero-list-salon"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-base px-8 py-4 rounded-full font-bold text-white bg-white/10 border border-white/25 backdrop-blur-md hover:bg-white/20 transition-all"
               >
                 <Storefront size={22} weight="duotone" />
-                {isOfferActive() ? PROMO.ctaLabel : 'List your salon free'}
+                {isOfferActive() ? PROMO.ctaLabel : 'List your business free'}
               </Link>
             </motion.div>
 
             {isOfferActive() && (
               <motion.div
-                custom={6}
+                custom={7}
                 initial="hidden"
                 animate="show"
                 variants={stagger}

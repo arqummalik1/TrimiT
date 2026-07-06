@@ -139,6 +139,22 @@ async def dashboard_customers(request: Request, authorization: Optional[str] = H
     return {"customers": await dashboard.list_customers()}
 
 
+@router.get("/dashboard/salons")
+@limiter.limit("60/minute")
+async def dashboard_salons(request: Request, authorization: Optional[str] = Header(None)):
+    """All salons with owner contact + subscription status."""
+    _require_admin(authorization)
+    return {"salons": await dashboard.list_salons()}
+
+
+@router.get("/dashboard/bookings")
+@limiter.limit("60/minute")
+async def dashboard_bookings(request: Request, authorization: Optional[str] = Header(None)):
+    """Recent bookings with salon + customer names."""
+    _require_admin(authorization)
+    return {"bookings": await dashboard.list_bookings()}
+
+
 class BroadcastCreate(BaseModel):
     audience: str = Field(..., description="customers | owners | all")
     title: str = Field(..., min_length=1, max_length=80)

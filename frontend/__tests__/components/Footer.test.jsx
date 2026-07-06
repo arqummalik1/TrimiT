@@ -39,7 +39,7 @@ describe('Footer Component', () => {
     
     // Discover Links
     expect(screen.getByText('Discover')).toBeInTheDocument();
-    expect(screen.getAllByText('Explore salons')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('Explore marketplace')[0]).toBeInTheDocument();
     
     // Legal Links
     expect(screen.getByText('Legal & app')).toBeInTheDocument();

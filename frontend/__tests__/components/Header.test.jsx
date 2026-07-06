@@ -46,7 +46,7 @@ describe('Header Component', () => {
     
     // Should see marketing links
     expect(screen.getAllByText('Explore')[0]).toBeInTheDocument();
-    expect(screen.getAllByText('For Salons')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('For Owners')[0]).toBeInTheDocument();
     
     // Should see sign in / sign up
     expect(screen.getByTestId('login-btn')).toBeInTheDocument();
@@ -86,8 +86,8 @@ describe('Header Component', () => {
     expect(screen.getByTestId('nav-bookings')).toBeInTheDocument();
     expect(screen.getByTestId('nav-services')).toBeInTheDocument();
     
-    // Marketing link 'For Salons' should be hidden for owners
-    expect(screen.queryByText('For Salons')).not.toBeInTheDocument();
+    // Marketing link 'For Owners' should be hidden for owners
+    expect(screen.queryByText('For Owners')).not.toBeInTheDocument();
   });
 
   it('calls logout when sign out is clicked', () => {

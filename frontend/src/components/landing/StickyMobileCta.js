@@ -12,14 +12,14 @@ export default function StickyMobileCta() {
           className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-full bg-orange-800 text-white font-semibold text-sm"
         >
           <MagnifyingGlass size={18} weight="bold" />
-          Find salons
+          Find businesses
         </Link>
         <Link
           to="/signup?role=owner"
           className="inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-full border border-stone-200 text-stone-800 font-semibold text-sm"
         >
           <Storefront size={18} />
-          List salon
+          List business
         </Link>
       </div>
     </div>

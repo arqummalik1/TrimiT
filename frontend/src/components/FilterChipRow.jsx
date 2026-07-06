@@ -1,3 +1,5 @@
+import { salonTypeLabel } from '../lib/genderServe';
+
 export function FilterChipRow({ options, value, onChange, testIDPrefix = 'chip' }) {
   return (
     <div className="flex flex-wrap gap-2" role="tablist">
@@ -24,8 +26,7 @@ export function FilterChipRow({ options, value, onChange, testIDPrefix = 'chip' 
 }
 
 export function SalonTypeBadge({ genderServe = 'unisex' }) {
-  const label =
-    genderServe === 'men' ? "Men's" : genderServe === 'women' ? 'Parlor' : 'Unisex';
+  const label = salonTypeLabel(genderServe);
   return (
     <span
       data-testid={`salon-type-${genderServe}`}

@@ -35,7 +35,7 @@ export default function SocialProofSection() {
             id="social-proof-heading"
             className="font-heading text-3xl sm:text-4xl font-bold text-stone-900 mt-3"
           >
-            Loved by customers & salon owners
+            Loved by customers & business owners
           </h2>
         </div>
         <h3 className="font-heading text-lg font-bold text-stone-800 mb-4">Customers</h3>
@@ -50,7 +50,7 @@ export default function SocialProofSection() {
             />
           ))}
         </div>
-        <h3 className="font-heading text-lg font-bold text-stone-800 mb-4">Salon owners</h3>
+        <h3 className="font-heading text-lg font-bold text-stone-800 mb-4">Business owners</h3>
         <div className="grid sm:grid-cols-2 gap-4">
           {OWNER_TESTIMONIALS.map((t) => (
             <ReviewCard key={t.name} name={t.name} text={t.text} meta={t.salon} />

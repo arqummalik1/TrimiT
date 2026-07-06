@@ -32,6 +32,7 @@ import {
 import { NotificationSettingsSection } from '../../components/NotificationSettingsSection';
 import { SignOutButton } from '../../components/SignOutButton';
 import { normalizeSalon, resolveSalonImageSource } from '../../lib/salonImage';
+import { getVenueCopy } from '../../lib/genderServe';
 
 import { OwnerSettingsScreenProps } from '../../navigation/types';
 import {
@@ -209,8 +210,10 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
           <View style={styles.infoCard}>
             <Ionicons name="storefront-outline" size={32} color={theme.colors.textSecondary} />
             <View style={styles.infoTextContainer}>
-              <Text style={styles.salonName}>No Salon Yet</Text>
-              <Text style={styles.salonAddress}>Create your salon to unlock all features</Text>
+              <Text style={styles.salonName}>Set up your business</Text>
+              <Text style={styles.salonAddress}>
+                Create your salon, beauty parlour, or unisex studio
+              </Text>
             </View>
           </View>
 
@@ -261,17 +264,17 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
             <Text style={styles.sectionTitle}>Get Started</Text>
             <TouchableOpacity
               style={[styles.actionCard, { borderColor: theme.colors.primary, borderWidth: 2 }]}
-              onPress={() => navigation.navigate('ManageSalon')}
+              onPress={() => navigation.navigate('ChooseBusinessType')}
             >
               <View style={[styles.actionIconContainer, { backgroundColor: theme.colors.primary }]}>
                 <Ionicons name="add-circle" size={24} color="#FFFFFF" />
               </View>
               <View style={styles.actionTextContainer}>
                 <Text style={[styles.actionTitle, { color: theme.colors.primary }]}>
-                  Create Your Salon
+                  Get started
                 </Text>
                 <Text style={styles.actionDescription}>
-                  Set up your salon profile to start accepting bookings
+                  Choose your business type and create your profile
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={theme.colors.primary} />
@@ -354,6 +357,8 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
     );
   }
 
+  const venueCopy = getVenueCopy(salon.gender_serve ?? 'men');
+
   return (
     <ScreenWrapper variant="stack">
       {/* Header */}
@@ -364,7 +369,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
         >
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Salon Settings</Text>
+        <Text style={styles.headerTitle}>{venueCopy.manageTitle}</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -527,7 +532,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
 
         {/* Other Settings Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Salon Management</Text>
+          <Text style={styles.sectionTitle}>Business management</Text>
 
           {ENABLE_SUBSCRIPTIONS ? (
             <TouchableOpacity
@@ -555,7 +560,7 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
               <Ionicons name="create" size={24} color={theme.colors.primary} />
             </View>
             <View style={styles.actionTextContainer}>
-              <Text style={styles.actionTitle}>Edit Salon Details</Text>
+              <Text style={styles.actionTitle}>{venueCopy.editDetailsTitle}</Text>
               <Text style={styles.actionDescription}>
                 Update name, address, hours, and more
               </Text>

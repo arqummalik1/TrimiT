@@ -1,4 +1,4 @@
-# TrimiT Migration Order (V2 — through 58)
+# TrimiT Migration Order (V2 — through 61)
 
 Apply **forward-only** in the Supabase SQL Editor. Never edit applied migrations.
 
@@ -28,6 +28,9 @@ All production migrations live in `/database/`. Migrations **52–54** were prev
 | **56** | **`56_reschedule_auth_hardening.sql`** | `auth.uid()` on reschedule RPC |
 | **57** | **`57_service_categories.sql`** | `service_categories` table + `services.category_id` FK |
 | **58** | **`58_gender_serve_and_discovery.sql`** | Salon gender serve, customer discovery prefs, service audience, RPC filter |
+| **59** | **`59_salon_promo_hardening.sql`** | Lane A — salon-only `validate_promo_code`, deactivate global seed promos |
+| **60** | **`60_customer_phone_unique.sql`** | Unique customer phone index (welcome grant anti-abuse) |
+| **61** | **`61_platform_campaigns.sql`** | Lane B — `platform_campaigns`, `campaign_grants`, TRIMIT50 seed, admin APIs |
 
 ## Verify in production
 
@@ -64,13 +67,18 @@ SELECT column_name FROM information_schema.columns
 WHERE table_name = 'users' AND column_name IN ('gender', 'discovery_audience');
 SELECT column_name FROM information_schema.columns
 WHERE table_name = 'services' AND column_name = 'audience';
+
+-- 59–61: promo system
+SELECT to_regclass('public.platform_campaigns');
+SELECT code, active FROM platform_campaigns WHERE code = 'TRIMIT50';
 ```
 
 Expected: `has_table_privilege` → **false** for authenticated UPDATE on bookings; all columns present.
 
-## After applying 55–58
+## After applying 55–61
 
 - Re-run backend tests: `cd backend && PYTHONPATH=. pytest -q`
 - Owner can invite staff via `POST /staff/{id}/invite-app`
 - Employee signs up with matching phone + role `employee`
 - **57–58 applied in Supabase SQL Editor (2026-07-05):** service categories + gender serve / discovery live in production
+- **59–61:** Lane A/B promo system — see `docs/v2_docs/DEVELOPER_GUIDE.md`

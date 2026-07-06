@@ -88,16 +88,16 @@ const SettingsPage = () => {
           <div className="bg-white rounded-2xl p-8 text-center border border-stone-200">
             <Storefront size={48} className="mx-auto mb-4 text-stone-400" />
             <h2 className="font-heading text-xl font-bold text-stone-900 mb-2">
-              No Salon Found
+              Set up your business
             </h2>
             <p className="text-stone-500 mb-4">
-              You need to create a salon first to access settings.
+              Choose your business type and create your profile to access settings.
             </p>
-            <Link 
-              to="/owner/salon" 
+            <Link
+              to="/owner/choose-type"
               className="inline-flex items-center gap-2 px-6 py-3 bg-orange-800 text-white rounded-full font-semibold hover:bg-orange-900 transition-colors"
             >
-              Create Salon
+              Get started
             </Link>
           </div>
           <AccountDeletionSection />

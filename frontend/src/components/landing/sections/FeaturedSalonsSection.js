@@ -11,29 +11,42 @@ export default function FeaturedSalonsSection({
   subtitle = 'Verified salons with live slots — book in minutes.',
   limit = 6,
   sort = 'rating',
+  gender_serve,
+  sectionId = 'featured-salons',
+  eyebrow = 'Featured',
 }) {
-  const { data: salons, isLoading } = usePublicSalons({ limit: 12 });
+  const { data: salons, isLoading } = usePublicSalons({ limit: 12, gender_serve });
   const list =
     sort === 'rating' ? sortSalonsByRating(salons).slice(0, limit) : (salons || []).slice(0, limit);
 
+  const exploreLink = explorePath(
+    gender_serve === 'men' || gender_serve === 'women' ? { gender_serve } : {},
+  );
+
   return (
-    <section className="py-16 sm:py-20 px-4 bg-white mt-8" aria-labelledby="featured-salons-heading">
+    <section
+      className="py-16 sm:py-20 px-4 bg-white mt-8"
+      aria-labelledby={`${sectionId}-heading`}
+    >
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
           <div>
             <span className="text-xs font-bold tracking-[0.2em] uppercase text-orange-800">
-              Featured
+              {eyebrow}
             </span>
-            <h2 id="featured-salons-heading" className="font-heading text-3xl sm:text-4xl font-bold text-stone-900 mt-2">
+            <h2
+              id={`${sectionId}-heading`}
+              className="font-heading text-3xl sm:text-4xl font-bold text-stone-900 mt-2"
+            >
               {title}
             </h2>
             <p className="text-stone-500 mt-2 max-w-xl">{subtitle}</p>
           </div>
           <Link
-            to={explorePath()}
+            to={exploreLink}
             className="inline-flex items-center gap-2 text-orange-800 font-semibold hover:text-orange-900"
           >
-            View all salons
+            View all
             <ArrowRight size={18} weight="bold" />
           </Link>
         </div>
@@ -51,7 +64,7 @@ export default function FeaturedSalonsSection({
           </div>
         ) : (
           <p className="text-center text-stone-500 py-12">
-            Salons in Jammu are joining TrimiT.{' '}
+            Businesses in Jammu are joining TrimiT.{' '}
             <Link to="/signup?role=owner" className="text-orange-800 font-semibold">
               List yours first
             </Link>

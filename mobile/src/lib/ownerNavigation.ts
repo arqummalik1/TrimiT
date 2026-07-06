@@ -66,6 +66,20 @@ export function navigateOwnerToServices(
 }
 
 /**
+ * Switch to Dashboard tab and open the business-type picker (new owners).
+ */
+export function navigateOwnerToChooseBusinessType(
+  navigation: NavigationProp<ParamListBase>,
+): boolean {
+  const tabs = getOwnerTabNavigator(navigation);
+  if (!tabs) {
+    return false;
+  }
+  tabs.navigate('Dashboard', { screen: 'ChooseBusinessType' });
+  return true;
+}
+
+/**
  * Switch to Dashboard tab and show the home dashboard (not ManageSalon).
  */
 export function navigateOwnerToDashboard(navigation: NavigationProp<ParamListBase>): boolean {

@@ -30,7 +30,7 @@ export default function LocalSeoSections() {
                   to={explorePath({ q: block.exploreQuery })}
                   className="btn-primary inline-flex items-center gap-2 text-sm"
                 >
-                  Browse salons
+                  Browse {block.id === 'women' ? 'beauty parlours' : block.id === 'mens' ? "men's salons" : 'businesses'}
                   <ArrowRight size={16} weight="bold" />
                 </Link>
                 <Link

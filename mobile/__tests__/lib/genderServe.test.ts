@@ -5,6 +5,8 @@ import {
   filterServicesForMenuAudience,
   defaultDiscoverChip,
   salonNeedsMenuAudienceChips,
+  getVenueCopy,
+  salonTypeLabel,
 } from '../../src/lib/genderServe';
 import type { Salon, Service, User } from '../../src/types';
 
@@ -62,5 +64,12 @@ describe('genderServe', () => {
   it('default discover chip respects preference', () => {
     expect(defaultDiscoverChip({ ...maleUser, discovery_audience: 'all' })).toBe('all');
     expect(defaultDiscoverChip(maleUser)).toBe('for_you');
+  });
+
+  it('returns venue copy per gender_serve', () => {
+    expect(getVenueCopy('men').createCta).toBe('Create your salon');
+    expect(getVenueCopy('women').createCta).toBe('Create your beauty parlour');
+    expect(getVenueCopy('unisex').createCta).toBe('Create your unisex salon');
+    expect(salonTypeLabel('women')).toBe('Beauty parlour');
   });
 });

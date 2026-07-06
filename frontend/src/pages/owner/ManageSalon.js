@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { 
@@ -20,10 +20,12 @@ import { useAuthStore } from '../../store/authStore';
 import { uploadImage, deleteImage } from '../../lib/supabase';
 import LocationPicker from '../../components/LocationPicker';
 import { FilterChipRow } from '../../components/FilterChipRow';
-import { SALON_SERVE_OPTIONS } from '../../lib/genderServe';
+import { SALON_SERVE_OPTIONS, getVenueCopy } from '../../lib/genderServe';
 
 const ManageSalon = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const pickedGender = location.state?.gender_serve;
   const queryClient = useQueryClient();
   const { setHasSalon } = useAuthStore();
   const fileInputRef = useRef(null);
@@ -54,6 +56,18 @@ const ManageSalon = () => {
   // TRUE only once the owner actually places a pin (or an existing salon loaded
   // with real coords). No silent default — Save is blocked until this is true.
   const [locationSet, setLocationSet] = useState(false);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (salon) return;
+    if (!pickedGender) {
+      navigate('/owner/choose-type', { replace: true });
+      return;
+    }
+    setFormData((prev) => ({ ...prev, gender_serve: pickedGender }));
+  }, [isLoading, salon, pickedGender, navigate]);
+
+  const venueCopy = getVenueCopy(formData.gender_serve || pickedGender || 'men');
 
   useEffect(() => {
     if (salon) {
@@ -113,7 +127,7 @@ const ManageSalon = () => {
 
     // Validate required fields
     if (!formData.name || formData.name.trim() === '') {
-      setValidationError('Salon Name is required');
+      setValidationError(`${venueCopy.nameLabel} is required`);
       return;
     }
     if (!formData.address || formData.address.trim() === '') {
@@ -248,10 +262,12 @@ const ManageSalon = () => {
           animate={{ opacity: 1, y: 0 }}
         >
           <h1 className="font-heading text-3xl font-bold text-stone-900 mb-2">
-            {salon ? 'Edit Salon' : 'Create Your Salon'}
+            {salon ? venueCopy.editTitle : venueCopy.createCta}
           </h1>
           <p className="text-stone-500 mb-8">
-            {salon ? 'Update your salon information' : 'Set up your salon profile to start receiving bookings'}
+            {salon
+              ? `Update your ${venueCopy.entityName.toLowerCase()} information`
+              : `Set up your ${venueCopy.entityName.toLowerCase()} profile to start receiving bookings`}
           </p>
         </motion.div>
 
@@ -272,7 +288,7 @@ const ManageSalon = () => {
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-2">
-                  Salon Name *
+                  {venueCopy.nameLabel} *
                 </label>
                 <input
                   type="text"
@@ -281,7 +297,7 @@ const ManageSalon = () => {
                   onChange={handleChange}
                   data-testid="salon-name"
                   className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
-                  placeholder="e.g., The Style Studio"
+                  placeholder={venueCopy.namePlaceholder}
                   required
                 />
               </div>
@@ -297,7 +313,7 @@ const ManageSalon = () => {
                   data-testid="salon-description"
                   rows={3}
                   className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 resize-none"
-                  placeholder="Tell customers about your salon..."
+                  placeholder={venueCopy.descriptionPlaceholder}
                 />
               </div>
             </div>
@@ -383,24 +399,26 @@ const ManageSalon = () => {
               />
               {!locationSet && (
                 <p className="mt-2 text-sm text-orange-800 flex items-center gap-1">
-                  <MapPin size={14} weight="fill" /> Tap the map or use your location to pin your salon. This is required.
+                  <MapPin size={14} weight="fill" /> {venueCopy.pinLocationHint}
                 </p>
               )}
             </div>
           </div>
 
-          <div className="mb-8">
-            <h2 className="font-heading text-lg font-bold text-stone-900 mb-2">Who do you serve?</h2>
-            <p className="text-sm text-stone-500 mb-4">
-              Helps customers find you on Discover.
-            </p>
-            <FilterChipRow
-              options={SALON_SERVE_OPTIONS}
-              value={formData.gender_serve}
-              onChange={(v) => setFormData((prev) => ({ ...prev, gender_serve: v }))}
-              testIDPrefix="salon-serve"
-            />
-          </div>
+          {salon ? (
+            <div className="mb-8">
+              <h2 className="font-heading text-lg font-bold text-stone-900 mb-2">Who do you serve?</h2>
+              <p className="text-sm text-stone-500 mb-4">
+                Helps customers find you on Discover.
+              </p>
+              <FilterChipRow
+                options={SALON_SERVE_OPTIONS}
+                value={formData.gender_serve}
+                onChange={(v) => setFormData((prev) => ({ ...prev, gender_serve: v }))}
+                testIDPrefix="salon-serve"
+              />
+            </div>
+          ) : null}
 
           {/* Timings */}
           <div className="mb-8">
@@ -444,7 +462,7 @@ const ManageSalon = () => {
           <div className="mb-8">
             <h2 className="font-heading text-lg font-bold text-stone-900 mb-4 flex items-center gap-2">
               <ImageIcon size={22} weight="duotone" />
-              Salon Images
+              {venueCopy.imagesSection}
             </h2>
             
             {/* Hidden file input */}
@@ -529,7 +547,7 @@ const ManageSalon = () => {
               ) : (
                 <>
                   <FloppyDisk size={20} />
-                  {salon ? 'Save Changes' : 'Create Salon'}
+                  {salon ? 'Save Changes' : venueCopy.createCta}
                 </>
               )}
             </button>

@@ -18,6 +18,7 @@ from typing import Any, Dict, Optional, List
 from config import settings
 from core.supabase import supabase
 from models.subscriptions import ACCESS_GRANTING_STATUSES, SubscriptionStatus
+from services import subscription_billing as billing
 
 logger = logging.getLogger("trimit")
 
@@ -183,7 +184,7 @@ def to_subscription_out(row: Dict[str, Any]) -> Dict[str, Any]:
         "next_renewal_at": row.get("next_renewal_at"),
         "cancel_at_period_end": row.get("cancel_at_period_end", False),
         "cancelled_at": row.get("cancelled_at"),
-        "amount": row.get("amount", settings.SUBSCRIPTION_PRICE_PAISE),
+        "amount": billing.get_plan_amount_paise(),
         "currency": row.get("currency", "INR"),
         "razorpay_subscription_id": row.get("razorpay_subscription_id"),
         "created_at": row.get("created_at"),

@@ -83,12 +83,14 @@ export type CustomerTabParamList = {
 // =============================================================================
 export type OwnerDashboardStackParamList = {
   DashboardMain: undefined;
-  ManageSalon: undefined;
+  ChooseBusinessType: undefined;
+  ManageSalon: { gender_serve: import('../lib/genderServe').SalonGenderServe } | undefined;
 };
 
 export type OwnerSettingsStackParamList = {
   SettingsMain: undefined;
-  ManageSalon: undefined;
+  ChooseBusinessType: undefined;
+  ManageSalon: { gender_serve: import('../lib/genderServe').SalonGenderServe } | undefined;
   StaffManagement: undefined;
   PromoManagement: undefined;
   Subscription: undefined;

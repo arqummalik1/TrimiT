@@ -196,9 +196,11 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
                 />
               </View>
               <Text style={[styles.roleTitle, selectedRole === 'owner' && styles.roleTitleActive]}>
-                Salon Owner
+                Business owner
               </Text>
-              <Text style={[styles.roleDesc, selectedRole === 'owner' && styles.roleDescActive]}>Managing my business</Text>
+              <Text style={[styles.roleDesc, selectedRole === 'owner' && styles.roleDescActive]}>
+                Salon, beauty parlour, or unisex studio
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity

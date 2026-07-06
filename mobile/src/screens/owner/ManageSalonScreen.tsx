@@ -35,9 +35,13 @@ import { LocationPickerModal } from '../../components/LocationPickerModal';
 import { SalonMapMarker } from '../../components/SalonMapMarker';
 import type { Coordinates } from '../../lib/maps';
 import { FilterChipRow } from '../../components/FilterChipRow';
-import { SALON_SERVE_OPTIONS, SalonGenderServe } from '../../lib/genderServe';
+import { SALON_SERVE_OPTIONS, SalonGenderServe, getVenueCopy } from '../../lib/genderServe';
+import { useRoute, RouteProp } from '@react-navigation/native';
+import { OwnerDashboardStackParamList, OwnerSettingsStackParamList } from '../../navigation/types';
 
 type ManageSalonProps = OwnerDashboardScreenProps<'ManageSalon'> | OwnerSettingsScreenProps<'ManageSalon'>;
+type ManageSalonRouteProp = RouteProp<OwnerDashboardStackParamList, 'ManageSalon'> &
+  RouteProp<OwnerSettingsStackParamList, 'ManageSalon'>;
 
 interface SalonPayload {
   name: string;
@@ -58,6 +62,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
+  const route = useRoute<ManageSalonRouteProp>();
 
   const { data: salon, isLoading } = useQuery<Salon | null>({
     queryKey: queryKeys.ownerSalon,
@@ -84,10 +89,23 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     opening_time: '09:00',
     closing_time: '21:00',
     images: [] as string[],
-    gender_serve: 'men' as SalonGenderServe,
+    gender_serve: 'women' as SalonGenderServe,
   });
 
-  // Where the map preview / picker opens BEFORE a pin is placed. This is only a
+  const venueCopy = getVenueCopy(formData.gender_serve);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (salon) return;
+    const picked = route.params?.gender_serve;
+    if (!picked) {
+      navigation.replace('ChooseBusinessType');
+      return;
+    }
+    setFormData((prev) => ({ ...prev, gender_serve: picked }));
+  }, [isLoading, salon, route.params?.gender_serve, navigation]);
+
+  // Where the map preview / picker opens BEFORE a pin is placed.
   // starting camera position (Jammu — our launch city), NOT the salon's stored
   // location. The stored location is only set once the owner taps a pin.
   const MAP_DISPLAY_DEFAULT: Coordinates = { latitude: 32.7266, longitude: 74.857 };
@@ -139,7 +157,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       queryClient.setQueryData(queryKeys.ownerSalon, created);
       void queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
       useOwnerOnboardingStore.getState().setPostSalonCreatePending(true);
-      showToast('Your salon has been created successfully!', 'success');
+      showToast(getVenueCopy(created.gender_serve ?? formData.gender_serve).successCreated, 'success');
       resetOwnerDashboardToMain(navigation);
       if (!navigateOwnerToServices(navigation, { openAddService: true })) {
         navigation.goBack();
@@ -285,7 +303,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
             <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.title}>
-            {salon ? 'Edit Salon' : 'Create Salon'}
+            {salon ? venueCopy.editTitle : venueCopy.createCta}
           </Text>
           <View style={{ width: 40 }} />
         </View>
@@ -294,17 +312,17 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
         <View style={[styles.card, shadows.sm]}>
           <Text style={styles.sectionTitle}>Basic Information</Text>
           <Input
-            label="Salon Name *"
+            label={`${venueCopy.nameLabel} *`}
             value={formData.name}
             onChangeText={(v) => handleChange('name', v)}
-            placeholder="Enter salon name"
+            placeholder={venueCopy.namePlaceholder}
             icon={<Ionicons name="storefront-outline" size={20} color={theme.colors.textSecondary} />}
           />
           <Input
             label="Description"
             value={formData.description}
             onChangeText={(v) => handleChange('description', v)}
-            placeholder="Describe your salon"
+            placeholder={venueCopy.descriptionPlaceholder}
           />
           <Input
             label="Phone *"
@@ -334,7 +352,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
 
           {/* Location preview card — opens full-screen picker */}
           <Text style={styles.mapLabel}>
-            Pin your exact salon location on the map <Text style={styles.requiredMark}>*</Text>
+            {venueCopy.pinLocationHint} <Text style={styles.requiredMark}>*</Text>
           </Text>
           <TouchableOpacity
             style={[styles.locationPreviewCard, !locationSet && styles.locationPreviewCardEmpty]}
@@ -422,22 +440,21 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
           </View>
         </View>
 
-        <View style={[styles.card, shadows.sm]}>
-          <Text style={styles.sectionTitle}>Who do you serve?</Text>
-          <Text style={styles.sectionHint}>
-            Helps customers find you on Discover — like Zomato veg filter for salon type.
-          </Text>
-          <FilterChipRow
-            options={SALON_SERVE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-            value={formData.gender_serve}
-            onChange={(v) => setFormData((prev) => ({ ...prev, gender_serve: v }))}
-            testIDPrefix="salon-serve"
-          />
-        </View>
+        {salon ? (
+          <View style={[styles.card, shadows.sm]}>
+            <Text style={styles.sectionTitle}>Business type</Text>
+            <Text style={styles.sectionHint}>Customers use this to find you on Discover.</Text>
+            <FilterChipRow
+              options={SALON_SERVE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+              value={formData.gender_serve}
+              onChange={(v) => setFormData((prev) => ({ ...prev, gender_serve: v }))}
+              testIDPrefix="salon-serve"
+            />
+          </View>
+        ) : null}
 
-        {/* Images */}
         <View style={[styles.card, shadows.sm]}>
-          <Text style={styles.sectionTitle}>Salon Images</Text>
+          <Text style={styles.sectionTitle}>{venueCopy.imagesSection}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageRow}>
             {formData.images.map((uri, index) => (
               <View key={`uploaded-${uri}-${index}`} style={styles.imageWrapper}>
@@ -476,7 +493,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
         </View>
 
         <Button
-          title={salon ? 'Save Changes' : 'Create Salon'}
+          title={salon ? 'Save Changes' : venueCopy.createCta}
           onPress={handleSubmit}
           loading={isSaving}
           disabled={isUploading || !locationSet}

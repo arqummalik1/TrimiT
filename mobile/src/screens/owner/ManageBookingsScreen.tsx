@@ -27,6 +27,7 @@ import { handleApiError } from '../../lib/errorHandler';
 import { showToast } from '../../store/toastStore';
 import { Booking, Salon } from '../../types';
 import { OwnerTabScreenProps } from '../../navigation/types';
+import { navigateOwnerToChooseBusinessType } from '../../lib/ownerNavigation';
 import { useVerifyPayment, useRejectPayment } from '../../hooks/usePayment';
 import { useRoute } from '@react-navigation/native';
 
@@ -162,10 +163,14 @@ export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps
   if (!salon) {
     return (
       <ScreenWrapper variant="tab">
-        <EmptyState 
-          title="No Salon Yet"
-          message="Create your salon first to see bookings."
+        <EmptyState
+          title="Set up your business"
+          message="Choose your business type and create your profile to see bookings."
           icon="storefront-outline"
+          action={{
+            label: 'Get started',
+            onPress: () => navigateOwnerToChooseBusinessType(navigation),
+          }}
         />
       </ScreenWrapper>
     );

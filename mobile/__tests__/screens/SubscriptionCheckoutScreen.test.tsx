@@ -8,6 +8,7 @@ const mockCreateMutate = jest.fn();
 const mockVerifyMutate = jest.fn();
 
 jest.mock('../../src/hooks/useSubscription', () => ({
+  useSubscription: () => ({ data: { amount: 29900 }, isLoading: false }),
   useCreateSubscription: () => ({ mutate: mockCreateMutate, isPending: false }),
   useVerifySubscription: () => ({ mutate: mockVerifyMutate, isPending: false }),
 }));

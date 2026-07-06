@@ -27,6 +27,32 @@ logger = logging.getLogger("trimit")
 # Long horizon so the mandate keeps renewing monthly (Razorpay requires a
 # bounded total_count; 120 = 10 years of monthly cycles).
 DEFAULT_TOTAL_COUNT = 120
+_plan_amount_cache: Optional[int] = None
+
+
+def get_plan_amount_paise() -> int:
+    """Monthly plan amount from Razorpay (authoritative for checkout UI).
+
+    Falls back to SUBSCRIPTION_PRICE_PAISE when the gateway/plan is not configured
+    or the plan fetch fails. Cached for the process lifetime.
+    """
+    global _plan_amount_cache
+    if _plan_amount_cache is not None:
+        return _plan_amount_cache
+
+    plan_id = settings.RAZORPAY_PLAN_ID
+    if not plan_id or not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+        return settings.SUBSCRIPTION_PRICE_PAISE
+
+    try:
+        plan = _client().plan.fetch(plan_id)
+        item = plan.get("item") if isinstance(plan, dict) else None
+        amount = int((item or {}).get("amount") or settings.SUBSCRIPTION_PRICE_PAISE)
+        _plan_amount_cache = amount
+        return amount
+    except Exception as e:
+        logger.warning("[Sub] plan.fetch failed, using config amount: %s", e)
+        return settings.SUBSCRIPTION_PRICE_PAISE
 
 
 def _client() -> razorpay.Client:

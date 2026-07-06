@@ -54,4 +54,13 @@ export const LOCAL_SEO_SECTIONS = [
     seoPath: '/beauty-parlours-jammu',
     cards: ['Facial', 'Threading', 'Waxing', 'Hair styling'],
   },
+  {
+    id: 'unisex',
+    heading: 'Unisex salons & studios in Jammu',
+    description:
+      'One place for everyone — unisex salons in Jammu offering haircuts, facials, and grooming for men and women. Compare ratings, prices, and live slots before you book.',
+    exploreQuery: 'unisex',
+    seoPath: '/salons-in-jammu',
+    cards: ['Unisex haircut', 'Couples grooming', 'Family packages', 'All-gender styling'],
+  },
 ];

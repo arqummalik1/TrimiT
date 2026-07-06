@@ -94,12 +94,13 @@ async def create_subscription(request: Request, current_user: dict = Depends(get
     row = await subs.ensure_trial(owner_id)
 
     # If already active with a live Razorpay subscription, don't create another.
+    plan_amount = billing.get_plan_amount_paise()
     if row.get("status") == SubscriptionStatus.active.value and row.get("razorpay_subscription_id"):
         return {
             "subscription_id": row["razorpay_subscription_id"],
             "key_id": settings.RAZORPAY_KEY_ID,
             "plan_id": settings.RAZORPAY_PLAN_ID,
-            "amount": row.get("amount", settings.SUBSCRIPTION_PRICE_PAISE),
+            "amount": plan_amount,
             "currency": "INR",
             "customer_id": row.get("razorpay_customer_id"),
             "already_active": True,
@@ -128,6 +129,7 @@ async def create_subscription(request: Request, current_user: dict = Depends(get
             "razorpay_subscription_id": sub.get("id"),
             "razorpay_customer_id": customer_id,
             "razorpay_plan_id": settings.RAZORPAY_PLAN_ID,
+            "amount": plan_amount,
         },
         event_type="checkout_created",
         source="owner",
@@ -138,9 +140,10 @@ async def create_subscription(request: Request, current_user: dict = Depends(get
         "subscription_id": sub.get("id"),
         "key_id": settings.RAZORPAY_KEY_ID,
         "plan_id": settings.RAZORPAY_PLAN_ID,
-        "amount": row.get("amount", settings.SUBSCRIPTION_PRICE_PAISE),
+        "amount": plan_amount,
         "currency": "INR",
         "customer_id": customer_id,
+        "billing_starts_at": anchor.isoformat() if anchor else None,
     }
 
 

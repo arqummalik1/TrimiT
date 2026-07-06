@@ -5,6 +5,7 @@ import { MapPin, Star, Clock, NavigationArrow, Prohibit, Moon } from '@phosphor-
 import { formatPrice } from '../../lib/utils';
 import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../../lib/featureFlags';
 import { getSalonClosedState } from '../../lib/salonAvailability';
+import { SalonTypeBadge } from '../FilterChipRow';
 
 const DEFAULT_IMAGE =
   'https://images.unsplash.com/photo-1626383137804-ff908d2753a2?auto=format&fit=crop&w=800&q=72';
@@ -44,7 +45,11 @@ export default function SalonCard({ salon, compact = false }) {
             Temporarily closed
           </div>
         ) : (
-          distance != null && (
+          <>
+            <div className="absolute top-3 left-3">
+              <SalonTypeBadge genderServe={salon.gender_serve} />
+            </div>
+            {distance != null && (
             <motion.div
               className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 text-sm font-medium text-stone-700"
               initial={{ opacity: 0, x: 8 }}
@@ -53,7 +58,8 @@ export default function SalonCard({ salon, compact = false }) {
               <NavigationArrow size={14} weight="bold" />
               {distance} km
             </motion.div>
-          )
+            )}
+          </>
         )}
       </motion.div>
       <div className={compact ? 'p-4' : 'p-5'}>

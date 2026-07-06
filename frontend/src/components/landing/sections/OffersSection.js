@@ -9,7 +9,7 @@ const CARDS = [
     icon: HandHeart,
     badge: 'For Customers',
     title: 'Always Free',
-    desc: 'Download the TrimiT app and start booking salons instantly. No subscription, no fees — ever.',
+    desc: 'Download the TrimiT app and book salons, beauty parlours, and unisex studios instantly. No subscription, no fees — ever.',
     cta: 'Download App Free',
     href: '/explore',
     accent: 'bg-emerald-50 border-emerald-200',
@@ -18,9 +18,9 @@ const CARDS = [
   },
   {
     icon: Sparkle,
-    badge: 'For Salon Owners',
+    badge: 'For Business Owners',
     title: '30 Days Free Trial',
-    desc: 'List your salon, start accepting bookings, and manage everything digitally — completely free for one month.',
+    desc: 'List your salon, beauty parlour, or unisex studio — accept bookings and manage everything digitally. Free for one month.',
     cta: 'Start Free Trial',
     href: '/signup?role=owner',
     accent: 'bg-orange-50 border-orange-300',
@@ -42,10 +42,11 @@ export default function OffersSection() {
             Limited Time Offer · Valid till June 30
           </span>
           <h2 className="font-heading text-3xl sm:text-4xl font-bold text-stone-900">
-            The Zomato of Salons — is here
+            The grooming marketplace for Jammu &amp; Kashmir
           </h2>
           <p className="text-stone-500 mt-3 max-w-xl text-base">
-            TrimiT is revolutionizing how Jammu &amp; Kashmir discovers and books salons. Get in early — before seats are gone.
+            TrimiT is how Jammu discovers and books men&apos;s salons, beauty parlours, and unisex
+            studios — get in early before seats are gone.
           </p>
         </div>
 

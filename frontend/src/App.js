@@ -25,6 +25,7 @@ import BookingPage from "./pages/customer/BookingPage";
 import PaymentWaitingPage from "./pages/customer/PaymentWaitingPage";
 import MyBookings from "./pages/customer/MyBookings";
 import OwnerDashboard from "./pages/owner/OwnerDashboard";
+import ChooseBusinessTypePage from "./pages/owner/ChooseBusinessTypePage";
 import ManageSalon from "./pages/owner/ManageSalon";
 import ManageServices from "./pages/owner/ManageServices";
 import ManageCategories from "./pages/owner/ManageCategories";
@@ -252,6 +253,16 @@ function App() {
               <ProtectedRoute allowedRoles={["owner"]}>
                 <OwnerSubscriptionGate>
                   <OwnerDashboard />
+                </OwnerSubscriptionGate>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/owner/choose-type"
+            element={
+              <ProtectedRoute allowedRoles={["owner"]}>
+                <OwnerSubscriptionGate>
+                  <ChooseBusinessTypePage />
                 </OwnerSubscriptionGate>
               </ProtectedRoute>
             }

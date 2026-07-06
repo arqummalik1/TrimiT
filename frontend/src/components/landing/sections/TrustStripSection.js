@@ -21,7 +21,7 @@ const ITEMS = [
   {
     icon: MapPin,
     value: <span className="font-heading text-2xl sm:text-3xl font-bold text-orange-800">Jammu</span>,
-    label: 'Trusted local salons',
+    label: 'Salons & parlours',
   },
 ];
 

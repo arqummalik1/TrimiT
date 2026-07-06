@@ -34,7 +34,10 @@ async def list_owners() -> List[Dict[str, Any]]:
     owners = await _get(
         "rest/v1/users?role=eq.owner&select=id,name,email,phone,created_at,upi_id&order=created_at.desc"
     )
-    salons = await _get("rest/v1/salons?select=id,owner_id,name,city,subscription_active")
+    salons = await _get(
+        "rest/v1/salons?select=id,owner_id,name,city,address,phone,upi_id,"
+        "gender_serve,subscription_active,opening_time,closing_time,about,created_at"
+    )
     subscriptions = await _get("rest/v1/subscriptions?select=*")
 
     salon_by_owner: Dict[str, Dict[str, Any]] = {}
@@ -60,11 +63,18 @@ async def list_owners() -> List[Dict[str, Any]]:
             "name": o.get("name"),
             "email": o.get("email"),
             "phone": o.get("phone"),
-            "upi_id": o.get("upi_id"),
+            "upi_id": o.get("upi_id") or (salon.get("upi_id") if salon else None),
             "created_at": o.get("created_at"),
             "salon_id": salon.get("id") if salon else None,
             "salon_name": salon.get("name") if salon else None,
             "city": salon.get("city") if salon else None,
+            "salon_address": salon.get("address") if salon else None,
+            "salon_phone": salon.get("phone") if salon else None,
+            "gender_serve": salon.get("gender_serve") if salon else None,
+            "opening_time": salon.get("opening_time") if salon else None,
+            "closing_time": salon.get("closing_time") if salon else None,
+            "about": salon.get("about") if salon else None,
+            "salon_created_at": salon.get("created_at") if salon else None,
             "subscription_active": (salon.get("subscription_active") if salon else False),
             "subscription_status": access["effective_status"],
             "has_access": access["has_access"],
@@ -72,6 +82,97 @@ async def list_owners() -> List[Dict[str, Any]]:
             "trial_days_remaining": access["trial_days_remaining"],
             "current_period_end": (sub.get("current_period_end") if sub else None),
             "next_renewal_at": (sub.get("next_renewal_at") if sub else None),
+        })
+    return out
+
+
+async def list_salons() -> List[Dict[str, Any]]:
+    """All salons with owner contact info for admin drill-down."""
+    salons = await _get(
+        "rest/v1/salons?select=id,owner_id,name,city,address,phone,upi_id,"
+        "gender_serve,subscription_active,opening_time,closing_time,created_at"
+        "&order=created_at.desc"
+    )
+    owners = await _get(
+        "rest/v1/users?role=eq.owner&select=id,name,email,phone,upi_id"
+    )
+    owner_by_id = {str(o.get("id")): o for o in owners}
+    subscriptions = await _get("rest/v1/subscriptions?select=*")
+    sub_by_owner = {str(s.get("owner_id")): s for s in subscriptions}
+
+    out: List[Dict[str, Any]] = []
+    for s in salons:
+        oid = str(s.get("owner_id") or "")
+        owner = owner_by_id.get(oid, {})
+        sub = sub_by_owner.get(oid)
+        access = subs.compute_access(sub) if sub else {
+            "effective_status": "none",
+            "has_access": False,
+            "is_trial": False,
+            "trial_days_remaining": 0,
+        }
+        out.append({
+            "id": s.get("id"),
+            "owner_id": oid or None,
+            "owner_name": owner.get("name"),
+            "owner_email": owner.get("email"),
+            "owner_phone": owner.get("phone"),
+            "name": s.get("name"),
+            "city": s.get("city"),
+            "address": s.get("address"),
+            "phone": s.get("phone"),
+            "upi_id": s.get("upi_id") or owner.get("upi_id"),
+            "gender_serve": s.get("gender_serve") or "unisex",
+            "subscription_active": s.get("subscription_active"),
+            "subscription_status": access["effective_status"],
+            "is_trial": access["is_trial"],
+            "trial_days_remaining": access["trial_days_remaining"],
+            "opening_time": s.get("opening_time"),
+            "closing_time": s.get("closing_time"),
+            "created_at": s.get("created_at"),
+        })
+    return out
+
+
+async def list_bookings() -> List[Dict[str, Any]]:
+    """Recent bookings with salon + customer names for admin drill-down."""
+    bookings = await _get(
+        "rest/v1/bookings?select=id,user_id,salon_id,service_id,booking_date,"
+        "time_slot,status,payment_status,amount,created_at"
+        "&order=created_at.desc&limit=500"
+    )
+    users = await _get("rest/v1/users?select=id,name,email,phone")
+    salons = await _get("rest/v1/salons?select=id,name,city")
+    services = await _get("rest/v1/services?select=id,name")
+
+    user_by_id = {str(u.get("id")): u for u in users}
+    salon_by_id = {str(s.get("id")): s for s in salons}
+    service_by_id = {str(s.get("id")): s for s in services}
+
+    out: List[Dict[str, Any]] = []
+    for b in bookings:
+        uid = str(b.get("user_id") or "")
+        sid = str(b.get("salon_id") or "")
+        svc_id = str(b.get("service_id") or "")
+        user = user_by_id.get(uid, {})
+        salon = salon_by_id.get(sid, {})
+        service = service_by_id.get(svc_id, {})
+        out.append({
+            "id": b.get("id"),
+            "customer_id": uid or None,
+            "customer_name": user.get("name"),
+            "customer_email": user.get("email"),
+            "customer_phone": user.get("phone"),
+            "salon_id": sid or None,
+            "salon_name": salon.get("name"),
+            "salon_city": salon.get("city"),
+            "service_name": service.get("name"),
+            "booking_date": b.get("booking_date"),
+            "time_slot": b.get("time_slot"),
+            "status": b.get("status"),
+            "payment_status": b.get("payment_status"),
+            "amount": b.get("amount"),
+            "created_at": b.get("created_at"),
         })
     return out
 

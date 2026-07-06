@@ -19,11 +19,11 @@ export default function WhyTrimitSection() {
           id="why-trimit-heading"
           className="font-heading text-3xl sm:text-4xl md:text-5xl font-bold text-stone-900 mt-3 mb-4"
         >
-          India&apos;s modern salon booking platform
+          India&apos;s grooming marketplace for Jammu &amp; Kashmir
         </h2>
         <p className="text-stone-500 text-lg max-w-2xl mx-auto">
-          Everything you need to discover, book, and enjoy premium grooming — built for trust and
-          speed in Jammu.
+          Discover men&apos;s salons, beauty parlours, and unisex studios — book with live slots and
+          pay at the venue. Live in Jammu today, expanding across India.
         </p>
       </motion.div>
       <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">

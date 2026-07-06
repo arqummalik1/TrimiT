@@ -65,7 +65,7 @@ const CompleteProfilePage = () => {
         profile.role === 'owner'
           ? hasSalon
             ? '/owner/dashboard'
-            : '/owner/salon'
+            : '/owner/choose-type'
           : '/explore',
         { replace: true }
       );
@@ -121,7 +121,7 @@ const CompleteProfilePage = () => {
       useToastStore.getState().success("Welcome to TrimiT! You're all set.");
       const nextRole = result.profile?.role || role;
       if (nextRole === 'owner') {
-        navigate(result.hasSalon ? '/owner/dashboard' : '/owner/salon', {
+        navigate(result.hasSalon ? '/owner/dashboard' : '/owner/choose-type', {
           replace: true,
         });
       } else {
@@ -207,8 +207,8 @@ const CompleteProfilePage = () => {
                       role === 'owner' ? 'text-orange-800' : 'text-stone-400'
                     }`}
                   />
-                  <span className="block font-semibold text-stone-900">Salon Owner</span>
-                  <span className="text-xs text-stone-500">List your business</span>
+                  <span className="block font-semibold text-stone-900">Business owner</span>
+                  <span className="text-xs text-stone-500">Salon, beauty parlour, or unisex studio</span>
                 </button>
               </div>
             </div>

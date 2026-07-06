@@ -28,6 +28,7 @@ import {
 } from "../../lib/supabase";
 import NotificationBell from "../../components/NotificationBell";
 import SalonAvailabilityToggle from "../../components/owner/SalonAvailabilityToggle";
+import { getVenueCopy } from "../../lib/genderServe";
 
 const OwnerDashboard = () => {
   const queryClient = useQueryClient();
@@ -152,26 +153,41 @@ const OwnerDashboard = () => {
     },
   ];
 
-  const quickActions = [
-    {
-      title: "Manage Salon",
-      icon: Storefront,
-      href: "/owner/salon",
-      color: "bg-orange-800",
-    },
-    {
-      title: "View Bookings",
-      icon: CalendarCheck,
-      href: "/owner/bookings",
-      color: "bg-emerald-800",
-    },
-    {
-      title: "Settings",
-      icon: Gear,
-      href: "/owner/settings",
-      color: "bg-blue-800",
-    },
-  ];
+  const quickActions = salon
+    ? [
+        {
+          title: getVenueCopy(salon.gender_serve || "men").manageTitle,
+          icon: Storefront,
+          href: "/owner/salon",
+          color: "bg-orange-800",
+        },
+        {
+          title: "View Bookings",
+          icon: CalendarCheck,
+          href: "/owner/bookings",
+          color: "bg-emerald-800",
+        },
+        {
+          title: "Settings",
+          icon: Gear,
+          href: "/owner/settings",
+          color: "bg-blue-800",
+        },
+      ]
+    : [
+        {
+          title: "View Bookings",
+          icon: CalendarCheck,
+          href: "/owner/bookings",
+          color: "bg-emerald-800",
+        },
+        {
+          title: "Settings",
+          icon: Gear,
+          href: "/owner/settings",
+          color: "bg-blue-800",
+        },
+      ];
 
   return (
     <div
@@ -259,18 +275,18 @@ const OwnerDashboard = () => {
               className="mx-auto text-stone-300 mb-4"
             />
             <h2 className="font-heading text-2xl font-bold text-stone-700 mb-3">
-              Create Your Salon
+              Set up your business
             </h2>
             <p className="text-stone-500 mb-6 max-w-md mx-auto">
-              Start by setting up your salon profile. Add your business details,
-              services, and start accepting bookings.
+              Choose your business type — men&apos;s salon, beauty parlour, or unisex
+              studio — then add services and start accepting bookings.
             </p>
             <Link
-              to="/owner/salon"
+              to="/owner/choose-type"
               data-testid="create-salon-btn"
               className="btn-primary inline-flex items-center gap-2"
             >
-              Create Salon
+              Get started
               <ArrowRight size={20} />
             </Link>
           </motion.div>

@@ -15,9 +15,12 @@ export const JAMMU_CITY = {
   ],
 };
 
-export function buildExploreSearchParams({ q = '', lat, lng, radius } = {}) {
+export function buildExploreSearchParams({ q = '', lat, lng, radius, gender_serve } = {}) {
   const params = new URLSearchParams();
   if (q) params.set('q', q);
+  if (gender_serve === 'men' || gender_serve === 'women') {
+    params.set('gender_serve', gender_serve);
+  }
   params.set('lat', String(lat ?? JAMMU_CITY.lat));
   params.set('lng', String(lng ?? JAMMU_CITY.lng));
   if (radius) params.set('radius', String(radius));

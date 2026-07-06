@@ -3,6 +3,8 @@ import {
   discoverChipToApiFilter,
   filterServicesForMenuAudience,
   salonMatchesDiscoverFilter,
+  getVenueCopy,
+  salonTypeLabel,
 } from '../../src/lib/genderServe';
 
 describe('genderServe (web)', () => {
@@ -24,5 +26,11 @@ describe('genderServe (web)', () => {
   it('matches salon discover filter', () => {
     expect(salonMatchesDiscoverFilter({ gender_serve: 'women' }, 'men')).toBe(false);
     expect(salonMatchesDiscoverFilter({ gender_serve: 'unisex' }, 'men')).toBe(true);
+  });
+
+  it('returns venue copy per gender_serve', () => {
+    expect(getVenueCopy('women').customerBadge).toBe('Beauty parlour');
+    expect(getVenueCopy('unisex').createCta).toBe('Create your unisex salon');
+    expect(salonTypeLabel('women')).toBe('Beauty parlour');
   });
 });

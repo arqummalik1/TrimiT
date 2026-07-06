@@ -17,7 +17,7 @@ import { PROMO, isOfferActive } from '../config/promotions';
 
 const MARKETING_LINKS = [
   { to: '/explore', label: 'Explore' },
-  { to: '/for-salons', label: 'For Salons' },
+  { to: '/for-salons', label: 'For Owners' },
 ];
 
 const openPlayStore = () => {

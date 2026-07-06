@@ -64,6 +64,8 @@ export interface CreateSubscriptionResponse {
   currency: string;
   customer_id: string | null;
   already_active?: boolean;
+  /** ISO timestamp when the first paid cycle starts (trial stacking). */
+  billing_starts_at?: string | null;
 }
 
 export interface VerifySubscriptionPayload {

@@ -89,6 +89,26 @@ def test_customers_success(client, monkeypatch):
     assert resp.json()["customers"][0]["id"] == "c1"
 
 
+def test_salons_success(client, monkeypatch):
+    _cfg(monkeypatch)
+    from routers import admin as admin_router
+    monkeypatch.setattr(admin_router.dashboard, "list_salons",
+                        lambda: _ret([{"id": "s1", "name": "Glow", "gender_serve": "women"}]))
+    resp = client.get("/api/v1/admin/dashboard/salons", headers={"Authorization": f"Bearer {TOKEN}"})
+    assert resp.status_code == status.HTTP_200_OK
+    assert resp.json()["salons"][0]["gender_serve"] == "women"
+
+
+def test_bookings_success(client, monkeypatch):
+    _cfg(monkeypatch)
+    from routers import admin as admin_router
+    monkeypatch.setattr(admin_router.dashboard, "list_bookings",
+                        lambda: _ret([{"id": "b1", "status": "confirmed", "amount": 499}]))
+    resp = client.get("/api/v1/admin/dashboard/bookings", headers={"Authorization": f"Bearer {TOKEN}"})
+    assert resp.status_code == status.HTTP_200_OK
+    assert resp.json()["bookings"][0]["status"] == "confirmed"
+
+
 # ── public pageview tracking ──────────────────────────────────────────────────
 
 def test_pageview_records(client, mock_supabase):

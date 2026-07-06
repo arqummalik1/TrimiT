@@ -38,6 +38,7 @@ import { queryKeys } from '../../lib/queryKeys';
 import { useOwnerSalonQuery } from '../../hooks/useOwnerSalonQuery';
 import { useOwnerOnboardingStore } from '../../store/ownerOnboardingStore';
 import type { OwnerServicesScreenProps } from '../../navigation/types';
+import { navigateOwnerToChooseBusinessType } from '../../lib/ownerNavigation';
 import { groupServicesByCategory } from '../../lib/serviceCategories';
 import { SERVICE_AUDIENCE_OPTIONS } from '../../lib/genderServe';
 import { FilterChipRow } from '../../components/FilterChipRow';
@@ -347,8 +348,15 @@ export default function ManageServicesScreen({ navigation, route }: ServicesRout
       <ScreenWrapper variant="tab">
         <View style={styles.emptyContainer}>
           <Ionicons name="storefront-outline" size={64} color={theme.colors.textTertiary} />
-          <Text style={styles.emptyTitle}>No Salon Yet</Text>
-          <Text style={styles.emptyText}>Create your salon first to manage services.</Text>
+          <Text style={styles.emptyTitle}>Set up your business</Text>
+          <Text style={styles.emptyText}>
+            Choose your business type and create your profile to manage services.
+          </Text>
+          <Button
+            title="Get started"
+            onPress={() => navigateOwnerToChooseBusinessType(navigation)}
+            style={{ marginTop: spacing.lg }}
+          />
         </View>
       </ScreenWrapper>
     );

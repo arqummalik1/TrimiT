@@ -10,16 +10,16 @@ import { PROMO, isOfferActive } from '../config/promotions';
 
 const OWNER_FAQ = [
   {
-    q: 'Is it free to list my salon on TrimiT?',
-    a: 'Yes — salon owners can create a profile and list services for free. Start receiving online bookings through your dashboard.',
+    q: 'Is it free to list my business on TrimiT?',
+    a: 'Yes — salon, beauty parlour, and unisex studio owners can create a profile and list services for free. Start receiving online bookings through your dashboard.',
   },
   {
     q: 'What can I manage in the owner dashboard?',
-    a: 'Bookings, services, salon profile, schedules, and customer notifications — all in one place.',
+    a: 'Bookings, services, your business profile, schedules, and customer notifications — all in one place.',
   },
   {
-    q: 'How do customers find my salon?',
-    a: 'Customers searching for salon booking in Jammu & Kashmir and related services discover your profile on TrimiT and book available slots.',
+    q: 'How do customers find my business?',
+    a: 'Customers searching for salons, beauty parlours, and grooming services in Jammu & Kashmir discover your profile on TrimiT and book available slots.',
   },
 ];
 
@@ -40,14 +40,14 @@ export default function ForSalonsPage() {
         <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center relative z-10">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <span className="text-xs font-bold tracking-[0.2em] uppercase text-orange-300">
-              For salon owners
+              For business owners
             </span>
             <h1 className="font-heading text-4xl sm:text-5xl font-extrabold mt-4 mb-6 leading-tight">
-              Take your salon online with TrimiT
+              Take your salon or beauty parlour online
             </h1>
             <p className="text-stone-300 text-lg leading-relaxed mb-8">
-              Get more bookings, accept appointments 24/7, and manage your salon digitally. Join
-              India&apos;s modern salon booking platform — list your salon for free in Jammu &amp; Kashmir.
+              Get more bookings, accept appointments 24/7, and manage your business digitally. Men&apos;s
+              salons, beauty parlours, and unisex studios — list for free in Jammu &amp; Kashmir.
               {isOfferActive() && (
                 <span className="block mt-3 text-orange-300 font-semibold text-base">
                   🎉 Limited Offer: First 30 days completely free. Offer ends June 30.
@@ -58,7 +58,7 @@ export default function ForSalonsPage() {
               to={PROMO.ctaPath}
               className="inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-900 rounded-full font-bold hover:bg-orange-50"
             >
-              {isOfferActive() ? PROMO.ctaLabel : 'List your salon free'}
+              {isOfferActive() ? PROMO.ctaLabel : 'List your business free'}
               <ArrowRight size={20} weight="bold" />
             </Link>
           </motion.div>
@@ -69,7 +69,7 @@ export default function ForSalonsPage() {
       <section className="py-20 px-4 bg-white">
         <motion.div className="max-w-6xl mx-auto">
           <h2 className="font-heading text-3xl font-bold text-stone-900 text-center mb-12">
-            Everything to grow your salon business
+            Everything to grow your grooming business
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map((f, i) => (
@@ -112,7 +112,7 @@ export default function ForSalonsPage() {
             {[
               {
                 title: 'No payment commission',
-                text: 'List your salon and take bookings for free. We take no cut of your payments.',
+                text: 'List your business and take bookings for free. We take no cut of your payments.',
               },
               {
                 title: 'Money straight to you',

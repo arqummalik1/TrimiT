@@ -1,6 +1,7 @@
 import React from 'react';
 import HeroSection from '../components/landing/sections/HeroSection';
 import TrustStripSection from '../components/landing/sections/TrustStripSection';
+import MarketAudienceSection from '../components/landing/sections/MarketAudienceSection';
 import FeaturedSalonsSection from '../components/landing/sections/FeaturedSalonsSection';
 import TrendingServicesSection from '../components/landing/sections/TrendingServicesSection';
 import LocalSeoSections from '../components/landing/sections/LocalSeoSections';
@@ -21,7 +22,11 @@ const LandingPage = () => (
   <div className="min-h-screen bg-stone-50 pb-20 md:pb-0">
     <HeroSection />
     <TrustStripSection />
-    <FeaturedSalonsSection />
+    <MarketAudienceSection />
+    <FeaturedSalonsSection
+      title="Top rated in Jammu"
+      subtitle="Men's salons, beauty parlours, and unisex studios with live slots — book in minutes."
+    />
     <TrendingServicesSection />
     <LocalSeoSections />
     <WhyTrimitSection />
@@ -29,9 +34,25 @@ const LandingPage = () => (
     <OffersSection />
     <PaymentTrustSection />
     <FeaturedSalonsSection
-      title="Nearby salons"
-      subtitle="Discover salons near you across Jammu &amp; Kashmir — enable location for best results."
+      title="Men's salons nearby"
+      subtitle="Haircuts, beard grooming, and men's packages — verified listings in Jammu."
+      gender_serve="men"
+      sectionId="featured-men"
+      eyebrow="Men's grooming"
+    />
+    <FeaturedSalonsSection
+      title="Beauty parlours in Jammu"
+      subtitle="Facials, threading, waxing, and hair styling — book women's beauty parlours online."
+      gender_serve="women"
+      sectionId="featured-women"
+      eyebrow="Beauty parlours"
+    />
+    <FeaturedSalonsSection
+      title="Nearby businesses"
+      subtitle="Discover salons and beauty parlours near you across Jammu & Kashmir — enable location for best results."
       sort="distance"
+      sectionId="featured-nearby"
+      eyebrow="Near you"
     />
     <OwnerGrowthSection />
     <SocialProofSection />

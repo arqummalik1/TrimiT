@@ -1,5 +1,9 @@
 # TrimiT - V2 Progress
 
+## Accomplished (2026-07-06)
+- **Admin dashboard drill-down (web):** All stat cards clickable — owners, customers, salons, bookings, trials, revenue, visitors open detail modals. Owner/salon rows open full detail (contact, UPI, gender serve type). Backend: `GET /admin/dashboard/salons`, `GET /admin/dashboard/bookings`, richer owner payload.
+- **Developer guide:** `docs/v2_docs/DEVELOPER_GUIDE.md` — beginner-friendly doc for salon/parlor, Lane A/B promos, admin dashboard, gaps checklist.
+
 ## Accomplished (2026-07-05)
 - **Salon create fix + TRIMIT50 promo system:** Hardened `POST /salons` (service-role insert, safe PostgREST parsing). Platform welcome campaign TRIMIT50, checkout offers UI, required customer phone, owner promo fixes, admin campaigns tab. Migrations 59–61. Merged with zero-point-twenty-two on main.
 - **Security fixes (CodeAnt audit):** P0-1 resend no longer auto-confirms on email rate limit; signup idempotent path skips early profile writes; JWT role test is behavioral; web OTP redirect sanitized; realtime channel cleanup fixed.

@@ -17,12 +17,12 @@ export default function FinalCtaSection() {
           showWordmark={false}
         />
         <h2 className="font-heading text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
-          {isOfferActive() ? 'Grab your free trial before it expires' : 'Ready for your next salon visit?'}
+          {isOfferActive() ? 'Grab your free trial before it expires' : 'Ready for your next appointment?'}
         </h2>
         <p className="text-orange-100 text-lg mb-8 max-w-2xl mx-auto">
           {isOfferActive()
-            ? `Customers book for free. Salon owners get 30 days free. Offer ends June 30 — don't wait.`
-            : 'Join customers and owners across Jammu & Kashmir who book smarter with TrimiT.'}
+            ? `Customers book for free. Business owners get 30 days free. Offer ends June 30 — don't wait.`
+            : 'Join customers and owners across Jammu & Kashmir who book salons and beauty parlours on TrimiT.'}
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
@@ -30,7 +30,7 @@ export default function FinalCtaSection() {
             data-testid="cta-get-started"
             className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-orange-800 rounded-full font-bold text-lg hover:bg-orange-50 transition-colors shadow-lg"
           >
-            Find salons in J&amp;K
+            Explore salons &amp; parlours
             <ArrowRight size={24} weight="bold" />
           </Link>
           <Link
@@ -38,7 +38,7 @@ export default function FinalCtaSection() {
             className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full font-bold text-lg text-white border border-white/30 hover:bg-white/10"
           >
             <Storefront size={22} />
-            {isOfferActive() ? PROMO.ctaLabel : 'List your salon free'}
+            {isOfferActive() ? PROMO.ctaLabel : 'List your business free'}
           </Link>
         </div>
       </div>

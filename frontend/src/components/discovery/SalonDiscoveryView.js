@@ -3,14 +3,24 @@ import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MagnifyingGlass, MapPin, NavigationArrow } from '@phosphor-icons/react';
 import SalonCard from '../salon/SalonCard';
+import { FilterChipRow } from '../FilterChipRow';
 import { usePublicSalons } from '../../hooks/usePublicSalons';
 import { JAMMU_CITY } from '../../config/jammu';
+import { MARKET_AUDIENCE_OPTIONS } from '../../config/marketAudience';
 import { useServiceability } from '../../hooks/useServiceability';
 import ServiceAreaGate from './ServiceAreaGate';
 import ServiceCityNotice from './ServiceCityNotice';
 
+const EXPLORE_AUDIENCE_CHIPS = [
+  { value: 'all', label: 'All' },
+  ...MARKET_AUDIENCE_OPTIONS.map((opt) => ({
+    value: opt.id,
+    label: opt.title,
+  })),
+];
+
 export default function SalonDiscoveryView({
-  title = 'Explore salons in Jammu',
+  title = 'Explore salons & beauty parlours',
   subtitle,
   showLocationButton = true,
 }) {
@@ -18,8 +28,12 @@ export default function SalonDiscoveryView({
   const initialQ = searchParams.get('q') || '';
   const initialLat = parseFloat(searchParams.get('lat')) || JAMMU_CITY.lat;
   const initialLng = parseFloat(searchParams.get('lng')) || JAMMU_CITY.lng;
+  const initialGender = searchParams.get('gender_serve');
+  const initialAudience =
+    initialGender === 'men' ? 'men' : initialGender === 'women' ? 'women' : 'all';
 
   const [searchQuery, setSearchQuery] = useState(initialQ);
+  const [audience, setAudience] = useState(initialAudience);
   const [coords, setCoords] = useState({ lat: initialLat, lng: initialLng });
   const [locationLabel, setLocationLabel] = useState(JAMMU_CITY.label);
   // Only gate when the visitor actively shared their real location (not the
@@ -28,28 +42,52 @@ export default function SalonDiscoveryView({
 
   useEffect(() => {
     setSearchQuery(initialQ);
-  }, [initialQ]);
+    setAudience(initialAudience);
+  }, [initialQ, initialAudience]);
+
+  const genderServe =
+    audience === 'men' ? 'men' : audience === 'women' ? 'women' : undefined;
 
   const { data: salons, isLoading, error, refetch, isFetching } = usePublicSalons({
     search: searchQuery,
     lat: coords.lat,
     lng: coords.lng,
     limit: 24,
+    gender_serve: genderServe,
   });
+
+  const displayedSalons =
+    audience === 'unisex'
+      ? (salons || []).filter((s) => (s.gender_serve || 'unisex') === 'unisex')
+      : salons;
 
   const { data: serviceability } = useServiceability(
     sharedLocation ? coords : null
   );
   const isOutOfArea = sharedLocation && serviceability?.serviceable === false;
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
+  const syncSearchParams = (nextAudience = audience) => {
     const next = new URLSearchParams(searchParams);
     if (searchQuery) next.set('q', searchQuery);
     else next.delete('q');
     next.set('lat', String(coords.lat));
     next.set('lng', String(coords.lng));
+    if (nextAudience === 'men' || nextAudience === 'women') {
+      next.set('gender_serve', nextAudience);
+    } else {
+      next.delete('gender_serve');
+    }
     setSearchParams(next, { replace: true });
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    syncSearchParams();
+  };
+
+  const handleAudienceChange = (value) => {
+    setAudience(value);
+    syncSearchParams(value);
   };
 
   const useMyLocation = () => {
@@ -76,11 +114,17 @@ export default function SalonDiscoveryView({
             <h1 className="font-heading text-3xl md:text-4xl font-bold text-stone-900 mb-2">
               {title}
             </h1>
-            <p className="text-stone-500 mb-6">
+            <p className="text-stone-500 mb-4">
               {subtitle ||
-                `Showing salons near ${locationLabel} — book online with instant confirmation.`}
+                `Men's salons, beauty parlours, and unisex studios near ${locationLabel} — book online with instant confirmation.`}
             </p>
-            <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-3">
+            <FilterChipRow
+              options={EXPLORE_AUDIENCE_CHIPS}
+              value={audience}
+              onChange={handleAudienceChange}
+              testIDPrefix="explore-audience"
+            />
+            <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-3 mt-6">
               <div className="flex-1 relative">
                 <MagnifyingGlass
                   size={20}
@@ -91,7 +135,7 @@ export default function SalonDiscoveryView({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   data-testid="search-input"
-                  placeholder="Search salons, haircut, beard, spa..."
+                  placeholder="Search salons, parlours, haircut, facial..."
                   className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
                 />
               </div>
@@ -145,17 +189,17 @@ export default function SalonDiscoveryView({
               <div key={i} className="aspect-[4/3] rounded-2xl bg-stone-200 animate-pulse" />
             ))}
           </div>
-        ) : salons?.length > 0 ? (
+        ) : displayedSalons?.length > 0 ? (
           <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-stagger">
-            {salons.map((salon) => (
+            {displayedSalons.map((salon) => (
               <SalonCard key={salon.id} salon={salon} />
             ))}
           </motion.div>
         ) : (
           <div className="text-center py-16">
             <MapPin size={64} weight="duotone" className="mx-auto text-stone-300 mb-4" />
-            <h2 className="font-heading text-xl font-bold text-stone-700 mb-2">No salons found</h2>
-            <p className="text-stone-500">Try a different search or check back as new salons join.</p>
+            <h2 className="font-heading text-xl font-bold text-stone-700 mb-2">No businesses found</h2>
+            <p className="text-stone-500">Try a different filter or check back as new salons and parlours join.</p>
           </div>
         )}
         </>

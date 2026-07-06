@@ -15,8 +15,8 @@ import {
 import { SOCIAL_INSTAGRAM, SOCIAL_FACEBOOK } from '../config/contact';
 
 const MARKETING_ROUTES = [
-  { to: '/explore', label: 'Explore salons' },
-  { to: '/for-salons', label: 'For salon owners' },
+  { to: '/explore', label: 'Explore marketplace' },
+  { to: '/for-salons', label: 'For business owners' },
   { to: '/blog', label: 'Blog' },
   { to: '/salons-in-jammu', label: 'Salons in Jammu' },
 ];
@@ -41,8 +41,8 @@ const Footer = () => {
               className="mb-4"
             />
             <p className="text-sm text-stone-400 leading-relaxed">
-              Premium salon booking in Jammu &amp; Kashmir. Discover, book, and manage appointments
-              online.
+              Salons, beauty parlours &amp; unisex studios in Jammu &amp; Kashmir. Discover, book,
+              and manage appointments online — expanding across India.
             </p>
             <p className="mt-4 text-xs text-stone-500">{formatVersionLine()}</p>
             <div className="flex items-center gap-4 mt-6">
