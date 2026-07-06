@@ -80,10 +80,10 @@ describe('CompleteProfileScreen — role selection (item 16)', () => {
     });
   });
 
-  it('switches to owner when the Salon Owner card is selected', async () => {
+  it('switches to owner when the Business owner card is selected', async () => {
     renderScreen({ params: {} } as any);
 
-    fireEvent.press(screen.getByText('Salon Owner'));
+    fireEvent.press(screen.getByText('Business owner'));
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Olive Owner');
     // Owners must provide a UPI ID (customers get paid directly to it).
     fireEvent.changeText(screen.getByPlaceholderText('glowsalon@okaxis'), 'olive@okaxis');
@@ -102,7 +102,7 @@ describe('CompleteProfileScreen — role selection (item 16)', () => {
   it('can switch back to customer after selecting owner', async () => {
     renderScreen({ params: {} } as any);
 
-    fireEvent.press(screen.getByText('Salon Owner'));
+    fireEvent.press(screen.getByText('Business owner'));
     fireEvent.press(screen.getByText('Customer'));
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Switcher');
     selectCustomerGender();

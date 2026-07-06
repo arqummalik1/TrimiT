@@ -57,7 +57,7 @@ describe('CompleteProfileScreen', () => {
     expect(screen.getByText('Almost there!')).toBeTruthy();
     expect(screen.getByText("Let's finish setting up your profile")).toBeTruthy();
     expect(screen.getByText('Customer')).toBeTruthy();
-    expect(screen.getByText('Salon Owner')).toBeTruthy();
+    expect(screen.getByText('Business owner')).toBeTruthy();
     expect(screen.getByPlaceholderText('John Doe')).toBeTruthy();
     expect(screen.getByPlaceholderText('98765 43210')).toBeTruthy();
     expect(screen.getByText('Complete Setup')).toBeTruthy();
@@ -72,7 +72,7 @@ describe('CompleteProfileScreen', () => {
     expect(screen.queryByPlaceholderText('glowsalon@okaxis')).toBeNull();
 
     // Switching to owner reveals the required UPI field.
-    fireEvent.press(screen.getByText('Salon Owner'));
+    fireEvent.press(screen.getByText('Business owner'));
     expect(screen.getByPlaceholderText('glowsalon@okaxis')).toBeTruthy();
   });
 
@@ -81,7 +81,7 @@ describe('CompleteProfileScreen', () => {
     renderScreen(route);
 
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Owner Bob');
-    fireEvent.press(screen.getByText('Salon Owner'));
+    fireEvent.press(screen.getByText('Business owner'));
     fireEvent.press(screen.getByText(/I agree to the/));
 
     await act(async () => {
@@ -99,7 +99,7 @@ describe('CompleteProfileScreen', () => {
     renderScreen(route);
 
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Owner Bob');
-    fireEvent.press(screen.getByText('Salon Owner'));
+    fireEvent.press(screen.getByText('Business owner'));
     fireEvent.changeText(screen.getByPlaceholderText('glowsalon@okaxis'), 'not-a-upi');
     fireEvent.press(screen.getByText(/I agree to the/));
 
@@ -135,7 +135,7 @@ describe('CompleteProfileScreen', () => {
 
     fireEvent.changeText(screen.getByPlaceholderText('John Doe'), 'Alice Test');
     fireEvent.changeText(screen.getByPlaceholderText('98765 43210'), '9876543210');
-    fireEvent.press(screen.getByText('Salon Owner'));
+    fireEvent.press(screen.getByText('Business owner'));
     fireEvent.changeText(screen.getByPlaceholderText('glowsalon@okaxis'), 'glowsalon@okaxis');
     fireEvent.press(screen.getByText(/I agree to the/));
 
