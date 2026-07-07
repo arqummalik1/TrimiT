@@ -14,6 +14,8 @@ interface FilterChipRowProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
   testIDPrefix?: string;
+  /** Tighter chips for dense headers (Discover, etc.). */
+  compact?: boolean;
 }
 
 export function FilterChipRow<T extends string>({
@@ -21,9 +23,10 @@ export function FilterChipRow<T extends string>({
   value,
   onChange,
   testIDPrefix = 'chip',
+  compact = false,
 }: FilterChipRowProps<T>) {
   const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const styles = useMemo(() => createStyles(theme, compact), [theme, compact]);
 
   return (
     <ScrollView
@@ -67,16 +70,16 @@ export function SalonTypeBadge({ genderServe = 'unisex' }: SalonTypeBadgeProps) 
   );
 }
 
-const createStyles = (theme: Theme) =>
+const createStyles = (theme: Theme, compact: boolean) =>
   StyleSheet.create({
     row: {
       flexDirection: 'row',
-      gap: spacing.sm,
-      paddingVertical: spacing.xs,
+      gap: compact ? 6 : spacing.sm,
+      paddingVertical: compact ? 2 : spacing.xs,
     },
     chip: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
+      paddingHorizontal: compact ? spacing.sm : spacing.md,
+      paddingVertical: compact ? 5 : spacing.sm,
       borderRadius: borderRadius.full,
       borderWidth: 1,
       borderColor: theme.colors.border,
@@ -87,7 +90,7 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.colors.primary,
     },
     chipText: {
-      ...typography.bodySmallMedium,
+      ...(compact ? typography.captionMedium : typography.bodySmallMedium),
       color: theme.colors.textSecondary,
     },
     chipTextActive: {

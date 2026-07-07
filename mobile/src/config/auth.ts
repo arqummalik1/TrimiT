@@ -11,6 +11,9 @@ import { isGoogleSignInNativeAvailable } from '../services/googleAuthService';
  */
 export const GOOGLE_LOGIN_ENABLED = true;
 
+/** Client resend cooldown — keep in sync with backend OTP_EMAIL_THROTTLE_SECONDS (30). */
+export const OTP_RESEND_COOLDOWN_SECONDS = 30;
+
 export function isGoogleLoginVisible(): boolean {
   return GOOGLE_LOGIN_ENABLED && isGoogleSignInNativeAvailable();
 }

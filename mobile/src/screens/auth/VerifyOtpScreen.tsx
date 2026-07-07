@@ -21,6 +21,7 @@ import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { AuthScreenProps } from '../../navigation/types';
+import { OTP_RESEND_COOLDOWN_SECONDS } from '../../config/auth';
 
 type VerifyOtpProps = AuthScreenProps<'VerifyOtp'>;
 
@@ -52,7 +53,7 @@ const ResendCountdownSection: React.FC<ResendCountdownSectionProps> = ({
   theme,
   styles,
 }) => {
-  const [resendTimer, setResendTimer] = useState(30);
+  const [resendTimer, setResendTimer] = useState(OTP_RESEND_COOLDOWN_SECONDS);
   const [resendLoading, setResendLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -96,7 +97,7 @@ const ResendCountdownSection: React.FC<ResendCountdownSectionProps> = ({
     
     if (result.success) {
       showToast('A new code has been sent to your email.', 'success');
-      setResendTimer(30);
+      setResendTimer(OTP_RESEND_COOLDOWN_SECONDS);
       setCode('');
       focusInput();
     } else {

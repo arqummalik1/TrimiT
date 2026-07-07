@@ -6,6 +6,7 @@ import AuthBrandMark from '../components/brand/AuthBrandMark';
 import { useToastStore } from '../store/toastStore';
 import SuccessOverlay from '../components/ui/SuccessOverlay';
 import { safeInternalPath } from '../lib/utils';
+import { OTP_RESEND_COOLDOWN_SECONDS } from '../config/auth';
 
 export default function VerifyOtpPage() {
   const navigate = useNavigate();
@@ -18,11 +19,7 @@ export default function VerifyOtpPage() {
   const { verifyOtp, sendOtp, isLoading, error: authError, clearError } = useAuthStore();
 
   const [code, setCode] = useState(Array(6).fill(''));
-  // Server enforces a 60s per-email OTP throttle (backend OTP_EMAIL_THROTTLE_SECONDS
-  // + Supabase's own 60s email rate limit). Keep the client cooldown aligned so the
-  // "Resend Code" button doesn't enable early and hand the user a guaranteed 429.
-  const RESEND_COOLDOWN_SECONDS = 60;
-  const [resendTimer, setResendTimer] = useState(RESEND_COOLDOWN_SECONDS);
+  const [resendTimer, setResendTimer] = useState(OTP_RESEND_COOLDOWN_SECONDS);
   const [localError, setLocalError] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
@@ -173,7 +170,7 @@ export default function VerifyOtpPage() {
     const result = await sendOtp(email);
     if (result.success) {
       useToastStore.getState().success('A new verification code has been sent to your email.');
-      setResendTimer(RESEND_COOLDOWN_SECONDS);
+      setResendTimer(OTP_RESEND_COOLDOWN_SECONDS);
       setCode(Array(6).fill(''));
       inputRefs[0].current.focus();
     }

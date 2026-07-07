@@ -1,4 +1,4 @@
-import { GOOGLE_LOGIN_ENABLED, isGoogleLoginVisible } from '../../src/config/auth';
+import { GOOGLE_LOGIN_ENABLED, isGoogleLoginVisible, OTP_RESEND_COOLDOWN_SECONDS } from '../../src/config/auth';
 
 jest.mock('../../src/services/googleAuthService', () => ({
   isGoogleSignInNativeAvailable: jest.fn(() => true),
@@ -11,5 +11,9 @@ describe('mobile auth config', () => {
 
   it('isGoogleLoginVisible requires native module', () => {
     expect(isGoogleLoginVisible()).toBe(true);
+  });
+
+  it('uses 30s OTP resend cooldown (matches backend throttle)', () => {
+    expect(OTP_RESEND_COOLDOWN_SECONDS).toBe(30);
   });
 });

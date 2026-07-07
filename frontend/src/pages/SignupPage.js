@@ -6,7 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
 import GoogleSignInButton from '../components/auth/GoogleSignInButton';
-import { GOOGLE_LOGIN_ENABLED } from '../config/auth';
+import { GOOGLE_LOGIN_ENABLED, OTP_RESEND_COOLDOWN_SECONDS } from '../config/auth';
 
 // Email-only OTP signup — identical flow to the mobile app and to LoginPage.
 // The user enters only their email, receives a 6-digit OTP, verifies it, and
@@ -39,7 +39,7 @@ const SignupPage = () => {
     const result = await sendOtp(email.trim());
     if (result.success) {
       useToastStore.getState().success('Verification OTP code sent to your email.');
-      setResendTimer(60);
+      setResendTimer(OTP_RESEND_COOLDOWN_SECONDS);
       navigate(
         `/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}&type=magiclink`
       );

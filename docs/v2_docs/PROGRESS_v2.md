@@ -1,5 +1,8 @@
 # TrimiT - V2 Progress
 
+## Accomplished (2026-07-07)
+- **OTP resend cooldown unified (web + mobile):** `OTP_RESEND_COOLDOWN_SECONDS = 30` in `config/auth` on both platforms; web VerifyOtp, Login, Signup aligned with mobile + backend `OTP_EMAIL_THROTTLE_SECONDS`.
+
 ## Accomplished (2026-07-06)
 - **Admin dashboard drill-down (web):** All stat cards clickable — owners, customers, salons, bookings, trials, revenue, visitors open detail modals. Owner/salon rows open full detail (contact, UPI, gender serve type). Backend: `GET /admin/dashboard/salons`, `GET /admin/dashboard/bookings`, richer owner payload.
 - **Developer guide:** `docs/v2_docs/DEVELOPER_GUIDE.md` — beginner-friendly doc for salon/parlor, Lane A/B promos, admin dashboard, gaps checklist.

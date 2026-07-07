@@ -110,23 +110,21 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     [discoverChip, user],
   );
 
-  // ── Hide-on-scroll search bar (Twitter/Gmail pattern) ──────────────────────
-  // diffClamp gives the classic behaviour automatically: scroll DOWN → the bar
-  // collapses up & fades; scroll UP (even a little) → it comes back; at the top
-  // it's always shown. Height is measured once so there are no magic numbers.
+  // Hide-on-scroll search bar — translateY + opacity on the native driver so
+  // scrolling never triggers JS-thread layout (height animation was the iOS jank).
   const scrollY = useRef(new Animated.Value(0)).current;
   const [searchBarHeight, setSearchBarHeight] = useState(0);
   const searchAnim = useMemo(() => {
     if (!searchBarHeight) return null;
     const clamped = Animated.diffClamp(scrollY, 0, searchBarHeight);
     return {
-      height: clamped.interpolate({
+      translateY: clamped.interpolate({
         inputRange: [0, searchBarHeight],
-        outputRange: [searchBarHeight, 0],
+        outputRange: [0, -searchBarHeight],
         extrapolate: 'clamp',
       }),
       opacity: clamped.interpolate({
-        inputRange: [0, searchBarHeight * 0.8],
+        inputRange: [0, searchBarHeight * 0.65],
         outputRange: [1, 0],
         extrapolate: 'clamp',
       }),
@@ -135,10 +133,11 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   const onListScroll = useMemo(
     () =>
       Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-        useNativeDriver: false,
+        useNativeDriver: true,
       }),
     [scrollY]
   );
+  const endReachedLock = useRef(false);
 
   const debouncedSearchQuery = useDebouncedValue(searchQuery.trim(), DISCOVER_SEARCH_DEBOUNCE_MS);
 
@@ -422,6 +421,37 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     [navigation]
   );
 
+  const renderSalonItem = useCallback(
+    ({ item }: { item: Salon }) => (
+      <SalonCard
+        salon={item}
+        onPress={() => handleSalonPress(item)}
+        disableImageTransition
+      />
+    ),
+    [handleSalonPress]
+  );
+
+  const handleEndReached = useCallback(() => {
+    if (!hasNextPage || isFetchingNextPage || endReachedLock.current) return;
+    endReachedLock.current = true;
+    void fetchNextPage().finally(() => {
+      endReachedLock.current = false;
+    });
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const listFooter = useMemo(() => {
+    if (isFetchingNextPage) {
+      return (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator color={theme.colors.primary} />
+        </View>
+      );
+    }
+    // Fixed cushion so the list doesn't snap when pagination ends.
+    return <View style={styles.listEndCushion} />;
+  }, [isFetchingNextPage, theme.colors.primary]);
+
   const handleOfflineTap = () => {
     if (!isOnline) {
       showToast('No internet connection. Connect to search salons.', 'warning');
@@ -604,7 +634,13 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
         <Animated.View
           style={[
             styles.searchWrap,
-            searchAnim ? { height: searchAnim.height, opacity: searchAnim.opacity } : null,
+            searchBarHeight ? { height: searchBarHeight } : null,
+            searchAnim
+              ? {
+                  transform: [{ translateY: searchAnim.translateY }],
+                  opacity: searchAnim.opacity,
+                }
+              : null,
           ]}
         >
           {!isOutOfArea && (
@@ -659,6 +695,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           value={discoverChip}
           onChange={setDiscoverChip}
           testIDPrefix="discover"
+          compact
         />
       </View>
 
@@ -721,29 +758,23 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
         <FlatList
           data={filteredSalons}
           keyExtractor={(item) => item.id}
+          renderItem={renderSalonItem}
           onScroll={onListScroll}
           scrollEventThrottle={16}
-          renderItem={({ item }) => (
-            <SalonCard salon={item} onPress={() => handleSalonPress(item)} />
-          )}
+          removeClippedSubviews
+          initialNumToRender={6}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          updateCellsBatchingPeriod={50}
           contentContainerStyle={[
             styles.listContent,
+            filteredSalons.length === 0 && styles.listContentEmpty,
             { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 },
           ]}
           showsVerticalScrollIndicator={false}
-          onEndReached={() => {
-            if (hasNextPage && !isFetchingNextPage) {
-              fetchNextPage();
-            }
-          }}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={
-            isFetchingNextPage ? (
-              <View style={styles.loaderContainer}>
-                <ActivityIndicator color={theme.colors.primary} />
-              </View>
-            ) : null
-          }
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.15}
+          ListFooterComponent={listFooter}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -808,7 +839,8 @@ const createStyles = (theme: Theme) =>
     },
     discoverChips: {
       paddingHorizontal: spacing.xl,
-      paddingBottom: spacing.sm,
+      paddingTop: spacing.xs,
+      paddingBottom: spacing.xs,
       backgroundColor: theme.colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
@@ -864,7 +896,12 @@ const createStyles = (theme: Theme) =>
     },
     listContent: {
       padding: spacing.xl,
+    },
+    listContentEmpty: {
       flexGrow: 1,
+    },
+    listEndCushion: {
+      height: 24,
     },
     mapWrap: {
       flex: 1,

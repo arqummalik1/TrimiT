@@ -14,9 +14,15 @@ import { SalonTypeBadge } from './FilterChipRow';
 interface SalonCardProps {
   salon: Salon;
   onPress: () => void;
+  /** Skip fade-in on list scroll — avoids shimmer while cells mount. */
+  disableImageTransition?: boolean;
 }
 
-const SalonCardComponent: React.FC<SalonCardProps> = ({ salon: rawSalon, onPress }) => {
+const SalonCardComponent: React.FC<SalonCardProps> = ({
+  salon: rawSalon,
+  onPress,
+  disableImageTransition = false,
+}) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const salon = useMemo(() => normalizeSalon(rawSalon), [rawSalon]);
@@ -47,7 +53,7 @@ const SalonCardComponent: React.FC<SalonCardProps> = ({ salon: rawSalon, onPress
           source={imageSource}
           style={styles.image}
           contentFit="cover"
-          transition={300}
+          transition={disableImageTransition ? 0 : 300}
           cachePolicy="memory-disk"
         />
         {inactive && (
