@@ -20,6 +20,7 @@ const order = {
   plan_id: 'plan_1',
   amount: 29900,
   currency: 'INR',
+  customer_id: 'cust_1',
 };
 
 function renderModal(verifying = false) {
