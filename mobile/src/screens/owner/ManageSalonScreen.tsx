@@ -29,7 +29,7 @@ import { navigateOwnerToChooseBusinessType, navigateOwnerToServices, resetOwnerD
 import { useOwnerOnboardingStore } from '../../store/ownerOnboardingStore';
 import { uploadServiceImage } from '../../services/uploadService';
 import { normalizeSalon } from '../../lib/salonImage';
-import { salonSchema } from '../../lib/validations';
+import { salonSchema, toLocalPhone, toE164India } from '../../lib/validations';
 import { OwnerDashboardScreenProps, OwnerSettingsScreenProps } from '../../navigation/types';
 import { LocationPickerModal } from '../../components/LocationPickerModal';
 import { SalonMapMarker } from '../../components/SalonMapMarker';
@@ -143,7 +143,9 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
         city: normalized.city || '',
         latitude: hasCoords ? String(lat) : '',
         longitude: hasCoords ? String(lng) : '',
-        phone: normalized.phone || '',
+        // Store the bare 10-digit number; +91 is shown as a fixed prefix and
+        // re-attached on submit (matches CompleteProfile).
+        phone: toLocalPhone(normalized.phone),
         opening_time: normalized.opening_time || '09:00',
         closing_time: normalized.closing_time || '21:00',
         images: normalized.images,
@@ -154,8 +156,15 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   }, [salon]);
 
   const createMutation = useMutation({
-    mutationFn: (data: SalonPayload) => salonRepository.createSalon(data),
+    mutationFn: (data: SalonPayload) => {
+      console.log('🏪 [SalonCreate][screen] mutationFn → calling repository.createSalon');
+      return salonRepository.createSalon(data);
+    },
     onSuccess: (created: Salon) => {
+      console.log('✅ [SalonCreate][screen] onSuccess', {
+        salonId: created?.id,
+        gender_serve: created?.gender_serve,
+      });
       queryClient.setQueryData(queryKeys.ownerSalon, created);
       void queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
       useOwnerOnboardingStore.getState().setPostSalonCreatePending(true);
@@ -166,6 +175,23 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       }
     },
     onError: (error) => {
+      const appErr = error as {
+        kind?: string;
+        code?: string;
+        status?: number;
+        message?: string;
+        requestId?: string;
+        details?: unknown;
+      };
+      console.error('❌ [SalonCreate][screen] createMutation.onError', {
+        kind: appErr?.kind,
+        code: appErr?.code,
+        status: appErr?.status,
+        message: appErr?.message,
+        requestId: appErr?.requestId,
+        details: appErr?.details,
+        userFacing: getUserFacingMessage(error),
+      });
       showToast(getUserFacingMessage(error), 'error');
     },
   });
@@ -187,12 +213,26 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   };
 
   const handleSubmit = async () => {
+    console.log('🏪 [SalonCreate][screen] handleSubmit tapped', {
+      mode: salon ? 'update' : 'create',
+      gender_serve: formData.gender_serve,
+      pendingImages: pendingImages.length,
+      uploadedImages: formData.images.length,
+      locationSet,
+      lat: formData.latitude,
+      lng: formData.longitude,
+    });
+
     if (pendingImages.length > 0) {
+      console.warn('⚠️ [SalonCreate][screen] blocked: images still uploading', {
+        pending: pendingImages.length,
+      });
       showToast('Please wait for images to finish uploading', 'warning');
       return;
     }
 
     if (!locationSet) {
+      console.warn('⚠️ [SalonCreate][screen] blocked: no location pinned');
       showToast('Please pin your salon location on the map', 'error');
       return;
     }
@@ -204,7 +244,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       name: formData.name,
       address: formData.address,
       city: formData.city,
-      phone: formData.phone.replace(/\s+/g, ''),
+      phone: toE164India(formData.phone),
       latitude: lat,
       longitude: lng,
       opening_time: formData.opening_time,
@@ -212,6 +252,12 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     });
 
     if (!parseResult.success) {
+      console.warn('⚠️ [SalonCreate][screen] blocked: client validation failed', {
+        issues: parseResult.error.issues.map((i) => ({
+          path: i.path.join('.'),
+          message: i.message,
+        })),
+      });
       showToast(parseResult.error.issues[0].message, 'error');
       return;
     }
@@ -230,15 +276,27 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       gender_serve: formData.gender_serve,
     };
 
-    if (salon) {
-      updateMutation.mutate(payload);
-    } else {
-      createMutation.mutate(payload);
+    console.log('🏪 [SalonCreate][screen] validation passed, submitting', {
+      mode: salon ? 'update' : 'create',
+      imageCount: payload.images.length,
+      payloadKeys: Object.keys(payload),
+    });
+
+    try {
+      if (salon) {
+        updateMutation.mutate(payload);
+      } else {
+        createMutation.mutate(payload);
+      }
+    } catch (error) {
+      console.error('❌ [SalonCreate][screen] handleSubmit threw synchronously', error);
+      showToast(getUserFacingMessage(error), 'error');
     }
   };
 
   const uploadImage = async (uri: string) => {
     const pendingId = `pending-${Date.now()}`;
+    console.log('🖼️ [SalonCreate][image] upload started', { pendingId, uri });
     setPendingImages((prev) => [...prev, { id: pendingId, localUri: uri, progress: 0, phase: 'preparing' }]);
 
     try {
@@ -252,12 +310,28 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
         );
       });
 
+      console.log('✅ [SalonCreate][image] upload succeeded', { pendingId, publicUrl });
       setFormData((prev) => ({
         ...prev,
         images: [...prev.images, publicUrl],
       }));
       showToast('Image uploaded successfully', 'success');
     } catch (error) {
+      const appErr = error as {
+        kind?: string;
+        code?: string;
+        status?: number;
+        message?: string;
+        requestId?: string;
+      };
+      console.error('❌ [SalonCreate][image] upload failed', {
+        pendingId,
+        kind: appErr?.kind,
+        code: appErr?.code,
+        status: appErr?.status,
+        message: appErr?.message,
+        requestId: appErr?.requestId,
+      });
       showToast(getUserFacingMessage(error), 'error');
     } finally {
       setPendingImages((prev) => prev.filter((p) => p.id !== pendingId));
@@ -329,10 +403,11 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
           <Input
             label="Phone *"
             value={formData.phone}
-            onChangeText={(v) => handleChange('phone', v)}
-            placeholder="+91 98765 43210"
+            onChangeText={(v) => handleChange('phone', v.replace(/\D/g, '').slice(0, 10))}
+            placeholder="98765 43210"
+            prefix="+91"
             keyboardType="phone-pad"
-            icon={<Ionicons name="call-outline" size={20} color={theme.colors.textSecondary} />}
+            maxLength={10}
           />
         </View>
 

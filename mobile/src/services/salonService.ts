@@ -14,8 +14,48 @@ export const salonService = {
   },
 
   createSalon: async (salonData: unknown): Promise<Salon> => {
-    const response = await apiClient.post('/salons/', salonData);
-    return normalizeSalon(response.data as Salon);
+    // Verbose, structured logging for the onboarding "create salon/parlour" flow.
+    // This is the single most failure-prone step in owner onboarding, so we trace
+    // the request/response/error explicitly (visible in the Expo/Metro terminal).
+    const payload = (salonData ?? {}) as Record<string, unknown>;
+    const images = Array.isArray(payload.images) ? (payload.images as unknown[]) : [];
+    console.log('🏪 [SalonCreate][service] POST /salons/ →', {
+      name: payload.name,
+      city: payload.city,
+      gender_serve: payload.gender_serve,
+      hasPhone: !!payload.phone,
+      latitude: payload.latitude,
+      longitude: payload.longitude,
+      imageCount: images.length,
+      firstImage: typeof images[0] === 'string' ? images[0] : null,
+      payloadKeys: Object.keys(payload),
+    });
+    try {
+      const response = await apiClient.post('/salons/', salonData);
+      console.log('✅ [SalonCreate][service] salon created', {
+        status: response.status,
+        salonId: (response.data as { id?: string })?.id,
+      });
+      return normalizeSalon(response.data as Salon);
+    } catch (error) {
+      const appErr = error as {
+        kind?: string;
+        code?: string;
+        status?: number;
+        message?: string;
+        requestId?: string;
+        details?: unknown;
+      };
+      console.error('❌ [SalonCreate][service] POST /salons/ failed', {
+        kind: appErr?.kind,
+        code: appErr?.code,
+        status: appErr?.status,
+        message: appErr?.message,
+        requestId: appErr?.requestId,
+        details: appErr?.details,
+      });
+      throw error;
+    }
   },
 
   updateSalon: async (salonId: string, updates: unknown): Promise<Salon> => {

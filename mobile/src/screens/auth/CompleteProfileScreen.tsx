@@ -15,6 +15,32 @@ import { CUSTOMER_GENDER_OPTIONS } from '../../lib/genderServe';
 
 const phoneRegex = /^[6-9]\d{9}$/;
 const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+
+const ROLE_OPTIONS: {
+  value: 'customer' | 'owner' | 'employee';
+  title: string;
+  desc: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  {
+    value: 'customer',
+    title: 'Customer',
+    desc: 'Looking for grooming services',
+    icon: 'cut-outline',
+  },
+  {
+    value: 'owner',
+    title: 'Business owner',
+    desc: 'Salon, beauty parlour, or unisex studio',
+    icon: 'storefront-outline',
+  },
+  {
+    value: 'employee',
+    title: 'Salon Employee',
+    desc: 'Invited by my salon owner',
+    icon: 'people-outline',
+  },
+];
 const profileSchema = z
   .object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -165,63 +191,41 @@ export default function CompleteProfileScreen({ route }: RootScreenProps<'Comple
         <View style={styles.formSection}>
           <Text style={styles.sectionTitle}>I am a...</Text>
           <View style={styles.roleContainer}>
-            <TouchableOpacity
-              style={[styles.roleCard, selectedRole === 'customer' && styles.roleCardActive]}
-              onPress={() => setValue('role', 'customer')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.iconContainer, selectedRole === 'customer' && styles.iconContainerActive]}>
-                <Ionicons 
-                  name="cut-outline" 
-                  color={selectedRole === 'customer' ? (theme.isDark ? theme.colors.textInverse : theme.colors.text) : theme.colors.textSecondary} 
-                  size={24} 
-                />
-              </View>
-              <Text style={[styles.roleTitle, selectedRole === 'customer' && styles.roleTitleActive]}>
-                Customer
-              </Text>
-              <Text style={[styles.roleDesc, selectedRole === 'customer' && styles.roleDescActive]}>Looking for grooming services</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.roleCard, selectedRole === 'owner' && styles.roleCardActive]}
-              onPress={() => setValue('role', 'owner')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.iconContainer, selectedRole === 'owner' && styles.iconContainerActive]}>
-                <Ionicons 
-                  name="storefront-outline" 
-                  color={selectedRole === 'owner' ? (theme.isDark ? theme.colors.textInverse : theme.colors.text) : theme.colors.textSecondary} 
-                  size={24} 
-                />
-              </View>
-              <Text style={[styles.roleTitle, selectedRole === 'owner' && styles.roleTitleActive]}>
-                Business owner
-              </Text>
-              <Text style={[styles.roleDesc, selectedRole === 'owner' && styles.roleDescActive]}>
-                Salon, beauty parlour, or unisex studio
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.roleCard, selectedRole === 'employee' && styles.roleCardActive]}
-              onPress={() => setValue('role', 'employee')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.iconContainer, selectedRole === 'employee' && styles.iconContainerActive]}>
-                <Ionicons
-                  name="people-outline"
-                  color={selectedRole === 'employee' ? (theme.isDark ? theme.colors.textInverse : theme.colors.text) : theme.colors.textSecondary}
-                  size={24}
-                />
-              </View>
-              <Text style={[styles.roleTitle, selectedRole === 'employee' && styles.roleTitleActive]}>
-                Salon Employee
-              </Text>
-              <Text style={[styles.roleDesc, selectedRole === 'employee' && styles.roleDescActive]}>
-                Invited by my salon owner
-              </Text>
-            </TouchableOpacity>
+            {ROLE_OPTIONS.map((option) => {
+              const isActive = selectedRole === option.value;
+              const activeIconColor = theme.isDark
+                ? theme.colors.textInverse
+                : theme.colors.primary;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.roleCard, isActive && styles.roleCardActive]}
+                  onPress={() => setValue('role', option.value)}
+                  activeOpacity={0.7}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isActive }}
+                >
+                  <View style={[styles.iconContainer, isActive && styles.iconContainerActive]}>
+                    <Ionicons
+                      name={option.icon}
+                      color={isActive ? activeIconColor : theme.colors.textSecondary}
+                      size={22}
+                    />
+                  </View>
+                  <View style={styles.roleTextContainer}>
+                    <Text style={[styles.roleTitle, isActive && styles.roleTitleActive]}>
+                      {option.title}
+                    </Text>
+                    <Text style={[styles.roleDesc, isActive && styles.roleDescActive]}>
+                      {option.desc}
+                    </Text>
+                  </View>
+                  <View style={[styles.radioOuter, isActive && styles.radioOuterActive]}>
+                    {isActive && <View style={styles.radioInner} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           {errors.role && <Text style={styles.fieldErrorText}>{errors.role.message}</Text>}
 
@@ -393,17 +397,17 @@ const createStyles = (theme: any) => StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   roleContainer: {
-    flexDirection: 'row',
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
     marginBottom: theme.spacing.xl,
   },
   roleCard: {
-    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.lg,
-    alignItems: 'center',
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
     backgroundColor: theme.colors.surface,
   },
   roleCardActive: {
@@ -411,21 +415,24 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.primaryLight,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: theme.colors.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: theme.spacing.sm,
+    marginRight: theme.spacing.md,
   },
   iconContainerActive: {
     backgroundColor: theme.colors.surface,
   },
+  roleTextContainer: {
+    flex: 1,
+  },
   roleTitle: {
     ...theme.typography.bodySemiBold,
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    marginBottom: 2,
   },
   roleTitleActive: {
     color: theme.isDark ? theme.colors.textInverse : theme.colors.text,
@@ -433,10 +440,28 @@ const createStyles = (theme: any) => StyleSheet.create({
   roleDesc: {
     ...theme.typography.caption,
     color: theme.colors.textSecondary,
-    textAlign: 'center',
   },
   roleDescActive: {
     color: theme.isDark ? theme.colors.textInverse : theme.colors.text,
+  },
+  radioOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: theme.spacing.sm,
+  },
+  radioOuterActive: {
+    borderColor: theme.colors.primary,
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: theme.colors.primary,
   },
   inputGroup: {
     marginBottom: theme.spacing.lg,

@@ -15,6 +15,13 @@ from models.salons import SalonCreate, SalonUpdate, ServiceCreate, ServiceUpdate
 from services import salon_availability
 from services.gender_serve import normalize_discover_filter, salon_matches_discover_filter, default_service_audience_for_salon
 
+# Module logger. Its ABSENCE was the root cause of new-owner salon creation
+# failing in production: create_salon (and other handlers here) call logger.*,
+# and without this definition the very first log line raised
+# NameError: name 'logger' is not defined → HTTP 500 before the DB insert ever
+# ran. Defined once here at module scope.
+logger = logging.getLogger("trimit")
+
 router = APIRouter(prefix="/salons", tags=["Salons"])
 
 # ── Sensitive field stripping ───────────────────────────────────────────────
@@ -232,15 +239,15 @@ async def get_salon(salon_id: str):
 
 @router.post("/")
 async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_current_user)):
-    logger.debug("[CREATE_SALON] user=%s", current_user.get("id"))
+    logger.info("[CREATE_SALON] start user=%s", current_user.get("id"))
 
     try:
         profile = current_user.get("profile")
         if not profile or profile.get("role") != "owner":
             logger.error(
-                "[CREATE_SALON] User %s is not an owner: %s",
+                "[CREATE_SALON] User %s is not an owner: role=%s",
                 current_user.get("id"),
-                profile,
+                (profile or {}).get("role"),
             )
             raise HTTPException(status_code=403, detail="Only owners can create salons")
 
@@ -277,7 +284,17 @@ async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_curr
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        logger.debug("[CREATE_SALON] creating salon for owner=%s", owner_id)
+        # Always-on diagnostics (safe: no PII beyond owner_id, which is already
+        # in every log line). Lets us pinpoint bad payloads in production without
+        # a redeploy for verbosity.
+        logger.info(
+            "[CREATE_SALON] inserting owner=%s salon_id=%s keys=%s gender_serve=%s images=%d",
+            owner_id,
+            salon_data["id"],
+            sorted(payload.keys()),
+            payload.get("gender_serve"),
+            len(payload.get("images") or []),
+        )
 
         # Service role insert: owner verified above; avoids RLS edge cases on first salon.
         response = await supabase.request(
@@ -287,12 +304,17 @@ async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_curr
             service_role=True,
         )
 
-        if settings.ENVIRONMENT != "production":
-            logger.debug("[CREATE_SALON] status=%s", response.status_code)
-
         if response.status_code not in [200, 201]:
             error_detail = response.text or ""
-            logger.error("[CREATE_SALON] Failed to create salon: %s", error_detail)
+            # Log the FULL PostgREST body + status so the exact DB rejection
+            # (missing column, constraint, trigger FK, bad value) is recoverable
+            # from logs alone. Correlate with the client via the X-Request-ID.
+            logger.error(
+                "[CREATE_SALON] insert failed status=%s owner=%s body=%s",
+                response.status_code,
+                owner_id,
+                error_detail[:1000],
+            )
             if "subscriptions_salon_id_fkey" in error_detail or "link_salon_to_subscription" in error_detail:
                 logger.error(
                     "[CREATE_SALON] Likely missing migration 44 — apply "
@@ -300,27 +322,39 @@ async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_curr
                 )
             raise HTTPException(
                 status_code=400,
-                detail="We couldn't save your salon right now. Please try again in a moment.",
+                detail={
+                    "code": "SALON_CREATE_FAILED",
+                    "message": "We couldn't save your salon right now. Please try again in a moment.",
+                },
             )
 
         row = _first_postgrest_row(_safe_response_json(response))
         if not row:
-            logger.error("[CREATE_SALON] Salon created but no row in response")
+            logger.error(
+                "[CREATE_SALON] insert returned 2xx but no row owner=%s body=%s",
+                owner_id,
+                (response.text or "")[:1000],
+            )
             raise HTTPException(
                 status_code=500,
-                detail="Salon created but no data returned",
+                detail={
+                    "code": "SALON_CREATE_NO_ROW",
+                    "message": "Salon created but no data returned. Please refresh.",
+                },
             )
 
-        if settings.ENVIRONMENT != "production":
-            logger.debug("[CREATE_SALON] Success salon_id=%s", row.get("id"))
+        logger.info("[CREATE_SALON] success owner=%s salon_id=%s", owner_id, row.get("id"))
         return row
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception("[CREATE_SALON] unexpected error: %s", exc)
+        logger.exception("[CREATE_SALON] unexpected error owner=%s: %s", current_user.get("id"), exc)
         raise HTTPException(
             status_code=500,
-            detail="We couldn't save your salon right now. Please try again in a moment.",
+            detail={
+                "code": "SALON_CREATE_UNEXPECTED",
+                "message": "We couldn't save your salon right now. Please try again in a moment.",
+            },
         )
 
 @router.patch("/{salon_id}")

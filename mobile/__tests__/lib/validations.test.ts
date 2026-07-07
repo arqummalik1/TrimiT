@@ -9,7 +9,49 @@ import {
   reviewSchema,
   phoneRegex,
   timeRegex,
+  toLocalPhone,
+  toE164India,
 } from '../../src/lib/validations';
+
+// ─── phone helpers ───────────────────────────────────────────────────────────
+
+describe('toLocalPhone', () => {
+  it('returns the bare 10-digit number unchanged', () => {
+    expect(toLocalPhone('9876543210')).toBe('9876543210');
+  });
+
+  it('strips a +91 country code', () => {
+    expect(toLocalPhone('+919876543210')).toBe('9876543210');
+  });
+
+  it('strips a 91 country code', () => {
+    expect(toLocalPhone('919876543210')).toBe('9876543210');
+  });
+
+  it('strips spaces and separators', () => {
+    expect(toLocalPhone('+91 98765 43210')).toBe('9876543210');
+  });
+
+  it('returns empty string for null/undefined', () => {
+    expect(toLocalPhone(null)).toBe('');
+    expect(toLocalPhone(undefined)).toBe('');
+  });
+});
+
+describe('toE164India', () => {
+  it('prefixes +91 to a bare number', () => {
+    expect(toE164India('9876543210')).toBe('+919876543210');
+  });
+
+  it('does not double the country code', () => {
+    expect(toE164India('+919876543210')).toBe('+919876543210');
+    expect(toE164India('919876543210')).toBe('+919876543210');
+  });
+
+  it('handles spaced input', () => {
+    expect(toE164India('98765 43210')).toBe('+919876543210');
+  });
+});
 
 // ─── phoneRegex ──────────────────────────────────────────────────────────────
 

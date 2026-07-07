@@ -5,6 +5,20 @@ export const phoneRegex = /^(?:\+91|91)?[6-9]\d{9}$/;
 // Time regex (HH:MM 24-hour)
 export const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
 
+/**
+ * Reduce any stored/typed phone value to its bare 10-digit local part.
+ * Strips spaces, +91 / 91 country code, and any other non-digits. Used to
+ * seed forms that render a fixed "+91" prefix (owner never types the code).
+ */
+export function toLocalPhone(value: string | null | undefined): string {
+  return (value ?? '').replace(/\D/g, '').slice(-10);
+}
+
+/** Re-attach the +91 country code to a bare local number for submission. */
+export function toE164India(value: string | null | undefined): string {
+  return `+91${toLocalPhone(value)}`;
+}
+
 export const salonSchema = z.object({
   name: z.string().min(1, 'Salon name is required').trim(),
   address: z.string().min(1, 'Address is required').trim(),
