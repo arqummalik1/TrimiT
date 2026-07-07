@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -50,6 +50,17 @@ const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { data: sub, isLoading, isError, refetch } = useSubscription();
   const cancelMutation = useCancelSubscription();
+
+  // Active subs created before billing-period backfill may show dashes until we
+  // refetch — GET /current now fills missing dates server-side.
+  useEffect(() => {
+    if (
+      sub?.status === 'active' &&
+      (!sub.current_period_start || !sub.next_renewal_at)
+    ) {
+      refetch();
+    }
+  }, [sub?.status, sub?.current_period_start, sub?.next_renewal_at, refetch]);
 
   const statusColor = (status?: SubscriptionStatus): string => {
     if (status === 'active' || status === 'trial') return theme.colors.success ?? theme.colors.primary;

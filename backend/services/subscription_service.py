@@ -158,6 +158,65 @@ def compute_billing_anchor(row: Dict[str, Any]) -> Optional[datetime]:
     return None
 
 
+def compute_billing_period(
+    row: Dict[str, Any], *, reference: Optional[datetime] = None
+) -> Dict[str, str]:
+    """Derive the paid billing window (start, end, next renewal).
+
+    Uses the same stacking rules as checkout verify: defer to trial_end or the
+    current paid period end when still in the future; otherwise start now.
+    """
+    now = reference or _now()
+    anchor = compute_billing_anchor(row) or now
+    period_end = anchor + timedelta(days=30)
+    return {
+        "current_period_start": anchor.isoformat(),
+        "current_period_end": period_end.isoformat(),
+        "next_renewal_at": period_end.isoformat(),
+    }
+
+
+def billing_period_from_razorpay_entity(sub_entity: Dict[str, Any]) -> Dict[str, str]:
+    """Map Razorpay subscription entity timestamps to our ISO fields."""
+    patch: Dict[str, str] = {}
+    cur_start = sub_entity.get("current_start")
+    cur_end = sub_entity.get("current_end")
+    charge_at = sub_entity.get("charge_at")
+    if cur_start:
+        patch["current_period_start"] = datetime.fromtimestamp(cur_start, tz=timezone.utc).isoformat()
+    if cur_end:
+        patch["current_period_end"] = datetime.fromtimestamp(cur_end, tz=timezone.utc).isoformat()
+    if charge_at:
+        patch["next_renewal_at"] = datetime.fromtimestamp(charge_at, tz=timezone.utc).isoformat()
+    elif cur_end:
+        patch["next_renewal_at"] = patch["current_period_end"]
+    return patch
+
+
+async def backfill_billing_period_if_needed(
+    owner_id: str, row: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Persist billing window when status is active but period fields are empty.
+
+    Common when Razorpay's subscription.activated webhook races ahead of the
+    mobile /verify call and only flipped status to active.
+    """
+    if row.get("status") != SubscriptionStatus.active.value:
+        return row
+    if row.get("current_period_start") and row.get("next_renewal_at"):
+        return row
+
+    period = compute_billing_period(row)
+    updated = await update_subscription(
+        owner_id,
+        period,
+        event_type="period_backfill",
+        source="system",
+        metadata={"reason": "missing_billing_window"},
+    )
+    return updated or {**row, **period}
+
+
 async def has_active_access(owner_id: str) -> bool:
     row = await fetch_subscription(owner_id)
     if not row:

@@ -54,6 +54,50 @@ def test_current_rejects_non_owner(client):
         app.dependency_overrides = {}
 
 
+def test_current_backfills_missing_billing_period(client, monkeypatch):
+    from routers import subscriptions as sub_router
+
+    app = client.app
+    _owner(app)
+    try:
+        row = {
+            "id": "sub1",
+            "owner_id": "owner1",
+            "status": "active",
+            "plan": "trimit_pro",
+            "amount": 29900,
+            "subscription_start": "2026-07-07T00:00:00Z",
+        }
+        backfilled = {
+            **row,
+            "current_period_start": "2026-07-07T00:00:00Z",
+            "next_renewal_at": "2026-08-06T00:00:00Z",
+        }
+        monkeypatch.setattr(sub_router.subs, "ensure_trial", lambda oid: _async_return(row))
+        monkeypatch.setattr(
+            sub_router.subs,
+            "backfill_billing_period_if_needed",
+            lambda oid, r: _async_return(backfilled),
+        )
+        monkeypatch.setattr(
+            sub_router.subs,
+            "compute_access",
+            lambda r: {
+                "effective_status": "active",
+                "has_access": True,
+                "is_trial": False,
+                "trial_days_remaining": 0,
+            },
+        )
+        response = client.get("/api/v1/subscriptions/current")
+        assert response.status_code == status.HTTP_200_OK
+        body = response.json()
+        assert body["current_period_start"] == "2026-07-07T00:00:00Z"
+        assert body["next_renewal_at"] == "2026-08-06T00:00:00Z"
+    finally:
+        app.dependency_overrides = {}
+
+
 def test_status_returns_access_view(client, monkeypatch):
     from routers import subscriptions as sub_router
 
@@ -144,6 +188,57 @@ def test_verify_404_when_no_subscription(client, mock_supabase, monkeypatch):
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert response.json()["error"]["details"]["code"] == "NO_SUBSCRIPTION"
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_verify_already_active_backfills_period(client, mock_supabase, monkeypatch):
+    from routers import subscriptions as sub_router
+
+    app = client.app
+    _owner(app)
+    updates = []
+
+    async def capture_update(owner_id, patch, **kwargs):
+        updates.append(patch)
+        return {**row, **patch}
+
+    row = {
+        "id": "sub1",
+        "owner_id": "owner1",
+        "status": "active",
+        "razorpay_subscription_id": "rzp_1",
+        "amount": 29900,
+        "subscription_start": "2026-07-07T00:00:00Z",
+    }
+    try:
+        mock_supabase.post("/rest/v1/idempotency_keys").return_value = Response(201, json={})
+        monkeypatch.setattr(sub_router.subs, "fetch_subscription", lambda oid: _async_return(row))
+        monkeypatch.setattr(sub_router.billing, "verify_checkout_signature", lambda **k: True)
+        monkeypatch.setattr(sub_router.subs, "update_subscription", capture_update)
+        monkeypatch.setattr(
+            sub_router.subs,
+            "compute_billing_period",
+            lambda r, reference=None: {
+                "current_period_start": "2026-07-07T00:00:00Z",
+                "current_period_end": "2026-08-06T00:00:00Z",
+                "next_renewal_at": "2026-08-06T00:00:00Z",
+            },
+        )
+        response = client.post(
+            "/api/v1/subscriptions/verify",
+            json={
+                "razorpay_payment_id": "pay_1",
+                "razorpay_subscription_id": "rzp_1",
+                "razorpay_signature": "sig",
+            },
+            headers={"Idempotency-Key": "k-verify-active"},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["message"] == "Already active"
+        assert len(updates) == 1
+        assert updates[0]["current_period_start"] == "2026-07-07T00:00:00Z"
+        assert updates[0]["next_renewal_at"] == "2026-08-06T00:00:00Z"
     finally:
         app.dependency_overrides = {}
 

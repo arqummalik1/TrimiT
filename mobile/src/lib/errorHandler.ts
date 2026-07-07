@@ -22,8 +22,12 @@ export const handleApiError = (error: unknown): AppError => {
       kind = 'network';
       message = 'The request timed out. Please try again.';
     } else if (!error.response) {
+      // No HTTP response reached us. This is usually a transient reach failure
+      // (Wi‑Fi/cellular handoff, DNS/TLS blip) rather than the user being fully
+      // offline — the request interceptor already blocks true offline with an
+      // explicit OFFLINE code. Keep the copy honest instead of blaming the user.
       kind = 'network';
-      message = 'No internet connection. Please check your network and try again.';
+      message = "Couldn't reach TrimiT just now. Please try again.";
     } else {
       const data = error.response.data;
       

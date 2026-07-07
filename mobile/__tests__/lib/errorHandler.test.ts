@@ -39,7 +39,7 @@ describe('handleApiError', () => {
     };
     const result = handleApiError(err);
     expect(result.kind).toBe('network');
-    expect(result.message).toMatch(/internet|network/i);
+    expect(result.message).toMatch(/reach TrimiT/i);
   });
 
   // ─── HTTP 401 ─────────────────────────────────────────────────────────────

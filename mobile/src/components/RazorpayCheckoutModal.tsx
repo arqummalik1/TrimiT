@@ -9,11 +9,13 @@ import { CreateSubscriptionResponse, VerifySubscriptionPayload } from '../types/
 interface Props {
   visible: boolean;
   order: CreateSubscriptionResponse | null;
+  /** When true, payment succeeded and we are confirming with the server — lock navigation. */
+  verifying?: boolean;
   /** Optional prefill so the customer doesn't retype contact info. */
   prefill?: { name?: string; email?: string; phone?: string };
   /** Razorpay handler returned a successful payment — verify it next. */
   onSuccess: (payload: VerifySubscriptionPayload) => void;
-  /** User closed the sheet without paying. */
+  /** User closed the sheet without paying (only when not verifying). */
   onDismiss: () => void;
   /** Checkout could not run (script/network/SDK problem). */
   onError: (message: string) => void;
@@ -33,6 +35,7 @@ type CheckoutMessage =
 export const RazorpayCheckoutModal: React.FC<Props> = ({
   visible,
   order,
+  verifying = false,
   prefill,
   onSuccess,
   onDismiss,
@@ -41,6 +44,7 @@ export const RazorpayCheckoutModal: React.FC<Props> = ({
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const handledRef = useRef(false);
+  const lockNavigation = verifying;
 
   const html = useMemo(() => {
     if (!order) return '';
@@ -103,7 +107,7 @@ export const RazorpayCheckoutModal: React.FC<Props> = ({
   }, [order, prefill]);
 
   const handleMessage = (event: WebViewMessageEvent) => {
-    if (handledRef.current) return;
+    if (handledRef.current || lockNavigation) return;
     let msg: CheckoutMessage;
     try {
       msg = JSON.parse(event.nativeEvent.data) as CheckoutMessage;
@@ -131,16 +135,45 @@ export const RazorpayCheckoutModal: React.FC<Props> = ({
     handledRef.current = false;
   }
 
+  const handleRequestClose = () => {
+    if (lockNavigation) return;
+    onDismiss();
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onDismiss}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={false}
+      onRequestClose={handleRequestClose}
+    >
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={onDismiss} style={styles.closeBtn} accessibilityLabel="Close checkout">
-            <Ionicons name="close" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Secure checkout</Text>
+          {lockNavigation ? (
+            <View style={styles.closeBtnPlaceholder} />
+          ) : (
+            <TouchableOpacity
+              onPress={onDismiss}
+              style={styles.closeBtn}
+              accessibilityLabel="Close checkout"
+            >
+              <Ionicons name="close" size={24} color={theme.colors.text} />
+            </TouchableOpacity>
+          )}
+          <Text style={styles.headerTitle}>
+            {lockNavigation ? 'Confirming payment' : 'Secure checkout'}
+          </Text>
         </View>
-        {order ? (
+
+        {lockNavigation ? (
+          <View style={styles.verifyingPanel}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={styles.verifyingTitle}>Verifying your payment…</Text>
+            <Text style={styles.verifyingHint}>
+              Please don&apos;t go back or close the app. This usually takes a few seconds.
+            </Text>
+          </View>
+        ) : order ? (
           <WebView
             originWhitelist={['*']}
             source={{ html, baseUrl: 'https://checkout.razorpay.com' }}
@@ -191,9 +224,30 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    closeBtnPlaceholder: { width: 40, height: 40 },
     headerTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.text },
     webview: { flex: 1, backgroundColor: theme.colors.background },
     loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    verifyingPanel: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 32,
+      gap: 12,
+    },
+    verifyingTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.text,
+      textAlign: 'center',
+      marginTop: 8,
+    },
+    verifyingHint: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
   });
 
 export default RazorpayCheckoutModal;

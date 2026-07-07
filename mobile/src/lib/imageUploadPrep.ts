@@ -89,6 +89,25 @@ async function pickFromLibrary(): Promise<string | null> {
   return result.assets[0].uri;
 }
 
+async function pickMultipleFromLibrary(limit: number): Promise<string[]> {
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    quality: 1,
+    allowsEditing: false,
+    exif: false,
+    allowsMultipleSelection: limit > 1,
+    selectionLimit: limit,
+  });
+
+  if (result.canceled || !result.assets?.length) {
+    return [];
+  }
+  return result.assets
+    .map((a) => a.uri)
+    .filter((uri): uri is string => !!uri)
+    .slice(0, limit);
+}
+
 async function pickFromCamera(): Promise<string | null> {
   const { granted } = await ImagePicker.requestCameraPermissionsAsync();
   if (!granted) {
@@ -109,11 +128,39 @@ async function pickFromCamera(): Promise<string | null> {
   return result.assets[0].uri;
 }
 
-/** Gallery + camera picker for salon / service images. */
+/** Gallery + camera picker for salon / service images (single image). */
 export function showSalonImageSourcePicker(onUri: (uri: string) => void): void {
   Alert.alert('Add salon photo', 'Choose how to add your image', [
     { text: 'Take Photo', onPress: () => void pickFromCamera().then((uri) => uri && onUri(uri)) },
     { text: 'Choose from Gallery', onPress: () => void pickFromLibrary().then((uri) => uri && onUri(uri)) },
     { text: 'Cancel', style: 'cancel' },
   ]);
+}
+
+/**
+ * Multi-image picker for salon photos. Gallery allows selecting up to `limit`
+ * at once; camera adds a single shot. Returns all chosen local URIs so the
+ * caller can upload them in parallel.
+ */
+export function showSalonImagesSourcePicker(
+  limit: number,
+  onUris: (uris: string[]) => void
+): void {
+  const safeLimit = Math.max(1, limit);
+  Alert.alert(
+    'Add photos',
+    safeLimit > 1 ? `You can add up to ${safeLimit} more` : 'Add a photo',
+    [
+      {
+        text: 'Take Photo',
+        onPress: () => void pickFromCamera().then((uri) => uri && onUris([uri])),
+      },
+      {
+        text: 'Choose from Gallery',
+        onPress: () =>
+          void pickMultipleFromLibrary(safeLimit).then((uris) => uris.length && onUris(uris)),
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]
+  );
 }

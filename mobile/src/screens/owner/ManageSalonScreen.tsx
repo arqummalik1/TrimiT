@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import MapView from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { showSalonImageSourcePicker } from '../../lib/imageUploadPrep';
+import { showSalonImagesSourcePicker } from '../../lib/imageUploadPrep';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { typography, spacing, borderRadius, shadows } from '../../lib/utils';
@@ -57,6 +57,21 @@ interface SalonPayload {
   gender_serve: SalonGenderServe;
 }
 
+/** Max photos an owner can attach to a salon/parlour. */
+const MAX_SALON_IMAGES = 3;
+
+/** How long before an in-flight upload is flagged "taking a while" (retry). */
+const UPLOAD_SLOW_MS = 30000;
+
+type PendingImage = {
+  id: string;
+  localUri: string;
+  progress: number;
+  phase: 'preparing' | 'uploading';
+  status: 'uploading' | 'failed';
+  slow: boolean;
+};
+
 export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   const { theme } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
@@ -75,9 +90,19 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   // loaded with real coords). We NEVER pre-fill a silent default location, so a
   // salon can't be created at the wrong place. Save stays blocked until true.
   const [locationSet, setLocationSet] = useState(false);
-  const [pendingImages, setPendingImages] = useState<
-    { id: string; localUri: string; progress: number; phase: 'preparing' | 'uploading' }[]
-  >([]);
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  // Per-upload timers/tokens. `slowTimers` flips an item to "taking a while"
+  // after 30s so the owner gets a Retry affordance without losing the form.
+  // `attemptTokens` guards against a stale (retried/abandoned) request applying
+  // its result after a newer attempt for the same slot started.
+  const slowTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const attemptTokens = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    return () => {
+      Object.values(slowTimers.current).forEach((t) => clearTimeout(t));
+    };
+  }, []);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -155,16 +180,8 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     }
   }, [salon]);
 
-  const createMutation = useMutation({
-    mutationFn: (data: SalonPayload) => {
-      console.log('🏪 [SalonCreate][screen] mutationFn → calling repository.createSalon');
-      return salonRepository.createSalon(data);
-    },
-    onSuccess: (created: Salon) => {
-      console.log('✅ [SalonCreate][screen] onSuccess', {
-        salonId: created?.id,
-        gender_serve: created?.gender_serve,
-      });
+  const goToPostCreate = useCallback(
+    (created: Salon) => {
       queryClient.setQueryData(queryKeys.ownerSalon, created);
       void queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
       useOwnerOnboardingStore.getState().setPostSalonCreatePending(true);
@@ -174,7 +191,31 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
         navigation.goBack();
       }
     },
-    onError: (error) => {
+    [queryClient, formData.gender_serve, navigation]
+  );
+
+  const createMutation = useMutation({
+    mutationFn: (data: SalonPayload) => {
+      console.log('🏪 [SalonCreate][screen] mutationFn → calling repository.createSalon');
+      return salonRepository.createSalon(data);
+    },
+    // Cold starts / flaky mobile networks make the FIRST request fail with no
+    // response. Auto-retry only that transient class (network/timeout) so the
+    // owner doesn't have to tap "Create" again. 4xx/5xx with a response are NOT
+    // retried (they're deterministic and handled below).
+    retry: (failureCount, error) => {
+      const kind = (error as { kind?: string })?.kind;
+      return kind === 'network' && failureCount < 2;
+    },
+    retryDelay: (attempt) => Math.min(1500 * 2 ** attempt, 6000),
+    onSuccess: (created: Salon) => {
+      console.log('✅ [SalonCreate][screen] onSuccess', {
+        salonId: created?.id,
+        gender_serve: created?.gender_serve,
+      });
+      goToPostCreate(created);
+    },
+    onError: async (error) => {
       const appErr = error as {
         kind?: string;
         code?: string;
@@ -192,6 +233,31 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
         details: appErr?.details,
         userFacing: getUserFacingMessage(error),
       });
+
+      // Recovery for the rare "retry after a lost success" race: a prior attempt
+      // may have created the salon but its response was dropped, so the retry
+      // hits the backend's "you already have a salon" guard (400). Instead of
+      // showing a confusing error, re-fetch the owner salon — if it now exists,
+      // the create genuinely succeeded, so continue to the success flow.
+      const looksLikeDuplicate =
+        appErr?.status === 400 &&
+        typeof appErr?.message === 'string' &&
+        /already have a salon/i.test(appErr.message);
+      if (looksLikeDuplicate) {
+        try {
+          const existing = await salonRepository.getOwnerSalon();
+          if (existing) {
+            console.log('✅ [SalonCreate][screen] recovered: salon already created', {
+              salonId: existing.id,
+            });
+            goToPostCreate(existing);
+            return;
+          }
+        } catch (recoverErr) {
+          console.error('❌ [SalonCreate][screen] duplicate-recovery fetch failed', recoverErr);
+        }
+      }
+
       showToast(getUserFacingMessage(error), 'error');
     },
   });
@@ -223,11 +289,19 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       lng: formData.longitude,
     });
 
-    if (pendingImages.length > 0) {
+    if (pendingImages.some((p) => p.status === 'uploading')) {
       console.warn('⚠️ [SalonCreate][screen] blocked: images still uploading', {
-        pending: pendingImages.length,
+        pending: pendingImages.filter((p) => p.status === 'uploading').length,
       });
-      showToast('Please wait for images to finish uploading', 'warning');
+      showToast('Please wait for photos to finish uploading', 'warning');
+      return;
+    }
+
+    if (pendingImages.some((p) => p.status === 'failed')) {
+      console.warn('⚠️ [SalonCreate][screen] blocked: failed photos need retry/remove', {
+        failed: pendingImages.filter((p) => p.status === 'failed').length,
+      });
+      showToast('Some photos failed. Retry or remove them before continuing.', 'warning');
       return;
     }
 
@@ -294,29 +368,55 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     }
   };
 
-  const uploadImage = async (uri: string) => {
-    const pendingId = `pending-${Date.now()}`;
-    console.log('🖼️ [SalonCreate][image] upload started', { pendingId, uri });
-    setPendingImages((prev) => [...prev, { id: pendingId, localUri: uri, progress: 0, phase: 'preparing' }]);
+  const startUpload = useCallback(async (id: string, uri: string) => {
+    const token = (attemptTokens.current[id] ?? 0) + 1;
+    attemptTokens.current[id] = token;
+    const isCurrent = () => attemptTokens.current[id] === token;
+
+    console.log('🖼️ [SalonCreate][image] upload started', { id, attempt: token, uri });
+
+    setPendingImages((prev) => {
+      const next: PendingImage = {
+        id,
+        localUri: uri,
+        progress: 0,
+        phase: 'preparing',
+        status: 'uploading',
+        slow: false,
+      };
+      return prev.some((p) => p.id === id)
+        ? prev.map((p) => (p.id === id ? next : p))
+        : [...prev, next];
+    });
+
+    clearTimeout(slowTimers.current[id]);
+    slowTimers.current[id] = setTimeout(() => {
+      if (!isCurrent()) return;
+      console.warn('⚠️ [SalonCreate][image] slow upload (>30s), offering retry', { id });
+      setPendingImages((prev) => prev.map((p) => (p.id === id ? { ...p, slow: true } : p)));
+    }, UPLOAD_SLOW_MS);
 
     try {
       const publicUrl = await uploadServiceImage(uri, (pct) => {
+        if (!isCurrent()) return;
         setPendingImages((prev) =>
           prev.map((p) =>
-            p.id === pendingId
+            p.id === id
               ? { ...p, progress: pct, phase: pct < 12 ? 'preparing' : 'uploading' }
               : p
           )
         );
       });
 
-      console.log('✅ [SalonCreate][image] upload succeeded', { pendingId, publicUrl });
-      setFormData((prev) => ({
-        ...prev,
-        images: [...prev.images, publicUrl],
-      }));
-      showToast('Image uploaded successfully', 'success');
+      if (!isCurrent()) return;
+      clearTimeout(slowTimers.current[id]);
+      console.log('✅ [SalonCreate][image] upload succeeded', { id, publicUrl });
+      setPendingImages((prev) => prev.filter((p) => p.id !== id));
+      setFormData((prev) => ({ ...prev, images: [...prev.images, publicUrl] }));
+      showToast('Photo added', 'success');
     } catch (error) {
+      if (!isCurrent()) return;
+      clearTimeout(slowTimers.current[id]);
       const appErr = error as {
         kind?: string;
         code?: string;
@@ -325,25 +425,50 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
         requestId?: string;
       };
       console.error('❌ [SalonCreate][image] upload failed', {
-        pendingId,
+        id,
         kind: appErr?.kind,
         code: appErr?.code,
         status: appErr?.status,
         message: appErr?.message,
         requestId: appErr?.requestId,
       });
+      // Keep the item (marked failed) so the owner can retry just this photo
+      // instead of redoing the whole form.
+      setPendingImages((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, status: 'failed', slow: false } : p))
+      );
       showToast(getUserFacingMessage(error), 'error');
-    } finally {
-      setPendingImages((prev) => prev.filter((p) => p.id !== pendingId));
     }
-  };
+  }, []);
 
-  const pickImage = () => {
-    if (pendingImages.length > 0) {
+  const retryUpload = useCallback(
+    (id: string) => {
+      const item = pendingImages.find((p) => p.id === id);
+      if (!item) return;
+      void startUpload(id, item.localUri);
+    },
+    [pendingImages, startUpload]
+  );
+
+  const removePending = useCallback((id: string) => {
+    attemptTokens.current[id] = (attemptTokens.current[id] ?? 0) + 1; // abandon in-flight
+    clearTimeout(slowTimers.current[id]);
+    delete slowTimers.current[id];
+    setPendingImages((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  const pickImages = () => {
+    const totalCount = formData.images.length + pendingImages.length;
+    const remaining = MAX_SALON_IMAGES - totalCount;
+    if (remaining <= 0) {
+      showToast(`You can add up to ${MAX_SALON_IMAGES} photos`, 'warning');
       return;
     }
-    showSalonImageSourcePicker((uri) => {
-      void uploadImage(uri);
+    showSalonImagesSourcePicker(remaining, (uris) => {
+      uris.slice(0, remaining).forEach((uri, i) => {
+        const id = `pending-${Date.now()}-${i}`;
+        void startUpload(id, uri);
+      });
     });
   };
 
@@ -365,7 +490,9 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
-  const isUploading = pendingImages.length > 0;
+  const isActivelyUploading = pendingImages.some((p) => p.status === 'uploading');
+  const totalImageCount = formData.images.length + pendingImages.length;
+  const canAddMore = totalImageCount < MAX_SALON_IMAGES;
 
   return (
     <ScreenWrapper variant="stack">
@@ -532,7 +659,13 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
 
         <View style={[styles.card, shadows.sm]}>
           <Text style={styles.sectionTitle}>{venueCopy.imagesSection}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageRow}>
+          <Text style={styles.sectionHint}>Add up to {MAX_SALON_IMAGES} photos.</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.imageRow}
+            contentContainerStyle={styles.imageRowContent}
+          >
             {formData.images.map((uri, index) => (
               <View key={`uploaded-${uri}-${index}`} style={styles.imageWrapper}>
                 <Image source={{ uri }} style={styles.imageThumb} />
@@ -542,6 +675,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
                 <TouchableOpacity
                   style={styles.removeImageBtn}
                   onPress={() => removeImage(index)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Ionicons name="close-circle" size={24} color={theme.colors.error} />
                 </TouchableOpacity>
@@ -550,22 +684,58 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
             {pendingImages.map((pending) => (
               <View key={pending.id} style={styles.imageWrapper}>
                 <Image source={{ uri: pending.localUri }} style={styles.imageThumb} />
-                <View style={styles.uploadOverlay}>
-                  <ActivityIndicator color="#fff" />
-                  <Text style={styles.uploadOverlayText}>
-                    {pending.phase === 'preparing'
-                      ? 'Preparing…'
-                      : pending.progress > 0
-                        ? `Uploading… ${pending.progress}%`
-                        : 'Uploading…'}
-                  </Text>
-                </View>
+                {pending.status === 'failed' ? (
+                  <View style={styles.uploadOverlay}>
+                    <Ionicons name="alert-circle" size={22} color="#fff" />
+                    <Text style={styles.uploadOverlayText}>Upload failed</Text>
+                    <TouchableOpacity
+                      style={styles.retryBtn}
+                      onPress={() => retryUpload(pending.id)}
+                    >
+                      <Ionicons name="refresh" size={14} color="#fff" />
+                      <Text style={styles.retryBtnText}>Retry</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.uploadOverlay}>
+                    <ActivityIndicator color="#fff" />
+                    <Text style={styles.uploadOverlayText}>
+                      {pending.phase === 'preparing'
+                        ? 'Preparing…'
+                        : pending.progress > 0
+                          ? `Uploading… ${pending.progress}%`
+                          : 'Uploading…'}
+                    </Text>
+                    {pending.slow ? (
+                      <TouchableOpacity
+                        style={styles.retryBtn}
+                        onPress={() => retryUpload(pending.id)}
+                      >
+                        <Ionicons name="refresh" size={14} color="#fff" />
+                        <Text style={styles.retryBtnText}>Retry</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={styles.removeImageBtn}
+                  onPress={() => removePending(pending.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close-circle" size={24} color={theme.colors.error} />
+                </TouchableOpacity>
               </View>
             ))}
-            <TouchableOpacity style={styles.addImageBtn} onPress={pickImage} disabled={isUploading}>
-              <Ionicons name="camera" size={28} color={theme.colors.primary} />
-              <Text style={styles.addImageText}>Add Photo</Text>
-            </TouchableOpacity>
+            {canAddMore ? (
+              <TouchableOpacity
+                style={styles.addImageBtn}
+                onPress={pickImages}
+                disabled={isActivelyUploading}
+              >
+                <Ionicons name="camera" size={28} color={theme.colors.primary} />
+                <Text style={styles.addImageText}>Add Photo</Text>
+              </TouchableOpacity>
+            ) : null}
           </ScrollView>
         </View>
 
@@ -573,7 +743,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
           title={salon ? 'Save Changes' : venueCopy.createCta}
           onPress={handleSubmit}
           loading={isSaving}
-          disabled={isUploading || !locationSet}
+          disabled={isActivelyUploading || !locationSet}
           style={{ marginTop: spacing.lg }}
         />
         <View style={{ height: TAB_BAR_BASE_HEIGHT + insets.bottom + 40 }} />
@@ -708,6 +878,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   imageRow: {
     flexDirection: 'row',
   },
+  imageRowContent: {
+    // The remove button sits at the top-right corner of each thumb; without
+    // this padding the horizontal ScrollView clips it (the "cross cut from the
+    // top" bug). Padding gives the corner badges room to render fully.
+    paddingTop: spacing.sm,
+    paddingRight: spacing.sm,
+  },
   imageWrapper: {
     marginRight: spacing.md,
     position: 'relative',
@@ -719,10 +896,26 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   removeImageBtn: {
     position: 'absolute',
-    top: -8,
-    right: -8,
+    top: -6,
+    right: -6,
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
+    zIndex: 2,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.sm,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  retryBtnText: {
+    ...typography.caption,
+    color: '#fff',
+    fontWeight: '600',
   },
   uploadedBadge: {
     position: 'absolute',

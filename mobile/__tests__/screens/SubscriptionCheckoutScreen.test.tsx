@@ -7,8 +7,10 @@ import SubscriptionCheckoutScreen from '../../src/screens/owner/SubscriptionChec
 const mockCreateMutate = jest.fn();
 const mockVerifyMutate = jest.fn();
 
+let mockSubData: Record<string, unknown> = { amount: 29900 };
+
 jest.mock('../../src/hooks/useSubscription', () => ({
-  useSubscription: () => ({ data: { amount: 29900 }, isLoading: false }),
+  useSubscription: () => ({ data: mockSubData, isLoading: false }),
   useCreateSubscription: () => ({ mutate: mockCreateMutate, isPending: false }),
   useVerifySubscription: () => ({ mutate: mockVerifyMutate, isPending: false }),
 }));
@@ -39,7 +41,7 @@ const metrics = {
 };
 
 function renderScreen() {
-  const navigation = { goBack: jest.fn() } as never;
+  const navigation = { goBack: jest.fn(), setOptions: jest.fn() } as never;
   return render(
     <SafeAreaProvider initialMetrics={metrics}>
       <ThemeProvider>
@@ -50,7 +52,25 @@ function renderScreen() {
 }
 
 describe('SubscriptionCheckoutScreen', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSubData = { amount: 29900 };
+  });
+
+  it('shows a "no charge today" trial note when the owner is still on trial', () => {
+    const trialEnd = new Date(Date.now() + 7 * 86400000).toISOString();
+    mockSubData = { amount: 29900, is_trial: true, trial_end: trialEnd };
+    renderScreen();
+    expect(screen.getByText(/no charge today/i)).toBeTruthy();
+    expect(screen.getByText(/free trial runs until/i)).toBeTruthy();
+  });
+
+  it('does not show the trial note once the trial has ended', () => {
+    const trialEnd = new Date(Date.now() - 86400000).toISOString();
+    mockSubData = { amount: 29900, is_trial: true, trial_end: trialEnd };
+    renderScreen();
+    expect(screen.queryByText(/no charge today/i)).toBeNull();
+  });
 
   it('renders the TrimiT Pro plan and the subscribe CTA', () => {
     renderScreen();

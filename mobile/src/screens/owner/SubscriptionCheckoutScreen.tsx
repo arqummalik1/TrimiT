@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { OwnerSettingsScreenProps } from '../../navigation/types';
@@ -22,12 +22,15 @@ import { handleApiError } from '../../lib/errorHandler';
 import { isAppError } from '../../types/error';
 import { showToast } from '../../store/toastStore';
 import RazorpayCheckoutModal from '../../components/RazorpayCheckoutModal';
+import { SuccessOverlay } from '../../components/SuccessOverlay';
 import { SUPPORT_EMAIL as CONTACT_EMAIL } from '../../lib/contactInfo';
+import { formatDate } from '../../lib/formatDate';
 import { CreateSubscriptionResponse } from '../../types/subscription';
 import {
   formatMonthlySubscriptionLabel,
   formatSubscribeCta,
 } from '../../lib/subscriptionPricing';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 
 type Props = OwnerSettingsScreenProps<'SubscriptionCheckout'>;
 
@@ -49,7 +52,12 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
   const [checkoutVisible, setCheckoutVisible] = useState(false);
   const [unavailableMessage, setUnavailableMessage] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [billingNote, setBillingNote] = useState<string | null>(null);
+
+  // Keep navigation locked through both the verify call AND the success
+  // celebration so the user can't back out mid-confirmation.
+  const lockNavigation = verifying || showSuccess;
 
   const amountPaise = order?.amount ?? sub?.amount ?? 29900;
   const priceLabel = formatMonthlySubscriptionLabel(amountPaise);
@@ -58,6 +66,30 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
   const gatewayUnavailableCopy =
     `In-app subscription payment is coming soon. To activate TrimiT Pro now, ` +
     `please contact TrimiT at ${CONTACT_EMAIL} and we'll get you set up.`;
+
+  // While the owner still has free trial days, subscribing only registers the
+  // auto-pay mandate — the first real charge is deferred to the trial end. Tell
+  // them up front so the (normal) Razorpay mandate hold + auto-refund doesn't
+  // look like a failed payment.
+  const trialEndsOn =
+    sub?.is_trial && sub?.trial_end && new Date(sub.trial_end).getTime() > Date.now()
+      ? formatDate(sub.trial_end)
+      : null;
+
+  useEffect(() => {
+    navigation.setOptions?.({ gestureEnabled: !lockNavigation });
+  }, [navigation, lockNavigation]);
+
+  useEffect(() => {
+    if (!lockNavigation) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => sub.remove();
+  }, [lockNavigation]);
+
+  const handleGoBack = () => {
+    if (lockNavigation) return;
+    navigation.goBack();
+  };
 
   const handleSubscribe = () => {
     setUnavailableMessage(null);
@@ -70,9 +102,11 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
           return;
         }
         if (data.billing_starts_at) {
+          const startsOn = formatDate(data.billing_starts_at);
           setBillingNote(
-            `Your free trial continues — Razorpay may show a small authorization now. ` +
-              `Your first ${formatMonthlySubscriptionLabel(data.amount)} charge starts when your trial ends.`,
+            `No charge today — you won't be billed until ${startsOn}. ` +
+              `Razorpay may place a temporary mandate-verification hold and refund it automatically; that's normal and your subscription stays active. ` +
+              `Your first ${formatMonthlySubscriptionLabel(data.amount)} payment happens on ${startsOn}.`,
           );
         }
         if (isLaunchableOrder(data)) {
@@ -97,16 +131,16 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleCheckoutSuccess = (payload: Parameters<typeof verifySub.mutate>[0]) => {
-    setCheckoutVisible(false);
     setVerifying(true);
     verifySub.mutate(payload, {
       onSuccess: () => {
         setVerifying(false);
-        showToast('TrimiT Pro is now active. Thank you!', 'success');
-        navigation.goBack();
+        setCheckoutVisible(false);
+        setShowSuccess(true);
       },
       onError: (error: unknown) => {
         setVerifying(false);
+        setCheckoutVisible(false);
         const appErr = isAppError(error) ? error : handleApiError(error);
         setUnavailableMessage(
           appErr.message ||
@@ -121,9 +155,13 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <ScreenWrapper variant="stack">
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
+        {lockNavigation ? (
+          <View style={styles.backButtonPlaceholder} />
+        ) : (
+          <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+        )}
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>TrimiT Pro</Text>
           <Text style={styles.headerSubtitle}>{priceLabel}</Text>
@@ -145,6 +183,17 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
             services, staff and analytics unlocked.
           </Text>
         </View>
+
+        {trialEndsOn && !billingNote ? (
+          <View style={styles.trialBox}>
+            <Ionicons name="gift" size={20} color={theme.colors.primary} />
+            <Text style={styles.trialText}>
+              No charge today. Your free trial runs until{' '}
+              <Text style={styles.trialStrong}>{trialEndsOn}</Text> — your first{' '}
+              {formatMonthlySubscriptionLabel(amountPaise).replace(' / month', '')} payment starts then.
+            </Text>
+          </View>
+        ) : null}
 
         {billingNote ? (
           <View style={styles.infoBox}>
@@ -185,12 +234,28 @@ const SubscriptionCheckoutScreen: React.FC<Props> = ({ navigation }) => {
       <RazorpayCheckoutModal
         visible={checkoutVisible}
         order={order}
+        verifying={verifying}
         prefill={{ name: user?.name, email: user?.email, phone: user?.phone }}
         onSuccess={handleCheckoutSuccess}
-        onDismiss={() => setCheckoutVisible(false)}
+        onDismiss={() => {
+          if (!verifying) setCheckoutVisible(false);
+        }}
         onError={(message) => {
-          setCheckoutVisible(false);
-          setUnavailableMessage(message);
+          if (!verifying) {
+            setCheckoutVisible(false);
+            setUnavailableMessage(message);
+          }
+        }}
+      />
+
+      <SuccessOverlay
+        visible={showSuccess}
+        title="You're on TrimiT Pro!"
+        subtitle="Your subscription is active. Thank you for growing with TrimiT."
+        onDone={() => {
+          setShowSuccess(false);
+          showToast('TrimiT Pro is now active. Thank you!', 'success');
+          navigation.goBack();
         }}
       />
     </ScreenWrapper>
@@ -215,6 +280,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    backButtonPlaceholder: { width: 40, height: 40 },
     headerText: { marginLeft: 12 },
     headerTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.text },
     headerSubtitle: { fontSize: 14, color: theme.colors.textSecondary },
@@ -255,6 +321,16 @@ const createStyles = (theme: Theme) =>
       borderRadius: 12,
     },
     infoText: { color: theme.colors.warning, flex: 1, lineHeight: 20, fontSize: 13 },
+    trialBox: {
+      flexDirection: 'row',
+      gap: 10,
+      padding: 14,
+      backgroundColor: theme.colors.primary + '14',
+      borderRadius: 12,
+      alignItems: 'flex-start',
+    },
+    trialText: { color: theme.colors.text, flex: 1, lineHeight: 20, fontSize: 13 },
+    trialStrong: { fontWeight: '800', color: theme.colors.primary },
     primaryBtn: {
       flexDirection: 'row',
       alignItems: 'center',

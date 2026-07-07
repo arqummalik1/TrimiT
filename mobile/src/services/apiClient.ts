@@ -47,9 +47,14 @@ const getBaseURL = (): string => {
 
 const API_BASE_URL = getBaseURL();
 
+// 30s (was 15s). The backend runs on Render, which cold-starts after idle: the
+// first request can take 30-50s to wake the dyno. A 15s timeout aborted that
+// wake-up and surfaced as a false "No internet"/"timed out" error, so the very
+// first create/upload failed and only a manual retry (server now warm) worked.
+// 30s covers the common cold start; slow uploads set their own longer timeout.
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -63,7 +68,46 @@ function getRequestUrl(config: InternalAxiosRequestConfig): string {
 
 type RetriableRequestConfig = InternalAxiosRequestConfig & {
   _retryAfterRefresh?: boolean;
+  _networkRetryCount?: number;
 };
+
+// A single mobile request can hit a transient fetch failure (Wi‑Fi/cellular
+// handoff, DNS blip, TLS reset) even when the connection is otherwise healthy —
+// RN surfaces this as "Network request failed" with no HTTP response. Zomato /
+// Swiggy-class apps silently retry these instead of hard-failing the first
+// attempt. We retry only requests that are SAFE to replay: idempotent methods
+// (GET/HEAD/OPTIONS) or any mutating request that carries an Idempotency-Key
+// (all our POST/PUT/PATCH mutations do), so a retry can never double-charge or
+// double-create.
+const MAX_NETWORK_RETRIES = 2;
+const IDEMPOTENT_METHODS = new Set(['get', 'head', 'options']);
+
+function isTransientNetworkError(error: unknown): boolean {
+  const err = error as {
+    response?: unknown;
+    code?: string;
+    message?: string;
+    kind?: string;
+  };
+  // Our own offline pre-check reject: no point retrying while truly offline.
+  if (err?.kind === 'network' && err?.code === 'OFFLINE') return false;
+  if (!axios.isAxiosError(error)) return false;
+  // No HTTP response => network layer failed. Also treat timeouts as retriable.
+  return !error.response || error.code === 'ECONNABORTED';
+}
+
+function isReplayableRequest(config?: RetriableRequestConfig): boolean {
+  if (!config) return false;
+  const method = (config.method || 'get').toLowerCase();
+  if (IDEMPOTENT_METHODS.has(method)) return true;
+  const headers = config.headers as { get?: (k: string) => unknown } | undefined;
+  const hasIdempotencyKey =
+    !!headers?.get?.('Idempotency-Key') || !!headers?.get?.('idempotency-key');
+  return hasIdempotencyKey;
+}
+
+const delay = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 function isProtectedAuthFailure(status: number | undefined, reqUrl: string): boolean {
   return (
@@ -140,6 +184,26 @@ apiClient.interceptors.response.use(
     const reqUrl = config
       ? getRequestUrl(config)
       : '';
+
+    // Transparent retry for transient network blips on safe-to-replay requests.
+    // This is what makes the first salon-create / booking attempt survive a
+    // flaky connection instead of surfacing a false "No internet" error.
+    if (isTransientNetworkError(error) && isReplayableRequest(config) && config) {
+      const attempts = config._networkRetryCount ?? 0;
+      if (attempts < MAX_NETWORK_RETRIES) {
+        config._networkRetryCount = attempts + 1;
+        await delay(400 * (attempts + 1));
+        if (__DEV__) {
+          console.warn('🔁 [API][RETRY]', {
+            attempt: config._networkRetryCount,
+            method: (config.method || 'GET').toUpperCase(),
+            url: reqUrl,
+          });
+        }
+        return apiClient.request(config);
+      }
+    }
+
     if (isProtectedAuthFailure(status, reqUrl) && config && !config._retryAfterRefresh) {
       try {
         const { useAuthStore } = await import('../store/authStore');

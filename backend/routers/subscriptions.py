@@ -59,6 +59,7 @@ def _require_owner(current_user: dict) -> str:
 async def get_current(current_user: dict = Depends(get_current_user)):
     owner_id = _require_owner(current_user)
     row = await subs.ensure_trial(owner_id)
+    row = await subs.backfill_billing_period_if_needed(owner_id, row)
     return subs.to_subscription_out(row)
 
 
@@ -173,6 +174,17 @@ async def verify_subscription(
         raise HTTPException(status_code=400, detail={"code": "BAD_SIGNATURE", "message": "Invalid signature"})
 
     if row.get("status") == SubscriptionStatus.active.value:
+        # Webhook may have flipped us active before /verify ran, leaving period
+        # fields empty — backfill so the subscription screen shows real dates.
+        if not row.get("current_period_start") or not row.get("next_renewal_at"):
+            period = subs.compute_billing_period(row)
+            await subs.update_subscription(
+                owner_id,
+                period,
+                event_type="period_backfill",
+                source="owner",
+                metadata={"reason": "verify_already_active"},
+            )
         return JSONResponse(status_code=200, content={"status": "success", "message": "Already active"})
 
     prior_status = row.get("status")
@@ -185,20 +197,14 @@ async def verify_subscription(
     )
 
     now = datetime.now(timezone.utc)
-    # Stacking: begin the paid cycle when the current free/paid window ends, so
-    # subscribing early appends a fresh cycle instead of overwriting the
-    # remaining days. Lapsed owners start now.
-    anchor = subs.compute_billing_anchor(row) or now
-    deferred = anchor > now
-    period_start = anchor
-    period_end = anchor + timedelta(days=30)
+    period = subs.compute_billing_period(row, reference=now)
+    period_start = subs._parse_dt(period["current_period_start"]) or now
+    deferred = period_start > now
     updated = await subs.update_subscription(
         owner_id,
         {
             "status": SubscriptionStatus.active.value,
-            "current_period_start": period_start.isoformat(),
-            "current_period_end": period_end.isoformat(),
-            "next_renewal_at": period_end.isoformat(),
+            **period,
             "cancel_at_period_end": False,
             "cancelled_at": None,
         },
@@ -242,7 +248,7 @@ async def verify_subscription(
                 amount_paise=row.get("amount", settings.SUBSCRIPTION_PRICE_PAISE),
                 payment_id=payload.razorpay_payment_id,
                 paid_at=now.isoformat(),
-                next_renewal_at=period_end.isoformat(),
+                next_renewal_at=period["next_renewal_at"],
             )
         except Exception as e:
             logger.error("[Sub] receipt email failed: %s", e)
@@ -381,8 +387,12 @@ async def _process_webhook_event(event_type: str, event: dict) -> None:
     sub_entity = (payload.get("subscription") or {}).get("entity") or {}
 
     if event_type in ("subscription.activated", "subscription.authenticated"):
+        patch: dict = {"status": SubscriptionStatus.active.value}
+        patch.update(subs.billing_period_from_razorpay_entity(sub_entity))
+        if not patch.get("current_period_start") or not patch.get("next_renewal_at"):
+            patch.update(subs.compute_billing_period(row))
         await subs.update_subscription(
-            owner_id, {"status": SubscriptionStatus.active.value},
+            owner_id, patch,
             event_type="activated", source="webhook",
         )
         await notify.notify_activated(owner_id, sub_id)
