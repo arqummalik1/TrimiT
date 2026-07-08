@@ -75,6 +75,9 @@ const LOG = '[Discover]';
 
 const MAP_DELTA_REF_DEFAULT = DISCOVER_INITIAL_DELTA;
 
+// FlatList is VirtualizedList-based — native-driver onScroll requires this wrapper.
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<Salon>);
+
 function parseSalonCoordinate(salon: Salon): { latitude: number; longitude: number } | null {
   const lat = Number(salon.latitude);
   const lng = Number(salon.longitude);
@@ -755,7 +758,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           </View>
         </View>
       ) : (
-        <FlatList
+        <AnimatedFlatList
           data={filteredSalons}
           keyExtractor={(item) => item.id}
           renderItem={renderSalonItem}
