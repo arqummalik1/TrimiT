@@ -34,7 +34,7 @@ import { useMinLoadingTime } from "../../hooks/useMinLoadingTime";
 import { showToast } from "../../store/toastStore";
 import { Booking } from "../../types";
 import { bookingRepository } from "../../repositories/bookingRepository";
-import { typography, spacing, fonts, layout } from "../../lib/utils";
+import { typography, spacing, layout } from "../../lib/utils";
 import { useTheme } from "../../theme/ThemeContext";
 import { Theme } from "../../theme/tokens";
 import { useAuthStore } from "../../store/authStore";
@@ -287,9 +287,7 @@ const createStyles = (theme: Theme) =>
       borderBottomColor: theme.colors.border,
     },
     title: {
-      fontFamily: fonts.heading,
-      fontSize: 28,
-      fontWeight: "700",
+      ...theme.typography.h3,
       color: theme.colors.text,
       marginBottom: 4,
     },

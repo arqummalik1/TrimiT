@@ -800,11 +800,8 @@ const createStyles = (theme: Theme) =>
       minWidth: 0,
     },
     titleLine: {
-      fontFamily: fonts.heading,
-      fontSize: 28,
-      lineHeight: 32,
+      ...theme.typography.h3,
       color: theme.colors.text,
-      fontWeight: '700',
     },
     headerActions: {
       flexDirection: 'row',
