@@ -18,7 +18,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
@@ -75,9 +74,6 @@ const LOG = '[Discover]';
 
 const MAP_DELTA_REF_DEFAULT = DISCOVER_INITIAL_DELTA;
 
-// FlatList is VirtualizedList-based — native-driver onScroll requires this wrapper.
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<Salon>);
-
 function parseSalonCoordinate(salon: Salon): { latitude: number; longitude: number } | null {
   const lat = Number(salon.latitude);
   const lng = Number(salon.longitude);
@@ -101,6 +97,8 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [discoverChip, setDiscoverChip] = useState<DiscoverChip>(() => defaultDiscoverChip(user));
 
@@ -113,33 +111,6 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     [discoverChip, user],
   );
 
-  // Hide-on-scroll search bar — translateY + opacity on the native driver so
-  // scrolling never triggers JS-thread layout (height animation was the iOS jank).
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const [searchBarHeight, setSearchBarHeight] = useState(0);
-  const searchAnim = useMemo(() => {
-    if (!searchBarHeight) return null;
-    const clamped = Animated.diffClamp(scrollY, 0, searchBarHeight);
-    return {
-      translateY: clamped.interpolate({
-        inputRange: [0, searchBarHeight],
-        outputRange: [0, -searchBarHeight],
-        extrapolate: 'clamp',
-      }),
-      opacity: clamped.interpolate({
-        inputRange: [0, searchBarHeight * 0.65],
-        outputRange: [1, 0],
-        extrapolate: 'clamp',
-      }),
-    };
-  }, [scrollY, searchBarHeight]);
-  const onListScroll = useMemo(
-    () =>
-      Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-        useNativeDriver: true,
-      }),
-    [scrollY]
-  );
   const endReachedLock = useRef(false);
 
   const debouncedSearchQuery = useDebouncedValue(searchQuery.trim(), DISCOVER_SEARCH_DEBOUNCE_MS);
@@ -461,22 +432,20 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     }
   };
 
-  const subtitle = useMemo(() => {
-    if (!locationReady) {
-      return phase === 'primer' ? 'Allow location to see salons near you' : 'Finding salons near you…';
+  const openSearch = useCallback(() => {
+    if (!isOnline) {
+      handleOfflineTap();
+      return;
     }
-    if (coords) {
-      if (source === 'gps_last_known') {
-        return 'Nearby salons · updating location…';
-      }
-      const count = filteredSalons.length;
-      if (count > 0) {
-        return `${count} salon${count === 1 ? '' : 's'} nearby`;
-      }
-      return 'Nearby salons';
-    }
-    return errorMessage ?? 'Turn on location to see nearby salons';
-  }, [locationReady, phase, coords, errorMessage, source, filteredSalons.length]);
+    setSearchOpen(true);
+    requestAnimationFrame(() => searchInputRef.current?.focus());
+  }, [isOnline]);
+
+  const closeSearch = useCallback(() => {
+    setSearchQuery('');
+    setSearchOpen(false);
+    searchInputRef.current?.blur();
+  }, []);
 
   const zoomByFactor = useCallback((factor: number) => {
     const next = Math.min(1.8, Math.max(0.006, mapDeltaRef.current * factor));
@@ -550,7 +519,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     const appErr = handleApiError(rawError);
     return (
       <ScreenWrapper variant="tab">
-        <View style={styles.header}>
+        <View style={styles.topChrome}>
           <Text style={styles.title}>Discover Salons</Text>
         </View>
         <ErrorState
@@ -590,109 +559,105 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
         }}
       />
 
-      <View style={styles.header}>
+      <View style={styles.topChrome}>
         <View style={styles.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.title}>Discover Salons</Text>
-            <Text style={styles.subtitle}>{subtitle}</Text>
-          </View>
-          <View
-            style={styles.viewToggle}
-            accessibilityRole="tablist"
-            accessibilityLabel="View mode toggle"
-          >
+          <Text style={styles.title} accessibilityRole="header">
+            Discover Salons
+          </Text>
+          <View style={styles.headerActions}>
             {!isOutOfArea && (
-              <>
-            <TouchableOpacity
-              style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
-              onPress={() => setViewMode('list')}
-              accessibilityRole="tab"
-              accessibilityLabel="List view"
-              accessibilityState={{ selected: viewMode === 'list' }}
-            >
-              <Ionicons
-                name="list"
-                size={18}
-                color={viewMode === 'list' ? theme.colors.textInverse : theme.colors.textSecondary}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toggleBtn, viewMode === 'map' && styles.toggleBtnActive]}
-              onPress={() => setViewMode('map')}
-              accessibilityRole="tab"
-              accessibilityLabel="Map view"
-              accessibilityState={{ selected: viewMode === 'map' }}
-            >
-              <Ionicons
-                name="map"
-                size={18}
-                color={viewMode === 'map' ? theme.colors.textInverse : theme.colors.textSecondary}
-              />
-            </TouchableOpacity>
-              </>
+              <TouchableOpacity
+                style={[
+                  styles.headerIconBtn,
+                  (searchOpen || searchQuery.length > 0) && styles.headerIconBtnActive,
+                ]}
+                onPress={searchOpen ? closeSearch : openSearch}
+                accessibilityLabel={searchOpen ? 'Close search' : 'Search salons'}
+                accessibilityRole="button"
+              >
+                <Ionicons
+                  name={searchOpen ? 'close' : isOnline ? 'search' : 'cloud-offline-outline'}
+                  size={20}
+                  color={
+                    searchOpen || searchQuery.length > 0
+                      ? theme.colors.textInverse
+                      : isOnline
+                        ? theme.colors.text
+                        : theme.colors.warning
+                  }
+                />
+              </TouchableOpacity>
+            )}
+            {!isOutOfArea && (
+              <View
+                style={styles.viewToggle}
+                accessibilityRole="tablist"
+                accessibilityLabel="View mode toggle"
+              >
+                <TouchableOpacity
+                  style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
+                  onPress={() => setViewMode('list')}
+                  accessibilityRole="tab"
+                  accessibilityLabel="List view"
+                  accessibilityState={{ selected: viewMode === 'list' }}
+                >
+                  <Ionicons
+                    name="list"
+                    size={17}
+                    color={viewMode === 'list' ? theme.colors.textInverse : theme.colors.textSecondary}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, viewMode === 'map' && styles.toggleBtnActive]}
+                  onPress={() => setViewMode('map')}
+                  accessibilityRole="tab"
+                  accessibilityLabel="Map view"
+                  accessibilityState={{ selected: viewMode === 'map' }}
+                >
+                  <Ionicons
+                    name="map"
+                    size={17}
+                    color={viewMode === 'map' ? theme.colors.textInverse : theme.colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </View>
 
-        <Animated.View
-          style={[
-            styles.searchWrap,
-            searchBarHeight ? { height: searchBarHeight } : null,
-            searchAnim
-              ? {
-                  transform: [{ translateY: searchAnim.translateY }],
-                  opacity: searchAnim.opacity,
-                }
-              : null,
-          ]}
-        >
-          {!isOutOfArea && (
-          <View
-            style={styles.searchInner}
-            onLayout={(e) => {
-              const h = e.nativeEvent.layout.height;
-              if (h && Math.abs(h - searchBarHeight) > 1) setSearchBarHeight(h);
-            }}
-          >
-            <TouchableOpacity
-              activeOpacity={isOnline ? 1 : 0.6}
-              onPress={handleOfflineTap}
-              disabled={isOnline}
-              accessibilityLabel={isOnline ? 'Search salons' : 'Search unavailable - offline'}
-              accessibilityHint="Type to filter salons by name or address"
-            >
-              <View style={[styles.searchContainer, !isOnline && styles.searchContainerDisabled]}>
-                <Ionicons
-                  name={isOnline ? 'search' : 'cloud-offline-outline'}
-                  size={20}
-                  color={isOnline ? theme.colors.textSecondary : theme.colors.warning}
-                />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder={isOnline ? 'Search salons...' : 'No internet connection'}
-                  placeholderTextColor={isOnline ? theme.colors.textSecondary : theme.colors.warning}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  editable={isOnline}
-                  accessibilityRole="search"
-                />
-                {searchQuery.length > 0 && isOnline && (
-                  <TouchableOpacity
-                    onPress={() => setSearchQuery('')}
-                    accessibilityLabel="Clear search"
-                    accessibilityRole="button"
-                  >
-                    <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </TouchableOpacity>
+        {searchOpen && !isOutOfArea && (
+          <View style={styles.searchRow}>
+            <View style={[styles.searchContainer, !isOnline && styles.searchContainerDisabled]}>
+              <Ionicons
+                name={isOnline ? 'search' : 'cloud-offline-outline'}
+                size={18}
+                color={isOnline ? theme.colors.textSecondary : theme.colors.warning}
+              />
+              <TextInput
+                ref={searchInputRef}
+                style={styles.searchInput}
+                placeholder={isOnline ? 'Search salons...' : 'No internet connection'}
+                placeholderTextColor={isOnline ? theme.colors.textSecondary : theme.colors.warning}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                editable={isOnline}
+                returnKeyType="search"
+                accessibilityRole="search"
+                accessibilityLabel="Search salons"
+              />
+              {searchQuery.length > 0 && isOnline && (
+                <TouchableOpacity
+                  onPress={() => setSearchQuery('')}
+                  accessibilityLabel="Clear search"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="close-circle" size={18} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-          )}
-        </Animated.View>
-      </View>
+        )}
 
-      <View style={styles.discoverChips}>
         <FilterChipRow
           options={DISCOVER_CHIP_OPTIONS}
           value={discoverChip}
@@ -758,12 +723,10 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           </View>
         </View>
       ) : (
-        <AnimatedFlatList
+        <FlatList
           data={filteredSalons}
           keyExtractor={(item) => item.id}
           renderItem={renderSalonItem}
-          onScroll={onListScroll}
-          scrollEventThrottle={16}
           removeClippedSubviews
           initialNumToRender={6}
           maxToRenderPerBatch={8}
@@ -799,7 +762,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
               compact
               action={
                 debouncedSearchQuery
-                  ? { label: 'Clear Search', onPress: () => setSearchQuery('') }
+                  ? { label: 'Clear Search', onPress: closeSearch }
                   : undefined
               }
             />
@@ -820,56 +783,55 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
-    header: {
+    topChrome: {
       paddingHorizontal: spacing.xl,
-      paddingTop: spacing.xl,
-      paddingBottom: spacing.md,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.sm,
       backgroundColor: theme.colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
+      gap: spacing.sm,
     },
     headerRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      alignItems: 'center',
       justifyContent: 'space-between',
+      gap: spacing.md,
     },
-    // Collapsing wrapper for the search bar (hide-on-scroll). Clips as it shrinks.
-    searchWrap: {
-      overflow: 'hidden',
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      flexShrink: 0,
     },
-    searchInner: {
-      paddingTop: spacing.lg,
+    headerIconBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: theme.colors.surfaceSecondary,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    discoverChips: {
-      paddingHorizontal: spacing.xl,
-      paddingTop: spacing.xs,
-      paddingBottom: spacing.xs,
-      backgroundColor: theme.colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
+    headerIconBtnActive: {
+      backgroundColor: theme.colors.primary,
+    },
+    searchRow: {
+      marginTop: -2,
     },
     title: {
+      flex: 1,
       fontFamily: fonts.heading,
-      fontSize: 34,
+      fontSize: 28,
       color: theme.colors.text,
-      marginBottom: 4,
       fontWeight: '700',
-    },
-    subtitle: {
-      fontFamily: fonts.body,
-      fontSize: 14,
-      color: theme.colors.textSecondary,
-      letterSpacing: 0.5,
     },
     viewToggle: {
       flexDirection: 'row',
       backgroundColor: theme.colors.surfaceSecondary,
       borderRadius: borderRadius.pill,
-      padding: 4,
+      padding: 3,
     },
     toggleBtn: {
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 6,
       borderRadius: borderRadius.pill,
     },
     toggleBtnActive: {
@@ -880,14 +842,11 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       backgroundColor: theme.colors.surfaceSecondary,
       borderRadius: borderRadius.pill,
-      paddingHorizontal: spacing.lg,
+      paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
       gap: spacing.sm,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
     },
     searchContainerDisabled: {
-      borderColor: theme.colors.warning + '60',
       opacity: 0.8,
     },
     searchInput: {
@@ -898,7 +857,9 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.text,
     },
     listContent: {
-      padding: spacing.xl,
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xl,
     },
     listContentEmpty: {
       flexGrow: 1,
