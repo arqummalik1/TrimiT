@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import MapView from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 import api from '../../lib/api';
 import { Salon, Service } from '../../types';
 import { fonts, spacing, borderRadius, formatDate } from '../../lib/utils';
@@ -22,7 +22,7 @@ import { Theme } from '../../theme/tokens';
 import { Button } from '../../components/Button';
 import { ServiceCard } from '../../components/ServiceCard';
 import ImageCarousel from '../../components/ImageCarousel';
-import { SalonMapMarker } from '../../components/SalonMapMarker';
+import { getSalonMapPinColor } from '../../lib/mapMarkers';
 import { openNativeDirections } from '../../lib/maps';
 
 import { analytics } from '../../lib/analytics';
@@ -215,7 +215,7 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             ) : null}
           </View>
 
-          {/* Mini Map with branded marker */}
+          {/* Mini map */}
           {salon.latitude && salon.longitude ? (
             <TouchableOpacity
               style={styles.miniMapContainer}
@@ -236,14 +236,12 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   longitudeDelta: 0.005,
                 }}
               >
-                <SalonMapMarker
+                <Marker
                   coordinate={{
                     latitude: salon.latitude,
                     longitude: salon.longitude,
                   }}
-                  label={salon.name}
-                  variant="brand"
-                  showCallout={false}
+                  pinColor={getSalonMapPinColor(theme)}
                 />
               </MapView>
 

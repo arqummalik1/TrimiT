@@ -32,12 +32,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../theme/ThemeContext';
-import { Theme } from '../theme/tokens';
+import { Theme, layout } from '../theme/tokens';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const BAR_HORIZONTAL_MARGIN = 16;
+const BAR_HORIZONTAL_MARGIN = layout.floatingChromeInset;
 const BAR_WIDTH             = SCREEN_WIDTH - BAR_HORIZONTAL_MARGIN * 2;
 const BAR_HEIGHT            = 64;
 /** How many pixels the active tab icon lifts above the bar surface. */

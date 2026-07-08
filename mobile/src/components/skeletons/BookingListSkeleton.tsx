@@ -7,6 +7,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Skeleton } from '../Skeleton';
 import { useTheme, Theme } from '../../theme/ThemeContext';
+import { layout } from '../../theme/tokens';
 
 type BookingListStyles = ReturnType<typeof createStyles>;
 
@@ -55,7 +56,9 @@ export const BookingListSkeleton: React.FC<{ count?: number }> = ({ count = 4 })
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
-    padding: theme.spacing.xl,
+    paddingHorizontal: layout.floatingChromeInset,
+    paddingTop: theme.spacing.xl,
+    paddingBottom: theme.spacing.xl,
     gap: theme.spacing.lg,
   },
   card: {

@@ -57,7 +57,7 @@ export function normalizeAuthUser(raw: ProfileLike | null | undefined): User | n
       row.discovery_audience === 'women' ||
       row.discovery_audience === 'all'
         ? row.discovery_audience
-        : undefined,
+        : 'auto',
     created_at: row.created_at ?? '',
   };
 }

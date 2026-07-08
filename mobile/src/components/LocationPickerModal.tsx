@@ -38,7 +38,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { MapPressEvent } from 'react-native-maps';
+import MapView, { MapPressEvent, Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 
@@ -47,7 +47,7 @@ import {
   geocodeAddress,
   buildLocationPickerRegion,
 } from '../lib/maps';
-import SalonMapMarker from './SalonMapMarker';
+import { getSalonMapPinColor } from '../lib/mapMarkers';
 import { typography, spacing, borderRadius, shadows } from '../lib/utils';
 import { useTheme } from '../theme/ThemeContext';
 import { Theme } from '../theme/tokens';
@@ -270,12 +270,9 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             mapType="standard"
             userInterfaceStyle={isDark ? 'dark' : 'light'}
           >
-            <SalonMapMarker
+            <Marker
               coordinate={selectedCoords}
-              variant="brand"
-              selected
-              trackViewChanges
-              showCallout={false}
+              pinColor={getSalonMapPinColor(theme, true)}
             />
           </MapView>
 

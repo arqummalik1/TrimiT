@@ -11,14 +11,14 @@ export type MenuAudienceFilter = 'men' | 'women' | 'all';
 
 export const SALON_TYPE_LABELS: Record<SalonGenderServe, string> = {
   men: "Men's salon",
-  women: 'Beauty parlour',
+  women: "Women's salon",
   unisex: 'Unisex salon',
 };
 
 export const DISCOVER_CHIP_OPTIONS: { value: DiscoverChip; label: string }[] = [
   { value: 'for_you', label: 'For you' },
-  { value: 'men', label: "Men's" },
-  { value: 'women', label: 'Beauty parlour' },
+  { value: 'men', label: 'Men' },
+  { value: 'women', label: 'Women' },
   { value: 'all', label: 'All' },
 ];
 
@@ -69,8 +69,8 @@ export interface VenueCopy {
 }
 
 export function salonTypeLabel(genderServe?: SalonGenderServe): string {
-  if (genderServe === 'men') return "Men's";
-  if (genderServe === 'women') return 'Beauty parlour';
+  if (genderServe === 'men') return 'Men';
+  if (genderServe === 'women') return 'Women';
   return 'Unisex';
 }
 
@@ -160,8 +160,8 @@ export const SERVICE_AUDIENCE_OPTIONS: { value: ServiceAudience; label: string }
 
 export const DISCOVERY_PREF_OPTIONS: { value: DiscoveryAudience; label: string }[] = [
   { value: 'auto', label: 'Match my profile' },
-  { value: 'men', label: "Men's salons" },
-  { value: 'women', label: 'Beauty parlours' },
+  { value: 'men', label: 'Men' },
+  { value: 'women', label: 'Women' },
   { value: 'all', label: 'Show all' },
 ];
 
@@ -191,9 +191,9 @@ export function resolveDiscoveryApiFilter(user: User | null | undefined): string
 
 export function defaultDiscoverChip(user: User | null | undefined): DiscoverChip {
   const pref = user?.discovery_audience ?? 'auto';
-  if (pref === 'all') return 'all';
   if (pref === 'men') return 'men';
   if (pref === 'women') return 'women';
+  // `auto`, `all`, or unset → For you (gender-based relevance via discoverChipToApiFilter).
   return 'for_you';
 }
 

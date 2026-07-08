@@ -35,7 +35,6 @@ describe('genderServe', () => {
   it('maps discover chips to API filter', () => {
     expect(discoverChipToApiFilter('all', maleUser)).toBeUndefined();
     expect(discoverChipToApiFilter('men', femaleUser)).toBe('men');
-    expect(discoverChipToApiFilter('for_you', maleUser)).toBe('men');
   });
 
   it('filters salons client-side as backup', () => {
@@ -61,15 +60,27 @@ describe('genderServe', () => {
     expect(salonNeedsMenuAudienceChips('unisex')).toBe(true);
   });
 
-  it('default discover chip respects preference', () => {
-    expect(defaultDiscoverChip({ ...maleUser, discovery_audience: 'all' })).toBe('all');
+  it('default discover chip is For you for auto, all, and unset prefs', () => {
+    expect(defaultDiscoverChip({ ...maleUser, discovery_audience: 'all' })).toBe('for_you');
     expect(defaultDiscoverChip(maleUser)).toBe('for_you');
+    expect(defaultDiscoverChip(femaleUser)).toBe('for_you');
+    expect(defaultDiscoverChip(null)).toBe('for_you');
+  });
+
+  it('default discover chip respects explicit men/women settings pref', () => {
+    expect(defaultDiscoverChip({ ...maleUser, discovery_audience: 'men' })).toBe('men');
+    expect(defaultDiscoverChip({ ...femaleUser, discovery_audience: 'women' })).toBe('women');
+  });
+
+  it('For you maps to gender-based API filter', () => {
+    expect(discoverChipToApiFilter('for_you', maleUser)).toBe('men');
+    expect(discoverChipToApiFilter('for_you', femaleUser)).toBe('women');
   });
 
   it('returns venue copy per gender_serve', () => {
     expect(getVenueCopy('men').createCta).toBe('Create your salon');
     expect(getVenueCopy('women').createCta).toBe('Create your beauty parlour');
     expect(getVenueCopy('unisex').createCta).toBe('Create your unisex salon');
-    expect(salonTypeLabel('women')).toBe('Beauty parlour');
+    expect(salonTypeLabel('women')).toBe('Women');
   });
 });

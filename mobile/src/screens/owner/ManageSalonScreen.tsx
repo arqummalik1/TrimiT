@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
-import MapView from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -32,7 +32,7 @@ import { normalizeSalon } from '../../lib/salonImage';
 import { salonSchema, toLocalPhone, toE164India } from '../../lib/validations';
 import { OwnerDashboardScreenProps, OwnerSettingsScreenProps } from '../../navigation/types';
 import { LocationPickerModal } from '../../components/LocationPickerModal';
-import { SalonMapMarker } from '../../components/SalonMapMarker';
+import { getSalonMapPinColor } from '../../lib/mapMarkers';
 import type { Coordinates } from '../../lib/maps';
 import { FilterChipRow } from '../../components/FilterChipRow';
 import { SALON_SERVE_OPTIONS, SalonGenderServe, getVenueCopy } from '../../lib/genderServe';
@@ -579,11 +579,9 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
                     rotateEnabled={false}
                     pitchEnabled={false}
                   >
-                    <SalonMapMarker
+                    <Marker
                       coordinate={selectedCoords}
-                      variant="brand"
-                      selected
-                      showCallout={false}
+                      pinColor={getSalonMapPinColor(theme, true)}
                     />
                   </MapView>
                 </View>

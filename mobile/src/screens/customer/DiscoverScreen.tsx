@@ -24,7 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import MapView from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 import ClusteredMapView from 'react-native-map-clustering';
 import type { Coordinates } from '../../lib/maps';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
@@ -41,11 +41,11 @@ import { useDiscoverLocation } from '../../hooks/useDiscoverLocation';
 import { showToast } from '../../store/toastStore';
 import { Salon } from '../../types';
 import { normalizeSalon } from '../../lib/salonImage';
-import { spacing, borderRadius, fonts } from '../../lib/utils';
+import { spacing, borderRadius, fonts, layout } from '../../lib/utils';
 import { PermissionPrimer } from '../../components/PermissionPrimer';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
-import { SalonMapMarker } from '../../components/SalonMapMarker';
+import { getSalonMapPinColor } from '../../lib/mapMarkers';
 import { ServiceAreaGate } from '../../components/ServiceAreaGate';
 import { serviceabilityRepository } from '../../repositories/serviceabilityRepository';
 import { DISCOVER_FALLBACK_COORDS, DISCOVER_INITIAL_DELTA } from '../../lib/maps';
@@ -58,7 +58,6 @@ import {
   DiscoverChip,
   DISCOVER_CHIP_OPTIONS,
   discoverChipToApiFilter,
-  defaultDiscoverChip,
   salonMatchesDiscoverFilter,
 } from '../../lib/genderServe';
 import { FilterChipRow } from '../../components/FilterChipRow';
@@ -101,11 +100,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
-  const [discoverChip, setDiscoverChip] = useState<DiscoverChip>(() => defaultDiscoverChip(user));
-
-  useEffect(() => {
-    setDiscoverChip(defaultDiscoverChip(user));
-  }, [user?.discovery_audience, user?.gender]);
+  const [discoverChip, setDiscoverChip] = useState<DiscoverChip>('for_you');
 
   const discoverApiFilter = useMemo(
     () => discoverChipToApiFilter(discoverChip, user),
@@ -503,17 +498,15 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   const markerElements = useMemo(
     () =>
       mapMarkersData.map(({ salon, coordinate }) => (
-        <SalonMapMarker
+        <Marker
           key={salon.id}
           coordinate={coordinate}
-          label={salon.name}
-          variant="brand"
-          showLabel
-          showCallout
+          pinColor={getSalonMapPinColor(theme)}
+          title={salon.name}
           onPress={() => handleSalonPress(salon)}
         />
       )),
-    [mapMarkersData, handleSalonPress]
+    [mapMarkersData, handleSalonPress, theme]
   );
 
   if (isError && locationReady && !showBodySkeleton) {
@@ -789,7 +782,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     topChrome: {
-      paddingHorizontal: spacing.xl,
+      paddingHorizontal: layout.floatingChromeInset,
       paddingTop: spacing.lg,
       paddingBottom: spacing.sm,
       backgroundColor: theme.colors.surface,
@@ -867,7 +860,7 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.text,
     },
     listContent: {
-      paddingHorizontal: spacing.xl,
+      paddingHorizontal: layout.floatingChromeInset,
       paddingTop: spacing.md,
       paddingBottom: spacing.xl,
     },

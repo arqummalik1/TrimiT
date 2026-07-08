@@ -34,7 +34,7 @@ import { useMinLoadingTime } from "../../hooks/useMinLoadingTime";
 import { showToast } from "../../store/toastStore";
 import { Booking } from "../../types";
 import { bookingRepository } from "../../repositories/bookingRepository";
-import { typography, spacing, fonts } from "../../lib/utils";
+import { typography, spacing, fonts, layout } from "../../lib/utils";
 import { useTheme } from "../../theme/ThemeContext";
 import { Theme } from "../../theme/tokens";
 import { useAuthStore } from "../../store/authStore";
@@ -279,7 +279,9 @@ const createStyles = (theme: Theme) =>
       flex: 1,
     },
     header: {
-      padding: spacing.xl,
+      paddingHorizontal: layout.floatingChromeInset,
+      paddingTop: spacing.xl,
+      paddingBottom: spacing.md,
       backgroundColor: theme.colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
@@ -296,7 +298,9 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.textSecondary,
     },
     listContent: {
-      padding: spacing.xl,
+      paddingHorizontal: layout.floatingChromeInset,
+      paddingTop: spacing.xl,
+      paddingBottom: spacing.xl,
       flexGrow: 1,
     },
   });

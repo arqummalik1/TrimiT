@@ -209,7 +209,9 @@ export const spacing = {
 } as const;
 
 export const layout = {
-  screenPaddingHorizontal: 20,
+  /** Tab-bar-aligned horizontal inset — use on Discover, Bookings, Profile, and tab bar. */
+  floatingChromeInset:     16,
+  screenPaddingHorizontal: 16,
   cardPadding:             16,
   sectionGap:              24,
   itemGap:                 12,

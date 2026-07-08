@@ -12,6 +12,7 @@ import { useNotificationPrefsStore } from '../store/notificationPrefsStore';
 import { useNotificationStore } from '../store/notificationStore';
 import type { NotificationPreferences } from '../types';
 import { ENABLE_OWNER_PROMO_MANAGEMENT } from '../lib/featureFlags';
+import { layout } from '../theme/tokens';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -236,7 +237,7 @@ function Row({
 
 const createStyles = (theme: any) => StyleSheet.create({
   section: {
-    paddingHorizontal: 16,
+    paddingHorizontal: layout.floatingChromeInset,
     marginBottom: 24,
   },
   sectionTitle: {

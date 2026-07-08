@@ -17,6 +17,7 @@ import { authService } from '../services/authService';
 import { showToast } from '../store/toastStore';
 import { handleApiError } from '../lib/errorHandler';
 import { DISCOVERY_PREF_OPTIONS, DiscoveryAudience } from '../lib/genderServe';
+import { layout } from '../theme/tokens';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -136,7 +137,7 @@ export function DiscoverySettingsSection() {
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     section: {
-      paddingHorizontal: 16,
+      paddingHorizontal: layout.floatingChromeInset,
       marginBottom: 24,
     },
     sectionTitle: {

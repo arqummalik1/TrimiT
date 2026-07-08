@@ -8,6 +8,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Skeleton } from '../Skeleton';
 import { useTheme, Theme } from '../../theme/ThemeContext';
+import { layout } from '../../theme/tokens';
 
 type SalonListStyles = ReturnType<typeof createStyles>;
 
@@ -57,7 +58,9 @@ export const SalonListSkeleton: React.FC = () => {
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
-    padding: theme.spacing.xl,
+    paddingHorizontal: layout.floatingChromeInset,
+    paddingTop: theme.spacing.xl,
+    paddingBottom: theme.spacing.xl,
     gap: theme.spacing.xl,
   },
   card: {

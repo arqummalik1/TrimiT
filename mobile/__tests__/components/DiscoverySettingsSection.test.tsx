@@ -65,7 +65,7 @@ describe('DiscoverySettingsSection', () => {
       fireEvent.press(screen.getByText('Salons shown near you'));
     });
     expect(screen.getByTestId('discovery-pref-men')).toBeTruthy();
-    expect(screen.getByText("Men's salons")).toBeTruthy();
+    expect(screen.getByText('Men')).toBeTruthy();
   });
 
   it('saves selection and collapses after choosing an option', async () => {

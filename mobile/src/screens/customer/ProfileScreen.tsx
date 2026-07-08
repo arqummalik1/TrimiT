@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { typography, spacing, borderRadius, shadows } from '../../lib/utils';
+import { typography, spacing, borderRadius, shadows, layout } from '../../lib/utils';
 
 import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
@@ -396,7 +396,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flex: 1,
   },
   section: {
-    paddingHorizontal: 16,
+    paddingHorizontal: layout.floatingChromeInset,
     marginBottom: 24,
   },
   sectionTitle: {
