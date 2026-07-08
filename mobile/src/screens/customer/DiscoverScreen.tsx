@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
@@ -520,7 +521,10 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     return (
       <ScreenWrapper variant="tab">
         <View style={styles.topChrome}>
-          <Text style={styles.title}>Discover Salons</Text>
+          <View style={styles.titleBlock}>
+            <Text style={styles.titleLine}>Discover</Text>
+            <Text style={styles.titleLine}>Salons</Text>
+          </View>
         </View>
         <ErrorState
           title="Couldn't load salons"
@@ -561,9 +565,10 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
 
       <View style={styles.topChrome}>
         <View style={styles.headerRow}>
-          <Text style={styles.title} accessibilityRole="header">
-            Discover Salons
-          </Text>
+          <View style={styles.titleBlock} accessibilityRole="header">
+            <Text style={styles.titleLine}>Discover</Text>
+            <Text style={styles.titleLine}>Salons</Text>
+          </View>
           <View style={styles.headerActions}>
             {!isOutOfArea && (
               <TouchableOpacity
@@ -794,7 +799,19 @@ const createStyles = (theme: Theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      gap: spacing.md,
+      gap: spacing.sm,
+    },
+    titleBlock: {
+      flex: 1,
+      flexShrink: 1,
+      minWidth: 0,
+    },
+    titleLine: {
+      fontFamily: fonts.heading,
+      fontSize: 28,
+      lineHeight: 32,
+      color: theme.colors.text,
+      fontWeight: '700',
     },
     headerActions: {
       flexDirection: 'row',
@@ -815,13 +832,6 @@ const createStyles = (theme: Theme) =>
     },
     searchRow: {
       marginTop: -2,
-    },
-    title: {
-      flex: 1,
-      fontFamily: fonts.heading,
-      fontSize: 28,
-      color: theme.colors.text,
-      fontWeight: '700',
     },
     viewToggle: {
       flexDirection: 'row',
