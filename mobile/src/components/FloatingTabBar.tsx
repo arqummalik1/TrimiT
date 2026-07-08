@@ -41,7 +41,9 @@ const BAR_HORIZONTAL_MARGIN = 16;
 const BAR_WIDTH             = SCREEN_WIDTH - BAR_HORIZONTAL_MARGIN * 2;
 const BAR_HEIGHT            = 64;
 /** How many pixels the active tab icon lifts above the bar surface. */
-const LIFT_AMOUNT           = 10;
+const LIFT_AMOUNT           = 5;
+/** Active tab scale — half the previous 1.08 bump for a subtler press feel. */
+const ACTIVE_SCALE          = 1.04;
 /** Size of the gradient circle behind the active icon. */
 const ACTIVE_PILL_SIZE      = 36;
 const DOT_SIZE              = 5;
@@ -102,7 +104,7 @@ export function FloatingTabBar({
     );
     const scaleAnimations = scaleAnims.map((anim, i) =>
       Animated.timing(anim, {
-        toValue: i === idx ? 1.08 : 1,
+        toValue: i === idx ? ACTIVE_SCALE : 1,
         duration: ANIMATION_DURATION,
         useNativeDriver: true,
       })
