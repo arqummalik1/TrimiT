@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Switch, StyleSheet, ActivityIndicator, TouchableOpacity, LayoutAnimation, UIManager, Platform } from 'react-native';
+import { View, Text, Switch, ActivityIndicator, TouchableOpacity, LayoutAnimation, UIManager, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
-import { fonts, spacing, borderRadius } from '../lib/utils';
 import { authService } from '../services/authService';
 import { useAuthStore } from '../store/authStore';
 import { setupPushNotifications } from '../lib/notifications';
@@ -11,8 +10,9 @@ import { logger } from '../lib/logger';
 import { useNotificationPrefsStore } from '../store/notificationPrefsStore';
 import { useNotificationStore } from '../store/notificationStore';
 import type { NotificationPreferences } from '../types';
+import type { Theme } from '../theme/tokens';
 import { ENABLE_OWNER_PROMO_MANAGEMENT } from '../lib/featureFlags';
-import { layout } from '../theme/tokens';
+import { createSettingsStyles } from './settings/settingsStyles';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -37,7 +37,7 @@ function prefsFromUser(user: ReturnType<typeof useAuthStore.getState>['user']): 
 
 export function NotificationSettingsSection() {
   const { theme } = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const styles = React.useMemo(() => createSettingsStyles(theme), [theme]);
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
   const token = useAuthStore((s) => s.token);
@@ -106,23 +106,31 @@ export function NotificationSettingsSection() {
 
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>NOTIFICATIONS</Text>
-      <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-        <TouchableOpacity style={styles.headerRow} onPress={toggleExpand} activeOpacity={0.7}>
-          <View style={styles.headerTitleContainer}>
-            <View style={[styles.headerIconContainer, { backgroundColor: theme.colors.error }]}>
-              <Ionicons name="notifications" size={20} color={theme.colors.white} />
-            </View>
-            <Text style={[styles.title, { color: theme.colors.text }]}>Notifications</Text>
+      <Text style={styles.sectionTitle}>Notifications</Text>
+      <View style={styles.group}>
+        <TouchableOpacity style={styles.row} onPress={toggleExpand} activeOpacity={0.65}>
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>Push notifications</Text>
+            {!expanded ? (
+              <Text style={styles.rowSubtitle}>
+                {prefs.push_enabled ? 'Enabled' : 'Disabled'}
+              </Text>
+            ) : null}
           </View>
-          <View style={styles.headerRightContainer}>
-            {saving ? <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginRight: 8 }} /> : null}
-            <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={20} color={theme.colors.textSecondary} />
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {saving ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginRight: 8 }} />
+            ) : null}
+            <Ionicons
+              name={expanded ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={theme.colors.textTertiary}
+            />
           </View>
         </TouchableOpacity>
 
         {expanded && (
-          <View style={styles.expandedContent}>
+          <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
             <Row
               label="Enable push notifications"
               value={prefs.push_enabled}
@@ -211,18 +219,23 @@ function Row({
   subtitle?: string;
   value: boolean;
   onToggle: () => void;
-  theme: any;
-  styles: any;
+  theme: Theme;
+  styles: ReturnType<typeof createSettingsStyles>;
   disabled?: boolean;
   isLast?: boolean;
 }) {
   return (
-    <View style={[styles.row, disabled && styles.rowDisabled, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border }]}>
+    <View
+      style={[
+        styles.row,
+        { paddingHorizontal: 0 },
+        disabled && { opacity: 0.45 },
+        !isLast && styles.rowBorder,
+      ]}
+    >
       <View style={styles.rowText}>
-        <Text style={[styles.rowLabel, { color: theme.colors.text }]}>{label}</Text>
-        {subtitle ? (
-          <Text style={[styles.rowSub, { color: theme.colors.textSecondary }]}>{subtitle}</Text>
-        ) : null}
+        <Text style={styles.rowTitle}>{label}</Text>
+        {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
       </View>
       <Switch
         value={value}
@@ -234,70 +247,5 @@ function Row({
     </View>
   );
 }
-
-const createStyles = (theme: any) => StyleSheet.create({
-  section: {
-    paddingHorizontal: layout.floatingChromeInset,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    ...theme.typography.captionMedium,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  card: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  headerTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  title: {
-    ...theme.typography.body,
-  },
-  headerRightContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  expandedContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  rowDisabled: {
-    opacity: 0.45,
-  },
-  rowText: {
-    flex: 1,
-    paddingRight: 16,
-  },
-  rowLabel: {
-    ...theme.typography.body,
-  },
-  rowSub: {
-    ...theme.typography.caption,
-    marginTop: 4,
-  },
-});
 
 export default NotificationSettingsSection;

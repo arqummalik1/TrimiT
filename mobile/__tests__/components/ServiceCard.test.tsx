@@ -6,7 +6,8 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import { ThemeProvider } from '../../src/theme/ThemeContext';
-import { ServiceCard } from '../../src/components/ServiceCard';
+import { ServiceCard, createServiceCardStyles } from '../../src/components/ServiceCard';
+import { lightTheme } from '../../src/theme/lightTheme';
 import type { Service } from '../../src/types';
 
 jest.mock('@expo/vector-icons', () => {
@@ -77,6 +78,12 @@ describe('ServiceCard', () => {
   });
 
   // ─── Customer variant ─────────────────────────────────────────────────────
+  it('uses flat surface styling without border (salon detail list)', () => {
+    const styles = createServiceCardStyles(lightTheme);
+    expect(styles.card.borderWidth).toBeUndefined();
+    expect(styles.cardOwner.borderWidth).toBe(1);
+  });
+
   it('shows "Book" CTA in customer variant when onPress provided', () => {
     renderWithTheme(
       <ServiceCard service={baseService} variant="customer" onPress={jest.fn()} />,

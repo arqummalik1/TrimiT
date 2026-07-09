@@ -67,8 +67,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.xl,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   content: {
     padding: theme.spacing.lg,

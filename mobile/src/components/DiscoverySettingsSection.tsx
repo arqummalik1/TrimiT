@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   LayoutAnimation,
@@ -11,13 +10,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
-import { Theme } from '../theme/tokens';
 import { useAuthStore } from '../store/authStore';
 import { authService } from '../services/authService';
 import { showToast } from '../store/toastStore';
 import { handleApiError } from '../lib/errorHandler';
 import { DISCOVERY_PREF_OPTIONS, DiscoveryAudience } from '../lib/genderServe';
-import { layout } from '../theme/tokens';
+import { createSettingsStyles } from './settings/settingsStyles';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -29,7 +27,7 @@ function labelForAudience(value: DiscoveryAudience): string {
 
 export function DiscoverySettingsSection() {
   const { theme } = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const styles = React.useMemo(() => createSettingsStyles(theme), [theme]);
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
   const token = useAuthStore((s) => s.token);
@@ -75,55 +73,53 @@ export function DiscoverySettingsSection() {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>DISCOVERY</Text>
-      <View style={styles.card}>
-        <TouchableOpacity style={styles.headerRow} onPress={toggleExpand} activeOpacity={0.7}>
-          <View style={styles.headerTitleContainer}>
-            <View style={[styles.headerIconContainer, { backgroundColor: theme.colors.primary }]}>
-              <Ionicons name="compass" size={18} color={theme.colors.white} />
-            </View>
-            <View style={styles.headerText}>
-              <Text style={styles.title}>Salons shown near you</Text>
-              {!expanded ? (
-                <Text style={styles.subtitle}>{labelForAudience(discoveryAudience)}</Text>
-              ) : null}
-            </View>
+      <Text style={styles.sectionTitle}>Discovery</Text>
+      <View style={styles.group}>
+        <TouchableOpacity style={styles.row} onPress={toggleExpand} activeOpacity={0.65}>
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>Salons shown near you</Text>
+            {!expanded ? (
+              <Text style={styles.rowSubtitle}>{labelForAudience(discoveryAudience)}</Text>
+            ) : null}
           </View>
-          <View style={styles.headerRightContainer}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {saving ? (
               <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginRight: 8 }} />
             ) : null}
             <Ionicons
               name={expanded ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={theme.colors.textSecondary}
+              size={18}
+              color={theme.colors.textTertiary}
             />
           </View>
         </TouchableOpacity>
 
         {expanded && (
-          <View style={styles.expandedContent}>
+          <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
             {DISCOVERY_PREF_OPTIONS.map((opt, index) => {
               const selected = discoveryAudience === opt.value;
               const isLast = index === DISCOVERY_PREF_OPTIONS.length - 1;
               return (
                 <TouchableOpacity
                   key={opt.value}
-                  style={[styles.optionRow, !isLast && styles.optionRowBorder]}
+                  style={[styles.row, !isLast && styles.rowBorder, { paddingHorizontal: 0 }]}
                   onPress={() => void handleSelect(opt.value)}
                   disabled={saving}
                   accessibilityRole="radio"
                   accessibilityState={{ selected }}
                   testID={`discovery-pref-${opt.value}`}
                 >
-                  <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                  <Text
+                    style={[
+                      styles.rowTitle,
+                      selected && { color: theme.colors.primary },
+                    ]}
+                  >
                     {opt.label}
                   </Text>
                   {selected ? (
-                    <Ionicons name="checkmark-circle" size={20} color={theme.colors.primary} />
-                  ) : (
-                    <View style={styles.optionRadio} />
-                  )}
+                    <Ionicons name="checkmark" size={20} color={theme.colors.primary} />
+                  ) : null}
                 </TouchableOpacity>
               );
             })}
@@ -133,93 +129,5 @@ export function DiscoverySettingsSection() {
     </View>
   );
 }
-
-const createStyles = (theme: Theme) =>
-  StyleSheet.create({
-    section: {
-      paddingHorizontal: layout.floatingChromeInset,
-      marginBottom: 24,
-    },
-    sectionTitle: {
-      ...theme.typography.captionMedium,
-      color: theme.colors.textSecondary,
-      marginBottom: 8,
-      textTransform: 'uppercase',
-    },
-    card: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.borderRadius.lg,
-      overflow: 'hidden',
-    },
-    headerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: 16,
-    },
-    headerTitleContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-      minWidth: 0,
-    },
-    headerIconContainer: {
-      width: 28,
-      height: 28,
-      borderRadius: 6,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 12,
-    },
-    headerText: {
-      flex: 1,
-      minWidth: 0,
-    },
-    title: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.text,
-    },
-    subtitle: {
-      ...theme.typography.caption,
-      color: theme.colors.textSecondary,
-      marginTop: 2,
-    },
-    headerRightContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginLeft: 8,
-    },
-    expandedContent: {
-      paddingHorizontal: 16,
-      paddingBottom: 8,
-    },
-    optionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 14,
-    },
-    optionRowBorder: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
-    },
-    optionLabel: {
-      ...theme.typography.body,
-      color: theme.colors.text,
-      flex: 1,
-      paddingRight: 12,
-    },
-    optionLabelSelected: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.primary,
-    },
-    optionRadio: {
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      borderWidth: 1.5,
-      borderColor: theme.colors.border,
-    },
-  });
 
 export default DiscoverySettingsSection;

@@ -46,6 +46,7 @@ import { PermissionPrimer } from '../../components/PermissionPrimer';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { getSalonMapPinColor } from '../../lib/mapMarkers';
+import { getMapThemeKey, getThemedMapViewProps } from '../../lib/mapStyles';
 import { ServiceAreaGate } from '../../components/ServiceAreaGate';
 import { serviceabilityRepository } from '../../repositories/serviceabilityRepository';
 import { DISCOVER_FALLBACK_COORDS, DISCOVER_INITIAL_DELTA } from '../../lib/maps';
@@ -90,6 +91,8 @@ type DiscoverScreenProps = CustomerDiscoverScreenProps<'DiscoverMain'>;
 
 export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) => {
   const { theme, isDark } = useTheme();
+  const themedMapProps = useMemo(() => getThemedMapViewProps(isDark), [isDark]);
+  const mapThemeKey = useMemo(() => getMapThemeKey(isDark), [isDark]);
   const { user } = useAuthStore();
   const [welcomeGrant, setWelcomeGrant] = useState<CampaignGrant | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -536,7 +539,8 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     showsUserLocation: locationReady && !!coords,
     showsMyLocationButton: false,
     showsCompass: false,
-    userInterfaceStyle: isDark ? ('dark' as const) : ('light' as const),
+    userInterfaceStyle: themedMapProps.userInterfaceStyle,
+    customMapStyle: themedMapProps.customMapStyle,
     onMapReady: handleMapReady,
     accessibilityLabel: 'Salon map',
   };
@@ -674,6 +678,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           {isFocused ? (
             useClustering ? (
               <ClusteredMapView
+                key={mapThemeKey}
                 {...mapCommonProps}
                 radius={DISCOVER_CLUSTER_RADIUS}
                 clusterColor={theme.colors.primary}
@@ -682,7 +687,9 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
                 {markerElements}
               </ClusteredMapView>
             ) : (
-              <MapView {...mapCommonProps}>{markerElements}</MapView>
+              <MapView key={mapThemeKey} {...mapCommonProps}>
+                {markerElements}
+              </MapView>
             )
           ) : (
             <View style={styles.mapPausedPlaceholder}>
@@ -800,7 +807,7 @@ const createStyles = (theme: Theme) =>
       minWidth: 0,
     },
     titleLine: {
-      ...theme.typography.h3,
+      ...theme.typography.tabTitle,
       color: theme.colors.text,
     },
     headerActions: {

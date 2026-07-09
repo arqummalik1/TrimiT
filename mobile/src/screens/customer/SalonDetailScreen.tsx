@@ -24,6 +24,7 @@ import { ServiceCard } from '../../components/ServiceCard';
 import ImageCarousel from '../../components/ImageCarousel';
 import { getSalonMapPinColor } from '../../lib/mapMarkers';
 import { openNativeDirections } from '../../lib/maps';
+import { getMapThemeKey, getThemedMapViewProps } from '../../lib/mapStyles';
 
 import { analytics } from '../../lib/analytics';
 import { handleApiError } from '../../lib/errorHandler';
@@ -41,11 +42,17 @@ import {
 import { FilterChipRow } from '../../components/FilterChipRow';
 import { ENABLE_SUBSCRIPTION_ENFORCEMENT } from '../../lib/featureFlags';
 import { showToast } from '../../store/toastStore';
+import { SalonDescription } from '../../components/SalonDescription';
+
+/** Mini map height — 20% smaller than original 180px */
+const MINI_MAP_HEIGHT = 144;
 
 type Props = CustomerDiscoverScreenProps<'SalonDetail'>;
 
 export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { theme, isDark } = useTheme();
+  const themedMapProps = useMemo(() => getThemedMapViewProps(isDark), [isDark]);
+  const mapThemeKey = useMemo(() => getMapThemeKey(isDark), [isDark]);
   const styles = useMemo(() => createStyles(theme), [theme]);
   
   // Validate params
@@ -155,20 +162,38 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Hero Image Carousel */}
         <View style={styles.heroContainer}>
           <ImageCarousel salon={salon} height={320} />
-          <View style={styles.heroOverlay} pointerEvents="box-none" />
-          
-          {/* Back Button */}
-          <SafeAreaView style={styles.headerButtons}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
-            </TouchableOpacity>
-          </SafeAreaView>
 
-          {/* Salon Info */}
-          <View style={styles.heroContent}>
+          {/* Header chrome — back + call */}
+          <SafeAreaView style={styles.headerButtons}>
+            <View style={styles.headerButtonRow}>
+              <TouchableOpacity
+                style={styles.headerIconButton}
+                onPress={() => navigation.goBack()}
+                accessibilityLabel="Go back"
+                accessibilityRole="button"
+              >
+                <Ionicons name="arrow-back" size={22} color={theme.colors.white} />
+              </TouchableOpacity>
+              {salon.phone ? (
+                <TouchableOpacity
+                  style={styles.headerIconButton}
+                  onPress={handleCall}
+                  accessibilityLabel="Call salon"
+                  accessibilityRole="button"
+                  hitSlop={8}
+                >
+                  <Ionicons name="call" size={20} color={theme.colors.white} />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.headerIconButtonSpacer} />
+              )}
+            </View>
+          </SafeAreaView>
+        </View>
+
+        {/* Content */}
+        <View style={styles.content}>
+          <View style={styles.salonHeader}>
             {(salon.avg_rating ?? 0) > 0 && (
               <View style={styles.ratingBadge}>
                 <Ionicons name="star" size={14} color={theme.colors.textInverse} />
@@ -178,18 +203,15 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             )}
             <Text style={styles.salonName}>{salon.name}</Text>
             <View style={styles.infoRow}>
-              <Ionicons name="location" size={16} color="#E7E5E4" />
+              <Ionicons name="location-outline" size={15} color={theme.colors.textSecondary} />
               <Text style={styles.infoText}>{salon.address}, {salon.city}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Ionicons name="time" size={16} color="#E7E5E4" />
+              <Ionicons name="time-outline" size={15} color={theme.colors.textSecondary} />
               <Text style={styles.infoText}>{salon.opening_time} - {salon.closing_time}</Text>
             </View>
           </View>
-        </View>
 
-        {/* Content */}
-        <View style={styles.content}>
           {/* Subscription-frozen notice (Phase 2): salon is viewable, not bookable */}
           {notBookable && (
             <View style={styles.unavailableBanner}>
@@ -201,20 +223,6 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
           )}
 
-          {/* Action Buttons */}
-          <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.callButton} onPress={handleCall}>
-              <Ionicons name="call" size={20} color={theme.colors.primary} />
-              <Text style={styles.callText}>Call</Text>
-            </TouchableOpacity>
-            {salon.latitude && salon.longitude ? (
-              <TouchableOpacity style={styles.directionsButton} onPress={handleDirections}>
-                <Ionicons name="navigate" size={20} color={theme.colors.secondary} />
-                <Text style={styles.directionsText}>Directions</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-
           {/* Mini map */}
           {salon.latitude && salon.longitude ? (
             <TouchableOpacity
@@ -223,12 +231,14 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               activeOpacity={0.9}
             >
               <MapView
+                key={mapThemeKey}
                 style={styles.miniMap}
                 scrollEnabled={false}
                 zoomEnabled={false}
                 rotateEnabled={false}
                 pitchEnabled={false}
-                userInterfaceStyle={isDark ? 'dark' : 'light'}
+                userInterfaceStyle={themedMapProps.userInterfaceStyle}
+                customMapStyle={themedMapProps.customMapStyle}
                 initialRegion={{
                   latitude: salon.latitude,
                   longitude: salon.longitude,
@@ -256,11 +266,11 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           ) : null}
 
           {/* Description */}
-          {salon.description && (
-            <View style={styles.section}>
-              <Text style={styles.description}>{salon.description}</Text>
+          {salon.description ? (
+            <View style={styles.descriptionBlock}>
+              <SalonDescription text={salon.description} />
             </View>
-          )}
+          ) : null}
 
           {/* Services */}
           <View style={styles.section}>
@@ -378,16 +388,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.text,
   },
   heroContainer: {
-    height: 380,
+    height: 320,
     position: 'relative',
   },
   heroImage: {
     width: '100%',
     height: '100%',
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(18, 20, 17, 0.4)',
   },
   headerButtons: {
     position: 'absolute',
@@ -397,23 +403,25 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
   },
-  backButton: {
+  headerButtonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerIconButton: {
     width: 44,
     height: 44,
-    backgroundColor: 'rgba(18, 20, 17, 0.6)',
-    borderRadius: 22,
+    backgroundColor: theme.colors.overlay,
+    borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(241, 209, 141, 0.2)',
   },
-  heroContent: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 24,
-    backgroundColor: 'rgba(18, 20, 17, 0.7)',
+  headerIconButtonSpacer: {
+    width: 44,
+    height: 44,
+  },
+  salonHeader: {
+    marginBottom: spacing.lg,
   },
   ratingBadge: {
     flexDirection: 'row',
@@ -433,81 +441,46 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   reviewCount: {
     fontFamily: fonts.body,
-    color: 'rgba(18, 20, 17, 0.7)',
+    color: theme.colors.textSecondary,
     fontSize: 12,
   },
   salonName: {
     fontFamily: fonts.heading,
-    fontSize: 34,
-    color: theme.colors.white,
+    fontSize: theme.typography.tabTitle.fontSize,
+    lineHeight: theme.typography.tabTitle.lineHeight,
+    letterSpacing: theme.typography.tabTitle.letterSpacing,
+    color: theme.colors.text,
     marginBottom: 8,
-    fontWeight: '700',
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
-    gap: 8,
+    marginBottom: 4,
+    gap: 6,
   },
   infoText: {
+    flex: 1,
     fontFamily: fonts.body,
-    color: '#E7E5E4',
-    fontSize: 14,
-    letterSpacing: 0.2,
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
   },
   content: {
     padding: 24,
-    backgroundColor: theme.colors.background,    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    marginTop: -32,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: 32,
-  },
-  callButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.surface,
-    padding: 16,
-    borderRadius: borderRadius.pill,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  callText: {
-    fontFamily: fonts.bodySemiBold,
-    color: theme.colors.text,
-    fontSize: 15,
-  },
-  directionsButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.primary,
-    padding: 16,
-    borderRadius: borderRadius.pill,
-    gap: 8,
-  },
-  directionsText: {
-    fontFamily: fonts.bodySemiBold,
-    color: theme.colors.textInverse,
-    fontSize: 15,
+    paddingTop: 20,
+    backgroundColor: theme.colors.background,
+    borderTopLeftRadius: borderRadius.xxl,
+    borderTopRightRadius: borderRadius.xxl,
+    marginTop: -20,
   },
   miniMapContainer: {
-    borderRadius: 24,
+    borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginBottom: 32,
+    marginBottom: spacing.md,
     position: 'relative',
   },
   miniMap: {
-    height: 180,
+    height: MINI_MAP_HEIGHT,
     width: '100%',
   },
   directionsOverlay: {
@@ -535,12 +508,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   section: {
     marginBottom: 32,
   },
-  description: {
-    fontFamily: fonts.body,
-    fontSize: 15,
-    color: theme.colors.textSecondary,
-    lineHeight: 24,
-    letterSpacing: 0.3,
+  descriptionBlock: {
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
     fontFamily: fonts.heading,
@@ -625,5 +594,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.textTertiary,
   },
 });
+
+export const createSalonDetailStyles = createStyles;
 
 export default SalonDetailScreen;

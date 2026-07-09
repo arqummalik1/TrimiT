@@ -48,6 +48,7 @@ import {
   buildLocationPickerRegion,
 } from '../lib/maps';
 import { getSalonMapPinColor } from '../lib/mapMarkers';
+import { getMapThemeKey, getThemedMapViewProps } from '../lib/mapStyles';
 import { typography, spacing, borderRadius, shadows } from '../lib/utils';
 import { useTheme } from '../theme/ThemeContext';
 import { Theme } from '../theme/tokens';
@@ -71,6 +72,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   onDismiss,
 }) => {
   const { theme, isDark } = useTheme();
+  const themedMapProps = useMemo(() => getThemedMapViewProps(isDark), [isDark]);
+  const mapThemeKey = useMemo(() => getMapThemeKey(isDark), [isDark]);
   const styles = useMemo(() => createStyles(theme), [theme]);
   const mapRef = useRef<MapView>(null);
   const insets = useSafeAreaInsets();
@@ -259,6 +262,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         {/* ── Map ─────────────────────────────────────────────── */}
         <View style={styles.mapContainer}>
           <MapView
+            key={mapThemeKey}
             ref={mapRef}
             style={StyleSheet.absoluteFill}
             initialRegion={buildLocationPickerRegion(initialCoordinates)}
@@ -268,7 +272,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             showsCompass
             showsScale
             mapType="standard"
-            userInterfaceStyle={isDark ? 'dark' : 'light'}
+            userInterfaceStyle={themedMapProps.userInterfaceStyle}
+            customMapStyle={themedMapProps.customMapStyle}
           >
             <Marker
               coordinate={selectedCoords}

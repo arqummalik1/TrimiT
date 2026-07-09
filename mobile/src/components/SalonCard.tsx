@@ -125,8 +125,6 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.surface,
       borderRadius: borderRadius.lg,
       overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: theme.colors.border,
       marginBottom: spacing.lg,
     },
     containerInactive: {
@@ -252,6 +250,8 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.primary,
     },
   });
+
+export const createSalonCardStyles = createStyles;
 
 export const SalonCard = React.memo(SalonCardComponent);
 export default SalonCard;

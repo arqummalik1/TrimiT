@@ -15,8 +15,8 @@
 
 - **Senior architect, 19+ years, top 1%.** Production app on Play Store +
   trimit.online. Real users. Multi-million-dollar trajectory.
-- **Reference apps**: Zomato, Blinkit, Zepto, Swiggy, Uber, Ola, Instagram.
-  UX / real-time / reliability bar matches those.
+- **Reference apps**: **CRED** (primary UI/UX — minimal settings/lists), **Blinkit**, **Zomato**,
+  Swiggy, Uber for flows. See `.cursor/rules/design-benchmark.mdc`.
 - **Before any change with a chance of breaking the live app, ASK FIRST.**
 - **No `any`** in TS. **No direct `api.*`** in view files — go through
   repositories. **Structured `{code, message}`** errors. **Idempotency** on
@@ -26,7 +26,7 @@
 - **Persistent login**: cold start trusts persisted token, only 401 clears.
 - **Forward-only migrations.** Apply manually in Supabase SQL Editor.
 - **Deploy posture**: Render (backend) + Vercel (web) auto-deploy from `main`.
-  **Never merge or push to `main` unless the user explicitly asks.** Push feature branches only when requested.
+  **Never merge or push to GitHub unless the user explicitly asks** (any branch).
 - **Test-driven**: Every code change updates/adds unit tests (mobile, web, backend). All tests must pass before delivery. See `.cursor/rules/test-driven.mdc`.
 - **Documentation discipline**: update `docs/REMAINING_ISSUES.md` and
   `docs/PROGRESS.md` in the same commit as the code change.

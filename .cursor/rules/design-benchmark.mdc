@@ -1,0 +1,33 @@
+---
+description: UI/UX design benchmark — CRED (primary), Blinkit, Zomato
+alwaysApply: true
+---
+
+# Design benchmark (UI/UX)
+
+TrimiT UI/UX must feel **minimal, confident, and operationally clear** — not decorative.
+
+## Reference apps (in priority order)
+
+1. **CRED** — primary UI/UX north star: minimal lists, progressive disclosure,
+   strong hierarchy, restrained motion, grouped settings rows, chevron navigation,
+   muted section labels, generous whitespace, no visual clutter.
+2. **Blinkit** — commerce density, chip filters, card lists, fast scan paths.
+3. **Zomato** — discovery, maps, salon/venue browsing, offers, checkout affordances.
+
+Also see `.cursor/rules/product-benchmark.mdc` for **flow** patterns (booking, slots, pay-at-salon).
+
+## When designing or changing UI
+
+1. Check how **CRED** handles the same screen type (settings, profile, lists, toggles).
+2. Borrow **density and clarity** from Blinkit/Zomato where the flow is discovery or transaction.
+3. Prefer: flat grouped rows, hairline dividers, one primary action per screen area,
+   expand-in-place for advanced options — avoid rainbow icon tiles and noisy cards.
+4. **Do not** apply CRED NeoPOP literally (3D/isometric) unless the user asks —
+   adopt CRED's **information architecture and minimalism** within TrimiT brand tokens.
+5. **Only implement design changes the user requests** — rules are guidance, not auto-refactors.
+
+## Theme
+
+Use existing `theme` tokens (`typography`, `spacing`, `colors`, `tabTitle`). No ad-hoc
+font sizes or colors in screens when a token exists.

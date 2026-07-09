@@ -123,6 +123,14 @@ export const typography = {
     fontWeight: '600' as TextStyle['fontWeight'],
     lineHeight: 28,
   },
+  /** Customer tab screens: Discover, Bookings, Profile — h3 + 2px */
+  tabTitle: {
+    fontFamily: fonts.heading,
+    fontSize: 24,
+    fontWeight: '600' as TextStyle['fontWeight'],
+    letterSpacing: -0.3,
+    lineHeight: 30,
+  },
   h4: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 18,

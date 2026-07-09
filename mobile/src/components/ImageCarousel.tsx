@@ -14,6 +14,13 @@ import type { Salon } from '../types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+/** Clears the salon detail content sheet overlap plus breathing room. */
+export const CAROUSEL_PAGINATION_BOTTOM = 26;
+
+export function carouselDotColor(theme: { colors: { textSecondary: string; textTertiary: string } }, isActive: boolean): string {
+  return isActive ? theme.colors.textSecondary : theme.colors.textTertiary;
+}
+
 interface ImageCarouselProps {
   /** Remote URLs (legacy) — prefer `sources` or `salon`. */
   images?: string[];
@@ -70,18 +77,20 @@ export default function ImageCarousel({
         )}
       />
       {displaySources.length > 1 && (
-        <View style={styles.pagination}>
-          {displaySources.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.dot,
-                index === activeIndex
-                  ? [styles.dotActive, { backgroundColor: '#FFFFFF' }]
-                  : { backgroundColor: 'rgba(255,255,255,0.5)' },
-              ]}
-            />
-          ))}
+        <View style={[styles.pagination, { bottom: CAROUSEL_PAGINATION_BOTTOM }]}>
+          {displaySources.map((_, index) => {
+            const isActive = index === activeIndex;
+            return (
+              <View
+                key={index}
+                style={[
+                  styles.dot,
+                  isActive && styles.dotActive,
+                  { backgroundColor: carouselDotColor(theme, isActive) },
+                ]}
+              />
+            );
+          })}
         </View>
       )}
     </View>
@@ -95,7 +104,6 @@ const styles = StyleSheet.create({
   image: {},
   pagination: {
     position: 'absolute',
-    bottom: 16,
     left: 0,
     right: 0,
     flexDirection: 'row',

@@ -33,6 +33,7 @@ import { salonSchema, toLocalPhone, toE164India } from '../../lib/validations';
 import { OwnerDashboardScreenProps, OwnerSettingsScreenProps } from '../../navigation/types';
 import { LocationPickerModal } from '../../components/LocationPickerModal';
 import { getSalonMapPinColor } from '../../lib/mapMarkers';
+import { getMapThemeKey, getThemedMapViewProps } from '../../lib/mapStyles';
 import type { Coordinates } from '../../lib/maps';
 import { FilterChipRow } from '../../components/FilterChipRow';
 import { SALON_SERVE_OPTIONS, SalonGenderServe, getVenueCopy } from '../../lib/genderServe';
@@ -73,7 +74,9 @@ type PendingImage = {
 };
 
 export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
+  const themedMapProps = React.useMemo(() => getThemedMapViewProps(isDark), [isDark]);
+  const mapThemeKey = React.useMemo(() => getMapThemeKey(isDark), [isDark]);
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
@@ -567,6 +570,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
               <>
                 <View style={styles.locationMapPreview} pointerEvents="none">
                   <MapView
+                    key={mapThemeKey}
                     style={StyleSheet.absoluteFill}
                     region={{
                       latitude: selectedCoords.latitude,
@@ -578,6 +582,8 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
                     zoomEnabled={false}
                     rotateEnabled={false}
                     pitchEnabled={false}
+                    userInterfaceStyle={themedMapProps.userInterfaceStyle}
+                    customMapStyle={themedMapProps.customMapStyle}
                   >
                     <Marker
                       coordinate={selectedCoords}

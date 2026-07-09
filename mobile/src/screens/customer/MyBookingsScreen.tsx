@@ -287,7 +287,7 @@ const createStyles = (theme: Theme) =>
       borderBottomColor: theme.colors.border,
     },
     title: {
-      ...theme.typography.h3,
+      ...theme.typography.tabTitle,
       color: theme.colors.text,
       marginBottom: 4,
     },

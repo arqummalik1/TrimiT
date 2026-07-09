@@ -92,7 +92,8 @@ export const ServiceCard: React.FC<ServiceCardProps> = React.memo(
         <Animated.View
           style={[
             styles.card,
-            shadows.md,
+            variant === 'owner' && styles.cardOwner,
+            variant === 'owner' ? shadows.md : null,
             { transform: [{ scale: scaleAnim }] },
             style,
           ]}
@@ -209,9 +210,11 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.surface,
       borderRadius: theme.borderRadius.lg,
       overflow: 'hidden',
+      marginBottom: spacing.lg,
+    },
+    cardOwner: {
       borderWidth: 1,
       borderColor: theme.colors.border,
-      marginBottom: spacing.lg,
     },
     imageContainer: {
       height: 130,
@@ -340,5 +343,7 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.textSecondary,
     },
   });
+
+export const createServiceCardStyles = createStyles;
 
 export default ServiceCard;

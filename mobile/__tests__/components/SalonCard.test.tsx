@@ -6,7 +6,8 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import { ThemeProvider } from '../../src/theme/ThemeContext';
-import { SalonCard } from '../../src/components/SalonCard';
+import { SalonCard, createSalonCardStyles } from '../../src/components/SalonCard';
+import { lightTheme } from '../../src/theme/lightTheme';
 import type { Salon } from '../../src/types';
 
 jest.mock('@expo/vector-icons', () => {
@@ -41,6 +42,12 @@ const baseSalon: Salon = {
 } as unknown as Salon;
 
 describe('SalonCard', () => {
+  it('renders without a card border (flat surface tile)', () => {
+    const styles = createSalonCardStyles(lightTheme);
+    expect(styles.container.borderWidth).toBeUndefined();
+    expect(styles.container.borderColor).toBeUndefined();
+  });
+
   it('renders the salon name', () => {
     renderWithTheme(<SalonCard salon={baseSalon} onPress={jest.fn()} />);
     expect(screen.getByText('Trimit Salon')).toBeTruthy();
