@@ -12,5 +12,10 @@
   "actionAcceptBooking": "ACCEPT_BOOKING",
   "actionRejectBooking": "REJECT_BOOKING",
   "actionVerifyPayment": "VERIFY_PAYMENT",
-  "actionRejectPayment": "REJECT_PAYMENT"
+  "actionRejectPayment": "REJECT_PAYMENT",
+  "ownerUrgentEventTypes": [
+    "new_booking",
+    "payment_received",
+    "payment_awaiting_verification"
+  ]
 }

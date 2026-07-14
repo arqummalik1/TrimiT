@@ -13,6 +13,7 @@ from services.push_notifications import (
     BOOKING_PUSH_SOUND,
     OWNER_BOOKING_CATEGORY_ID,
     OWNER_PAYMENT_CATEGORY_ID,
+    OWNER_URGENT_EVENT_TYPES,
     UPDATES_CHANNEL_ID,
     push_service,
 )
@@ -25,15 +26,6 @@ from services.push_preferences import (
 logger = logging.getLogger("trimit")
 
 PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.trimit.app"
-
-# Owner events that get loud custom sound + vibration channel (FG/BG/killed push).
-_OWNER_URGENT_EVENTS = frozenset(
-    {
-        "new_booking",
-        "payment_received",
-        "payment_awaiting_verification",
-    }
-)
 
 
 def _payload(
@@ -114,7 +106,7 @@ async def send_booking_push(
         )
         return False
 
-    is_urgent = role_hint == "owner" and event_type in _OWNER_URGENT_EVENTS
+    is_urgent = role_hint == "owner" and event_type in OWNER_URGENT_EVENT_TYPES
     profile = _urgent_profile(event_type) if is_urgent else _soft_profile()
 
     ok = await push_service.send_notification(

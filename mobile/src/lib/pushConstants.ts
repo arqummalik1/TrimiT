@@ -23,19 +23,11 @@ export const ACTION_REJECT_BOOKING = pushConstants.actionRejectBooking;
 export const ACTION_VERIFY_PAYMENT = pushConstants.actionVerifyPayment;
 export const ACTION_REJECT_PAYMENT = pushConstants.actionRejectPayment;
 
-/** Owner events that use the loud booking channel + in-app beep. */
-export const OWNER_URGENT_PUSH_TYPES = [
-  'new_booking',
-  'payment_received',
-  'payment_awaiting_verification',
-] as const;
+/** Owner events that use the loud booking channel + in-app beep (shared JSON). */
+export const OWNER_URGENT_PUSH_TYPES = pushConstants.ownerUrgentEventTypes as readonly string[];
 
 export type OwnerUrgentPushType = (typeof OWNER_URGENT_PUSH_TYPES)[number];
 
 export function isOwnerUrgentPushType(type: string | undefined | null): type is OwnerUrgentPushType {
-  return (
-    type === 'new_booking' ||
-    type === 'payment_received' ||
-    type === 'payment_awaiting_verification'
-  );
+  return typeof type === 'string' && OWNER_URGENT_PUSH_TYPES.includes(type);
 }

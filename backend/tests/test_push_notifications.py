@@ -74,6 +74,18 @@ def test_soft_profile_uses_updates_channel_default_sound():
     assert "categoryId" not in msg
 
 
+def test_owner_urgent_events_come_from_shared_json():
+    from services.push_notifications import OWNER_URGENT_EVENT_TYPES
+
+    assert OWNER_URGENT_EVENT_TYPES == frozenset(
+        {
+            "new_booking",
+            "payment_received",
+            "payment_awaiting_verification",
+        }
+    )
+
+
 def test_promo_message_omits_interruption_when_none():
     msg = build_expo_push_message(
         push_token="ExponentPushToken[test]",

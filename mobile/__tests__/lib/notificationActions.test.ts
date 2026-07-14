@@ -20,7 +20,10 @@ jest.mock('../../src/lib/logger', () => ({
 
 import { bookingRepository } from '../../src/repositories/bookingRepository';
 import { paymentRepository } from '../../src/repositories/paymentRepository';
-import { handleOwnerNotificationAction } from '../../src/lib/notificationActions';
+import {
+  handleOwnerNotificationAction,
+  toastForOwnerNotificationAction,
+} from '../../src/lib/notificationActions';
 import {
   ACTION_ACCEPT_BOOKING,
   ACTION_REJECT_BOOKING,
@@ -94,6 +97,45 @@ describe('handleOwnerNotificationAction', () => {
     if (result.handled) {
       expect(result.ok).toBe(false);
     }
+  });
+});
+
+describe('toastForOwnerNotificationAction', () => {
+  it('uses payment copy for verify/reject payment failures', () => {
+    expect(toastForOwnerNotificationAction(ACTION_VERIFY_PAYMENT, false)).toEqual({
+      message: 'Could not update payment from notification',
+      type: 'error',
+    });
+    expect(toastForOwnerNotificationAction(ACTION_REJECT_PAYMENT, false)).toEqual({
+      message: 'Could not update payment from notification',
+      type: 'error',
+    });
+  });
+
+  it('uses booking copy for accept/reject booking failures', () => {
+    expect(toastForOwnerNotificationAction(ACTION_ACCEPT_BOOKING, false)).toEqual({
+      message: 'Could not update booking from notification',
+      type: 'error',
+    });
+    expect(toastForOwnerNotificationAction(ACTION_REJECT_BOOKING, false)).toEqual({
+      message: 'Could not update booking from notification',
+      type: 'error',
+    });
+  });
+
+  it('uses specific success copy per action', () => {
+    expect(toastForOwnerNotificationAction(ACTION_ACCEPT_BOOKING, true).message).toBe(
+      'Booking accepted'
+    );
+    expect(toastForOwnerNotificationAction(ACTION_REJECT_BOOKING, true).message).toBe(
+      'Booking rejected'
+    );
+    expect(toastForOwnerNotificationAction(ACTION_VERIFY_PAYMENT, true).message).toBe(
+      'Payment verified'
+    );
+    expect(toastForOwnerNotificationAction(ACTION_REJECT_PAYMENT, true).message).toBe(
+      'Payment rejected'
+    );
   });
 });
 

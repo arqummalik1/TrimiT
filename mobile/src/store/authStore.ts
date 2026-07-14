@@ -467,10 +467,10 @@ export const useAuthStore = create<AuthState>()(
           const outcome = await signInWithGoogle();
 
           if (!outcome.ok) {
-            // Keep banner clean on cancel; GoogleSignInButton already toasts real errors.
+            // Cancel → clear banner. Real errors → keep inline ErrorState + toast.
             set({
               isLoading: false,
-              error: null,
+              error: outcome.cancelled ? null : outcome.error,
             });
             return { success: false, error: outcome.error, cancelled: outcome.cancelled };
           }

@@ -39,7 +39,7 @@ import { useAuthStore } from "./src/store/authStore";
 import { SessionExpiredModal } from "./src/components/SessionExpiredModal";
 import { SigningOutOverlay } from "./src/components/SigningOutOverlay";
 import { handleNotificationNavigation } from "./src/lib/notificationNavigation";
-import { handleOwnerNotificationAction } from "./src/lib/notificationActions";
+import { handleOwnerNotificationAction, toastForOwnerNotificationAction } from "./src/lib/notificationActions";
 import {
   getLastNotificationResponse,
   handleOwnerForegroundPush,
@@ -265,7 +265,6 @@ function AppContent() {
       if (lastHandled === actionKey) {
         return;
       }
-      await AsyncStorage.setItem("trimit_last_handled_notification_id", actionKey);
       const data = response.notification.request.content.data as Record<
         string,
         string | undefined
@@ -277,23 +276,26 @@ function AppContent() {
           data,
         );
         if (actionResult.handled) {
+          const toast = toastForOwnerNotificationAction(
+            actionResult.action,
+            actionResult.ok,
+          );
+          showToast(toast.message, toast.type);
+          // Only mark handled after success so failed Accept/Reject/Verify can retry.
           if (actionResult.ok) {
-            showToast(
-              actionResult.action.includes("REJECT")
-                ? "Booking updated"
-                : "Done",
-              "success",
+            await AsyncStorage.setItem(
+              "trimit_last_handled_notification_id",
+              actionKey,
             );
-          } else {
-            showToast("Could not update booking from notification", "error");
           }
-          // Still land on Bookings so the owner sees the result.
           handleNotificationNavigation(navigationRef.current, data, user?.role);
           await Notifications.clearLastNotificationResponseAsync().catch(() => {});
           return;
         }
       }
 
+      // Default tap / soft navigation — dedupe so cold-start listeners don't double-nav.
+      await AsyncStorage.setItem("trimit_last_handled_notification_id", actionKey);
       handleNotificationNavigation(navigationRef.current, data, user?.role);
       await Notifications.clearLastNotificationResponseAsync().catch(() => {});
     };

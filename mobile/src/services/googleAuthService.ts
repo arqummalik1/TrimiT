@@ -157,12 +157,14 @@ export async function signInWithGoogle(): Promise<GoogleSignInOutcome> {
   }
 }
 
-/** Best-effort native Google sign-out. Safe no-op when module/config absent. */
+/** Best-effort native Google sign-out. Safe no-op when native module absent. */
 export async function signOutGoogle(): Promise<void> {
-  if (!configured) return;
   const mod = loadGoogleSignin();
   if (!mod) return;
   try {
+    // Process restarts reset `configured`, but the native Google session may remain.
+    // Always configure (no-op if already done) before signOut.
+    configureGoogleSignIn();
     await mod.GoogleSignin.signOut();
   } catch (err) {
     logger.warn('[GoogleAuth] signOut failed', { err: String(err) });

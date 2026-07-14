@@ -37,6 +37,7 @@ BOOKING_INTERRUPTION_LEVEL = _PUSH["iosInterruptionLevel"]
 PUSH_TTL_SECONDS = int(_PUSH["pushTtlSeconds"])
 OWNER_BOOKING_CATEGORY_ID = _PUSH["ownerBookingCategoryId"]
 OWNER_PAYMENT_CATEGORY_ID = _PUSH["ownerPaymentCategoryId"]
+OWNER_URGENT_EVENT_TYPES = frozenset(_PUSH["ownerUrgentEventTypes"])
 
 
 def _is_valid_expo_push_token(push_token: Optional[str]) -> bool:

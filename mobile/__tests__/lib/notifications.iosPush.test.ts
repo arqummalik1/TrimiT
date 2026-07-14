@@ -51,6 +51,7 @@ import {
   BOOKING_NOTIFICATION_SOUND,
   UPDATES_CHANNEL_ID,
   ensureAndroidNotificationChannels,
+  __resetAndroidChannelPrefsCacheForTests,
   registerForPushNotifications,
   registerOwnerNotificationCategories,
   resolveNotificationPresentation,
@@ -68,6 +69,17 @@ describe('shared Rapido-style push constants', () => {
     expect(BOOKING_CHANNEL_ID).toBe('bookings_v4');
     expect(BOOKING_NOTIFICATION_SOUND).toBe('notification.mp3');
   });
+
+  it('derives owner urgent types from shared JSON via membership helper', () => {
+    const { OWNER_URGENT_PUSH_TYPES, isOwnerUrgentPushType } = require('../../src/lib/pushConstants');
+    expect(OWNER_URGENT_PUSH_TYPES).toEqual([
+      'new_booking',
+      'payment_received',
+      'payment_awaiting_verification',
+    ]);
+    expect(isOwnerUrgentPushType('new_booking')).toBe(true);
+    expect(isOwnerUrgentPushType('booking_rescheduled')).toBe(false);
+  });
 });
 
 describe('Android booking channel', () => {
@@ -75,6 +87,9 @@ describe('Android booking channel', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    __resetAndroidChannelPrefsCacheForTests();
+    prefsState.soundEnabled = true;
+    prefsState.vibrationEnabled = true;
     Object.defineProperty(Platform, 'OS', { configurable: true, get: () => 'android' });
   });
 
@@ -110,6 +125,18 @@ describe('Android booking channel', () => {
         sound: 'default',
       })
     );
+  });
+
+  it('skips delete/recreate when sound/vibrate prefs are unchanged', async () => {
+    await ensureAndroidNotificationChannels();
+    jest.clearAllMocks();
+
+    await ensureAndroidNotificationChannels();
+
+    expect(Notifications.deleteNotificationChannelAsync).not.toHaveBeenCalledWith('bookings_v4');
+    expect(Notifications.deleteNotificationChannelAsync).not.toHaveBeenCalledWith('booking_updates');
+    expect(Notifications.deleteNotificationChannelAsync).not.toHaveBeenCalledWith('promotions');
+    expect(Notifications.setNotificationChannelAsync).not.toHaveBeenCalled();
   });
 
   it('recreates booking channel without sound when soundEnabled is false', async () => {

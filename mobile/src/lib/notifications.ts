@@ -72,23 +72,37 @@ function resolveEasProjectId(): string {
 
 /**
  * Android Rapido-style booking channel.
- * Channel settings lock on first create — we delete the active channel (and
- * legacy IDs) before recreate so sound/vibrate toggles take effect. Also bump
- * BOOKING_CHANNEL_ID in shared/push-constants.json when changing audioAttributes
- * layout for users who never reopen Settings.
+ * Channel settings lock on first create. We only delete+recreate when sound/vibrate
+ * prefs change (or force), so soft updates/promotions channels are not wiped on
+ * every push registration. Legacy booking channel IDs are always purged.
  */
-export async function ensureAndroidNotificationChannels(): Promise<void> {
+let lastAndroidChannelPrefsKey: string | null = null;
+
+/** Test helper — reset in-memory prefs fingerprint between Jest cases. */
+export function __resetAndroidChannelPrefsCacheForTests(): void {
+  lastAndroidChannelPrefsKey = null;
+}
+
+export async function ensureAndroidNotificationChannels(
+  options?: { force?: boolean }
+): Promise<void> {
   if (Platform.OS !== 'android') {
     return;
   }
 
   const { soundEnabled, vibrationEnabled } = useNotificationPrefsStore.getState();
+  const prefsKey = `${soundEnabled ? 1 : 0}:${vibrationEnabled ? 1 : 0}`;
 
   for (const legacyId of LEGACY_BOOKING_CHANNEL_IDS) {
     await Notifications.deleteNotificationChannelAsync(legacyId).catch(() => {});
   }
 
-  // Android freezes channel config after first create — delete active IDs first.
+  const shouldRecreate = options?.force === true || lastAndroidChannelPrefsKey !== prefsKey;
+  if (!shouldRecreate) {
+    return;
+  }
+
+  // Delete only when applying a prefs (or forced) migration — not on every register.
   await Notifications.deleteNotificationChannelAsync(BOOKING_CHANNEL_ID).catch(() => {});
   await Notifications.deleteNotificationChannelAsync(UPDATES_CHANNEL_ID).catch(() => {});
   await Notifications.deleteNotificationChannelAsync(PROMOTIONS_CHANNEL_ID).catch(() => {});
@@ -139,6 +153,8 @@ export async function ensureAndroidNotificationChannels(): Promise<void> {
     enableLights: false,
     showBadge: false,
   });
+
+  lastAndroidChannelPrefsKey = prefsKey;
 }
 
 /**
@@ -238,10 +254,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
       return null;
     }
 
-    // Channels already ensured on Android inside ensureNotificationPermissions.
-    if (Platform.OS === 'android') {
-      await ensureAndroidNotificationChannels();
-    }
+    // Android channels already created inside ensureNotificationPermissions.
 
     const tokenData = await Notifications.getExpoPushTokenAsync({
       projectId: resolveEasProjectId(),

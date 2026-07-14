@@ -29,6 +29,46 @@ function resolveBookingId(data: PushPayload | Record<string, unknown> | undefine
   return uuidRegex.test(id) ? id : null;
 }
 
+function isPaymentAction(action: string): boolean {
+  return action === ACTION_VERIFY_PAYMENT || action === ACTION_REJECT_PAYMENT;
+}
+
+/**
+ * Human toast for handled owner notification actions (success or failure).
+ * Keeps booking vs payment failure copy accurate.
+ */
+export function toastForOwnerNotificationAction(
+  action: string,
+  ok: boolean
+): { message: string; type: 'success' | 'error' } {
+  if (ok) {
+    switch (action) {
+      case ACTION_ACCEPT_BOOKING:
+        return { message: 'Booking accepted', type: 'success' };
+      case ACTION_REJECT_BOOKING:
+        return { message: 'Booking rejected', type: 'success' };
+      case ACTION_VERIFY_PAYMENT:
+        return { message: 'Payment verified', type: 'success' };
+      case ACTION_REJECT_PAYMENT:
+        return { message: 'Payment rejected', type: 'success' };
+      default:
+        return { message: 'Done', type: 'success' };
+    }
+  }
+
+  if (isPaymentAction(action)) {
+    return {
+      message: 'Could not update payment from notification',
+      type: 'error',
+    };
+  }
+
+  return {
+    message: 'Could not update booking from notification',
+    type: 'error',
+  };
+}
+
 /**
  * Run Accept/Reject/Verify from a notification actionIdentifier.
  * Default tap (opensApp / DEFAULT) returns handled: false so navigation can run.

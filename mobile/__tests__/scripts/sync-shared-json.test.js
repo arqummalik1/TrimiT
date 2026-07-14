@@ -14,5 +14,10 @@ describe('sync-shared-json', () => {
     expect(parsed.bookingChannelId).toBe('bookings_v4');
     expect(parsed.updatesChannelId).toBe('booking_updates');
     expect(parsed.ownerBookingCategoryId).toBe('owner_booking_actions');
+    expect(parsed.ownerUrgentEventTypes).toEqual([
+      'new_booking',
+      'payment_received',
+      'payment_awaiting_verification',
+    ]);
   });
 });
