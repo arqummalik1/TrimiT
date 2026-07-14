@@ -10,7 +10,7 @@ describe('SalonDetailScreen layout', () => {
     expect(styles.salonName.fontSize).toBe(lightTheme.typography.tabTitle.fontSize);
     expect(styles.salonName.lineHeight).toBe(lightTheme.typography.tabTitle.lineHeight);
     expect(styles.salonName.letterSpacing).toBe(lightTheme.typography.tabTitle.letterSpacing);
-    expect(styles.salonName.fontWeight).toBeUndefined();
+    expect(styles.salonName).not.toHaveProperty('fontWeight');
     expect(styles.salonName.color).toBe(lightTheme.colors.text);
     expect(styles.infoText.color).toBe(lightTheme.colors.textSecondary);
   });
@@ -21,7 +21,7 @@ describe('SalonDetailScreen layout', () => {
     expect(styles.heroContainer.height).toBe(320);
     expect(styles.miniMap.height).toBe(144);
     expect(styles.miniMapContainer.borderRadius).toBe(borderRadius.lg);
-    expect(styles.miniMapContainer.borderWidth).toBeUndefined();
+    expect(styles.miniMapContainer).not.toHaveProperty('borderWidth');
     expect(styles.miniMapContainer.marginBottom).toBe(lightTheme.spacing.md);
     expect(styles.descriptionBlock.marginBottom).toBe(lightTheme.spacing.lg);
   });

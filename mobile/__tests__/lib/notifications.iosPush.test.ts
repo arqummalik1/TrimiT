@@ -57,8 +57,11 @@ import {
 } from '../../src/lib/notifications';
 import * as PrefsModule from '../../src/store/notificationPrefsStore';
 
-const prefsState = (PrefsModule as { __notificationPrefsState: { soundEnabled: boolean; vibrationEnabled: boolean } })
-  .__notificationPrefsState;
+const prefsState = (
+  PrefsModule as unknown as {
+    __notificationPrefsState: { soundEnabled: boolean; vibrationEnabled: boolean };
+  }
+).__notificationPrefsState;
 
 describe('shared Rapido-style push constants', () => {
   it('uses bookings_v4 + notification.mp3 from shared/push-constants.json', () => {

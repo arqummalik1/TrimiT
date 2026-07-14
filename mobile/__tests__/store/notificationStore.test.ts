@@ -30,8 +30,9 @@ import { useNotificationStore } from '../../src/store/notificationStore';
 import * as PrefsModule from '../../src/store/notificationPrefsStore';
 import type { Booking } from '../../src/types';
 
-const prefsState = (PrefsModule as { __notificationPrefsState: { soundEnabled: boolean } })
-  .__notificationPrefsState;
+const prefsState = (
+  PrefsModule as unknown as { __notificationPrefsState: { soundEnabled: boolean } }
+).__notificationPrefsState;
 
 const mockBooking = {
   id: '11111111-1111-4111-8111-111111111111',

@@ -57,7 +57,10 @@ describe('handleOwnerNotificationAction', () => {
     const result = await handleOwnerNotificationAction(ACTION_REJECT_BOOKING, {
       bookingId,
     });
-    expect(result.ok).toBe(true);
+    expect(result.handled).toBe(true);
+    if (result.handled) {
+      expect(result.ok).toBe(true);
+    }
     expect(bookingRepository.updateBookingStatus).toHaveBeenCalledWith(bookingId, 'cancelled');
   });
 
@@ -65,7 +68,10 @@ describe('handleOwnerNotificationAction', () => {
     const result = await handleOwnerNotificationAction(ACTION_VERIFY_PAYMENT, {
       booking_id: bookingId,
     });
-    expect(result.ok).toBe(true);
+    expect(result.handled).toBe(true);
+    if (result.handled) {
+      expect(result.ok).toBe(true);
+    }
     expect(paymentRepository.verifyPayment).toHaveBeenCalledWith(bookingId);
   });
 
@@ -73,7 +79,10 @@ describe('handleOwnerNotificationAction', () => {
     const result = await handleOwnerNotificationAction(ACTION_REJECT_PAYMENT, {
       booking_id: bookingId,
     });
-    expect(result.ok).toBe(true);
+    expect(result.handled).toBe(true);
+    if (result.handled) {
+      expect(result.ok).toBe(true);
+    }
     expect(paymentRepository.rejectPayment).toHaveBeenCalledWith(bookingId);
   });
 
@@ -82,7 +91,9 @@ describe('handleOwnerNotificationAction', () => {
       type: 'new_booking',
     });
     expect(result.handled).toBe(true);
-    expect(result.ok).toBe(false);
+    if (result.handled) {
+      expect(result.ok).toBe(false);
+    }
   });
 });
 
