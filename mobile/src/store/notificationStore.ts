@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import type { Booking } from '../types';
 import { useNotificationPrefsStore } from './notificationPrefsStore';
 import { shouldShowBookingNotification } from '../lib/notificationDedupe';
@@ -12,6 +12,14 @@ import { shouldShowBookingNotification } from '../lib/notificationDedupe';
 const devLog = (...args: unknown[]) => {
   if (__DEV__) console.log(...args);
 };
+
+/** iOS Ring/Silent switch: booking chime must still play for salon owners. */
+async function enableBookingToneInSilentMode(): Promise<void> {
+  await setAudioModeAsync({
+    playsInSilentMode: true,
+    interruptionMode: 'mixWithOthers',
+  });
+}
 
 export interface BookingNotification {
   id: string;
@@ -130,6 +138,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     if (!prefsSound || !soundEnabled || !sound) return;
 
     try {
+      // Re-assert silent-mode playback before each chime (iOS can reset audio session).
+      await enableBookingToneInSilentMode();
       sound.seekTo(0);
       sound.play();
     } catch (error) {
@@ -143,9 +153,14 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   initializeSound: async () => {
     try {
+      // Single source of truth for the UX toggle is prefsStore (persisted).
+      const prefsSound = useNotificationPrefsStore.getState().soundEnabled;
+      set({ soundEnabled: prefsSound });
+
+      await enableBookingToneInSilentMode();
       const player = createAudioPlayer(require('../../assets/sounds/notification.mp3'));
       set({ sound: player });
-      devLog('[NotificationStore] Sound initialized');
+      devLog('[NotificationStore] Sound initialized (playsInSilentMode)', { soundEnabled: prefsSound });
     } catch (error) {
       console.warn('[NotificationStore] Failed to load sound:', error);
     }

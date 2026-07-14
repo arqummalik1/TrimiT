@@ -1,34 +1,20 @@
 /**
  * googleAuthService.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Thin wrapper around @react-native-google-signin/google-signin that returns a
- * Google `idToken`. The store then trades that idToken for a Supabase session
- * via supabase.auth.signInWithIdToken.
+ * Thin wrapper around @react-native-google-signin/google-signin → Google idToken.
+ * Store trades that for a Supabase session via signInWithIdToken.
  *
- * IMPORTANT: the native module (`RNGoogleSignin`) only exists in a real
- * dev/release build — it is NOT present in Expo Go. We therefore load it
- * LAZILY inside a try/catch so that merely importing this file (e.g. from
- * clearSession → signOutGoogle) never throws an Invariant Violation in Expo Go.
- * When the module is unavailable, every function degrades to a safe no-op /
- * clear error instead of crashing.
+ * SAME code path for iOS and Android — never branch on Platform.OS for loading.
+ *
+ * Load the native package LAZILY in try/catch. Do NOT gate on Expo Go /
+ * NativeModules / TurboModuleRegistry probes — those false-negative on real
+ * device builds and show "Google sign-in is not available".
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import Constants from 'expo-constants';
-import { NativeModules } from 'react-native';
+import { Platform } from 'react-native';
 import { buildConfig } from '../lib/buildConfig';
 import { logger } from '../lib/logger';
-
-/**
- * True only in dev/release binaries that embed RNGoogleSignin.
- * Expo Go never ships this native module — loading the JS package there
- * triggers TurboModuleRegistry.getEnforcing(...) and crashes the app.
- */
-export function isGoogleSignInNativeAvailable(): boolean {
-  if (Constants.appOwnership === 'expo') {
-    return false;
-  }
-  return Boolean(NativeModules.RNGoogleSignin);
-}
 
 type GoogleSigninModule = {
   GoogleSignin: {
@@ -44,18 +30,44 @@ type GoogleSigninModule = {
   };
 };
 
-/** Lazily require the native module; returns null if it isn't in this binary. */
+let cachedModule: GoogleSigninModule | null | undefined;
+let lastLoadError: string | null = null;
+
+/**
+ * Lazily require the native Google Sign-In package (iOS + Android).
+ * Returns null only when require throws (Expo Go or binary missing the module).
+ */
 function loadGoogleSignin(): GoogleSigninModule | null {
-  if (!isGoogleSignInNativeAvailable()) {
-    return null;
+  if (cachedModule !== undefined) {
+    return cachedModule;
   }
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require('@react-native-google-signin/google-signin') as GoogleSigninModule;
+    cachedModule = require('@react-native-google-signin/google-signin') as GoogleSigninModule;
+    lastLoadError = null;
+    return cachedModule;
   } catch (err) {
-    logger.warn('[GoogleAuth] native module unavailable', { err: String(err) });
+    lastLoadError = err instanceof Error ? err.message : String(err);
+    logger.warn('[GoogleAuth] native module unavailable', {
+      platform: Platform.OS,
+      appOwnership: Constants.appOwnership ?? null,
+      executionEnvironment: Constants.executionEnvironment ?? null,
+      err: lastLoadError,
+    });
+    cachedModule = null;
     return null;
   }
+}
+
+/** True when the native Google Sign-In module can be loaded (both platforms). */
+export function isGoogleSignInNativeAvailable(): boolean {
+  return loadGoogleSignin() != null;
+}
+
+/** Test helper — clear cache between cases. */
+export function __resetGoogleSignInCacheForTests(): void {
+  cachedModule = undefined;
+  lastLoadError = null;
 }
 
 let configured = false;
@@ -65,6 +77,7 @@ export function configureGoogleSignIn(): void {
   if (configured) return;
   const mod = loadGoogleSignin();
   if (!mod) return;
+  // webClientId required on Android for idToken; iosClientId used on iOS.
   mod.GoogleSignin.configure({
     webClientId: buildConfig.googleWebClientId || undefined,
     iosClientId: buildConfig.googleIosClientId || undefined,
@@ -79,20 +92,24 @@ export type GoogleSignInOutcome =
 
 /**
  * Launch the native Google account picker and return an idToken.
- * Degrades gracefully when the native module isn't in the binary.
+ * Identical flow on iOS and Android.
  */
 export async function signInWithGoogle(): Promise<GoogleSignInOutcome> {
   const mod = loadGoogleSignin();
   if (!mod) {
+    const detail = lastLoadError ? ` (${lastLoadError.slice(0, 120)})` : '';
     return {
       ok: false,
-      error: 'Google sign-in is not available in this build. Please use email OTP.',
+      error:
+        `Google Sign-In native module is missing on ${Platform.OS}${detail}. ` +
+        'Uninstall the app, then install a fresh native build from Xcode (iOS) or a new APK (Android). Metro reload is not enough.',
     };
   }
   if (!buildConfig.googleWebClientId) {
     return {
       ok: false,
-      error: 'Google sign-in is not configured for this build. Please try email OTP.',
+      error:
+        'Google sign-in is missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in this build. Rebuild with .env loaded.',
     };
   }
 
@@ -127,17 +144,27 @@ export async function signInWithGoogle(): Promise<GoogleSignInOutcome> {
     if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
       return { ok: false, error: 'Google Play Services is not available or out of date.' };
     }
-    logger.warn('[GoogleAuth] signIn failed', { err });
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn('[GoogleAuth] signIn failed', { platform: Platform.OS, err: message, code });
+    if (/DEVELOPER_ERROR|10:|ApiException:\s*10/i.test(message)) {
+      return {
+        ok: false,
+        error:
+          'Google rejected this Android app signing key. Add the debug/upload SHA-1 in Google Cloud Console (Android OAuth client for com.trimit.app).',
+      };
+    }
     return { ok: false, error: 'Could not sign in with Google. Please try again.' };
   }
 }
 
-/** Best-effort native Google sign-out. Safe no-op when module/config absent. */
+/** Best-effort native Google sign-out. Safe no-op when native module absent. */
 export async function signOutGoogle(): Promise<void> {
-  if (!configured || !isGoogleSignInNativeAvailable()) return;
   const mod = loadGoogleSignin();
   if (!mod) return;
   try {
+    // Process restarts reset `configured`, but the native Google session may remain.
+    // Always configure (no-op if already done) before signOut.
+    configureGoogleSignIn();
     await mod.GoogleSignin.signOut();
   } catch (err) {
     logger.warn('[GoogleAuth] signOut failed', { err: String(err) });

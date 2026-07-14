@@ -457,8 +457,9 @@ export const useAuthStore = create<AuthState>()(
       // 3. Reuse the exact OTP downstream: /auth/me decides new vs returning.
       //    New user → profileComplete=false → RootNavigator shows
       //    CompleteProfile (pick role). Returning user → routed by role.
-      // One email = one account: Supabase auto-links the Google identity to an
-      // existing OTP account with the same verified email (dashboard setting).
+      // One email = one account: Supabase automatically links Google to an
+      // existing OTP/password user when the email is the same and verified.
+      // Requires Google provider enabled in Supabase Dashboard.
       googleSignIn: async () => {
         set({ isLoading: true, error: null, sessionExpired: false });
         try {
@@ -466,7 +467,11 @@ export const useAuthStore = create<AuthState>()(
           const outcome = await signInWithGoogle();
 
           if (!outcome.ok) {
-            set({ isLoading: false, error: outcome.cancelled ? null : outcome.error });
+            // Cancel → clear banner. Real errors → keep inline ErrorState + toast.
+            set({
+              isLoading: false,
+              error: outcome.cancelled ? null : outcome.error,
+            });
             return { success: false, error: outcome.error, cancelled: outcome.cancelled };
           }
 

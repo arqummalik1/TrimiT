@@ -1,6 +1,11 @@
 /**
  * Push Notification Service
  * Handles Expo push registration, Android channels, and backend token sync.
+ *
+ * Rapido-style booking alerts (app backgrounded or killed):
+ * - Android: high-importance channel + alarm audio attributes + custom sound
+ * - iOS: APNs alert + critical interruption (needs Apple Critical Alerts entitlement)
+ * Shared IDs/sounds: src/lib/pushConstants.ts ← shared/push-constants.json
  */
 
 import * as Notifications from 'expo-notifications';
@@ -9,21 +14,53 @@ import Constants from 'expo-constants';
 import api from './api';
 import { logger } from './logger';
 import { lightPalette } from '../theme/colors';
+import { useNotificationPrefsStore } from '../store/notificationPrefsStore';
+import {
+  BOOKING_ANDROID_SOUND,
+  BOOKING_CHANNEL_ID,
+  LEGACY_BOOKING_CHANNEL_IDS,
+  PROMOTIONS_CHANNEL_ID,
+  UPDATES_CHANNEL_ID,
+  OWNER_BOOKING_CATEGORY_ID,
+  OWNER_PAYMENT_CATEGORY_ID,
+  ACTION_ACCEPT_BOOKING,
+  ACTION_REJECT_BOOKING,
+  ACTION_VERIFY_PAYMENT,
+  ACTION_REJECT_PAYMENT,
+  isOwnerUrgentPushType,
+} from './pushConstants';
 
-const BOOKINGS_CHANNEL_ID = 'bookings_v2';
-const LEGACY_BOOKINGS_CHANNEL_ID = 'bookings';
-const PROMOTIONS_CHANNEL_ID = 'promotions';
+export {
+  BOOKING_CHANNEL_ID,
+  PROMOTIONS_CHANNEL_ID,
+  UPDATES_CHANNEL_ID,
+  OWNER_BOOKING_CATEGORY_ID,
+  OWNER_PAYMENT_CATEGORY_ID,
+};
+export { BOOKING_NOTIFICATION_SOUND } from './pushConstants';
+
 const DEFAULT_EAS_PROJECT_ID = 'e4f2eade-fe15-4a16-8766-83b0771a4643';
 
 let pushTokenListener: Notifications.Subscription | null = null;
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
+/** Foreground OS banner presentation — respect local sound toggle. */
+export async function resolveNotificationPresentation(): Promise<{
+  shouldShowBanner: boolean;
+  shouldShowList: boolean;
+  shouldPlaySound: boolean;
+  shouldSetBadge: boolean;
+}> {
+  const { soundEnabled } = useNotificationPrefsStore.getState();
+  return {
     shouldShowBanner: true,
     shouldShowList: true,
-    shouldPlaySound: true,
+    shouldPlaySound: soundEnabled,
     shouldSetBadge: true,
-  }),
+  };
+}
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => resolveNotificationPresentation(),
 });
 
 function resolveEasProjectId(): string {
@@ -33,41 +70,78 @@ function resolveEasProjectId(): string {
   );
 }
 
-export async function ensureAndroidNotificationChannels(): Promise<void> {
+/**
+ * Android Rapido-style booking channel.
+ * Channel settings lock on first create. We only delete+recreate when sound/vibrate
+ * prefs change (or force), so soft updates/promotions channels are not wiped on
+ * every push registration. Legacy booking channel IDs are always purged.
+ */
+let lastAndroidChannelPrefsKey: string | null = null;
+
+/** Test helper — reset in-memory prefs fingerprint between Jest cases. */
+export function __resetAndroidChannelPrefsCacheForTests(): void {
+  lastAndroidChannelPrefsKey = null;
+}
+
+export async function ensureAndroidNotificationChannels(
+  options?: { force?: boolean }
+): Promise<void> {
   if (Platform.OS !== 'android') {
     return;
   }
 
-  const { useNotificationPrefsStore } = await import('../store/notificationPrefsStore');
   const { soundEnabled, vibrationEnabled } = useNotificationPrefsStore.getState();
+  const prefsKey = `${soundEnabled ? 1 : 0}:${vibrationEnabled ? 1 : 0}`;
 
-  // Android LOCKS a channel's sound/vibration/importance/bypassDnd on first
-  // creation — they can never be changed in code afterwards. The original
-  // 'bookings' channel shipped with sound:'default' and no DnD bypass, so we
-  // create a fresh 'bookings_v2' channel to apply the high-attention settings
-  // and delete the stale one so it doesn't linger in the owner's settings.
-  await Notifications.deleteNotificationChannelAsync(LEGACY_BOOKINGS_CHANNEL_ID).catch(() => {});
+  for (const legacyId of LEGACY_BOOKING_CHANNEL_IDS) {
+    await Notifications.deleteNotificationChannelAsync(legacyId).catch(() => {});
+  }
 
-  // 'bookings_v2' channel — maximum attention, mirrors Rapido Captain / Blinkit Partner.
-  // bypassDnd: owner must NEVER miss a booking because their phone is on silent.
-  // Aggressive vibration pattern: [wait, vibrate, pause, vibrate, pause, vibrate].
-  // Sound name must match the filename in assets/sounds/ registered in app.config.js.
-  await Notifications.setNotificationChannelAsync(BOOKINGS_CHANNEL_ID, {
+  const shouldRecreate = options?.force === true || lastAndroidChannelPrefsKey !== prefsKey;
+  if (!shouldRecreate) {
+    return;
+  }
+
+  // Delete only when applying a prefs (or forced) migration — not on every register.
+  await Notifications.deleteNotificationChannelAsync(BOOKING_CHANNEL_ID).catch(() => {});
+  await Notifications.deleteNotificationChannelAsync(UPDATES_CHANNEL_ID).catch(() => {});
+  await Notifications.deleteNotificationChannelAsync(PROMOTIONS_CHANNEL_ID).catch(() => {});
+
+  await Notifications.setNotificationChannelAsync(BOOKING_CHANNEL_ID, {
     name: 'New Bookings',
-    description: 'Incoming booking requests — requires immediate attention.',
+    description:
+      'Incoming booking requests and payments — plays even when TrimiT is closed. Requires immediate attention.',
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: vibrationEnabled ? [0, 400, 200, 400, 200, 400] : undefined,
     enableVibrate: vibrationEnabled,
     lightColor: lightPalette.primary,
-    sound: soundEnabled ? 'notification' : undefined,
+    sound: soundEnabled ? BOOKING_ANDROID_SOUND : undefined,
     enableLights: true,
     showBadge: true,
     bypassDnd: true,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    // Treat like an alarm so OEMs are less likely to silence when app is killed.
+    audioAttributes: {
+      usage: Notifications.AndroidAudioUsage.ALARM,
+      contentType: Notifications.AndroidAudioContentType.SONIFICATION,
+      flags: {
+        enforceAudibility: true,
+        requestHardwareAudioVideoSynchronization: false,
+      },
+    },
   });
 
-  // Promotions / broadcast channel — kept separate from bookings so users
-  // can mute marketing pushes in Android settings without losing booking
-  // alerts. Lower importance than bookings (no full-screen interrupt).
+  await Notifications.setNotificationChannelAsync(UPDATES_CHANNEL_ID, {
+    name: 'Booking updates',
+    description: 'Reschedules, cancellations, and other booking updates. Uses the default notification sound.',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    vibrationPattern: vibrationEnabled ? [0, 200, 100, 200] : undefined,
+    enableVibrate: vibrationEnabled,
+    sound: 'default',
+    enableLights: false,
+    showBadge: true,
+  });
+
   await Notifications.setNotificationChannelAsync(PROMOTIONS_CHANNEL_ID, {
     name: 'Promotions & Offers',
     description:
@@ -79,12 +153,63 @@ export async function ensureAndroidNotificationChannels(): Promise<void> {
     enableLights: false,
     showBadge: false,
   });
+
+  lastAndroidChannelPrefsKey = prefsKey;
 }
 
 /**
- * Android 13+ requires runtime POST_NOTIFICATIONS grant for tray delivery in standalone builds.
+ * Register interactive notification categories (Accept/Reject, Verify payment).
+ * Required on device before remote pushes with categoryId show action buttons.
+ * Identifier must not contain ":" or "-" (Expo docs).
+ */
+export async function registerOwnerNotificationCategories(): Promise<void> {
+  try {
+    await Notifications.setNotificationCategoryAsync(OWNER_BOOKING_CATEGORY_ID, [
+      {
+        identifier: ACTION_ACCEPT_BOOKING,
+        buttonTitle: 'Accept',
+        options: { opensAppToForeground: true },
+      },
+      {
+        identifier: ACTION_REJECT_BOOKING,
+        buttonTitle: 'Reject',
+        options: {
+          opensAppToForeground: true,
+          isDestructive: true,
+        },
+      },
+    ]);
+
+    await Notifications.setNotificationCategoryAsync(OWNER_PAYMENT_CATEGORY_ID, [
+      {
+        identifier: ACTION_VERIFY_PAYMENT,
+        buttonTitle: 'Verify',
+        options: { opensAppToForeground: true },
+      },
+      {
+        identifier: ACTION_REJECT_PAYMENT,
+        buttonTitle: 'Reject',
+        options: {
+          opensAppToForeground: true,
+          isDestructive: true,
+        },
+      },
+    ]);
+    logger.info('[Notifications] Owner action categories registered');
+  } catch (error) {
+    logger.warn('[Notifications] Category registration failed', { error: String(error) });
+  }
+}
+
+/**
+ * Android 13+ requires runtime POST_NOTIFICATIONS.
+ * Create channels before requesting permission so the OS prompt can appear.
  */
 async function ensureNotificationPermissions(): Promise<boolean> {
+  if (Platform.OS === 'android') {
+    await ensureAndroidNotificationChannels();
+  }
+
   const { status: existingStatus, canAskAgain } = await Notifications.getPermissionsAsync();
 
   if (existingStatus === 'granted') {
@@ -101,6 +226,8 @@ async function ensureNotificationPermissions(): Promise<boolean> {
       allowAlert: true,
       allowBadge: true,
       allowSound: true,
+      // Rapido-style: play booking tone when app is killed / silent / Focus.
+      allowCriticalAlerts: true,
     },
   });
 
@@ -127,7 +254,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
       return null;
     }
 
-    await ensureAndroidNotificationChannels();
+    // Android channels already created inside ensureNotificationPermissions.
 
     const tokenData = await Notifications.getExpoPushTokenAsync({
       projectId: resolveEasProjectId(),
@@ -193,6 +320,8 @@ export async function setupPushNotifications(): Promise<void> {
       return;
     }
 
+    await registerOwnerNotificationCategories();
+
     const token = await registerForPushNotifications();
     if (!token) {
       return;
@@ -248,14 +377,10 @@ export async function handleOwnerForegroundPush(
     const data = notification.request.content.data as Record<string, unknown> | undefined;
     const eventType = typeof data?.type === 'string' ? data.type : 'new_booking';
 
-    // Broadcasts (Zomato/Blinkit-style marketing pushes) are not booking events
-    // and must not pop the new-booking modal. The system tray notification still
-    // shows on the promotions channel; tap → handleNotificationNavigation routes.
     if (eventType === 'broadcast') {
       return;
     }
 
-    // Authenticated user role check takes priority over client-supplied role_hint
     const { useAuthStore } = await import('../store/authStore');
     const user = useAuthStore.getState().user;
     if (!user) {
@@ -281,7 +406,7 @@ export async function handleOwnerForegroundPush(
     const modalType =
       eventType === 'booking_cancelled' || eventType === 'booking_cancelled_by_owner'
         ? 'cancellation'
-        : eventType === 'new_booking' || eventType === 'payment_received'
+        : isOwnerUrgentPushType(eventType)
           ? 'new_booking'
           : 'status_change';
 
@@ -357,9 +482,12 @@ export async function scheduleBookingReminder(params: {
         content: {
           title: `Upcoming Appointment at ${params.salonName}`,
           body: `Your ${params.serviceName} appointment is in 1 hour (${params.time}).`,
-          sound: true,
-          data: { bookingId: params.bookingId },
-          ...(Platform.OS === 'android' ? { channelId: BOOKINGS_CHANNEL_ID } : {}),
+          sound: Platform.OS === 'ios' ? 'default' : true,
+          data: { bookingId: params.bookingId, type: 'reminder' },
+          ...(Platform.OS === 'android' ? { channelId: UPDATES_CHANNEL_ID } : {}),
+          ...(Platform.OS === 'ios'
+            ? { interruptionLevel: 'active' as const }
+            : {}),
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -395,8 +523,11 @@ export async function presentBookingConfirmedLocal(params: {
       content: {
         title: 'Booking confirmed',
         body: `${params.serviceName} at ${params.salonName} — ${params.date} at ${params.time}`,
-        sound: true,
-        ...(Platform.OS === 'android' ? { channelId: BOOKINGS_CHANNEL_ID } : {}),
+        sound: Platform.OS === 'ios' ? 'default' : true,
+        ...(Platform.OS === 'android' ? { channelId: UPDATES_CHANNEL_ID } : {}),
+        ...(Platform.OS === 'ios'
+          ? { interruptionLevel: 'active' as const }
+          : {}),
       },
       trigger: null,
     });

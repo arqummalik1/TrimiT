@@ -44,8 +44,8 @@ const baseSalon: Salon = {
 describe('SalonCard', () => {
   it('renders without a card border (flat surface tile)', () => {
     const styles = createSalonCardStyles(lightTheme);
-    expect(styles.container.borderWidth).toBeUndefined();
-    expect(styles.container.borderColor).toBeUndefined();
+    expect(styles.container).not.toHaveProperty('borderWidth');
+    expect(styles.container).not.toHaveProperty('borderColor');
   });
 
   it('renders the salon name', () => {

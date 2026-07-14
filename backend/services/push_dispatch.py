@@ -7,7 +7,16 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional
 
-from services.push_notifications import push_service
+from services.push_notifications import (
+    BOOKING_CHANNEL_ID,
+    BOOKING_INTERRUPTION_LEVEL,
+    BOOKING_PUSH_SOUND,
+    OWNER_BOOKING_CATEGORY_ID,
+    OWNER_PAYMENT_CATEGORY_ID,
+    OWNER_URGENT_EVENT_TYPES,
+    UPDATES_CHANNEL_ID,
+    push_service,
+)
 from services.push_preferences import (
     is_duplicate_notification,
     mark_notification_sent,
@@ -34,6 +43,33 @@ def _payload(
     if extra:
         data.update(extra)
     return data
+
+
+def _urgent_profile(event_type: str) -> Dict[str, Any]:
+    """Loud TrimiT booking tone + optional Accept/Reject (or payment) actions."""
+    category_id: Optional[str] = None
+    if event_type == "new_booking":
+        category_id = OWNER_BOOKING_CATEGORY_ID
+    elif event_type == "payment_awaiting_verification":
+        category_id = OWNER_PAYMENT_CATEGORY_ID
+    return {
+        "sound": BOOKING_PUSH_SOUND,
+        "channel_id": BOOKING_CHANNEL_ID,
+        "interruption_level": BOOKING_INTERRUPTION_LEVEL,
+        "badge": 1,
+        "category_id": category_id,
+    }
+
+
+def _soft_profile() -> Dict[str, Any]:
+    """Default OS tone — deliver everywhere, not Rapido-loud."""
+    return {
+        "sound": "default",
+        "channel_id": UPDATES_CHANNEL_ID,
+        "interruption_level": None,
+        "badge": None,
+        "category_id": None,
+    }
 
 
 async def send_booking_push(
@@ -70,20 +106,29 @@ async def send_booking_push(
         )
         return False
 
+    is_urgent = role_hint == "owner" and event_type in OWNER_URGENT_EVENT_TYPES
+    profile = _urgent_profile(event_type) if is_urgent else _soft_profile()
+
     ok = await push_service.send_notification(
         push_token=token,
         title=title,
         body=body,
         data=_payload(event_type, booking_id, role_hint, extra_data),
         recipient_user_id=recipient_user_id,
+        sound=profile["sound"],
+        channel_id=profile["channel_id"],
+        interruption_level=profile["interruption_level"],
+        badge=profile["badge"],
+        category_id=profile["category_id"],
     )
     if ok:
         await mark_notification_sent(booking_id, event_type, recipient_user_id)
         logger.info(
-            "[Push] delivered event=%s booking_id=%s recipient=%s",
+            "[Push] delivered event=%s booking_id=%s recipient=%s urgent=%s",
             event_type,
             booking_id,
             recipient_user_id[:8],
+            is_urgent,
         )
     else:
         logger.error(

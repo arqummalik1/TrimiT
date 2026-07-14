@@ -80,7 +80,7 @@ describe('ServiceCard', () => {
   // ─── Customer variant ─────────────────────────────────────────────────────
   it('uses flat surface styling without border (salon detail list)', () => {
     const styles = createServiceCardStyles(lightTheme);
-    expect(styles.card.borderWidth).toBeUndefined();
+    expect(styles.card).not.toHaveProperty('borderWidth');
     expect(styles.cardOwner.borderWidth).toBe(1);
   });
 

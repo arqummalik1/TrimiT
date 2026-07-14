@@ -1,15 +1,15 @@
-import { GOOGLE_LOGIN_ENABLED, isGoogleLoginVisible, OTP_RESEND_COOLDOWN_SECONDS } from '../../src/config/auth';
-
-jest.mock('../../src/services/googleAuthService', () => ({
-  isGoogleSignInNativeAvailable: jest.fn(() => true),
-}));
+import {
+  GOOGLE_LOGIN_ENABLED,
+  isGoogleLoginVisible,
+  OTP_RESEND_COOLDOWN_SECONDS,
+} from '../../src/config/auth';
 
 describe('mobile auth config', () => {
   it('enables Google login on auth screens', () => {
     expect(GOOGLE_LOGIN_ENABLED).toBe(true);
   });
 
-  it('isGoogleLoginVisible requires native module', () => {
+  it('always shows Google login on Android and iOS (no platform hide)', () => {
     expect(isGoogleLoginVisible()).toBe(true);
   });
 

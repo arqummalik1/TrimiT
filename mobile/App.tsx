@@ -39,11 +39,14 @@ import { useAuthStore } from "./src/store/authStore";
 import { SessionExpiredModal } from "./src/components/SessionExpiredModal";
 import { SigningOutOverlay } from "./src/components/SigningOutOverlay";
 import { handleNotificationNavigation } from "./src/lib/notificationNavigation";
+import { handleOwnerNotificationAction, toastForOwnerNotificationAction } from "./src/lib/notificationActions";
 import {
   getLastNotificationResponse,
   handleOwnerForegroundPush,
+  registerOwnerNotificationCategories,
   setupPushNotifications,
 } from "./src/lib/notifications";
+import { showToast } from "./src/store/toastStore";
 import { ThemeProvider } from "./src/theme/ThemeContext";
 import { logger } from "./src/lib/logger";
 import ErrorBoundary from "./src/components/ErrorBoundary";
@@ -229,6 +232,8 @@ function AppContent() {
       return;
     }
 
+    void registerOwnerNotificationCategories();
+
     void (async () => {
       try {
         const perms = await Notifications.getPermissionsAsync();
@@ -253,21 +258,47 @@ function AppContent() {
 
     const onResponse = async (response: Notifications.NotificationResponse) => {
       const reqId = response.notification.request.identifier;
+      const actionKey = `${reqId}:${response.actionIdentifier ?? "default"}`;
       const lastHandled = await AsyncStorage.getItem(
         "trimit_last_handled_notification_id",
       );
-      if (lastHandled === reqId) {
+      if (lastHandled === actionKey) {
         return;
       }
-      await AsyncStorage.setItem("trimit_last_handled_notification_id", reqId);
       const data = response.notification.request.content.data as Record<
         string,
         string | undefined
       >;
+
+      if (user?.role === "owner" || user?.role === "employee") {
+        const actionResult = await handleOwnerNotificationAction(
+          response.actionIdentifier,
+          data,
+        );
+        if (actionResult.handled) {
+          const toast = toastForOwnerNotificationAction(
+            actionResult.action,
+            actionResult.ok,
+          );
+          showToast(toast.message, toast.type);
+          // Only mark handled after success so failed Accept/Reject/Verify can retry.
+          if (actionResult.ok) {
+            await AsyncStorage.setItem(
+              "trimit_last_handled_notification_id",
+              actionKey,
+            );
+          }
+          handleNotificationNavigation(navigationRef.current, data, user?.role);
+          await Notifications.clearLastNotificationResponseAsync().catch(() => {});
+          return;
+        }
+      }
+
+      // Default tap / soft navigation — dedupe so cold-start listeners don't double-nav.
+      await AsyncStorage.setItem("trimit_last_handled_notification_id", actionKey);
       handleNotificationNavigation(navigationRef.current, data, user?.role);
       await Notifications.clearLastNotificationResponseAsync().catch(() => {});
     };
-
     const responseSub = Notifications.addNotificationResponseReceivedListener(
       (r) => {
         void onResponse(r);

@@ -1,19 +1,19 @@
-import { isGoogleSignInNativeAvailable } from '../services/googleAuthService';
-
 /**
  * Auth feature flags (mobile).
  *
  * Google Sign-In uses native picker + Supabase signInWithIdToken.
- * One email = one account: enable Supabase Dashboard → Auth → Link identities.
+ * Same verified email (OTP/password + Google) → one auth user via Supabase
+ * automatic identity linking.
  *
- * `GOOGLE_LOGIN_ENABLED` is the product flag; `isGoogleLoginVisible()` also
- * requires the native module (hidden in Expo Go to avoid RNGoogleSignin crash).
+ * Always show the Google button on Login (iOS + Android). Never hide by
+ * platform. Expo Go / missing native module still fails safely on press.
  */
 export const GOOGLE_LOGIN_ENABLED = true;
 
 /** Client resend cooldown — keep in sync with backend OTP_EMAIL_THROTTLE_SECONDS (30). */
 export const OTP_RESEND_COOLDOWN_SECONDS = 30;
 
+/** Always true while GOOGLE_LOGIN_ENABLED — do not gate Android/iOS or native module. */
 export function isGoogleLoginVisible(): boolean {
-  return GOOGLE_LOGIN_ENABLED && isGoogleSignInNativeAvailable();
+  return GOOGLE_LOGIN_ENABLED;
 }

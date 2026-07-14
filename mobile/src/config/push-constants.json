@@ -1,0 +1,21 @@
+{
+  "bookingChannelId": "bookings_v4",
+  "updatesChannelId": "booking_updates",
+  "legacyBookingChannelIds": ["bookings", "bookings_v2", "bookings_v3"],
+  "promotionsChannelId": "promotions",
+  "bookingSoundFile": "notification.mp3",
+  "bookingSoundAndroidBase": "notification",
+  "iosInterruptionLevel": "critical",
+  "pushTtlSeconds": 86400,
+  "ownerBookingCategoryId": "owner_booking_actions",
+  "ownerPaymentCategoryId": "owner_payment_actions",
+  "actionAcceptBooking": "ACCEPT_BOOKING",
+  "actionRejectBooking": "REJECT_BOOKING",
+  "actionVerifyPayment": "VERIFY_PAYMENT",
+  "actionRejectPayment": "REJECT_PAYMENT",
+  "ownerUrgentEventTypes": [
+    "new_booking",
+    "payment_received",
+    "payment_awaiting_verification"
+  ]
+}
