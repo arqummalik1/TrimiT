@@ -34,7 +34,6 @@ import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
-import { isGoogleLoginVisible } from '../../config/auth';
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -301,18 +300,16 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
 
-            {/* Google sign-in */}
-            {isGoogleLoginVisible() && (
-              <>
-                <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>OR</Text>
-                  <View style={styles.dividerLine} />
-                </View>
+            {/* Google sign-in — always shown (Android + iOS). Never platform-hide. */}
+            <>
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.dividerLine} />
+              </View>
 
-                <GoogleSignInButton label="Sign in with Google" />
-              </>
-            )}
+              <GoogleSignInButton label="Sign in with Google" />
+            </>
           </View>
 
 

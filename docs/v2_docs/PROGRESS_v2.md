@@ -1,5 +1,11 @@
 # TrimiT - V2 Progress
 
+## Accomplished (2026-07-14)
+- **Google Sign-In (Android):** Working on preview APK; package must be `com.trimit.app` (not `com.trimit.online`) + SHA-1 of upload keystore. Same-email OTP/Google merge via Supabase auto identity linking — no custom merge code.
+- **Notification Option A (event-scoped sound):** Owner urgent only — `new_booking`, `payment_received`, `payment_awaiting_verification` → loud `bookings_v4` + custom `notification.mp3` + critical/ALARM. Soft (reschedule, customer updates, reminders, subs) → `booking_updates` + default OS sound. Defaults on `send_notification` are soft.
+- **Notification Option B (actions):** Categories `owner_booking_actions` (Accept/Reject) and `owner_payment_actions` (Verify/Reject); Expo `categoryId` on urgent pushes; `handleOwnerNotificationAction` calls booking/payment repositories then opens Bookings. Works best on iOS; Android remote action buttons are best-effort (tap notification still works). Channel recreate + prefs sound gate unchanged.
+- **Silent/vibrate honesty:** In-app chime uses `playsInSilentMode` (iOS Ring/Silent). Background push uses Android ALARM + bypassDnd; iOS mute-switch bypass for push still needs Apple **Critical Alerts** provisioning live on device — not a 100% OEM guarantee.
+
 ## Accomplished (2026-07-07)
 - **OTP resend cooldown unified (web + mobile):** `OTP_RESEND_COOLDOWN_SECONDS = 30` in `config/auth` on both platforms; web VerifyOtp, Login, Signup aligned with mobile + backend `OTP_EMAIL_THROTTLE_SECONDS`.
 

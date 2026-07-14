@@ -1,0 +1,49 @@
+---
+description: Simplicity north star — easy onboarding, one-hand UX, minimal steps
+alwaysApply: true
+---
+
+# Ease of use (non-negotiable)
+
+TrimiT must feel **easier than Billu and every competitor** — especially for salon
+owners. Complexity is a bug. Our wedge is **CRED-level clarity + faster setup**, not
+more features on screen.
+
+## North star
+
+- **One hand, few taps** — primary flows reachable from the thumb zone; no dense forms.
+- **30 seconds to first value** — owner picks business type → taps catalog services →
+  sets prices → done. Customer finds salon → books a slot → done. Measure taps and
+  seconds when designing; if it feels slow, cut steps.
+- **Progressive disclosure** — show only what’s needed *now*; advanced options behind
+  “More” / a second screen. Never dump 15 fields on one scroll.
+- **Defaults over typing** — pre-fill, suggest, catalog-pick, skip-optional. Owner
+  should rarely invent text on day one.
+- **Async heavy work** — KYC, photos, bank details can finish *after* the quick setup
+  path; block **public listing**, not the whole app.
+
+## When building any screen or flow
+
+1. Ask: *Can this be one screen, one primary button, one decision?*
+2. Ask: *What can we remove, pre-fill, or defer without hurting trust?*
+3. Ask: *Would CRED/Blinkit do it with fewer fields?* If yes, match that.
+4. **No Billu-style clutter** — no deep menu trees, no duplicate paths to the same
+   action, no jargon (“BCP”, “pending job”) in owner copy.
+5. **Empty states teach** — one line + one CTA, not paragraphs.
+6. **Errors are human** — tell them what to do next in one sentence.
+
+## Onboarding split (product invariant)
+
+| Phase | Target time | Blocks listing? |
+|-------|-------------|-----------------|
+| Quick setup (type, salon basics, catalog services, price) | ~30 sec–2 min | No — owner can explore app |
+| Trust (ID, shop photo, admin review) | async, 24–48h SLA | Yes — hidden from customers until approved |
+
+Do not sacrifice the quick path to cram verification into the first 30 seconds.
+
+## Code / UX bar
+
+- New owner or customer flows need **fewer steps** than what they replace.
+- Prefer chips, toggles, and pick-lists over free-text where possible.
+- Optional fields must not block the primary CTA.
+- If a feature needs a tutorial to understand, simplify the feature first.

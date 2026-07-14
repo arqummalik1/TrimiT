@@ -13,6 +13,7 @@ const mockStore = {
   login: mockLogin,
   sendOtp: mockSendOtp,
   resendConfirmation: mockResendConfirmation,
+  googleSignIn: jest.fn(async () => ({ success: true })),
   isLoading: false,
   error: null as string | null,
   clearError: mockClearError,
@@ -22,10 +23,6 @@ const mockStore = {
   user: null as any,
   isOnboardingCompleted: true,
 };
-
-jest.mock('../../src/config/auth', () => ({
-  isGoogleLoginVisible: () => true,
-}));
 
 jest.mock('../../src/store/authStore', () => {
   const useAuthStoreMock = (selector?: (s: any) => any) => {
@@ -73,6 +70,8 @@ describe('LoginScreen', () => {
     expect(screen.getByText('Send Verification Code')).toBeTruthy();
     expect(screen.getByPlaceholderText('you@example.com')).toBeTruthy();
     expect(screen.queryByPlaceholderText('••••••••')).toBeNull(); // No password field in OTP mode
+    expect(screen.getByTestId('google-signin')).toBeTruthy();
+    expect(screen.getByText('Sign in with Google')).toBeTruthy();
   });
 
   it('validates email on Send OTP submit', async () => {

@@ -58,6 +58,8 @@ module.exports = ({ config }) => {
   const isReleaseProfile = profile === 'preview' || profile === 'production';
 
   const mapsKey = env('EXPO_PUBLIC_GOOGLE_MAPS_API_KEY');
+  // Optional iOS-only Maps key (iOS-restricted). Falls back to shared mapsKey.
+  const mapsKeyIos = env('EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY', mapsKey);
   const supabaseUrl = env('EXPO_PUBLIC_SUPABASE_URL');
   const supabaseAnon = env('EXPO_PUBLIC_SUPABASE_ANON_KEY');
   const sentryDsn = env('EXPO_PUBLIC_SENTRY_DSN');
@@ -80,6 +82,11 @@ module.exports = ({ config }) => {
 
   const plugins = [
     './plugins/withAndroidPermissions.js',
+    './plugins/withFmtXcodeFix.js',
+    // Survives folder renames: absolute node resolve for maps breaks Xcode xcconfig refs
+    './plugins/withRelativeMapsPodPath.js',
+    // Device Debug: embed JS — CLAT IPs (192.0.0.2) + ATS otherwise red-screen Metro
+    './plugins/withIosDeviceEmbeddedBundle.js',
     'expo-asset',
     'expo-audio',
     'expo-font',
@@ -89,6 +96,8 @@ module.exports = ({ config }) => {
         icon: './assets/notification-icon.png',
         color: NOTIFICATION_COLOR,
         sounds: ['./assets/sounds/notification.mp3'],
+        // iOS: allow waking for remote pushes (UIBackgroundModes remote-notification).
+        enableBackgroundRemoteNotifications: true,
       },
     ],
     'expo-location',
@@ -133,6 +142,8 @@ module.exports = ({ config }) => {
     '@react-native-google-signin/google-signin',
     { iosUrlScheme: googleIosUrlScheme },
   ]);
+  // Overwrite placeholder / stale scheme if .env had the iOS client after first prebuild.
+  plugins.push('./plugins/withGoogleIosUrlSchemeFromEnv.js');
 
   return withAndroidPermissions({
     ...config,
@@ -156,15 +167,31 @@ module.exports = ({ config }) => {
       ios: {
         buildNumber: appVersion.iosBuildNumber,
         supportsTablet: true,
-        bundleIdentifier: 'com.trimit.app',
+        bundleIdentifier: 'online.trimit.app',
+        // Time Sensitive + Critical Alerts (Rapido-style): ring when app is
+        // backgrounded/killed, including mute switch / Focus — requires Apple
+        // Critical Alerts entitlement approval for online.trimit.app.
+        entitlements: {
+          'com.apple.developer.usernotifications.time-sensitive': true,
+          'com.apple.developer.usernotifications.critical-alerts': true,
+        },
         infoPlist: {
           NSLocationWhenInUseUsageDescription: 'TrimiT uses your location to find nearby salons.',
           NSCameraUsageDescription: 'TrimiT uses the camera to take salon photos.',
           NSPhotoLibraryUsageDescription:
             'TrimiT accesses your photo library to upload salon images.',
+          // Metro / local tooling (Simulator + optional device hot reload on real LAN).
+          NSLocalNetworkUsageDescription:
+            'TrimiT uses the local network only during development to load the app from your Mac.',
+          NSBonjourServices: ['_http._tcp.', '_expo._tcp'],
+          NSAppTransportSecurity: {
+            NSAllowsLocalNetworking: true,
+            // false in production binary is fine: device Debug uses embedded JS (see plugin).
+            NSAllowsArbitraryLoads: false,
+          },
         },
         config: {
-          googleMapsApiKey: mapsKey,
+          googleMapsApiKey: mapsKeyIos,
         },
       },
       android: {

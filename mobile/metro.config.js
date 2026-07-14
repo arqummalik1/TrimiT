@@ -1,6 +1,9 @@
 const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 const path = require('path');
 
+// Xcode "Bundle React Native code" never runs npm prestart — sync shared JSON here.
+require('./scripts/sync-shared-json.cjs');
+
 /** @type {import('metro-config').MetroConfig} */
 const config = getSentryExpoConfig(__dirname);
 

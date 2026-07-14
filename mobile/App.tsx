@@ -39,11 +39,14 @@ import { useAuthStore } from "./src/store/authStore";
 import { SessionExpiredModal } from "./src/components/SessionExpiredModal";
 import { SigningOutOverlay } from "./src/components/SigningOutOverlay";
 import { handleNotificationNavigation } from "./src/lib/notificationNavigation";
+import { handleOwnerNotificationAction } from "./src/lib/notificationActions";
 import {
   getLastNotificationResponse,
   handleOwnerForegroundPush,
+  registerOwnerNotificationCategories,
   setupPushNotifications,
 } from "./src/lib/notifications";
+import { showToast } from "./src/store/toastStore";
 import { ThemeProvider } from "./src/theme/ThemeContext";
 import { logger } from "./src/lib/logger";
 import ErrorBoundary from "./src/components/ErrorBoundary";
@@ -229,6 +232,8 @@ function AppContent() {
       return;
     }
 
+    void registerOwnerNotificationCategories();
+
     void (async () => {
       try {
         const perms = await Notifications.getPermissionsAsync();
@@ -253,21 +258,45 @@ function AppContent() {
 
     const onResponse = async (response: Notifications.NotificationResponse) => {
       const reqId = response.notification.request.identifier;
+      const actionKey = `${reqId}:${response.actionIdentifier ?? "default"}`;
       const lastHandled = await AsyncStorage.getItem(
         "trimit_last_handled_notification_id",
       );
-      if (lastHandled === reqId) {
+      if (lastHandled === actionKey) {
         return;
       }
-      await AsyncStorage.setItem("trimit_last_handled_notification_id", reqId);
+      await AsyncStorage.setItem("trimit_last_handled_notification_id", actionKey);
       const data = response.notification.request.content.data as Record<
         string,
         string | undefined
       >;
+
+      if (user?.role === "owner" || user?.role === "employee") {
+        const actionResult = await handleOwnerNotificationAction(
+          response.actionIdentifier,
+          data,
+        );
+        if (actionResult.handled) {
+          if (actionResult.ok) {
+            showToast(
+              actionResult.action.includes("REJECT")
+                ? "Booking updated"
+                : "Done",
+              "success",
+            );
+          } else {
+            showToast("Could not update booking from notification", "error");
+          }
+          // Still land on Bookings so the owner sees the result.
+          handleNotificationNavigation(navigationRef.current, data, user?.role);
+          await Notifications.clearLastNotificationResponseAsync().catch(() => {});
+          return;
+        }
+      }
+
       handleNotificationNavigation(navigationRef.current, data, user?.role);
       await Notifications.clearLastNotificationResponseAsync().catch(() => {});
     };
-
     const responseSub = Notifications.addNotificationResponseReceivedListener(
       (r) => {
         void onResponse(r);

@@ -16,5 +16,8 @@ export SENTRY_DISABLE_AUTO_UPLOAD=true
 export TMPDIR="${TMPDIR:-/tmp}/trimit-aab-$$"
 mkdir -p "$TMPDIR"
 
+echo "→ Cleaning Android autolinking cache (ensures Google Sign-In native module links)…"
+rm -rf android/build/generated/autolinking android/app/build/generated/autolinking
+
 echo "→ Building production AAB (env loaded from .env)…"
 npx eas-cli@18.13.0 build --profile production --platform android --local --non-interactive "$@"

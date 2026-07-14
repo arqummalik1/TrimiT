@@ -1,12 +1,17 @@
 """
 Push Notification Service — Expo Push API with retries and stale-token handling.
+
+Defaults are soft (default sound / updates channel). Urgent owner booking/payment
+pushes pass custom sound + bookings channel + optional interactive categoryId.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import httpx
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from services.push_preferences import clear_user_push_token
@@ -18,6 +23,20 @@ _MAX_ATTEMPTS = 3
 _RETRY_DELAY_SEC = 0.6
 
 _STALE_TOKEN_ERRORS = frozenset({"DeviceNotRegistered", "InvalidCredentials"})
+
+# Shared with mobile via shared/push-constants.json (single source of truth).
+_PUSH_CONSTANTS_PATH = Path(__file__).resolve().parents[2] / "shared" / "push-constants.json"
+with _PUSH_CONSTANTS_PATH.open(encoding="utf-8") as _f:
+    _PUSH = json.load(_f)
+
+BOOKING_PUSH_SOUND = _PUSH["bookingSoundFile"]
+BOOKING_CHANNEL_ID = _PUSH["bookingChannelId"]
+UPDATES_CHANNEL_ID = _PUSH["updatesChannelId"]
+PROMOTIONS_CHANNEL_ID = _PUSH["promotionsChannelId"]
+BOOKING_INTERRUPTION_LEVEL = _PUSH["iosInterruptionLevel"]
+PUSH_TTL_SECONDS = int(_PUSH["pushTtlSeconds"])
+OWNER_BOOKING_CATEGORY_ID = _PUSH["ownerBookingCategoryId"]
+OWNER_PAYMENT_CATEGORY_ID = _PUSH["ownerPaymentCategoryId"]
 
 
 def _is_valid_expo_push_token(push_token: Optional[str]) -> bool:
@@ -35,6 +54,46 @@ def _parse_expo_ticket(ticket: Dict[str, Any]) -> tuple[bool, Optional[str], Opt
     error = details.get("error") if isinstance(details, dict) else None
     message = ticket.get("message") or error or "unknown"
     return False, str(message), error
+
+
+def build_expo_push_message(
+    *,
+    push_token: str,
+    title: str,
+    body: str,
+    data: Optional[Dict[str, Any]] = None,
+    sound: str = "default",
+    priority: str = "high",
+    channel_id: str = UPDATES_CHANNEL_ID,
+    interruption_level: Optional[str] = None,
+    badge: Optional[int] = None,
+    category_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Build an Expo Push API message (pure — easy to unit test).
+
+    Urgent owner booking alerts use custom sound + bookings channel +
+    interruptionLevel=critical (mute bypass needs Apple Critical Alerts).
+    Soft updates use default sound + booking_updates channel.
+    """
+    message: Dict[str, Any] = {
+        "to": push_token,
+        "title": title,
+        "body": body,
+        "sound": sound,
+        "priority": priority,
+        "data": data or {},
+        "channelId": channel_id,
+        # Keep alive long enough for Doze / brief offline (seconds).
+        "ttl": PUSH_TTL_SECONDS,
+    }
+    if interruption_level:
+        message["interruptionLevel"] = interruption_level
+    if badge is not None:
+        message["badge"] = badge
+    if category_id:
+        # Expo Push + APNs / FCM interactive actions (Accept/Reject).
+        message["categoryId"] = category_id
+    return message
 
 
 class PushNotificationService:
@@ -87,21 +146,28 @@ class PushNotificationService:
         sound: str = "default",
         priority: str = "high",
         *,
+        channel_id: str = UPDATES_CHANNEL_ID,
+        interruption_level: Optional[str] = None,
+        badge: Optional[int] = None,
+        category_id: Optional[str] = None,
         recipient_user_id: Optional[str] = None,
     ) -> bool:
         if not _is_valid_expo_push_token(push_token):
             logger.warning("[Push] Invalid or missing Expo push token")
             return False
 
-        message = {
-            "to": push_token,
-            "title": title,
-            "body": body,
-            "sound": sound,
-            "priority": priority,
-            "data": data or {},
-            "channelId": "bookings_v2",
-        }
+        message = build_expo_push_message(
+            push_token=push_token,
+            title=title,
+            body=body,
+            data=data,
+            sound=sound,
+            priority=priority,
+            channel_id=channel_id,
+            interruption_level=interruption_level,
+            badge=badge,
+            category_id=category_id,
+        )
 
         try:
             async with httpx.AsyncClient(timeout=12.0) as client:
@@ -113,10 +179,11 @@ class PushNotificationService:
                     )
                     if ok:
                         logger.info(
-                            "[Push] sent title=%r recipient=%s attempt=%s",
+                            "[Push] sent title=%r recipient=%s attempt=%s channel=%s",
                             title,
                             recipient_user_id[:8] if recipient_user_id else push_token[:24],
                             attempt,
+                            channel_id,
                         )
                         return True
                     if attempt < _MAX_ATTEMPTS:
@@ -137,18 +204,18 @@ class PushNotificationService:
             if not _is_valid_expo_push_token(push_token):
                 continue
             messages.append(
-                {
-                    "to": push_token,
-                    "title": notif.get("title", "TrimiT"),
-                    "body": notif.get("body", ""),
-                    "sound": notif.get("sound", "default"),
-                    "priority": notif.get("priority", "high"),
-                    "data": notif.get("data", {}),
-                    # Default to the bookings channel for backwards-compat;
-                    # broadcasts pass channelId='promotions' so users can mute
-                    # marketing without losing booking alerts.
-                    "channelId": notif.get("channelId", "bookings_v2"),
-                }
+                build_expo_push_message(
+                    push_token=push_token,
+                    title=notif.get("title", "TrimiT"),
+                    body=notif.get("body", ""),
+                    data=notif.get("data", {}),
+                    sound=notif.get("sound", "default"),
+                    priority=notif.get("priority", "high"),
+                    channel_id=notif.get("channelId", UPDATES_CHANNEL_ID),
+                    interruption_level=notif.get("interruptionLevel"),
+                    badge=notif.get("badge"),
+                    category_id=notif.get("categoryId"),
+                )
             )
 
         if not messages:
