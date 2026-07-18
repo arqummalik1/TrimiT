@@ -1,6 +1,7 @@
 # TrimiT - V2 Progress
 
 ## Accomplished (2026-07-18)
+- **Mobile review harden:** Splash `preventAutoHideAsync` at module/`index` entry (no blank-frame race). Location wait AbortSignal + 8s max (no 120s primer delay). Notification toasts honour `cancelled`. `logger.error` registration passes real Error. Google nonce copy no longer tells users to skip nonce checks. Reset-password already posts `password`.
 - **Password reset web bug:** Recovery email landed on `/#…&type=recovery` (Site URL) and App only forwarded email-confirm hashes → users saw home, not create-password. Fixed: recovery → `/reset-password` (hash preserved). Web forgot-password now sends `redirect_to=…/reset-password`. Mobile ResetPassword posts `password` (backend also accepts legacy `new_password`); uses `theme.typography`.
 - **Out-of-area waitlist CTA:** Confirmed leads land in Supabase `waitlist_leads` (+ confirmation email via Resend). Fixed ServiceAreaGate scroll `paddingBottom` with `TAB_BAR_BASE_HEIGHT` + safe-area so “Notify me at launch” clears the tab bar.
 - **App Store Review OTP:** Env-gated fixed OTP for allowlisted emails (`APP_REVIEW_OTP_EMAILS` + `APP_REVIEW_OTP_CODE` on Render). Send skips inbox; verify mints Supabase session via admin `generate_link`. Location-denied Discover already lists salons (RPC `p_lat=0,p_lng=0`).

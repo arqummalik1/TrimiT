@@ -19,10 +19,13 @@ export function translateGoogleAuthError(raw: string | undefined): string {
     );
   }
   if (msg.includes('nonce') && msg.includes('id_token')) {
+    // Do not instruct end users / operators to disable nonce checks in-app —
+    // that weakens replay protection. Classic GoogleSignin has no nonce param;
+    // ops may still enable Skip nonce in Supabase for iOS, but that is not
+    // user-facing guidance.
     return (
-      'Google sign-in needs a Supabase setting for iPhone. In Supabase Dashboard → ' +
-      'Authentication → Providers → Google, turn on **Skip nonce checks**, save, ' +
-      'then try again (no app reinstall needed). Android is unaffected.'
+      'Google sign-in could not be verified on this device. ' +
+      'Please try again, or sign in with email OTP.'
     );
   }
   if (msg.includes('idp') || msg.includes('provider')) {

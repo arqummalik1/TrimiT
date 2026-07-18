@@ -267,9 +267,8 @@ export async function registerForPushNotifications(): Promise<string | null> {
     return token;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error('[Notifications] Registration failed', {
+    logger.error('[Notifications] Registration failed', error, {
       message,
-      error,
       platform: Platform.OS,
     });
     return null;
@@ -433,9 +432,7 @@ export async function handleOwnerForegroundPush(
     const booking = await bookingService.getBooking(bookingId);
     useNotificationStore.getState().addNotification(booking, modalType);
   } catch (error) {
-    logger.error('[Notifications] Foreground owner push handling failed', {
-      error: String(error),
-    });
+    logger.error('[Notifications] Foreground owner push handling failed', error);
   }
 }
 

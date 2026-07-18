@@ -200,14 +200,21 @@ function AppContent() {
     }
 
     let cancelled = false;
+    const abort = new AbortController();
 
     void registerOwnerNotificationCategories();
 
     void (async () => {
       try {
         const perms = await Notifications.getPermissionsAsync();
+        if (cancelled) {
+          return;
+        }
         if (perms.status === "granted") {
           const setup = await setupPushNotifications();
+          if (cancelled) {
+            return;
+          }
           if (!setup.ok && setup.reason === "android_fcm_or_permission") {
             showToast(
               "Android push is not ready (FCM). Booking alerts need a rebuild with google-services.json + EAS FCM key.",
@@ -224,21 +231,33 @@ function AppContent() {
         const dismissed = await AsyncStorage.getItem(
           NOTIFICATION_PRIMER_DISMISSED_KEY,
         );
-        if (dismissed === "true") {
+        if (cancelled || dismissed === "true") {
           return;
         }
-        // Customer Discover shows the OS location sheet on first open — wait so
-        // notification PermissionPrimer does not stack modals (iOS freeze).
+        // Customer Discover may show the OS location sheet on first open —
+        // wait briefly so notification PermissionPrimer does not stack (iOS freeze).
+        // If location was never requested, max wait is short (not 2 minutes).
         const role = useAuthStore.getState().user?.role;
         if (role === "customer") {
-          await waitUntilForegroundLocationPermissionResolved();
+          try {
+            await waitUntilForegroundLocationPermissionResolved({
+              signal: abort.signal,
+            });
+          } catch (e) {
+            if ((e as { name?: string })?.name === "AbortError") {
+              return;
+            }
+            throw e;
+          }
         }
         if (cancelled) {
           return;
         }
         setShowNotificationPrimer(true);
       } catch (e) {
-        logger.warn("[Notifications] Primer check failed", { error: e });
+        if (!cancelled) {
+          logger.warn("[Notifications] Primer check failed", { error: e });
+        }
       }
     })();
 
@@ -314,6 +333,7 @@ function AppContent() {
 
     return () => {
       cancelled = true;
+      abort.abort();
       responseSub.remove();
       receivedSub.remove();
     };
