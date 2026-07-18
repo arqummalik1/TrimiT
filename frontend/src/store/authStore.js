@@ -383,8 +383,11 @@ export const useAuthStore = create(
           });
           return { valid: true, data: response.data };
         } catch (error) {
+          const detail = error.response?.data?.detail;
           const message =
-            error.response?.data?.detail || "Invalid or expired token";
+            (typeof detail === "object" && detail?.message) ||
+            (typeof detail === "string" && detail) ||
+            "Invalid or expired token";
           return { valid: false, error: message };
         }
       },
@@ -398,8 +401,12 @@ export const useAuthStore = create(
           });
           return { success: true, data: response.data };
         } catch (error) {
+          const detail = error.response?.data?.detail;
           const message =
-            error.response?.data?.detail || "Failed to reset password";
+            (typeof detail === "object" && detail?.message) ||
+            (typeof detail === "string" && detail) ||
+            error.response?.data?.error?.message ||
+            "Failed to reset password";
           return { success: false, error: message };
         }
       },

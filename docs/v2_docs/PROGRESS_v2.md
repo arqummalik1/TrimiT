@@ -1,5 +1,9 @@
 # TrimiT - V2 Progress
 
+## Accomplished (2026-07-19)
+- **Web password reset UX + 400 fix:** Forgot-password shows “check your email” (link, not OTP redirect). Reset page centered with site Header. Reset API validates recovery JWT then admin-updates password when user PUT fails. Success hydrates session and routes home.
+- **Xcode User Script Sandboxing:** `ENABLE_USER_SCRIPT_SANDBOXING=NO` via `withDisableUserScriptSandboxing` (fixes Sandbox `find` deny on ios/Pods). Hermes dSYM script no longer uses `find`.
+
 ## Accomplished (2026-07-18)
 - **Mobile review harden:** Splash `preventAutoHideAsync` at module/`index` entry (no blank-frame race). Location wait AbortSignal + 8s max (no 120s primer delay). Notification toasts honour `cancelled`. `logger.error` registration passes real Error. Google nonce copy no longer tells users to skip nonce checks. Reset-password already posts `password`.
 - **Password reset web bug:** Recovery email landed on `/#…&type=recovery` (Site URL) and App only forwarded email-confirm hashes → users saw home, not create-password. Fixed: recovery → `/reset-password` (hash preserved). Web forgot-password now sends `redirect_to=…/reset-password`. Mobile ResetPassword posts `password` (backend also accepts legacy `new_password`); uses `theme.typography`.

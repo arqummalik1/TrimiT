@@ -28,6 +28,7 @@ fi
 HERMES_BIN=""
 for candidate in \\
   "\${PODS_ROOT}/hermes-engine/destroot/Library/Frameworks/universal/hermes.xcframework/ios-arm64/hermes.framework/hermes" \\
+  "\${PODS_ROOT}/hermes-engine/destroot/Library/Frameworks/universal/hermes.xcframework/ios-arm64_x86_64-simulator/hermes.framework/hermes" \\
   "\${TARGET_BUILD_DIR}/\${FRAMEWORKS_FOLDER_PATH}/hermes.framework/hermes" \\
   "\${BUILT_PRODUCTS_DIR}/\${FRAMEWORKS_FOLDER_PATH}/hermes.framework/hermes"; do
   if [ -f "$candidate" ]; then
@@ -35,10 +36,6 @@ for candidate in \\
     break
   fi
 done
-
-if [ -z "$HERMES_BIN" ]; then
-  HERMES_BIN="$(find "\${PODS_ROOT}/hermes-engine" -path "*ios-arm64/hermes.framework/hermes" -type f 2>/dev/null | head -n 1)"
-fi
 
 if [ -z "$HERMES_BIN" ] || [ ! -f "$HERMES_BIN" ]; then
   echo "warning: [Hermes dSYM] Hermes binary not found — skipping (upload may show a harmless warning)"

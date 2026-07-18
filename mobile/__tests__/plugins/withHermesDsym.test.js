@@ -29,4 +29,12 @@ describe('withHermesDsym', () => {
     fs.writeFileSync(pbxPath, `/* ${MARKER} */`, 'utf8');
     expect(patchPbxproj(pbxPath)).toBe(false);
   });
+
+  it('Hermes script source does not use find (sandbox-safe)', () => {
+    const src = fs.readFileSync(
+      path.join(__dirname, '../../plugins/withHermesDsym.js'),
+      'utf8',
+    );
+    expect(src).not.toMatch(/HERMES_BIN="\$\(find /);
+  });
 });

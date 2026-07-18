@@ -3,7 +3,7 @@ import {
   parseAuthCallbackFromUrl,
   resolveAuthCallbackRedirect,
 } from '../../src/lib/authCallbackParams';
-import { extractRecoveryToken } from '../../src/lib/recoveryToken';
+import { extractRecoveryToken, extractRecoverySession } from '../../src/lib/recoveryToken';
 
 function fakeLocation({ hash = '', search = '', pathname = '/' } = {}) {
   return { hash, search, pathname };
@@ -75,6 +75,20 @@ describe('extractRecoveryToken', () => {
       '/reset-password#access_token=abc123&type=recovery'
     );
     expect(extractRecoveryToken()).toBe('abc123');
+    window.history.replaceState(null, '', prev);
+  });
+
+  it('extractRecoverySession includes refresh_token', () => {
+    const prev = window.location.href;
+    window.history.replaceState(
+      null,
+      '',
+      '/reset-password#access_token=abc&refresh_token=ref&type=recovery'
+    );
+    expect(extractRecoverySession()).toEqual({
+      accessToken: 'abc',
+      refreshToken: 'ref',
+    });
     window.history.replaceState(null, '', prev);
   });
 });
