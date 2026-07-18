@@ -1,0 +1,30 @@
+---
+description: RULE #1 — Always check the code; never assume. Fact-check before any APK/AAB, push, or claim.
+alwaysApply: true
+---
+
+# Rule #1 — Always check the code (never assume)
+
+This is **non-negotiable** for every TrimiT session. Token cost does not matter.
+
+## Before you claim anything works
+
+1. **Open and read the actual files** (config, credentials wiring, plugins, backend callers).
+2. **Confirm prerequisites exist on disk / in config** — e.g. `google-services.json`, FCM/APNs credentials, env vars, package names.
+3. **Trace the runtime path** (token register → backend → Expo/FCM/APNs → device). Don’t confuse Realtime/in-app UI with OS push.
+4. **Run or cite a concrete check** (`npm run verify:android-push`, greps, tests) before saying “push works” or shipping a build.
+
+## Never do this
+
+- Deliver APK / AAB / “done” while a required native path is missing (e.g. no FCM for Android).
+- Assume Expo Go behavior equals production native push.
+- Assume “I coded the feature” equals “infra is wired.”
+- Trust conversation memory over the current codebase.
+
+## Order of work (always)
+
+1. Check the code / files / config (**facts**)
+2. State root cause with evidence
+3. Then implement / fix / build
+
+If you cannot verify, say clearly: **blocked on human ops** (and list the exact files/dashboard steps). Do not invent green status.

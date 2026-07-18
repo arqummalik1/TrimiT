@@ -42,7 +42,6 @@ import { showToast } from '../../store/toastStore';
 import { Salon } from '../../types';
 import { normalizeSalon } from '../../lib/salonImage';
 import { spacing, borderRadius, fonts, layout } from '../../lib/utils';
-import { PermissionPrimer } from '../../components/PermissionPrimer';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { getSalonMapPinColor } from '../../lib/mapMarkers';
@@ -115,14 +114,11 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   const debouncedSearchQuery = useDebouncedValue(searchQuery.trim(), DISCOVER_SEARCH_DEBOUNCE_MS);
 
   const {
-    phase,
     coords,
     errorMessage,
     locationReady,
     source,
     bootstrap,
-    confirmPrimer,
-    skipPrimer,
     recenter,
   } = useDiscoverLocation();
 
@@ -547,19 +543,6 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
 
   return (
     <ScreenWrapper variant="tab">
-      <PermissionPrimer
-        isVisible={phase === 'primer'}
-        title="Find Salons Near You"
-        message="TrimiT uses your location to show the closest salons, estimated travel times, and accurate distance."
-        icon="location"
-        onAllow={() => {
-          void confirmPrimer();
-        }}
-        onDeny={() => {
-          skipPrimer();
-        }}
-      />
-
       <View style={styles.topChrome}>
         <View style={styles.headerRow}>
           <View style={styles.titleBlock} accessibilityRole="header">

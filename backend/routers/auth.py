@@ -32,6 +32,7 @@ from services.user_profile import (
 )
 from services.phone import normalize_india_phone, is_valid_india_phone
 from services import campaigns as campaign_service
+from services import app_review_otp
 from services.auth_signup import (
     try_idempotent_signup,
     perform_supabase_signup,
@@ -331,6 +332,11 @@ async def send_otp(request: Request, data: SendOtpRequest):
     email = _normalize_email(data.email)
     _enforce_otp_email_throttle(email)
 
+    # App Review allowlist: skip inbox OTP — reviewer uses the fixed code from Notes.
+    if app_review_otp.is_app_review_otp_email(email):
+        logger.info("send_otp app_review bypass (no email) email=%s", _mask_email(email))
+        return {"message": "If the address is eligible, an OTP code has been sent"}
+
     # Use create_user=True to allow creating unconfirmed user rows in Supabase
     # when new users enter their email for passwordless signup.
     response = await supabase.request(
@@ -416,6 +422,55 @@ async def verify_otp(request: Request, data: VerifyOtpRequest):
     email = data.email.strip().lower()
     token = data.token.strip()
     otp_type = data.type.value if hasattr(data.type, "value") else str(data.type)
+
+    # App Review fixed OTP → mint session without inbox (allowlisted emails only).
+    if app_review_otp.review_otp_matches(email, token):
+        try:
+            auth_data = await app_review_otp.mint_session_for_review_email(email)
+        except Exception as e:
+            logger.error("verify_otp app_review mint failed: %s", str(e), exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail="An internal error occurred during verification",
+            )
+        user_id = (
+            auth_data.get("user", {}).get("id")
+            if isinstance(auth_data.get("user"), dict)
+            else None
+        )
+        access_token = auth_data.get("access_token")
+        profile = None
+        profile_complete = False
+        if user_id and access_token:
+            user_profile_cache.pop(user_id, None)
+            try:
+                profile = await fetch_profile_service_role(user_id)
+                profile_complete = profile is not None
+            except Exception as e:
+                logger.error(
+                    "verify_otp app_review profile lookup failed user=%s error=%s",
+                    user_id[:8] if user_id else "?",
+                    str(e),
+                )
+        return {
+            "access_token": access_token,
+            "token_type": auth_data.get("token_type", "bearer"),
+            "expires_in": auth_data.get("expires_in"),
+            "refresh_token": auth_data.get("refresh_token"),
+            "user": auth_data.get("user"),
+            "profile": profile,
+            "profile_complete": profile_complete,
+        }
+
+    if app_review_otp.is_app_review_otp_email(email):
+        # Wrong code for an allowlisted review email — do not fall through to Supabase.
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "INVALID_OTP",
+                "message": "The code you entered is incorrect. Please double-check the 6-digit code and try again.",
+            },
+        )
 
     payload = {"email": email, "token": token, "type": otp_type}
 

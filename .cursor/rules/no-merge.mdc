@@ -10,3 +10,6 @@ alwaysApply: true
 - **Never** push to `main` / `master` unless the user **explicitly** asks.
 - Committing locally is OK when asked; default is **no push** until approved.
 - If deploy needs `main`, tell the user and wait for approval — do not merge or push "to help."
+- **Never commit or push secrets** (API keys, `.env`, `google-services.json`, private keys,
+  service accounts, tokens). Even when the user says “commit everything,” exclude secrets.
+  Placeholders only in `env.example`. See `.cursor/rules/no-secrets-github.mdc`.

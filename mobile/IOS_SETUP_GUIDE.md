@@ -19,26 +19,32 @@ Complete checklist to open TrimiT in **Xcode**, run on your iPhone, upload to Te
 
 ---
 
-## Where you are right now (typical)
+## Progress checkpoint (updated 2026-07-17)
 
-If this matches you:
+> **Co-founder status — tick as you go.** Start at the first ❌ row.
 
-- ✅ Apple Developer account exists  
-- ✅ Identifier `online.trimit.app` created  
-- ✅ Google Maps iOS key + iOS OAuth client in `mobile/.env` (or almost there)  
-- ❌ **Have not opened the TrimiT project in Xcode yet**  
-- ❌ **Have not created the app in App Store Connect yet** (Part C)
+| Part | What it is | Status |
+|------|------------|--------|
+| **A** | Google Maps iOS + Google Sign-In iOS (`.env`) | ✅ **DONE** |
+| **B** | Apple Developer account + App ID + **APNs key** | ✅ **DONE** |
+| **C** | App Store Connect — create TrimiT app listing | ✅ **DONE** |
+| **D** | Open in Xcode + signing (no red errors) | ✅ **DONE** |
+| **E** | Rebuild native (`expo prebuild`) after key/config changes | ⏭️ **SKIP for now** — only needed if you change `.env` / `app.config.js` again |
+| **F** | ▶ Run from Xcode → app installs on your iPhone | ✅ **DONE** |
+| **F2** | Full customer + owner testing on iPhone | ❌ **YOU ARE HERE** ← do this next |
+| **G** | Archive → upload → **TestFlight** | ❌ Not started |
+| **H** | Store listing polish → Submit → **App Store live** | ❌ Not started |
+| **I** | Icon / splash / booking tone polish | ⬜ Optional before / with G–H |
+| **J** | Wire APNs on Expo + verify tray push on iPhone | ⬜ After F2 (or parallel); key already created in B |
 
-**Correct order from here:**
+### What to do right now
 
-1. Finish **Part A** (Google → `.env`) if anything is still empty  
-2. Finish **Part B** (Apple Developer — App ID + APNs + Team ID)  
-3. Do **Part C** — create the app in **App Store Connect** (Apple’s website)  
-4. **Then** open **Xcode** for the first time (**Part D**)  
-5. Run on iPhone → Archive → TestFlight (**Parts F–G**)
+1. Open **Part F2** below — test **customer** booking end-to-end, then **owner** accept/reject flows on the Xcode build already on your phone.  
+2. When F2 feels solid → **Part G** (TestFlight).  
+3. After TestFlight looks good → **Part H** (public App Store).  
+4. Tray push on iOS → **Part J** (upload APNs `.p8` to Expo if not already, then verify with app killed).
 
-**When do I start Xcode?**  
-Only after Parts A–C are done (or at least A + B + C1). Opening Xcode earlier is fine to look around, but signing and upload need the App Store Connect app + your Apple team set up first.
+**Do not redo Parts A–D.** Signing and first install already worked.
 
 ---
 
@@ -135,15 +141,19 @@ EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=PASTE_YOUR_IOS_CLIENT_ID_HERE.apps.googleuserco
 
 ---
 
-### A5. (Optional but recommended) Supabase Google provider
+### A5. Supabase Google provider (required for Google Sign-In)
 
-If customers use Google login:
-
-1. Open Supabase Dashboard → **Authentication** → **Providers** → **Google**
-2. Confirm the **Web client ID** matches `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+1. Open [Supabase Dashboard](https://supabase.com/dashboard) → your TrimiT project → **Authentication** → **Providers** → **Google**
+2. Confirm the **Web client ID** matches `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` from `mobile/.env`
 3. You usually do **not** paste the iOS client ID into Supabase — the Web client stays the “server” client
+4. **iOS TestFlight / iPhone (required):** turn **ON** → **Skip nonce checks** → **Save**
 
-**Outcome:** Google login still works with the same Web client; iOS native module uses the iOS client from `.env`.
+| Why | iOS Google SDK puts a `nonce` inside the ID token automatically. Supabase expects you to pass the matching raw nonce — our React Native Google module cannot read it on iOS. Skipping the check is [Supabase’s documented fix](https://supabase.com/docs/guides/auth/social-login/auth-google) for native mobile clients. **No rebuild** — works on build 39 immediately after you save. |
+|-----|-----|
+| Security | Still safe: Google validates the ID token; Supabase still verifies signature, audience, and expiry. |
+| Android | Unaffected — Play Store Google Sign-In already works with nonce check off or on. |
+
+**Outcome:** Google login works on iPhone/TestFlight after step 4. If you see *“Passed nonce and nonce in id_token…”*, you skipped step 4.
 
 ---
 
@@ -601,18 +611,18 @@ Then repeat **D4** (Team + signing) — a clean prebuild can reset signing UI; p
 
 ---
 
-## YOU ARE HERE — signing works ✓
+## YOU ARE HERE — Part F2 (full customer + owner test) ✓
 
-If device + provisioning profile errors are **gone**, do **not** redo Parts A–D.
+Checkpoint (2026-07-17): Parts **A–D + F are done**. App already runs on your iPhone via Xcode ▶.
 
 **Your path from now:**
 
-1. **Part F** — Install & smoke-test on your iPhone from Xcode  
-2. **Part F2** — Extensively test the real customer + owner flows  
-3. **Part G** — Archive → upload → **TestFlight** (testers)  
-4. **Part H** — Fill store listing → **Submit for Review** → **Production** (App Store)
+1. **Part F2** — Extensively test customer + owner flows on that iPhone build ← **current**  
+2. **Part G** — Archive → upload → **TestFlight** (testers)  
+3. **Part H** — Fill store listing → **Submit for Review** → **Production** (App Store)  
+4. **Part J** — Confirm APNs on Expo + tray push when app is killed (APNs key already created)
 
-**Skip Part E** unless you changed `.env` / `app.config.js` after the last prebuild.
+**Skip Part E** unless you change `.env` / `app.config.js` after this point.
 
 ---
 
@@ -693,6 +703,8 @@ Confirm Maps / Supabase / Google iOS values in `.env`, then Part E (rebuild) + R
 
 ## Part F2 — Extensive testing on iPhone (before TestFlight)
 
+> **📍 START HERE (2026-07-17).** Parts A–D + F are done. Do **not** reinstall unless the app was deleted. Use the build already on your iPhone from Xcode ▶.
+
 Stay on the Xcode-installed build. Test like a real user. Prefer **customer** and **salon owner** paths.
 
 ### F2-A. Customer flows
@@ -737,116 +749,187 @@ Stay on the Xcode-installed build. Test like a real user. Prefer **customer** an
 
 ---
 
-## Part G — Make it available on TestFlight
+## Part G — Upload to TestFlight (beginner, step by step)
 
-TestFlight = install via Apple’s **TestFlight** app (not Xcode ▶). Needs App Store Connect app (Part C) + an uploaded Archive.
+TestFlight = Apple’s beta app store. Testers install **TrimiT** from the **TestFlight** app on iPhone (not from Xcode ▶).
+
+### Read this first — you do **not** email an IPA file
+
+| Term | What it is | Do you need it? |
+|------|------------|-----------------|
+| **Archive** | Release build Xcode saves on your Mac | ✅ Yes — create this in Xcode |
+| **Upload to App Store Connect** | Xcode sends the archive to Apple’s servers | ✅ Yes — this is how TestFlight gets your build |
+| **IPA file** | Exported install package | ❌ **Not for normal TestFlight** — skip “Export IPA” unless Apple support asks |
+| **TestFlight** | Beta installs on iPhone via Apple’s TestFlight app | ✅ Goal of Part G |
+
+**TrimiT path:** Xcode **Archive** → **Distribute App → Upload** → wait on App Store Connect → install from **TestFlight** app.
+
+**Prerequisites (you already did these):** Part C app in App Store Connect · Part D signing works · Part F2 testing done (or good enough).
+
+---
+
+### G — Quick map (follow in order)
+
+| Step | What you do | Where |
+|------|-------------|--------|
+| **G1** | Bump iOS build number | `shared/app-version.json` |
+| **G2** | Archive | Xcode on Mac |
+| **G3** | Upload to Apple | Xcode Organizer |
+| **G4** | Wait for processing + export compliance | App Store Connect website |
+| **G5** | Install on **your** iPhone | TestFlight app |
+| **G6** | (Optional) External testers | App Store Connect |
+| **G7** | Re-test on TestFlight build | iPhone |
+
+---
 
 ### G1. Bump the iOS build number
 
-Apple rejects reuse of the same **iOS** build number. Android’s `androidVersionCode` is separate — bump only what you’re shipping.
+Apple rejects reuse of the same **iOS build number**. Android’s `androidVersionCode` is separate — bump only what you’re shipping.
 
 Edit `shared/app-version.json`:
 
 ```json
 "version": "1.0.2",
 "androidVersionCode": 39,
-"iosBuildNumber": "1"
+"iosBuildNumber": "39"
 ```
 
-| Field | iOS first upload | Later iOS uploads | Android |
-|-------|------------------|-------------------|---------|
+| Field | Current (TestFlight) | Next iOS upload | Android |
+|-------|----------------------|-----------------|---------|
 | `version` | `1.0.2` (shared marketing version) | bump when you want a new “store version” | same |
-| `iosBuildNumber` | `"1"` | `"2"`, `"3"`, … | ignore |
-| `androidVersionCode` | leave alone | ignore | next Play upload → `40`, then `41`… |
+| `iosBuildNumber` | `"39"` (live on TestFlight) | `"40"`, then `"41"`, … | ignore |
+| `androidVersionCode` | `39` | ignore | next Play upload → `40`, then `41`… |
 
-Before each **iOS** Archive/TestFlight upload, increase **only** `iosBuildNumber`.
+Before each **iOS** Archive/TestFlight upload, increase **only** `iosBuildNumber` (e.g. `"39"` → `"40"`). Run `cd mobile && npm run sync:shared` so `src/config/app-version.json` matches.
 
-Optional: after bumping, run Part E if you want native Info.plist to match exactly; or set **Build** in Xcode → General to the same number.
+Optional: after bumping, run Part E if you want native Info.plist to match exactly; or set **Build** in Xcode → TrimiT target → **General** → **Build** to the same number.
 
-**Outcome:** First iOS upload is build **1** under version **1.0.2**. Android stays on its own ladder from 39/40.
----
-
-### G2. Archive (Release build for Apple)
-
-1. In Xcode, change destination to **Any iOS Device (arm64)**  
-   - Not Simulator  
-   - Phone does not need to stay plugged in for Archive  
-2. Menu: **Product → Destination → Any iOS Device (arm64)** if needed  
-3. **Product → Archive**  
-4. Wait (often 5–20+ minutes first time)
-
-**Outcome:** **Organizer** window opens (Window → Organizer if it doesn’t) with a new **TrimiT** archive dated today.
-
-If Archive is greyed out: destination is still a Simulator — switch to Any iOS Device.
+**Outcome:** Next upload will show as e.g. **1.0.2 (40)** in TestFlight.
 
 ---
 
-### G3. Upload the archive to App Store Connect
+### G2. Archive (Release build on your Mac)
 
-1. In Organizer → **Archives** → select today’s TrimiT archive  
-2. Click **Distribute App**  
-3. Choose **App Store Connect** → **Next**  
-4. Choose **Upload** → **Next**  
-5. Keep defaults (include symbols / manage version recommended)  
-6. Confirm signing (Automatic is fine) → **Upload**  
-7. Wait until Xcode says upload succeeded  
+1. Open **`mobile/ios/TrimiT.xcworkspace`** in Xcode (always `.xcworkspace`, not `.xcodeproj`).
+2. Top toolbar → click the **destination** (device name next to ▶):
+   - Choose **Any iOS Device (arm64)**
+   - **Not** a Simulator — Archive is greyed out on Simulator.
+3. Menu: **Product → Clean Build Folder** (good after config/Sentry fixes).
+4. Menu: **Product → Archive**.
+5. Wait (often **5–20+ minutes** first time). Xcode compiles a Release build.
 
-**Outcome:** Upload finished with no error. Build is on Apple’s servers (not public yet).
+**Outcome:** The **Organizer** window opens (or **Window → Organizer → Archives**) with a new **TrimiT** row dated today.
 
----
+**If Archive is greyed out:** destination is still Simulator → switch to **Any iOS Device**.
 
-### G4. Wait for processing in App Store Connect
-
-1. Open [appstoreconnect.apple.com](https://appstoreconnect.apple.com) → **My Apps** → **TrimiT**  
-2. Open **TestFlight** tab  
-3. Find your build (`1.0.2 (40)` or similar)  
-4. Status goes **Processing** → **Ready to Submit** / **Ready to Test** (10–30+ minutes)
-
-**First build only:** Apple may ask **Export Compliance** / encryption.
-
-- If you only use HTTPS and standard crypto: complete the questionnaire for standard encryption / HTTPS exemption  
-- Save so the build becomes testable  
-
-**Outcome:** Build is **Ready to Test** in TestFlight (not stuck on Missing Compliance).
+**If Archive fails with `sentry-cli` / “Auth token is required”:**  
+Not Apple signing. Fixed by `SENTRY_DISABLE_AUTO_UPLOAD=true` in `ios/.xcode.env`. **Product → Clean Build Folder** → Archive again.
 
 ---
 
-### G5. Internal TestFlight (you + up to 100 teammates)
+### G3. Upload to App Store Connect (this puts your build on TestFlight)
 
-Fastest path — **no** Beta App Review.
+Do this in **Xcode Organizer**, not on the website.
 
-1. TestFlight → **Internal Testing**  
-2. Create a group if needed (e.g. `Internal`)  
-3. Add **Testers** (App Store Connect users on your team — add yourself)  
-4. Add the new **build** to the group  
-5. On iPhone: install **TestFlight** from the App Store  
-6. Open the invite email/notification → **Install** TrimiT  
+1. **Window → Organizer** (if not already open) → tab **Archives**.
+2. Select today’s **TrimiT** archive (left list).
+3. Click blue **Distribute App** (right side).
+4. **Destination:** choose **App Store Connect** → **Next**.
+5. **Distribution:** choose **Upload** → **Next**.  
+   (Do **not** choose “Export” unless you need a standalone IPA for a special case.)
+6. **App Store Connect distribution options** — keep defaults:
+   - ✅ Upload your app’s symbols (recommended)
+   - ✅ Manage Version and Build Number (recommended if offered)
+   → **Next**.
+7. **Signing:** **Automatically manage signing** → **Next**.
+8. Review summary → click **Upload**.
+9. Wait until Xcode shows **Upload Successful** (can take several minutes).
 
-**Outcome:** TrimiT installs from **TestFlight** on your iPhone. New uploads appear as updates in TestFlight.
+**Outcome:** Apple has your build. It is **not** on your phone yet — processing comes next (G4).
+
+**If upload fails:** read the red error in Xcode (often signing / bundle ID / missing App Store Connect app). Bundle ID must be **`online.trimit.app`** everywhere.
+
+**If upload succeeds with warning — “Upload Symbols Failed” / missing `hermes.framework` dSYM:**  
+This is **not** a failure. **Click Done** — TestFlight still receives the build. Hermes stays enabled (fast JS engine); the warning only affects native crash symbolication for Hermes internals. Known Xcode 16 + React Native issue ([RN #49059](https://github.com/facebook/react-native/issues/49059)). TrimiT adds a **Generate Hermes dSYM** build phase (`ios/scripts/generate-hermes-dsym.sh`) so **future** archives include the symbol file. Fix for next upload: **Product → Clean Build Folder** → Archive again.
 
 ---
 
-### G6. External TestFlight (optional — friends / salons outside your team)
+### G4. Wait for processing (App Store Connect website)
 
-1. TestFlight → **External Testing** → create group  
-2. Add the build → fill **What to Test** notes  
-3. Submit for **Beta App Review** (can take hours–a day)  
-4. Add external testers by email  
+1. Open [appstoreconnect.apple.com](https://appstoreconnect.apple.com) → sign in.
+2. **Apps** → **TrimiT**.
+3. Top tabs → **TestFlight**.
+4. Under **iOS Builds**, find your upload (e.g. **1.0.2 (2)**).
+5. Status:
+   - **Processing** — wait (often **10–30 minutes**, sometimes longer).
+   - **Missing Compliance** — complete export compliance (below).
+   - **Ready to Test** — go to G5.
 
-**Outcome:** Outside testers can install via TestFlight after Beta Review approval.
+**First build only — Export Compliance (encryption questionnaire):**
+
+1. Click the build or the yellow warning.
+2. **App Encryption Documentation** / **Export Compliance**.
+3. TrimiT uses normal HTTPS only → answer that you use **standard encryption** / exempt (no custom crypto).
+4. **Save**.
+
+**Outcome:** Build status = **Ready to Test** (not stuck on Missing Compliance).
 
 ---
 
-### G7. TestFlight sanity check
+### G5. Install on your iPhone (Internal TestFlight — fastest)
 
-On the TestFlight build, re-check:
+**Internal testing** = you + App Store Connect team members (up to 100). **No** Beta App Review wait.
 
-- Login  
-- Maps  
-- Book one slot  
-- Owner booking list (if applicable)  
+**On Mac (App Store Connect):**
 
-**Outcome:** TestFlight build matches what you saw in Part F/F2. Ready for production submission when happy.
+1. **TestFlight** tab → left sidebar **Internal Testing**.
+2. Group **App Store Connect Users** (or create group e.g. `Internal`).
+3. Click **+** next to **Builds** → select your new build → **Done**.
+4. **Testers:** ensure your Apple ID is on the team (**Users and Access** in App Store Connect if needed).
+
+**On iPhone:**
+
+1. Install Apple’s **TestFlight** app from the App Store (free).
+2. Sign in with the **same Apple ID** as App Store Connect.
+3. You get an email **“TrimiT is ready to test”** or open TestFlight → **TrimiT** appears.
+4. Tap **Install** or **Update**.
+5. Open TrimiT from the home screen (orange TestFlight badge on icon until you’re used to it).
+
+**Outcome:** TrimiT runs from TestFlight — same as a real App Store install path, not wired through Xcode ▶.
+
+**Next uploads:** bump `iosBuildNumber` → Archive → Upload → when **Ready to Test**, TestFlight shows **Update**.
+
+---
+
+### G6. External TestFlight (optional — friends / salon owners outside your team)
+
+Use when testers are **not** in your App Store Connect team.
+
+1. App Store Connect → **TestFlight** → **External Testing** → **+** create group.
+2. Add the build → fill **What to Test** (e.g. “Salon booking beta — please test login and book a slot”).
+3. **Submit for Beta App Review** (first external group can take **hours to ~1 day**).
+4. After approval → **Add Testers** (email) → they get TestFlight invite.
+
+**Outcome:** Outside testers install via TestFlight email link.
+
+---
+
+### G7. TestFlight sanity check (before Part H production)
+
+On the **TestFlight** build (not the old Xcode ▶ build), re-check:
+
+| # | Check |
+|---|--------|
+| 1 | Open app — no instant crash |
+| 2 | Login (OTP + Google if enabled) |
+| 3 | Maps / discover salons |
+| 4 | Customer: book a slot |
+| 5 | Owner: see booking / accept (if applicable) |
+| 6 | Kill app → reopen — still logged in |
+
+**Outcome:** TestFlight build matches Part F/F2. Ready for **Part H** (public App Store) when happy.
+
+> **Tip:** Fix critical bugs **before** uploading again — each upload needs a higher `iosBuildNumber`.
 
 ---
 
@@ -967,69 +1050,38 @@ icon: './assets/icon.png',
 |------|------|
 | `mobile/assets/adaptive-icon.png` | Android adaptive icon |
 | `mobile/assets/notification-icon.png` | Android notification small icon |
-| `mobile/assets/SquareLogo.png` | Currently used as **splash** image |
+| `mobile/assets/trimit-t-transparent.png` | **Splash** — transparent T on OLED `#000000` |
+| `mobile/assets/SquareLogo.png` | Legacy square logo |
 
 **Outcome:** Home screen shows your TrimiT icon from the project; App Store page shows the 1024 icon from Connect.
 
 ---
 
-### I2. Splash screen — how to change the image
+### I2. Splash screen — OLED black + transparent logo
 
-**Native splash** (black screen + logo while the app starts) is configured in `mobile/app.config.js`:
+**Native splash** is configured in `mobile/app.config.js`:
 
 ```js
 splash: {
-  image: './assets/SquareLogo.png',
+  image: './assets/trimit-t-transparent.png',
   resizeMode: 'contain',
   backgroundColor: '#000000',
 },
 ```
 
-**To change the splash image**
+In-app startup uses the same black + logo (`AppSplashScreen` + `expo-splash-screen`) — no light stone flash or brown logo tile.
 
-1. Put your new image in `mobile/assets/` (e.g. keep name `SquareLogo.png` or add `splash.png`)  
-2. Recommended: PNG, logo centered, works on black `#000000`  
-3. If you rename the file, update `splash.image` in `app.config.js`  
-4. Run **Part E** (prebuild) so iOS picks it up  
-5. ▶ Run on device — force-quit the app and reopen to see splash  
+After changing splash assets, run **Part E** (prebuild) so iOS/Android native launch screens update.
 
-**Outcome:** Launch shows your splash artwork on a black background.
-
-There is also a short **in-app loading UI** in `App.tsx` (TrimiT title while fonts/auth hydrate). That is separate from the native splash.
+**Outcome:** One consistent **#000000** splash, then the app opens.
 
 ---
 
-### I3. Splash duration — seconds, not minutes
+### I3. Splash duration
 
-**Important:** Expo’s `splash` block in `app.config.js` does **not** have a “show for N seconds” setting.
+Minimum **1.5 seconds** (`SPLASH_MIN_DURATION_MS` in `src/lib/splashBranding.ts`). `useSplashGate` keeps the native splash up until boot finishes **and** that minimum elapses, then hides with no color flash.
 
-- Native splash stays up until the JS app is ready (often **~1–3 seconds**, depends on device/speed).  
-- It is **not** meant to run for minutes. Users hate long forced splash screens; keep it short (**1–3 seconds** max of artificial delay if you add any).
-
-**If you want a minimum time in seconds** (e.g. always show at least 2 seconds):
-
-1. Install / use `expo-splash-screen` (Expo projects usually already have the capability via the splash config).  
-2. In app startup code (`App.tsx`), keep the splash visible, wait N seconds, then hide — pattern:
-
-```ts
-import * as SplashScreen from 'expo-splash-screen';
-
-SplashScreen.preventAutoHideAsync();
-
-// after fonts/auth ready:
-await new Promise((r) => setTimeout(r, 2000)); // 2000 ms = 2 seconds
-await SplashScreen.hideAsync();
-```
-
-| Goal | What to set |
-|------|-------------|
-| Fastest launch | No artificial delay — hide as soon as ready |
-| Brand moment | `1000`–`2000` ms (1–2 seconds) |
-| Never | Multi-minute splash — feels broken |
-
-**Outcome:** Splash shows for roughly “time to load” + optional fixed seconds you choose in code.
-
-> Ask a developer (or me in a coding session) before adding the delay in `App.tsx` — it is a small code change + test, not an Xcode toggle.
+To tweak: edit `SPLASH_MIN_DURATION_MS` (1500 = 1.5s; 2000 = 2s). Do not go beyond ~2s for everyday launches.
 
 ---
 
@@ -1157,7 +1209,8 @@ After any pull: **Part E** + reinstall on a **physical iPhone**.
 
 ### J0b. Android Rapido-style (same product bar — shared constants)
 
-Android already delivers FCM/Expo pushes when the app is **killed**. We strengthened the booking channel to match captain apps:
+Android tray delivery uses **FCM** via Expo Push. That requires `mobile/google-services.json` + an FCM V1 key on expo.dev Credentials — see `BUILD_RELEASE.md` § Android remote push. Without FCM, owners only get the in-app Realtime modal while the app is open.
+
 
 | Setting | Value |
 |---------|-------|
@@ -1315,15 +1368,16 @@ In Xcode → **Signing & Capabilities** for target **TrimiT**:
 
 ## Master checklist (in order)
 
-| # | Where | Step | Outcome |
-|---|-------|------|---------|
-| A–D | Setup | Keys, Apple, Connect, Xcode signing | No red signing errors ✓ |
-| F | Xcode → iPhone | ▶ Run | App installs & opens on phone |
-| F2 | iPhone | Customer + owner testing | Critical flows pass |
-| I | Assets + iOS rules | Icon, splash, booking tone | Branding set; silent-mode plan clear |
-| J | Apple + Expo + device | iOS push notifications | Booking pushes work on iPhone |
-| G | Xcode → TestFlight | Archive + Upload | Testers install via TestFlight |
-| H | App Store Connect | Listing + Submit | App live on App Store |
+| # | Where | Step | Status (2026-07-17) | Outcome |
+|---|-------|------|---------------------|---------|
+| A–D | Setup | Keys, Apple, Connect, Xcode signing | ✅ DONE | No red signing errors |
+| E | Terminal | Native rebuild after config change | ⏭️ skip unless keys change | Fresh `ios/` if needed |
+| F | Xcode → iPhone | ▶ Run | ✅ DONE | App installs & opens on phone |
+| **F2** | **iPhone** | **Customer + owner testing** | ❌ **NEXT** | Critical flows pass |
+| I | Assets + iOS rules | Icon, splash, booking tone | ⬜ optional | Branding set |
+| J | Apple + Expo + device | iOS tray push (APNs wired) | ⬜ after F2 | Booking pushes on iPhone |
+| G | Xcode → TestFlight | Archive + Upload | ❌ later | Testers install via TestFlight |
+| H | App Store Connect | Listing + Submit | ❌ later | App live on App Store |
 
 ---
 
@@ -1379,8 +1433,9 @@ open ios/TrimiT.xcworkspace
 | Signing error / no team | Part D2 — Xcode → Settings → Accounts |
 | Bundle ID mismatch | Must be `online.trimit.app` everywhere |
 | Maps blank | Part A1–A2 |
-| Google Sign-In fails | Part A3–A4 + Part E re-prebuild |
+| Google Sign-In fails | Part A3–A5 (especially **Skip nonce checks** in Supabase for iOS) + Part E re-prebuild if `.env` client IDs changed |
 | Archive greyed out | Destination = **Any iOS Device**, not Simulator |
+| **sentry-cli / Auth token is required** on Archive | `SENTRY_DISABLE_AUTO_UPLOAD=true` must be in `ios/.xcode.env` (plugin `withSentryDisableAutoUpload`). Product → Clean Build Folder → Archive again. Optional later: add `SENTRY_AUTH_TOKEN` if you want source-map upload |
 | Duplicate build | Bump `iosBuildNumber` in `shared/app-version.json` |
 | TestFlight stuck “Missing Compliance” | Answer export compliance on the build in App Store Connect |
 | `pod` crashes | `/opt/homebrew/bin/pod` + `USE_FRAMEWORKS=static` |
@@ -1388,6 +1443,7 @@ open ios/TrimiT.xcworkspace
 | **Unable to open base configuration… react-native-google-maps.debug.xcconfig** | Stale CocoaPods absolute path (often after renaming `Software Development` → `Software-Development`). Quit Xcode → `npm run ios:pods` → reopen **`TrimiT.xcworkspace`** only |
 | **No script URL / ATS blocks http://192.0.0.2:8081** | Mac on CLAT/hotspot + Debug tried Metro. Fixed by embedded device bundle (`withIosDeviceEmbeddedBundle`). Clean Build Folder → ▶ Run (no Metro needed) |
 | **Unable to resolve …/shared/push-constants.json** | Metro cannot import outside `mobile/`. Fixed: sync into `src/config/` via `sync-shared-json` (also runs from `metro.config.js`). Clean → ▶ Run |
-| **Google button missing / Google sign-in fails on iOS** | Button hidden only in Expo Go. On device: fix URL scheme — `npm run patch:google-ios` (must not be `…placeholder`). Rebuild. Same email OTP+Google merges via Supabase automatic linking |
+| **Google Sign-In fails on iPhone** | Button hidden only in Expo Go. On device: fix URL scheme — `npm run patch:google-ios` (must not be `…placeholder`). Rebuild. Same email OTP+Google merges via Supabase automatic linking |
+| **“Passed nonce and nonce in id_token…”** on Google Sign-In | Supabase Dashboard → Authentication → Providers → Google → **Skip nonce checks** ON → Save. Retry on TestFlight — **no new build** |
 
-**Next action for you right now:** **Part F** — ▶ Run on iPhone. Branding/tone details: **Part I**. Then F2 → G TestFlight → H production.
+**Next action for you right now:** **Part F2** — full customer + owner testing on the iPhone build you already installed from Xcode. Then **G** TestFlight → **H** production. Push polish: **J**.

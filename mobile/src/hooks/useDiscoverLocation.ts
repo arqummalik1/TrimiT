@@ -4,12 +4,12 @@
  * Single source of truth for Discover map/list location:
  *   • Resolves foreground permission without racing the salons query
  *   • Last-known position first (fast), then high-accuracy current fix
- *   • Optional primer phase when permission is undetermined
+ *   • One OS location prompt on first open (no custom primer — avoids iOS modal freeze)
  *   • recenter() for map “my location” control
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import * as Location from 'expo-location';
 import { Platform } from 'react-native';
 import { logger } from '../lib/logger';
@@ -42,7 +42,7 @@ function distanceMeters(
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-export type DiscoverLocationPhase = 'resolving' | 'primer' | 'ready';
+export type DiscoverLocationPhase = 'resolving' | 'ready';
 
 export interface DiscoverLocationState {
   phase: DiscoverLocationPhase;
@@ -55,6 +55,7 @@ export interface DiscoverLocationState {
 }
 
 export function useDiscoverLocation() {
+  const bootstrapStartedRef = useRef(false);
   const [state, setState] = useState<DiscoverLocationState>({
     phase: 'resolving',
     coords: null,
@@ -90,17 +91,12 @@ export function useDiscoverLocation() {
     });
   }, []);
 
-  const setPrimerPhase = useCallback(() => {
-    logger.info(`${LOG_SCOPE} permission undetermined → primer`, { platform: Platform.OS });
-    setState((s) => ({
-      ...s,
-      phase: 'primer',
-      locationReady: false,
-    }));
-  }, []);
-
   const acquireGps = useCallback(async (): Promise<boolean> => {
-    const perm = await Location.requestForegroundPermissionsAsync();
+    const existing = await Location.getForegroundPermissionsAsync();
+    const perm =
+      existing.status === 'undetermined'
+        ? await Location.requestForegroundPermissionsAsync()
+        : existing;
     logger.info(`${LOG_SCOPE} foreground permission`, { status: perm.status });
 
     if (perm.status !== 'granted') {
@@ -162,18 +158,18 @@ export function useDiscoverLocation() {
     }
   }, [applyCoords, markReadyWithoutCoords]);
 
-  /** Initial mount: permission check (no GPS hit if we need primer). */
+  /** Initial mount: permission check then GPS (single OS prompt when undetermined). */
   const bootstrap = useCallback(async () => {
+    if (bootstrapStartedRef.current) {
+      return;
+    }
+    bootstrapStartedRef.current = true;
     setState((s) => ({ ...s, phase: 'resolving', locationReady: false }));
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
       logger.info(`${LOG_SCOPE} bootstrap permission`, { status, platform: Platform.OS });
 
-      if (status === 'undetermined') {
-        setPrimerPhase();
-        return;
-      }
-      if (status !== 'granted') {
+      if (status === 'denied') {
         markReadyWithoutCoords('Location permission denied', 'denied');
         return;
       }
@@ -182,18 +178,7 @@ export function useDiscoverLocation() {
       logger.error(`${LOG_SCOPE} bootstrap failed`, e);
       markReadyWithoutCoords('Unable to get location', 'error');
     }
-  }, [acquireGps, markReadyWithoutCoords, setPrimerPhase]);
-
-  /** User tapped “Allow” on primer. */
-  const confirmPrimer = useCallback(async () => {
-    await acquireGps();
-  }, [acquireGps]);
-
-  /** User tapped “Not now” on primer — still allow list with server fallback (no lat/lng). */
-  const skipPrimer = useCallback(() => {
-    logger.info(`${LOG_SCOPE} primer skipped by user`);
-    markReadyWithoutCoords('Location not enabled', 'denied');
-  }, [markReadyWithoutCoords]);
+  }, [acquireGps, markReadyWithoutCoords]);
 
   /** Map / FAB: refresh GPS and return new coords if successful. */
   const recenter = useCallback(async (): Promise<{ lat: number; lng: number } | null> => {
@@ -219,8 +204,6 @@ export function useDiscoverLocation() {
   return {
     ...state,
     bootstrap,
-    confirmPrimer,
-    skipPrimer,
     recenter,
   };
 }

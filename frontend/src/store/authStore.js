@@ -349,7 +349,14 @@ export const useAuthStore = create(
       // Forgot Password - Request reset link
       forgotPassword: async (email) => {
         try {
-          const response = await api.post("/auth/forgot-password", { email });
+          const redirect_to =
+            typeof window !== "undefined"
+              ? `${window.location.origin}/reset-password`
+              : undefined;
+          const response = await api.post("/auth/forgot-password", {
+            email,
+            ...(redirect_to ? { redirect_to } : {}),
+          });
           return { success: true, data: response.data };
         } catch (error) {
           const detail = error.response?.data?.detail;

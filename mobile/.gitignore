@@ -52,3 +52,8 @@ credentials.json
 # local EAS build artifacts
 build-*.apk
 build-*.aab
+
+# Firebase — never commit. Keep google-services.json locally for native builds only.
+google-services.json
+*-firebase-adminsdk-*.json
+fcm-service-account*.json

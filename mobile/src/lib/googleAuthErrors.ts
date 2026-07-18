@@ -18,6 +18,16 @@ export function translateGoogleAuthError(raw: string | undefined): string {
       'using the same address, then try Google again.'
     );
   }
+  if (msg.includes('nonce') && msg.includes('id_token')) {
+    // Do not instruct end users / operators to disable nonce checks in-app —
+    // that weakens replay protection. Classic GoogleSignin has no nonce param;
+    // ops may still enable Skip nonce in Supabase for iOS, but that is not
+    // user-facing guidance.
+    return (
+      'Google sign-in could not be verified on this device. ' +
+      'Please try again, or sign in with email OTP.'
+    );
+  }
   if (msg.includes('idp') || msg.includes('provider')) {
     return (
       'Google sign-in is not fully configured yet. Please try email OTP, or try again after a rebuild.'

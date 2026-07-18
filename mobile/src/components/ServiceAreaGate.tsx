@@ -23,10 +23,12 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { Theme } from '../theme/tokens';
 import { Button } from './Button';
 import { Input } from './Input';
+import { TAB_BAR_BASE_HEIGHT } from './ScreenWrapper';
 import { serviceabilityRepository } from '../repositories/serviceabilityRepository';
 import { useAuthStore } from '../store/authStore';
 import { handleApiError } from '../lib/errorHandler';
@@ -99,8 +101,11 @@ const AnimatedLocationPin: React.FC<{ color: string }> = ({ color }) => {
 
 export const ServiceAreaGate: React.FC<ServiceAreaGateProps> = ({ result, coords }) => {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const user = useAuthStore((s) => s.user);
+  // Clear the floating tab bar (same token as Discover lists / ScreenWrapper).
+  const scrollBottomPad = TAB_BAR_BASE_HEIGHT + insets.bottom;
 
   const [email, setEmail] = useState(user?.email ?? '');
   const [name, setName] = useState(user?.name ?? '');
@@ -156,9 +161,10 @@ export const ServiceAreaGate: React.FC<ServiceAreaGateProps> = ({ result, coords
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[styles.container, { paddingBottom: scrollBottomPad }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        testID="service-area-gate-scroll"
       >
         <AnimatedLocationPin color={theme.colors.primary} />
 
@@ -250,7 +256,8 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 28,
-      paddingVertical: 40,
+      paddingTop: 40,
+      // paddingBottom set at render: TAB_BAR_BASE_HEIGHT + safe-area inset
     },
     title: {
       fontSize: 24,
