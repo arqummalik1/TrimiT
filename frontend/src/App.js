@@ -105,6 +105,11 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const isAuthCallbackPage = AUTH_CALLBACK_PATHS.includes(location.pathname);
+  // Show site Header on forgot/reset password (full auth chrome). Hide only on
+  // token-exchange callback routes that are transient.
+  const hideGlobalChrome =
+    location.pathname === "/auth/email-confirmed" ||
+    location.pathname === "/auth/callback";
   // Founder-only admin dashboard: standalone shell, never tracked, no global chrome.
   const isAdminPage = location.pathname.startsWith("/admin");
 
@@ -175,9 +180,9 @@ function App() {
     <div className="min-h-screen bg-stone-50">
       <SeoHead />
       <GoogleAnalytics />
-      {!isAuthCallbackPage && <PromoBanner />}
-      {!isAuthCallbackPage && <Header />}
-      {!isAuthCallbackPage && <MobileBreadcrumbs />}
+      {!hideGlobalChrome && <PromoBanner />}
+      {!hideGlobalChrome && <Header />}
+      {!hideGlobalChrome && <MobileBreadcrumbs />}
       <main>
         <Routes>
           {/* Public Routes */}
@@ -338,7 +343,7 @@ function App() {
         </Routes>
       </main>
 
-      {!isAuthCallbackPage && <Footer />}
+      {!hideGlobalChrome && <Footer />}
 
       {/* Toast Notifications - Global */}
       <Toast />

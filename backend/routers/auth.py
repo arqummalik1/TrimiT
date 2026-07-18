@@ -322,7 +322,7 @@ async def forgot_password(request: Request, data: ForgotPasswordRequest):
             response.text[:200] if response.text else "",
         )
     # Always return success to avoid email enumeration (Supabase may return 200 even if email unknown)
-    return {"message": "An OTP code has been sent if the email is valid"}
+    return {"message": "If an account exists for that email, a password reset link has been sent"}
 
 
 @router.post("/send-otp")
@@ -730,14 +730,88 @@ async def validate_reset_token(data: ValidateTokenRequest):
 
 @router.post("/reset-password")
 async def reset_password(data: ResetPasswordRequest):
-    """Update user password using the recovery session token."""
-    r = await supabase.request(
-        "PUT", "auth/v1/user", token=data.token, json={"password": data.password}
+    """
+    Update password using a recovery-session access token.
+
+    Validates the recovery JWT first, then updates via the Admin API. User-scoped
+    PUT /auth/v1/user often 400s on recovery sessions when project password
+    reauth / AAL settings are enabled — admin update after token proof is the
+    reliable path (same trust boundary: valid recovery link required).
+    """
+    user_resp = await supabase.request("GET", "auth/v1/user", token=data.token)
+    if user_resp.status_code != 200:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "code": "INVALID_RESET_TOKEN",
+                "message": "This reset link has expired or is invalid. Please request a new one.",
+            },
+        )
+
+    try:
+        user_body = user_resp.json()
+    except Exception:  # noqa: BLE001
+        user_body = {}
+    user_id = user_body.get("id")
+    if not user_id:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "code": "INVALID_RESET_TOKEN",
+                "message": "This reset link has expired or is invalid. Please request a new one.",
+            },
+        )
+
+    # Prefer user-scoped update when Supabase accepts it.
+    user_update = await supabase.request(
+        "PUT",
+        "auth/v1/user",
+        token=data.token,
+        json={"password": data.password},
     )
-    if r.status_code != 200:
-        logger.warning("reset_password failed status=%s body=%s", r.status_code, r.text)
-        raise HTTPException(status_code=400, detail="Could not reset password. Token may be expired.")
-    return {"message": "Password updated successfully"}
+    if user_update.status_code == 200:
+        return {"message": "Password updated successfully"}
+
+    admin_update = await supabase.request(
+        "PUT",
+        f"auth/v1/admin/users/{user_id}",
+        service_role=True,
+        json={"password": data.password},
+    )
+    if admin_update.status_code in (200, 201):
+        return {"message": "Password updated successfully"}
+
+    logger.warning(
+        "reset_password failed user=%s user_put=%s admin_put=%s body=%s",
+        str(user_id)[:8],
+        user_update.status_code,
+        admin_update.status_code,
+        (admin_update.text or user_update.text or "")[:300],
+    )
+
+    message = "Could not reset password. Please try a different password or request a new link."
+    raw = ""
+    try:
+        err_json = admin_update.json() if admin_update.text else {}
+        if isinstance(err_json, dict):
+            raw = str(
+                err_json.get("msg")
+                or err_json.get("error_description")
+                or err_json.get("message")
+                or ""
+            ).lower()
+    except Exception:  # noqa: BLE001
+        raw = (admin_update.text or "").lower()
+
+    if "same" in raw or "identical" in raw or "different" in raw:
+        message = "New password must be different from your current password."
+    elif "weak" in raw or "strength" in raw or "characters" in raw:
+        message = "Password is too weak. Use at least 6 characters with a mix of letters and numbers."
+
+    raise HTTPException(
+        status_code=400,
+        detail={"code": "RESET_FAILED", "message": message},
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

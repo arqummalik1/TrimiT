@@ -257,7 +257,10 @@ async def test_jwt_metadata_cannot_escalate_role(mock_supabase):
 
 
 def test_reset_password_accepts_password_and_new_password_alias(client, mock_supabase):
-    mock_supabase.put("/auth/v1/user").return_value = Response(200, json={"id": "u1"})
+    mock_supabase.get("/auth/v1/user").return_value = Response(
+        200, json={"id": "user-reset-1", "email": "a@b.com"}
+    )
+    mock_supabase.put("/auth/v1/user").return_value = Response(200, json={"id": "user-reset-1"})
 
     canon = client.post(
         "/api/v1/auth/reset-password",
@@ -276,3 +279,22 @@ def test_reset_password_accepts_password_and_new_password_alias(client, mock_sup
         json={"token": "recovery-jwt"},
     )
     assert missing.status_code == 422
+
+
+def test_reset_password_falls_back_to_admin_when_user_put_fails(client, mock_supabase):
+    mock_supabase.get("/auth/v1/user").return_value = Response(
+        200, json={"id": "user-reset-2", "email": "a@b.com"}
+    )
+    mock_supabase.put("/auth/v1/user").return_value = Response(
+        400, json={"msg": "Password update requires reauthentication"}
+    )
+    mock_supabase.put("/auth/v1/admin/users/user-reset-2").return_value = Response(
+        200, json={"id": "user-reset-2"}
+    )
+
+    resp = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": "recovery-jwt", "password": "NewPass99"},
+    )
+    assert resp.status_code == status.HTTP_200_OK
+    assert resp.json()["message"] == "Password updated successfully"

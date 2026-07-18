@@ -1,6 +1,7 @@
 # TrimiT - V2 Progress
 
 ## Accomplished (2026-07-19)
+- **Web password reset UX + 400 fix:** Forgot-password shows “check your email” (link, not OTP redirect). Reset page centered with site Header. Reset API validates recovery JWT then admin-updates password when user PUT fails. Success hydrates session and routes home.
 - **Xcode User Script Sandboxing:** `ENABLE_USER_SCRIPT_SANDBOXING=NO` via `withDisableUserScriptSandboxing` (fixes Sandbox `find` deny on ios/Pods). Hermes dSYM script no longer uses `find`.
 
 ## Accomplished (2026-07-18)
