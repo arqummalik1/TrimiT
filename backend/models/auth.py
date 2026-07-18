@@ -57,8 +57,19 @@ class ValidateTokenRequest(BaseModel):
     token: str
 
 class ResetPasswordRequest(BaseModel):
+    """Accept `password` (canonical) or legacy mobile `new_password`."""
+
     token: str
-    password: str
+    password: Optional[str] = None
+    new_password: Optional[str] = None
+
+    @model_validator(mode="after")
+    def coalesce_password(self) -> "ResetPasswordRequest":
+        resolved = (self.password or self.new_password or "").strip()
+        if len(resolved) < 6:
+            raise ValueError("Password must be at least 6 characters")
+        self.password = resolved
+        return self
 
 class OtpType(str, Enum):
     signup = "signup"

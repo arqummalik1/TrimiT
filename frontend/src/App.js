@@ -6,7 +6,11 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-import { parseAuthCallbackFromUrl } from "./lib/authCallbackParams";
+import {
+  AUTH_CALLBACK_PATHS,
+  parseAuthCallbackFromUrl,
+  resolveAuthCallbackRedirect,
+} from "./lib/authCallbackParams";
 import TrimitLogo from "./components/brand/TrimitLogo";
 import { useAuthStore } from "./store/authStore";
 
@@ -95,8 +99,6 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
-const AUTH_CALLBACK_PATHS = ["/auth/email-confirmed", "/reset-password", "/auth/callback"];
-
 function App() {
   const { initializeAuth, isAuthenticated, profile, isInitializing, hasSalon } =
     useAuthStore();
@@ -113,17 +115,16 @@ function App() {
     initializeAuth();
   }, [initializeAuth]);
 
-  // If Supabase still redirects to Site URL (/) with tokens in hash, forward to the confirm page.
+  // Supabase often lands on Site URL (/) with tokens in the hash. Route
+  // recovery → /reset-password (create new password) and email confirm →
+  // /auth/email-confirmed. Without this, recovery looks like "stuck on home".
   useEffect(() => {
     if (isAuthCallbackPage) return;
-    const { error, accessToken, tokenHash, isEmailConfirmation } =
-      parseAuthCallbackFromUrl();
-    const hasCallback =
-      Boolean(error && window.location.hash) ||
-      (Boolean(accessToken || tokenHash) && isEmailConfirmation);
-    if (!hasCallback) return;
+    const parsed = parseAuthCallbackFromUrl();
+    const target = resolveAuthCallbackRedirect(location.pathname, parsed);
+    if (!target) return;
     const suffix = `${window.location.search || ""}${window.location.hash || ""}`;
-    navigate(`/auth/email-confirmed${suffix}`, { replace: true });
+    navigate(`${target}${suffix}`, { replace: true });
   }, [isAuthCallbackPage, location.pathname, navigate]);
 
   // Admin dashboard is fully isolated from user auth + global chrome. Render it

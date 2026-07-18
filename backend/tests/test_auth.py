@@ -254,3 +254,25 @@ async def test_jwt_metadata_cannot_escalate_role(mock_supabase):
         if m == "GET" and "rest/v1/users" in p and kwargs.get("token")
     ]
     assert len(jwt_reads) == 0
+
+
+def test_reset_password_accepts_password_and_new_password_alias(client, mock_supabase):
+    mock_supabase.put("/auth/v1/user").return_value = Response(200, json={"id": "u1"})
+
+    canon = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": "recovery-jwt", "password": "secret12"},
+    )
+    assert canon.status_code == status.HTTP_200_OK
+
+    legacy = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": "recovery-jwt", "new_password": "secret34"},
+    )
+    assert legacy.status_code == status.HTTP_200_OK
+
+    missing = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": "recovery-jwt"},
+    )
+    assert missing.status_code == 422

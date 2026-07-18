@@ -4,7 +4,7 @@ import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { typography, spacing, borderRadius } from '../../lib/utils';
+import { spacing, borderRadius } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import api from '../../lib/api';
@@ -35,13 +35,17 @@ export default function ResetPasswordScreen({ navigation, route }: ResetPassword
       showToast('Please fill both fields', 'error');
       return;
     }
+    if (password.length < 6) {
+      showToast('Password must be at least 6 characters', 'error');
+      return;
+    }
     if (password !== confirmPassword) {
       showToast('Passwords do not match', 'error');
       return;
     }
     setIsLoading(true);
     try {
-      await api.post('/auth/reset-password', { token, new_password: password });
+      await api.post('/auth/reset-password', { token, password });
       showToast('Password updated successfully', 'success');
       navigation.navigate('Login');
     } catch (error) {
@@ -56,15 +60,15 @@ export default function ResetPasswordScreen({ navigation, route }: ResetPassword
     <ScreenWrapper variant="auth">
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} accessibilityRole="button">
             <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <View style={styles.header}>
             <View style={styles.iconContainer}>
               <Ionicons name="key" size={36} color={theme.colors.primary} />
             </View>
-            <Text style={styles.title}>Reset Password</Text>
-            <Text style={styles.subtitle}>Enter a new password for your account.</Text>
+            <Text style={styles.title}>Create new password</Text>
+            <Text style={styles.subtitle}>Enter and confirm a new password for your account.</Text>
           </View>
           <View style={styles.form}>
             <Input
@@ -98,8 +102,21 @@ const createStyles = (theme: Theme) =>
     scrollContent: { flexGrow: 1, paddingHorizontal: spacing.xxl },
     backButton: { padding: spacing.sm, marginTop: spacing.sm, alignSelf: 'flex-start' },
     header: { alignItems: 'center', marginTop: spacing.xxxxl, marginBottom: spacing.xxxl },
-    iconContainer: { width: 80, height: 80, backgroundColor: theme.colors.primaryLight, borderRadius: borderRadius.xl, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xl },
-    title: { ...typography.h2, color: theme.colors.text, marginBottom: spacing.sm },
-    subtitle: { ...typography.body, color: theme.colors.textSecondary, textAlign: 'center', paddingHorizontal: spacing.xl },
+    iconContainer: {
+      width: 80,
+      height: 80,
+      backgroundColor: theme.colors.primaryLight,
+      borderRadius: borderRadius.xl,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.xl,
+    },
+    title: { ...theme.typography.h2, color: theme.colors.text, marginBottom: spacing.sm },
+    subtitle: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      paddingHorizontal: spacing.xl,
+    },
     form: { gap: spacing.sm },
   });
