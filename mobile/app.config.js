@@ -146,6 +146,8 @@ module.exports = ({ config }) => {
   plugins.push('./plugins/withGoogleIosUrlSchemeFromEnv.js');
   // Xcode Archive must not fail when SENTRY_AUTH_TOKEN is unset (same as Android local).
   plugins.push('./plugins/withSentryDisableAutoUpload.js');
+  // RN/Expo build scripts need unsandboxed access (fixes Sandbox: find deny file-read-data).
+  plugins.push('./plugins/withDisableUserScriptSandboxing.js');
   // Xcode 16+ Hermes dSYM upload warning — keep Hermes enabled, generate dSYM on Release archive.
   plugins.push('./plugins/withHermesDsym.js');
 

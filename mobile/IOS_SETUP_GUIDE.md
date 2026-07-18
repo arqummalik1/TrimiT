@@ -852,6 +852,15 @@ Do this in **Xcode Organizer**, not on the website.
 **If upload succeeds with warning — “Upload Symbols Failed” / missing `hermes.framework` dSYM:**  
 This is **not** a failure. **Click Done** — TestFlight still receives the build. Hermes stays enabled (fast JS engine); the warning only affects native crash symbolication for Hermes internals. Known Xcode 16 + React Native issue ([RN #49059](https://github.com/facebook/react-native/issues/49059)). TrimiT adds a **Generate Hermes dSYM** build phase (`ios/scripts/generate-hermes-dsym.sh`) so **future** archives include the symbol file. Fix for next upload: **Product → Clean Build Folder** → Archive again.
 
+### Sandbox: `find` deny(1) file-read-data (ios/, Pods/, …)
+
+Xcode 15+ **User Script Sandboxing** blocks CocoaPods / RN / Hermes scripts from reading the project tree. TrimiT sets **`ENABLE_USER_SCRIPT_SANDBOXING = NO`** via `plugins/withDisableUserScriptSandboxing.js` (applied on prebuild).
+
+**If you see these errors on an existing `ios/` folder without re-prebuild:**
+
+1. Xcode → project **TrimiT** (blue icon) → **Build Settings** → search **User Script Sandboxing** → set to **No** (Debug + Release).
+2. **Product → Clean Build Folder**, then Archive / Run again.
+
 ---
 
 ### G4. Wait for processing (App Store Connect website)
