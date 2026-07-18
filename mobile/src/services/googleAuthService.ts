@@ -27,6 +27,8 @@ type GoogleSigninModule = {
     SIGN_IN_CANCELLED: string;
     IN_PROGRESS: string;
     PLAY_SERVICES_NOT_AVAILABLE: string;
+    /** Android: package name / SHA-1 mismatch in Google Cloud OAuth client. */
+    DEVELOPER_ERROR?: string;
   };
 };
 
@@ -145,12 +147,25 @@ export async function signInWithGoogle(): Promise<GoogleSignInOutcome> {
       return { ok: false, error: 'Google Play Services is not available or out of date.' };
     }
     const message = err instanceof Error ? err.message : String(err);
-    logger.warn('[GoogleAuth] signIn failed', { platform: Platform.OS, err: message, code });
-    if (/DEVELOPER_ERROR|10:|ApiException:\s*10/i.test(message)) {
+    // Code "10" / DEVELOPER_ERROR is the classic Play Store vs preview mismatch:
+    // Google Cloud Android OAuth client must include BOTH upload-key SHA-1 AND
+    // Play App Signing SHA-1 for package com.trimit.app.
+    const isDeveloperError =
+      code === '10' ||
+      code === statusCodes.DEVELOPER_ERROR ||
+      /DEVELOPER_ERROR|ApiException:\s*10|\b10:\s/i.test(message);
+
+    logger.error('[GoogleAuth] signIn failed', err instanceof Error ? err : new Error(message), {
+      platform: Platform.OS,
+      code: code ?? null,
+      isDeveloperError,
+    });
+
+    if (isDeveloperError) {
       return {
         ok: false,
         error:
-          'Google rejected this Android app signing key. Add the debug/upload SHA-1 in Google Cloud Console (Android OAuth client for com.trimit.app).',
+          'Google blocked this build’s signing key. In Google Cloud → Credentials, add the Play Console App signing SHA-1 (and upload-key SHA-1) on the Android OAuth client for com.trimit.app. No rebuild needed after adding.',
       };
     }
     return { ok: false, error: 'Could not sign in with Google. Please try again.' };

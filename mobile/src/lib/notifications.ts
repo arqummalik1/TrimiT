@@ -236,6 +236,8 @@ async function ensureNotificationPermissions(): Promise<boolean> {
 
 /**
  * Register for push notifications and get Expo push token.
+ * Android remote delivery requires FCM: google-services.json in the binary +
+ * FCM V1 service account uploaded to EAS (expo.dev Credentials).
  */
 export async function registerForPushNotifications(): Promise<string | null> {
   try {
@@ -265,7 +267,11 @@ export async function registerForPushNotifications(): Promise<string | null> {
     return token;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error('[Notifications] Registration failed', { message, error });
+    logger.error('[Notifications] Registration failed', {
+      message,
+      error,
+      platform: Platform.OS,
+    });
     return null;
   }
 }
@@ -308,29 +314,41 @@ export function stopPushTokenRefreshListener(): void {
   pushTokenListener = null;
 }
 
+export type PushSetupResult =
+  | { ok: true; token: string }
+  | { ok: false; reason: string };
+
 /**
  * Complete push notification setup after login.
  */
-export async function setupPushNotifications(): Promise<void> {
+export async function setupPushNotifications(): Promise<PushSetupResult> {
   try {
     const { useAuthStore } = await import('../store/authStore');
     const user = useAuthStore.getState().user;
     if (user?.push_enabled === false) {
       logger.info('[Notifications] Skipped — push_enabled is false');
-      return;
+      return { ok: false, reason: 'push_disabled' };
     }
 
     await registerOwnerNotificationCategories();
 
     const token = await registerForPushNotifications();
     if (!token) {
-      return;
+      const reason =
+        Platform.OS === 'android' ? 'android_fcm_or_permission' : 'token_unavailable';
+      logger.warn('[Notifications] Setup incomplete', { reason });
+      return { ok: false, reason };
     }
 
-    await sendPushTokenToBackend(token);
+    const synced = await sendPushTokenToBackend(token);
+    if (!synced) {
+      return { ok: false, reason: 'backend_sync_failed' };
+    }
     startPushTokenRefreshListener();
+    return { ok: true, token };
   } catch (error) {
     logger.error('[Notifications] Setup failed', error);
+    return { ok: false, reason: 'exception' };
   }
 }
 

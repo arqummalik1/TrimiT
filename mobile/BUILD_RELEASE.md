@@ -108,3 +108,26 @@ Required on expo.dev → **trimit** → Environment variables (preview + product
 ---
 
 See also: [APK_CRASH_DEBUG.md](../APK_CRASH_DEBUG.md), [APK_CRASH_FIX.md](../APK_CRASH_FIX.md)
+
+---
+
+## Android remote push (FCM) — required for Play / preview APK tray alerts
+
+**Stack:** Expo Push API → **FCM** on Android (not a separate “Notify” product).
+
+| What you see | What it actually is |
+|--------------|---------------------|
+| Owner Accept modal while app open | Supabase **Realtime** (works without FCM) |
+| Tray push when app background/killed | Expo Push → **FCM** (needs Firebase) |
+| Customer “appointment soon” on Expo Go | Often **local** `scheduleBookingReminder` on device — **not** proof FCM works |
+
+### One-time setup (ops)
+
+1. [Firebase Console](https://console.firebase.google.com/) → project (or create) → add Android app `com.trimit.app`
+2. Download **google-services.json** → save as `mobile/google-services.json`
+3. Firebase → Project settings → Service accounts → Generate new private key (FCM V1 JSON)
+4. [expo.dev](https://expo.dev) → TrimiT project → Credentials → Android → **FCM V1 service account** → upload that JSON
+5. Verify: `cd mobile && npm run verify:android-push`
+6. Rebuild: `npm run build:apk:local` (or AAB) and reinstall
+
+Without steps 1–4, owners will keep getting **only** the in-app modal when the dashboard is open.

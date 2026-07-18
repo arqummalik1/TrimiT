@@ -18,6 +18,13 @@ export function translateGoogleAuthError(raw: string | undefined): string {
       'using the same address, then try Google again.'
     );
   }
+  if (msg.includes('nonce') && msg.includes('id_token')) {
+    return (
+      'Google sign-in needs a Supabase setting for iPhone. In Supabase Dashboard → ' +
+      'Authentication → Providers → Google, turn on **Skip nonce checks**, save, ' +
+      'then try again (no app reinstall needed). Android is unaffected.'
+    );
+  }
   if (msg.includes('idp') || msg.includes('provider')) {
     return (
       'Google sign-in is not fully configured yet. Please try email OTP, or try again after a rebuild.'

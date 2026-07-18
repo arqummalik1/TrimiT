@@ -144,6 +144,10 @@ module.exports = ({ config }) => {
   ]);
   // Overwrite placeholder / stale scheme if .env had the iOS client after first prebuild.
   plugins.push('./plugins/withGoogleIosUrlSchemeFromEnv.js');
+  // Xcode Archive must not fail when SENTRY_AUTH_TOKEN is unset (same as Android local).
+  plugins.push('./plugins/withSentryDisableAutoUpload.js');
+  // Xcode 16+ Hermes dSYM upload warning — keep Hermes enabled, generate dSYM on Release archive.
+  plugins.push('./plugins/withHermesDsym.js');
 
   return withAndroidPermissions({
     ...config,
@@ -160,7 +164,7 @@ module.exports = ({ config }) => {
       // New Arch off for release stability (avoids device-specific native crashes on some OEMs).
       newArchEnabled: false,
       splash: {
-        image: './assets/SquareLogo.png',
+        image: './assets/trimit-t-transparent.png',
         resizeMode: 'contain',
         backgroundColor: '#000000',
       },
@@ -198,6 +202,12 @@ module.exports = ({ config }) => {
         versionCode: appVersion.androidVersionCode,
         package: 'com.trimit.app',
         allowBackup: false,
+        // Required for Android remote push (FCM). Download from Firebase Console →
+        // Project settings → Your apps → Android app (com.trimit.app) → google-services.json
+        // Place at mobile/google-services.json then rebuild the APK/AAB.
+        ...(fs.existsSync(path.join(__dirname, 'google-services.json'))
+          ? { googleServicesFile: './google-services.json' }
+          : {}),
         notification: {
           icon: './assets/notification-icon.png',
           color: NOTIFICATION_COLOR,

@@ -1,10 +1,19 @@
 # TrimiT - V2 Progress
 
+## Accomplished (2026-07-18)
+- **App Store Review OTP:** Env-gated fixed OTP for allowlisted emails (`APP_REVIEW_OTP_EMAILS` + `APP_REVIEW_OTP_CODE` on Render). Send skips inbox; verify mints Supabase session via admin `generate_link`. Location-denied Discover already lists salons (RPC `p_lat=0,p_lng=0`).
+
+## Accomplished (2026-07-17)
+- **iOS Archive Sentry fix:** Xcode Archive failed on `sentry-cli` auth token. Set `SENTRY_DISABLE_AUTO_UPLOAD=true` in `ios/.xcode.env` (+ `.xcode.env.local`); durable plugin `withSentryDisableAutoUpload` so prebuild keeps it. Crash DSN still works; source-map upload skipped without token.
+- **iOS guide Part G expanded:** Beginner TestFlight path — Archive → Upload (not manual IPA) → App Store Connect processing → TestFlight app install; G1–G7 step-by-step.
+
 ## Accomplished (2026-07-14)
-- **Google Sign-In (Android):** Working on preview APK; package must be `com.trimit.app` (not `com.trimit.online`) + SHA-1 of upload keystore. Same-email OTP/Google merge via Supabase auto identity linking — no custom merge code.
+- **Google Sign-In Play Store fail (SHA-1):** Preview APK OK, Play install fails with generic toast — live app uses **Play App Signing cert**, not upload keystore. Fix is ops: add Play Console → App signing → **App signing key** SHA-1 to Google Cloud Android OAuth client (`com.trimit.app`). Code: treat ApiException `10` / `DEVELOPER_ERROR` explicitly + `logger.error` → Sentry (was warn-only breadcrumb).
+- **Google Sign-In (Android):** Working on preview APK; package must be `com.trimit.app` (not `com.trimit.online`) + SHA-1 of upload keystore **and** Play App Signing SHA-1. Same-email OTP/Google merge via Supabase auto identity linking — no custom merge code.
 - **Notification Option A (event-scoped sound):** Owner urgent only — `new_booking`, `payment_received`, `payment_awaiting_verification` → loud `bookings_v4` + custom `notification.mp3` + critical/ALARM. Soft (reschedule, customer updates, reminders, subs) → `booking_updates` + default OS sound. Defaults on `send_notification` are soft.
 - **Notification Option B (actions):** Categories `owner_booking_actions` (Accept/Reject) and `owner_payment_actions` (Verify/Reject); Expo `categoryId` on urgent pushes; `handleOwnerNotificationAction` calls booking/payment repositories then opens Bookings. Works best on iOS; Android remote action buttons are best-effort (tap notification still works). Channel recreate + prefs sound gate unchanged.
 - **Review harden:** Action toasts booking vs payment accurate; failed notification actions not deduped (retryable); Google failures keep `authError`; `signOutGoogle` configures then signs out after process restart; Android channels recreate only on prefs change (no double register); urgent event types live in `shared/push-constants.json` for mobile+backend.
+- **Android push root cause:** Tray pushes need **FCM** (`google-services.json` + EAS FCM V1). Repo had neither; in-app owner modal is Realtime-only. Added `verify:android-push`, conditional `googleServicesFile`, and fail-loud setup toasts. Ops must add Firebase files then rebuild.
 - **Silent/vibrate honesty:** In-app chime uses `playsInSilentMode` (iOS Ring/Silent). Background push uses Android ALARM + bypassDnd; iOS mute-switch bypass for push still needs Apple **Critical Alerts** provisioning live on device — not a 100% OEM guarantee.
 
 ## Accomplished (2026-07-07)

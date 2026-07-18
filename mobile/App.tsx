@@ -1,11 +1,9 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { StatusBar } from "expo-status-bar";
 import {
-  ActivityIndicator,
   View,
   StyleSheet,
   Text,
-  Image,
   InteractionManager,
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -32,7 +30,6 @@ import {
   CormorantGaramond_700Bold,
 } from "@expo-google-fonts/cormorant-garamond";
 
-import { lightPalette } from "./src/theme/colors";
 import { useTheme } from "./src/theme/ThemeContext";
 import RootNavigator, { navigationRef } from "./src/navigation/index";
 import { useAuthStore } from "./src/store/authStore";
@@ -49,6 +46,7 @@ import {
 import { showToast } from "./src/store/toastStore";
 import { ThemeProvider } from "./src/theme/ThemeContext";
 import { logger } from "./src/lib/logger";
+import { waitUntilForegroundLocationPermissionResolved } from "./src/lib/locationPermission";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import OfflineBanner from "./src/components/OfflineBanner";
 import Toast from "./src/components/Toast";
@@ -56,6 +54,9 @@ import { PermissionPrimer } from "./src/components/PermissionPrimer";
 import { initSentryIfNeeded } from "./src/lib/startupGuards";
 import { analytics } from "./src/lib/analytics";
 import { getReleaseConfigIssues } from "./src/lib/buildConfig";
+import { AppSplashScreen } from "./src/components/AppSplashScreen";
+import { useSplashGate } from "./src/hooks/useSplashGate";
+import { SPLASH_BACKGROUND } from "./src/lib/splashBranding";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
@@ -122,44 +123,10 @@ function AppContent() {
   const [bootError, setBootError] = useState<string | null>(null);
   const [showNotificationPrimer, setShowNotificationPrimer] = useState(false);
 
-  if (configIssues.length > 0) {
-    return (
-      <View style={styles.splash}>
-        <Text style={styles.splashTitle}>TrimiT</Text>
-        <Text
-          style={[
-            styles.splashTitle,
-            { fontSize: 16, marginTop: 16, fontWeight: "600" },
-          ]}
-        >
-          This build is missing configuration
-        </Text>
-        {configIssues.map((issue) => (
-          <Text
-            key={issue.key}
-            style={{
-              marginTop: 8,
-              color: lightPalette.textSecondary,
-              textAlign: "center",
-              fontSize: 13,
-            }}
-          >
-            • {issue.message}
-          </Text>
-        ))}
-        <Text
-          style={{
-            marginTop: 16,
-            color: lightPalette.textSecondary,
-            textAlign: "center",
-            fontSize: 12,
-          }}
-        >
-          Rebuild with mobile/.env loaded: npm run build:apk:local
-        </Text>
-      </View>
-    );
-  }
+  const bootComplete = isHydrated && authBootstrapComplete && fontsLoaded;
+  const splashReadyToDismiss =
+    configIssues.length > 0 || bootError != null || bootComplete;
+  const splashDismissed = useSplashGate(splashReadyToDismiss);
 
   const loadResources = useCallback(async () => {
     try {
@@ -232,13 +199,23 @@ function AppContent() {
       return;
     }
 
+    let cancelled = false;
+
     void registerOwnerNotificationCategories();
 
     void (async () => {
       try {
         const perms = await Notifications.getPermissionsAsync();
         if (perms.status === "granted") {
-          await setupPushNotifications();
+          const setup = await setupPushNotifications();
+          if (!setup.ok && setup.reason === "android_fcm_or_permission") {
+            showToast(
+              "Android push is not ready (FCM). Booking alerts need a rebuild with google-services.json + EAS FCM key.",
+              "error",
+            );
+          } else if (!setup.ok && setup.reason === "backend_sync_failed") {
+            showToast("Could not sync push token. Check network and try Settings → Notifications.", "error");
+          }
           return;
         }
         if (perms.status === "denied" && perms.canAskAgain === false) {
@@ -248,6 +225,15 @@ function AppContent() {
           NOTIFICATION_PRIMER_DISMISSED_KEY,
         );
         if (dismissed === "true") {
+          return;
+        }
+        // Customer Discover shows the OS location sheet on first open — wait so
+        // notification PermissionPrimer does not stack modals (iOS freeze).
+        const role = useAuthStore.getState().user?.role;
+        if (role === "customer") {
+          await waitUntilForegroundLocationPermissionResolved();
+        }
+        if (cancelled) {
           return;
         }
         setShowNotificationPrimer(true);
@@ -327,6 +313,7 @@ function AppContent() {
     });
 
     return () => {
+      cancelled = true;
       responseSub.remove();
       receivedSub.remove();
     };
@@ -343,53 +330,35 @@ function AppContent() {
     void AsyncStorage.setItem(NOTIFICATION_PRIMER_DISMISSED_KEY, "true");
   }, []);
 
-  if (bootError) {
+  if (!splashDismissed) {
+    return null;
+  }
+
+  if (configIssues.length > 0) {
     return (
-      <View style={styles.splash}>
-        <Text style={styles.splashTitle}>TrimiT</Text>
-        <Text
-          style={[
-            styles.splashTitle,
-            { fontSize: 14, marginTop: 12, fontWeight: "400" },
-          ]}
-        >
-          {bootError}
-        </Text>
-        <Text
-          style={{
-            marginTop: 8,
-            color: lightPalette.textSecondary,
-            textAlign: "center",
-          }}
-        >
-          Try clearing app storage in Settings, then reopen.
+      <View style={styles.configErrorRoot}>
+        <AppSplashScreen
+          message="This build is missing configuration"
+          details={configIssues.map((issue) => issue.message)}
+        />
+        <Text style={styles.configErrorHint}>
+          Rebuild with mobile/.env loaded: npm run build:apk:local
         </Text>
       </View>
     );
   }
 
-  if (!isHydrated || !authBootstrapComplete || !fontsLoaded) {
+  if (bootError) {
     return (
-      <View style={styles.splash}>
-        <View style={styles.splashLogo}>
-          <Image
-            source={require("./assets/logo.png")}
-            style={{
-              width: 40,
-              height: 40,
-              resizeMode: "contain",
-              tintColor: "#FFFFFF",
-            }}
-          />
-        </View>
-        <Text style={styles.splashTitle}>TrimiT</Text>
-        <ActivityIndicator
-          size="large"
-          color={lightPalette.primary}
-          style={{ marginTop: 24 }}
-        />
-      </View>
+      <AppSplashScreen
+        message={bootError}
+        details={["Try clearing app storage in Settings, then reopen."]}
+      />
     );
+  }
+
+  if (!bootComplete) {
+    return <AppSplashScreen showSpinner />;
   }
 
   return (
@@ -429,25 +398,17 @@ function App() {
 export default App;
 
 const styles = StyleSheet.create({
-  splash: {
+  configErrorRoot: {
     flex: 1,
-    backgroundColor: lightPalette.background,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
+    backgroundColor: SPLASH_BACKGROUND,
   },
-  splashLogo: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: lightPalette.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  splashTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: lightPalette.text,
+  configErrorHint: {
+    position: "absolute",
+    bottom: 48,
+    left: 24,
+    right: 24,
+    fontSize: 12,
+    color: "#78716C",
+    textAlign: "center",
   },
 });

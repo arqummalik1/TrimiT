@@ -77,6 +77,12 @@ class Settings(BaseSettings):
     # Production must use Custom SMTP in Supabase for scalable signups.
     AUTH_AUTO_CONFIRM_SIGNUP: bool = False
 
+    # ── App Store Review OTP (optional) ─────────────────────────────────────
+    # Comma-separated emails that may use APP_REVIEW_OTP_CODE instead of inbox OTP.
+    # Unset both → feature off. Never commit production codes to git.
+    APP_REVIEW_OTP_EMAILS: Optional[str] = None
+    APP_REVIEW_OTP_CODE: Optional[str] = None
+
     # ── Serviceability ──────────────────────────────────────────────────────
     # Optional GLOBAL override for every active service area's coverage radius
     # (km). When set (> 0), it wins over each row's `service_areas.radius_km`,

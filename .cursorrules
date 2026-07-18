@@ -5,6 +5,7 @@
 
 ## Mandatory reads (every prompt, in order)
 
+0. **RULE #1** — `.cursor/rules/always-check-code.mdc`: **always check the code; never assume, never assume , never assume strictly** before claims, fixes,implimnetations, bug fixes  or APK/AAB delivery.
 1. `/RULES.md` — engineering rules (persona, live-app safety, quality bar,
    booking + auth invariants, deployment, docs, communication).
 2. `/docs/REMAINING_ISSUES.md` — canonical open-issue tracker.
