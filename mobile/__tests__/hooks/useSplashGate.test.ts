@@ -24,9 +24,11 @@ describe('useSplashGate', () => {
   });
 
   it('keeps splash until readyToDismiss then hides native splash', async () => {
-    const { result, rerender } = renderHook(({ ready }) => useSplashGate(ready), {
-      initialProps: { ready: false },
-    });
+    // Explicit Props typing — renderHook defaults props to `unknown` under tsc.
+    const { result, rerender } = renderHook(
+      (props: { ready: boolean }) => useSplashGate(props.ready),
+      { initialProps: { ready: false } },
+    );
 
     expect(result.current).toBe(false);
     expect(SplashScreen.hideAsync).not.toHaveBeenCalled();
