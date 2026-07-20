@@ -28,10 +28,27 @@ export function translateGoogleAuthError(raw: string | undefined): string {
       'Please try again, or sign in with email OTP.'
     );
   }
+  if (isGoogleSafariUnavailableMessage(msg)) {
+    return (
+      'Google sign-in could not open Safari on this iPhone. ' +
+      'Check Screen Time / Content Restrictions aren’t blocking Safari, ' +
+      'then try again — or sign in with email OTP.'
+    );
+  }
   if (msg.includes('idp') || msg.includes('provider')) {
     return (
       'Google sign-in is not fully configured yet. Please try email OTP, or try again after a rebuild.'
     );
   }
   return raw || 'Google sign-in failed. Please try again.';
+}
+
+/** GIDSignIn Code=-1 "Unable to open Safari" — device restriction / presentation, not a crash. */
+export function isGoogleSafariUnavailableMessage(raw: string | undefined): boolean {
+  const msg = (raw || '').toLowerCase();
+  return (
+    msg.includes('unable to open safari') ||
+    (msg.includes('safari') && msg.includes('unable to open')) ||
+    (msg.includes('gidsignin') && msg.includes('safari'))
+  );
 }

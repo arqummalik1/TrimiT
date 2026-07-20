@@ -1,4 +1,7 @@
-import { translateGoogleAuthError } from '../../src/lib/googleAuthErrors';
+import {
+  isGoogleSafariUnavailableMessage,
+  translateGoogleAuthError,
+} from '../../src/lib/googleAuthErrors';
 
 describe('translateGoogleAuthError', () => {
   it('maps duplicate email errors', () => {
@@ -14,6 +17,15 @@ describe('translateGoogleAuthError', () => {
     expect(msg).toContain('email OTP');
     expect(msg.toLowerCase()).not.toContain('skip nonce');
     expect(msg.toLowerCase()).not.toContain('supabase dashboard');
+  });
+
+  it('maps Unable to open Safari to Screen Time / OTP guidance', () => {
+    const raw =
+      'RNGoogleSignIn: Unknown error in google sign in., Error Domain=com.google.GIDSignIn Code=-1 "Unable to open Safari."';
+    expect(isGoogleSafariUnavailableMessage(raw)).toBe(true);
+    const msg = translateGoogleAuthError(raw);
+    expect(msg.toLowerCase()).toContain('safari');
+    expect(msg.toLowerCase()).toContain('email otp');
   });
 
   it('passes through unknown errors', () => {
