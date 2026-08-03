@@ -12,8 +12,9 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { buildConfig } from '../lib/buildConfig';
+import { isGoogleSafariUnavailableMessage } from '../lib/googleAuthErrors';
 import { logger } from '../lib/logger';
 
 type GoogleSigninModule = {
@@ -74,6 +75,29 @@ export function __resetGoogleSignInCacheForTests(): void {
 
 let configured = false;
 
+/** iOS Google UI needs an active foreground window (otherwise “Unable to open Safari”). */
+async function waitForAppActive(timeoutMs = 4000): Promise<void> {
+  if (AppState.currentState === 'active') {
+    return;
+  }
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      sub.remove();
+      clearTimeout(timer);
+      resolve();
+    };
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') {
+        finish();
+      }
+    });
+    const timer = setTimeout(finish, timeoutMs);
+  });
+}
+
 /** Configure the native SDK once. Safe to call repeatedly; no-op if unavailable. */
 export function configureGoogleSignIn(): void {
   if (configured) return;
@@ -114,10 +138,20 @@ export async function signInWithGoogle(): Promise<GoogleSignInOutcome> {
         'Google sign-in is missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in this build. Rebuild with .env loaded.',
     };
   }
+  if (Platform.OS === 'ios' && !buildConfig.googleIosClientId) {
+    return {
+      ok: false,
+      error:
+        'Google sign-in is missing EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID in this iOS build. Rebuild with .env loaded.',
+    };
+  }
 
   const { GoogleSignin, statusCodes } = mod;
   try {
     configureGoogleSignIn();
+    if (Platform.OS === 'ios') {
+      await waitForAppActive();
+    }
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
     const response = (await GoogleSignin.signIn()) as {
@@ -147,6 +181,23 @@ export async function signInWithGoogle(): Promise<GoogleSignInOutcome> {
       return { ok: false, error: 'Google Play Services is not available or out of date.' };
     }
     const message = err instanceof Error ? err.message : String(err);
+
+    // iOS: Safari blocked / Screen Time / presentation race — recoverable, not a crash.
+    if (isGoogleSafariUnavailableMessage(message)) {
+      logger.warn('[GoogleAuth] Safari unavailable for Google Sign-In', {
+        platform: Platform.OS,
+        code: code ?? null,
+        message: message.slice(0, 200),
+      });
+      return {
+        ok: false,
+        error:
+          'Google sign-in could not open Safari on this iPhone. ' +
+          'Check Screen Time / Content Restrictions aren’t blocking Safari, ' +
+          'then try again — or sign in with email OTP.',
+      };
+    }
+
     // Code "10" / DEVELOPER_ERROR is the classic Play Store vs preview mismatch:
     // Google Cloud Android OAuth client must include BOTH upload-key SHA-1 AND
     // Play App Signing SHA-1 for package com.trimit.app.
