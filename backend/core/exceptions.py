@@ -16,7 +16,8 @@ logger = logging.getLogger("trimit")
 def setup_exception_handlers(app):
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-        # Determine a machine code from status
+        # Determine a machine code from status. Prefer an explicit code from
+        # structured detail={code, message} when endpoints provide one.
         status_to_code = {
             400: "BAD_REQUEST",
             401: "UNAUTHORIZED",
@@ -27,7 +28,7 @@ def setup_exception_handlers(app):
             429: "RATE_LIMIT_EXCEEDED"
         }
         code = status_to_code.get(exc.status_code, f"HTTP_{exc.status_code}")
-        
+
         # If endpoints pass structured error detail as a dict, preserve it but also
         # surface a good human message for clients.
         detail_message = None
@@ -37,6 +38,8 @@ def setup_exception_handlers(app):
         elif isinstance(exc.detail, dict):
             detail_message = exc.detail.get("message") or exc.detail.get("detail") or "An error occurred"
             detail_details = exc.detail
+            if isinstance(exc.detail.get("code"), str) and exc.detail["code"].strip():
+                code = exc.detail["code"].strip()
         else:
             detail_message = "An error occurred"
             detail_details = {"detail": exc.detail}

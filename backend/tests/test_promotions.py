@@ -24,6 +24,10 @@ def test_validate_returns_rpc_verdict(client, mock_supabase):
     app = client.app
     _override_user(app, {"id": "cust1", "access_token": "tok"})
     try:
+        mock_supabase.post("/rest/v1/rpc/validate_campaign_grant").return_value = Response(
+            200,
+            json={"valid": False, "error": "not a campaign"},
+        )
         mock_supabase.post("/rest/v1/rpc/validate_promo_code").return_value = Response(
             200,
             json={"valid": True, "discount_amount": 50, "final_amount": 450},
@@ -44,7 +48,10 @@ def test_validate_rpc_failure_returns_invalid(client, mock_supabase):
     app = client.app
     _override_user(app, {"id": "cust1", "access_token": "tok"})
     try:
-        # Non-200 from RPC -> handler returns valid=False (HTTP 200, not an error).
+        mock_supabase.post("/rest/v1/rpc/validate_campaign_grant").return_value = Response(
+            500, json={}
+        )
+        # Non-200 from salon RPC -> handler returns valid=False (HTTP 200, not an error).
         mock_supabase.post("/rest/v1/rpc/validate_promo_code").return_value = Response(
             500, json={}
         )
@@ -97,18 +104,19 @@ def _promo_payload(salon_id="s1"):
     }
 
 
-def test_create_promotion_blocks_global(client):
-    # No salon_id -> global promo -> 403 (not yet supported). Customer role passes
-    # require_active_subscription untouched, so the 403 comes from the global check.
+def test_create_promotion_blocks_global(client, mock_supabase):
+    # No salon_id → looks up the caller's salon. With none found → 400 (global
+    # promos are not creatable via this endpoint).
     app = client.app
     _override_user(
-        app, {"id": "owner1", "access_token": "tok", "profile": {"role": "customer"}}
+        app, {"id": "owner1", "access_token": "tok", "profile": {"role": "owner"}}
     )
     try:
+        mock_supabase.get("/rest/v1/salons").return_value = Response(200, json=[])
         payload = {"code": "GLOBAL10", "discount_type": "percent", "discount_value": 10}
         response = client.post("/api/v1/promotions/", json=payload)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-        assert "Global promotions" in response.json()["error"]["message"]
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "No salon found" in response.json()["error"]["message"]
     finally:
         app.dependency_overrides = {}
 

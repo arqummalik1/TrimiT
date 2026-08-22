@@ -78,9 +78,7 @@ export default function ManageBookingsScreen({ navigation }: OwnerTabScreenProps
       ]).catch(() => {});
       showToast('Booking status updated', 'success');
     },
-    onError: (error) => {
-      handleApiError(error);
-    },
+    onError: (error: unknown) => showToast(handleApiError(error).message, 'error'),
   });
 
   const onRefresh = useCallback(async () => {

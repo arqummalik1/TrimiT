@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   TextInput,
 } from 'react-native';
@@ -20,6 +19,8 @@ import { logger } from '../../lib/logger';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { Button } from '../../components/Button';
+import { HeaderBackButton } from '../../components/HeaderBackButton';
+import { SlotGridSkeleton } from '../../components/skeletons/SlotGridSkeleton';
 import { handleApiError } from '../../lib/errorHandler';
 import { showToast } from '../../store/toastStore';
 import { analytics } from '../../lib/analytics';
@@ -126,23 +127,11 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
         reschedule_count: data.reschedule_count,
       });
 
-      Alert.alert(
-        'Booking Rescheduled! ✅',
-        `Your appointment has been moved to ${format(parseISO(selectedDate), 'EEEE, MMM d')} at ${formatTime(selectedSlot!)}`,
-        [
-          {
-            text: 'View Bookings',
-            onPress: () => {
-              // Navigate to root, then to CustomerTabs, then to Bookings
-              navigateToCustomerBookings(navigation);
-            },
-          },
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
+      showToast(
+        `Moved to ${format(parseISO(selectedDate), 'EEE, MMM d')} at ${formatTime(selectedSlot!)}`,
+        'success',
       );
+      navigateToCustomerBookings(navigation);
     },
     onError: (error) => {
       const appErr = handleApiError(error);
@@ -158,20 +147,22 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
         error: appErr.message,
       });
 
-      Alert.alert('Reschedule Failed', appErr.message);
+      showToast(appErr.message, 'error');
     },
   });
 
   const handleConfirmReschedule = useCallback(() => {
+    if (rescheduleMutation.isPending) return;
+
     if (!selectedSlot) {
-      Alert.alert('Error', 'Please select a new time slot');
+      showToast('Pick a new time slot first', 'info');
       return;
     }
 
     const normNew = normalizeSlotTimeToHHMM(selectedSlot);
     const normCur = normalizeSlotTimeToHHMM(currentSlot);
     if (selectedDate === currentDate && normNew === normCur) {
-      Alert.alert('Error', 'Please select a different time slot');
+      showToast('That is already your appointment time', 'info');
       return;
     }
 
@@ -183,7 +174,12 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
         {
           text: 'Confirm',
           style: 'default',
-          onPress: () => rescheduleMutation.mutate(),
+          onPress: () => {
+            // A double-tap can fire two confirms before the first request
+            // settles — one reschedule per tap-through only.
+            if (rescheduleMutation.isPending) return;
+            rescheduleMutation.mutate();
+          },
         },
       ]
     );
@@ -216,9 +212,7 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
     <ScreenWrapper variant="stack">
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
+        <HeaderBackButton onPress={() => navigation.goBack()} />
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Reschedule Booking</Text>
           <Text style={styles.headerSubtitle}>{salonName}</Text>
@@ -311,7 +305,7 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
           </View>
 
           {slotsLoading ? (
-            <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 20 }} />
+            <SlotGridSkeleton />
           ) : slotsData?.slots && slotsData.slots.length > 0 ? (
             <View style={styles.slotsGrid}>
               {slotsData.slots.map((slot) => {
@@ -423,6 +417,7 @@ export const RescheduleBookingScreen: React.FC<Props> = ({ navigation, route }) 
             title="Confirm Reschedule"
             onPress={handleConfirmReschedule}
             loading={rescheduleMutation.isPending}
+            disabled={rescheduleMutation.isPending}
             icon={<Ionicons name="checkmark-circle" size={20} color={theme.colors.textInverse} />}
           />
         </View>
@@ -435,23 +430,14 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
     backgroundColor: theme.colors.background,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
   headerText: {
-    marginLeft: 16,
+    marginLeft: 8,
     flex: 1,
   },
   headerTitle: {

@@ -95,7 +95,7 @@ const SettingsPage = () => {
             </p>
             <Link
               to="/owner/choose-type"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-orange-800 text-white rounded-full font-semibold hover:bg-orange-900 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-brand-800 text-white rounded-full font-semibold hover:bg-brand-900 transition-colors"
             >
               Get started
             </Link>
@@ -183,8 +183,8 @@ const SettingsPage = () => {
         >
           <div className="p-6 border-b border-stone-100">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
-                <Scissors size={20} className="text-orange-800" />
+              <div className="w-10 h-10 bg-brand-100 rounded-xl flex items-center justify-center">
+                <Scissors size={20} className="text-brand-800" />
               </div>
               <h2 className="font-heading text-lg font-bold text-stone-900">
                 Booking Preferences
@@ -211,7 +211,7 @@ const SettingsPage = () => {
                 disabled={updateMutation.isPending}
                 className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
                   salon.allow_multiple_bookings_per_slot 
-                    ? 'bg-orange-800' 
+                    ? 'bg-brand-800' 
                     : 'bg-stone-300'
                 }`}
               >
@@ -235,8 +235,8 @@ const SettingsPage = () => {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <Users size={16} className="text-orange-800" />
+                    <div className="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center">
+                      <Users size={16} className="text-brand-800" />
                     </div>
                     <div>
                       <h4 className="font-semibold text-stone-900 text-sm">
@@ -295,11 +295,11 @@ const SettingsPage = () => {
           <div className="flex items-center gap-3">
             {salon.allow_multiple_bookings_per_slot ? (
               <>
-                <ToggleRight size={32} weight="fill" className="text-orange-800" />
+                <ToggleRight size={32} weight="fill" className="text-brand-800" />
                 <div>
                   <p className="font-medium text-stone-900">Multiple bookings enabled</p>
                   <p className="text-sm text-stone-500">
-                    Up to <span className="font-semibold text-orange-800">{salon.max_bookings_per_slot || maxBookings}</span> customers can book the same slot
+                    Up to <span className="font-semibold text-brand-800">{salon.max_bookings_per_slot || maxBookings}</span> customers can book the same slot
                   </p>
                 </div>
               </>
@@ -322,7 +322,7 @@ const SettingsPage = () => {
             className="bg-white rounded-2xl border border-stone-200 p-6 mb-6"
           >
             <div className="flex items-center gap-3 mb-2">
-              <Scissors size={22} className="text-orange-800" />
+              <Scissors size={22} className="text-brand-800" />
               <h2 className="font-heading text-lg font-bold text-stone-900">Booking</h2>
             </div>
             <p className="text-sm text-stone-600">

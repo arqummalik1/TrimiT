@@ -328,3 +328,30 @@ def test_run_reminders_success_with_token(client, monkeypatch):
     )
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"status": "ok", "sent": 3}
+
+
+
+@pytest.mark.asyncio
+async def test_require_active_subscription_fails_closed_on_error(monkeypatch):
+    """When enforcement is on, subscription check errors must deny — not allow."""
+    from config import settings
+    from dependencies import subscription as sub_dep
+    from fastapi import HTTPException
+    from services import subscription_service as subs
+
+    monkeypatch.setattr(settings, "SUBSCRIPTION_ENFORCEMENT_ENABLED", True)
+
+    async def _boom(_owner_id):
+        raise RuntimeError("supabase down")
+
+    monkeypatch.setattr(subs, "has_active_access", _boom)
+
+    user = {
+        "id": "owner1",
+        "access_token": "tok",
+        "profile": {"role": "owner"},
+    }
+    with pytest.raises(HTTPException) as excinfo:
+        await sub_dep.require_active_subscription(user)
+    assert excinfo.value.status_code == 503
+    assert excinfo.value.detail["code"] == "SUBSCRIPTION_CHECK_FAILED"

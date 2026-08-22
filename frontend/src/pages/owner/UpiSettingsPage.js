@@ -109,7 +109,7 @@ const UpiSettingsPage = () => {
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm"
         >
-          <div className="bg-orange-50 text-orange-900 rounded-xl p-4 mb-6 flex gap-3">
+          <div className="bg-brand-50 text-brand-900 rounded-xl p-4 mb-6 flex gap-3">
             <QrCode size={22} weight="duotone" className="shrink-0 mt-0.5" />
             <p className="text-sm">
               Customers pay you directly to this UPI ID. TrimiT never holds your money.
@@ -124,7 +124,7 @@ const UpiSettingsPage = () => {
               value={form.upi_id}
               onChange={(e) => setForm((f) => ({ ...f, upi_id: e.target.value }))}
               placeholder="glowsalon@okaxis"
-              className="mt-1 w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-orange-800 focus:outline-none"
+              className="mt-1 w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-800 focus:outline-none"
             />
             {touched && !form.upi_id.trim() && (
               <span className="text-xs text-red-600 mt-1 flex items-center gap-1">
@@ -145,7 +145,7 @@ const UpiSettingsPage = () => {
               value={form.account_holder_name}
               onChange={(e) => setForm((f) => ({ ...f, account_holder_name: e.target.value }))}
               placeholder="As shown on your UPI app"
-              className="mt-1 w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-orange-800 focus:outline-none"
+              className="mt-1 w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-800 focus:outline-none"
             />
           </label>
 
@@ -155,7 +155,7 @@ const UpiSettingsPage = () => {
               type="text"
               value={form.bank_name}
               onChange={(e) => setForm((f) => ({ ...f, bank_name: e.target.value }))}
-              className="mt-1 w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-orange-800 focus:outline-none"
+              className="mt-1 w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-800 focus:outline-none"
             />
           </label>
 
@@ -166,7 +166,7 @@ const UpiSettingsPage = () => {
               value={form.upi_qr_code}
               onChange={(e) => setForm((f) => ({ ...f, upi_qr_code: e.target.value }))}
               placeholder="https://…"
-              className="mt-1 w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-orange-800 focus:outline-none"
+              className="mt-1 w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-800 focus:outline-none"
             />
           </label>
 

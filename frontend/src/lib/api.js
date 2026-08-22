@@ -30,17 +30,27 @@ export function isPublicSalonRead(config) {
   return path === '/salons' || path.startsWith('/salons/');
 }
 
-function isProtectedAuthFailure(status, config) {
+/**
+ * Endpoints where a 401 means "these credentials are wrong", never "your
+ * session expired". A failed login/OTP attempt in an already-signed-in tab
+ * must not destroy the existing session.
+ */
+const AUTH_CREDENTIAL_PATHS = [
+  '/auth/login',
+  '/auth/signup',
+  '/auth/send-otp',
+  '/auth/verify-otp',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/validate-reset-token',
+  '/auth/resend-confirmation',
+];
+
+/** Mirrors mobile apiClient.isProtectedAuthFailure. */
+export function isProtectedAuthFailure(status, config) {
+  if (status !== 401) return false;
   const url = config?.url || '';
-  return (
-    status === 401 &&
-    !url.includes('/auth/login') &&
-    !url.includes('/auth/signup') &&
-    !url.includes('/auth/forgot-password') &&
-    !url.includes('/auth/reset-password') &&
-    !url.includes('/auth/send-otp') &&
-    !url.includes('/auth/verify-otp')
-  );
+  return !AUTH_CREDENTIAL_PATHS.some((path) => url.includes(path));
 }
 
 const api = axios.create({
@@ -134,7 +144,7 @@ api.interceptors.response.use(
       }
     }
 
-    if (status === 401) {
+    if (isProtectedAuthFailure(status, config)) {
       const hadAuth = Boolean(
         config?.headers?.Authorization ||
           config?.headers?.authorization ||

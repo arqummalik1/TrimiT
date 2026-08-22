@@ -281,7 +281,7 @@ const ManageServices = () => {
         </motion.div>
 
         {!categoriesExist && (salon.services?.length ?? 0) === 0 && (
-          <div className="mb-6 p-5 rounded-2xl bg-orange-50 border border-orange-100">
+          <div className="mb-6 p-5 rounded-2xl bg-brand-50 border border-brand-100">
             <p className="text-sm text-stone-600 mb-3">
               Start with categories (Hair, Face, Beard) — then add services under each section.
             </p>
@@ -307,7 +307,7 @@ const ManageServices = () => {
                 transition={{ delay: index * 0.05 }}
                 className={`rounded-2xl p-5 transition-all duration-300 ${
                   service.is_on_offer 
-                    ? 'bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-300 shadow-lg hover:shadow-xl' 
+                    ? 'bg-gradient-to-br from-brand-50 to-brand-100 border-2 border-brand-300 shadow-lg hover:shadow-xl' 
                     : 'bg-white border border-stone-200 hover:shadow-lg'
                 }`}
                 data-testid={`service-${service.id}`}
@@ -315,11 +315,11 @@ const ManageServices = () => {
                 {/* Offer Badge */}
                 {service.is_on_offer && service.discount_percentage && (
                   <div className="flex items-center justify-between mb-3">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-orange-600 to-red-600 text-white text-xs font-bold rounded-full">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-brand-600 to-red-600 text-white text-xs font-bold rounded-full">
                       🔥 {service.discount_percentage}% OFF
                     </span>
                     {service.offer_end_date && (
-                      <span className="text-xs text-orange-700 font-medium">
+                      <span className="text-xs text-brand-700 font-medium">
                         Ends {new Date(service.offer_end_date).toLocaleDateString()}
                       </span>
                     )}
@@ -339,7 +339,7 @@ const ManageServices = () => {
                     
                     {/* Offer Tagline */}
                     {service.is_on_offer && service.offer_tagline && (
-                      <p className="text-xs text-orange-700 italic mb-3">
+                      <p className="text-xs text-brand-700 italic mb-3">
                         🏷 {service.offer_tagline}
                       </p>
                     )}
@@ -357,12 +357,12 @@ const ManageServices = () => {
                             <span className="text-stone-400 line-through text-sm">
                               {formatPrice(service.original_price)}
                             </span>
-                            <span className="font-bold text-orange-800 text-lg">
+                            <span className="font-bold text-brand-800 text-lg">
                               {formatPrice(service.price)}
                             </span>
                           </>
                         ) : (
-                          <span className="font-semibold text-orange-800">
+                          <span className="font-semibold text-brand-800">
                             {formatPrice(service.price)}
                           </span>
                         )}
@@ -450,8 +450,8 @@ const ManageServices = () => {
                         onClick={() => setFormData({ ...formData, category_id: cat.id })}
                         className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
                           formData.category_id === cat.id
-                            ? 'bg-orange-800 text-white border-orange-800'
-                            : 'bg-white text-stone-700 border-stone-200 hover:border-orange-300'
+                            ? 'bg-brand-800 text-white border-brand-800'
+                            : 'bg-white text-stone-700 border-stone-200 hover:border-brand-300'
                         }`}
                       >
                         {cat.name}
@@ -484,7 +484,7 @@ const ManageServices = () => {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   data-testid="service-name-input"
-                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
                   placeholder="e.g., Men's Haircut"
                   required
                 />
@@ -499,7 +499,7 @@ const ManageServices = () => {
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   data-testid="service-description-input"
                   rows={2}
-                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 resize-none"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800 resize-none"
                   placeholder="Describe the service..."
                 />
               </div>
@@ -514,7 +514,7 @@ const ManageServices = () => {
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     data-testid="service-price-input"
-                    className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                    className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
                     placeholder="500"
                     min="0"
                     required
@@ -529,7 +529,7 @@ const ManageServices = () => {
                     value={formData.duration}
                     onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                     data-testid="service-duration-input"
-                    className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                    className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
                   >
                     <option value="15">15 mins</option>
                     <option value="30">30 mins</option>
@@ -549,7 +549,7 @@ const ManageServices = () => {
                     id="is_on_offer"
                     checked={formData.is_on_offer || false}
                     onChange={(e) => setFormData({ ...formData, is_on_offer: e.target.checked })}
-                    className="w-4 h-4 text-orange-800 border-stone-300 rounded focus:ring-orange-800"
+                    className="w-4 h-4 text-brand-800 border-stone-300 rounded focus:ring-brand-800"
                   />
                   <label htmlFor="is_on_offer" className="text-sm font-medium text-stone-700">
                     Enable Special Offer
@@ -557,7 +557,7 @@ const ManageServices = () => {
                 </div>
 
                 {formData.is_on_offer && (
-                  <div className="space-y-4 bg-orange-50 p-4 rounded-xl border border-orange-100">
+                  <div className="space-y-4 bg-brand-50 p-4 rounded-xl border border-brand-100">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-stone-700 mb-2">
@@ -568,7 +568,7 @@ const ManageServices = () => {
                             type="number"
                             value={formData.discount_percentage || ''}
                             onChange={(e) => setFormData({ ...formData, discount_percentage: parseInt(e.target.value) || 0 })}
-                            className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                            className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
                             placeholder="20"
                             min="1"
                             max="99"
@@ -577,7 +577,7 @@ const ManageServices = () => {
                           <span className="absolute right-3 top-3 text-stone-500">%</span>
                         </div>
                         {formData.price && formData.discount_percentage && (
-                          <p className="text-xs text-orange-700 mt-1">
+                          <p className="text-xs text-brand-700 mt-1">
                             Final price: ₹{Math.round(formData.price * (1 - (formData.discount_percentage || 0) / 100))}
                           </p>
                         )}
@@ -591,7 +591,7 @@ const ManageServices = () => {
                           type="date"
                           value={formData.offer_end_date || ''}
                           onChange={(e) => setFormData({ ...formData, offer_end_date: e.target.value })}
-                          className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                          className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
                           min={new Date().toISOString().split('T')[0]}
                           required={formData.is_on_offer}
                         />
@@ -605,7 +605,7 @@ const ManageServices = () => {
                       <select
                         value={formData.offer_tagline || "Grab it before it's gone!"}
                         onChange={(e) => setFormData({ ...formData, offer_tagline: e.target.value })}
-                        className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                        className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
                       >
                         <option value="Grab it before it's gone!">Grab it before it's gone!</option>
                         <option value="Limited Time Offer!">Limited Time Offer!</option>

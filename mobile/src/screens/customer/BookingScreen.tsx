@@ -12,7 +12,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   TextInput,
 } from "react-native";
@@ -71,7 +70,13 @@ import { promotionRepository, CheckoutOffer } from "../../repositories/promotion
 import { CheckoutOffersSection } from "../../components/booking/CheckoutOffersSection";
 import { upiIntentService } from "../../services/upiIntentService";
 import PaymentMethodPicker from "../../components/booking/PaymentMethodPicker";
-import { createBookingStyles } from "../../components/booking/styles";
+import {
+  createBookingStyles,
+  SLOT_META_MAX_SCALE,
+  SLOT_TEXT_MAX_SCALE,
+} from "../../components/booking/styles";
+import { HeaderBackButton } from "../../components/HeaderBackButton";
+import { SlotGridSkeleton } from "../../components/skeletons/SlotGridSkeleton";
 import { useInitiateUpi } from "../../hooks/usePayment";
 
 // Staff selection imports
@@ -206,7 +211,6 @@ export const BookingScreen: React.FC<
     subscribeToSlots,
     unsubscribeFromSlots,
     updateSlots,
-    refreshSlots,
   } = useBookingStore();
 
   // Get salon details
@@ -1123,11 +1127,11 @@ export const BookingScreen: React.FC<
     bookingMutation.mutate();
   };
 
-  // Handle refresh needed indicator
-  const handleRefreshNeeded = () => {
-    refreshSlots();
-    refetchSlots();
-  };
+  // Realtime "needs refresh" should auto-refetch — not wait for a tap.
+  useEffect(() => {
+    if (!needsRefresh) return;
+    void refetchSlots();
+  }, [needsRefresh, refetchSlots]);
 
   // Show conflict error when booking fails due to conflict
   useEffect(() => {
@@ -1271,12 +1275,7 @@ export const BookingScreen: React.FC<
     <ScreenWrapper variant="stack">
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
+        <HeaderBackButton onPress={() => navigation.goBack()} />
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Book Appointment</Text>
           <Text style={styles.headerSubtitle}>{salon?.name}</Text>
@@ -1378,15 +1377,12 @@ export const BookingScreen: React.FC<
 
           {/* Refresh needed indicator */}
           {needsRefresh && (
-            <TouchableOpacity
-              style={styles.refreshBanner}
-              onPress={handleRefreshNeeded}
-            >
+            <View style={styles.refreshBanner}>
               <Ionicons name="refresh" size={16} color={theme.colors.primary} />
               <Text style={styles.refreshText}>
-                Bookings updated. Tap to refresh.
+                Updating available times…
               </Text>
-            </TouchableOpacity>
+            </View>
           )}
 
           {/* Hold Countdown */}
@@ -1432,10 +1428,7 @@ export const BookingScreen: React.FC<
           )}
 
           {slotsLoading ? (
-            <ActivityIndicator
-              color={theme.colors.primary}
-              style={{ marginTop: 20 }}
-            />
+            <SlotGridSkeleton />
           ) : visibleSlots && visibleSlots.length > 0 ? (
             <View style={styles.slotsGrid}>
               {visibleSlots.map((slot) => {
@@ -1468,8 +1461,15 @@ export const BookingScreen: React.FC<
                       }
                     }}
                     disabled={!slot.available}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${formatTime(slot.time)}${isFull ? ", unavailable" : ""}`}
+                    accessibilityState={{
+                      selected: selectedSlot === slot.time,
+                      disabled: !slot.available,
+                    }}
                   >
                     <Text
+                      maxFontSizeMultiplier={SLOT_TEXT_MAX_SCALE}
                       style={[
                         styles.slotText,
                         isFull && styles.slotTextDisabled,
@@ -1482,6 +1482,7 @@ export const BookingScreen: React.FC<
                     {/* Multi-booking: show count/max */}
                     {isMulti && (
                       <Text
+                        maxFontSizeMultiplier={SLOT_META_MAX_SCALE}
                         style={[
                           styles.slotCapacityText,
                           isFull && styles.slotCapacityFull,
@@ -1495,12 +1496,22 @@ export const BookingScreen: React.FC<
                     )}
                     {/* Single booking: show "Booked" label */}
                     {!isMulti && isFull && (
-                      <Text style={styles.slotBookedLabel}>Booked</Text>
+                      <Text
+                        maxFontSizeMultiplier={SLOT_META_MAX_SCALE}
+                        style={styles.slotBookedLabel}
+                      >
+                        Booked
+                      </Text>
                     )}
                     {/* Just taken indicator (single mode only) */}
                     {isJustBooked && !isMulti && (
                       <View style={styles.justBookedIndicator}>
-                        <Text style={styles.justBookedText}>Just taken!</Text>
+                        <Text
+                          maxFontSizeMultiplier={SLOT_META_MAX_SCALE}
+                          style={styles.justBookedText}
+                        >
+                          Just taken!
+                        </Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -1564,7 +1575,7 @@ export const BookingScreen: React.FC<
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Date</Text>
               <Text style={styles.summaryValue}>
-                {format(new Date(selectedDate), "EEEE, d MMMM yyyy")}
+                {format(new Date(selectedDate), "EEE, d MMM yyyy")}
               </Text>
             </View>
             <View style={styles.summaryRow}>
@@ -1686,23 +1697,15 @@ const createStyles = (theme: Theme) =>
     header: {
       flexDirection: "row",
       alignItems: "center",
-      padding: 20,
+      paddingHorizontal: 12,
+      paddingVertical: 16,
       backgroundColor: theme.colors.background,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
     },
-    backButton: {
-      width: 44,
-      height: 44,
-      backgroundColor: theme.colors.surface,
-      borderRadius: 22,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
     headerText: {
-      marginLeft: 16,
+      marginLeft: 8,
+      flex: 1,
     },
     headerTitle: {
       fontFamily: fonts.heading,
@@ -1997,40 +2000,49 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.colors.border,
     },
     summaryTitle: {
-      fontSize: 18,
-      fontWeight: "700",
+      fontFamily: fonts.bodyBold,
+      fontSize: 16,
       color: theme.colors.text,
       marginBottom: 16,
     },
     summaryRow: {
       flexDirection: "row",
+      alignItems: "flex-start",
       justifyContent: "space-between",
+      gap: 16,
       marginBottom: 12,
     },
     summaryLabel: {
+      fontFamily: fonts.body,
       fontSize: 14,
       color: theme.colors.textSecondary,
+      flexShrink: 0,
     },
+    // The value column carries the long strings (full dates, stylist names), so
+    // it takes the slack and right-aligns instead of crushing the label.
     summaryValue: {
+      fontFamily: fonts.bodyMedium,
       fontSize: 14,
-      fontWeight: "500",
       color: theme.colors.text,
+      flex: 1,
+      textAlign: "right",
     },
     totalRow: {
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
-      paddingTop: 12,
+      paddingTop: 14,
       marginTop: 4,
       marginBottom: 0,
+      alignItems: "center",
     },
     totalLabel: {
+      fontFamily: fonts.bodySemiBold,
       fontSize: 16,
-      fontWeight: "600",
       color: theme.colors.text,
     },
     totalValue: {
-      fontSize: 18,
-      fontWeight: "700",
+      fontFamily: fonts.bodyBold,
+      fontSize: 20,
       color: theme.colors.primary,
     },
     footer: {

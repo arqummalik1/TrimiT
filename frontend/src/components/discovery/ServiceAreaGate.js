@@ -72,9 +72,9 @@ export default function ServiceAreaGate({ result, coords }) {
     >
       {/* Animated pin */}
       <div className="relative mx-auto mb-6 flex h-28 w-28 items-center justify-center">
-        <span className="absolute inline-flex h-20 w-20 rounded-full bg-orange-400/30 animate-ping" />
-        <span className="absolute inline-flex h-14 w-14 rounded-full bg-orange-400/20" />
-        <MapPin size={56} weight="fill" className="relative text-orange-700" />
+        <span className="absolute inline-flex h-20 w-20 rounded-full bg-brand-400/30 animate-ping" />
+        <span className="absolute inline-flex h-14 w-14 rounded-full bg-brand-400/20" />
+        <MapPin size={56} weight="fill" className="relative text-brand-700" />
       </div>
 
       <h2 className="font-heading text-2xl font-bold text-stone-900 mb-2">{headline}</h2>
@@ -82,7 +82,7 @@ export default function ServiceAreaGate({ result, coords }) {
 
       {typeof result?.nearest_distance_km === 'number' && nearest?.name && (
         <div className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-sm text-stone-600 mb-8">
-          <NavigationArrow size={14} weight="bold" className="text-orange-700" />
+          <NavigationArrow size={14} weight="bold" className="text-brand-700" />
           Nearest city: {nearest.name} · ~{Math.round(result.nearest_distance_km)} km away
         </div>
       )}
@@ -106,7 +106,7 @@ export default function ServiceAreaGate({ result, coords }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Your name"
-            className="w-full mb-3 px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+            className="w-full mb-3 px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
           />
           <label className="block text-sm font-medium text-stone-600 mb-1">Email</label>
           <input
@@ -117,8 +117,8 @@ export default function ServiceAreaGate({ result, coords }) {
               if (emailError) setEmailError('');
             }}
             placeholder="you@example.com"
-            className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 ${
-              emailError ? 'border-red-400' : 'border-stone-200 focus:border-orange-800'
+            className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 ${
+              emailError ? 'border-red-400' : 'border-stone-200 focus:border-brand-800'
             }`}
           />
           {emailError && <p className="text-red-500 text-sm mt-1">{emailError}</p>}

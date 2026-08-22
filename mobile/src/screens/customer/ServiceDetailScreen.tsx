@@ -29,7 +29,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -43,6 +42,8 @@ import { Theme } from '../../theme/tokens';
 import { fonts, spacing, borderRadius, formatPrice } from '../../lib/utils';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { ErrorState } from '../../components/ErrorState';
+import { HeaderBackButton } from '../../components/HeaderBackButton';
+import { ServiceDetailSkeleton } from '../../components/skeletons/ServiceDetailSkeleton';
 import { CustomerDiscoverScreenProps } from '../../navigation/types';
 
 // ─── Category image resolver (mirrors ServiceCard — single source is OK here) ─
@@ -117,10 +118,8 @@ export const ServiceDetailScreen: React.FC<CustomerDiscoverScreenProps<'ServiceD
   // ── Loading ──────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <ScreenWrapper variant="stack">
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-        </View>
+      <ScreenWrapper variant="fullscreen">
+        <ServiceDetailSkeleton />
       </ScreenWrapper>
     );
   }
@@ -142,13 +141,16 @@ export const ServiceDetailScreen: React.FC<CustomerDiscoverScreenProps<'ServiceD
   if (!service) {
     return (
       <ScreenWrapper variant="stack">
-        <View style={styles.center}>
-          <Ionicons name="alert-circle-outline" size={48} color={theme.colors.textTertiary} />
-          <Text style={styles.errorText}>Service not found</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backLink}>
-            <Text style={styles.backLinkText}>← Go back</Text>
-          </TouchableOpacity>
+        <View style={styles.errorHeader}>
+          <HeaderBackButton onPress={() => navigation.goBack()} />
         </View>
+        <ErrorState
+          title="Service not available"
+          message={`${salonName} no longer offers this service. Browse the rest of their menu.`}
+          kind="validation"
+          onRetry={() => navigation.goBack()}
+          retryLabel="Back to salon"
+        />
       </ScreenWrapper>
     );
   }
@@ -180,14 +182,11 @@ export const ServiceDetailScreen: React.FC<CustomerDiscoverScreenProps<'ServiceD
 
           {/* ── Safe-area back button ── */}
           <SafeAreaView edges={['top']} style={styles.backButtonContainer}>
-            <TouchableOpacity
+            <HeaderBackButton
+              variant="overlay"
               onPress={() => navigation.goBack()}
               style={styles.backButton}
-              accessibilityLabel="Go back"
-              accessibilityRole="button"
-            >
-              <Ionicons name="arrow-back" size={20} color={theme.colors.white} />
-            </TouchableOpacity>
+            />
           </SafeAreaView>
 
           {/* ── Badges row ── */}
@@ -304,26 +303,6 @@ const createStyles = (theme: Theme, isDark: boolean) =>
     scrollContent: {
       flexGrow: 1,
     },
-    // Loading / error
-    center: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.md,
-    },
-    errorText: {
-      fontFamily: fonts.bodySemiBold,
-      fontSize: 18,
-      color: theme.colors.text,
-    },
-    backLink: {
-      marginTop: spacing.sm,
-    },
-    backLinkText: {
-      fontFamily: fonts.bodyMedium,
-      fontSize: 15,
-      color: theme.colors.primary,
-    },
     // Hero
     heroContainer: {
       height: 340,
@@ -342,12 +321,10 @@ const createStyles = (theme: Theme, isDark: boolean) =>
     backButton: {
       marginTop: 8,
       marginLeft: 16,
-      width: 38,
-      height: 38,
-      borderRadius: 19,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      alignItems: 'center',
-      justifyContent: 'center',
+    },
+    errorHeader: {
+      paddingHorizontal: spacing.sm,
+      paddingTop: spacing.sm,
     },
     heroBadgeRow: {
       position: 'absolute',

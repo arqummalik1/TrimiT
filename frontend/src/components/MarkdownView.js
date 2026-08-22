@@ -28,7 +28,7 @@ const renderInline = (text, keyPrefix) => {
         <a
           key={`${keyPrefix}-a-${key++}`}
           href={match[5]}
-          className="text-orange-800 hover:text-orange-900 underline"
+          className="text-brand-800 hover:text-brand-900 underline"
         >
           {match[4]}
         </a>

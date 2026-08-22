@@ -21,7 +21,7 @@ export function ServiceCardImage({ type, alt, className = '' }) {
 
   if (!src || useFallback) {
     return (
-      <div className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-50 to-stone-100 ${className}`}>
+      <div className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br from-brand-50 to-stone-100 ${className}`}>
         <ServiceIllustration type={type} className="w-28 h-auto sm:w-32" />
       </div>
     );

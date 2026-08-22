@@ -444,7 +444,7 @@ const BookingPage = () => {
               
               <div className="border-t border-stone-200 pt-3 flex justify-between">
                 <span className="text-stone-500">Amount</span>
-                <span className="font-bold text-orange-800 text-lg">
+                <span className="font-bold text-brand-800 text-lg">
                   {formatPrice(service?.price || 0)}
                 </span>
               </div>
@@ -510,7 +510,7 @@ const BookingPage = () => {
                 <Timer size={18} weight="bold" />
                 {service.duration} mins
               </span>
-              <span className="font-semibold text-orange-800">
+              <span className="font-semibold text-brand-800">
                 {formatPrice(service.price)}
               </span>
             </div>
@@ -536,8 +536,8 @@ const BookingPage = () => {
                 data-testid={`date-${date.value}`}
                 className={`flex-shrink-0 w-16 py-3 rounded-xl text-center transition-all ${
                   selectedDate === date.value
-                    ? 'bg-orange-800 text-white'
-                    : 'bg-white border border-stone-200 text-stone-700 hover:border-orange-800'
+                    ? 'bg-brand-800 text-white'
+                    : 'bg-white border border-stone-200 text-stone-700 hover:border-brand-800'
                 }`}
               >
                 <span className="block text-xs font-medium opacity-70">
@@ -579,7 +579,7 @@ const BookingPage = () => {
                     <span className="w-2 h-2 rounded-full bg-emerald-500" /> Available
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" /> Filling up
+                    <span className="w-2 h-2 rounded-full bg-brand-500" /> Filling up
                   </span>
                   <span className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-red-400" /> Full
@@ -605,10 +605,10 @@ const BookingPage = () => {
                         isFull
                           ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
                           : selectedSlot === slot.time
-                          ? 'bg-orange-800 text-white'
+                          ? 'bg-brand-800 text-white'
                           : isFillingUp
-                          ? 'bg-amber-50 border border-amber-200 text-stone-700 hover:border-orange-800'
-                          : 'bg-white border border-stone-200 text-stone-700 hover:border-orange-800 hover:text-orange-800'
+                          ? 'bg-brand-50 border border-brand-200 text-stone-700 hover:border-brand-800'
+                          : 'bg-white border border-stone-200 text-stone-700 hover:border-brand-800 hover:text-brand-800'
                       }`}
                     >
                       <span className={isFull && !isMulti ? 'line-through' : ''}>
@@ -622,7 +622,7 @@ const BookingPage = () => {
                             : selectedSlot === slot.time
                             ? 'text-white/70'
                             : isFillingUp
-                            ? 'text-amber-600'
+                            ? 'text-brand-600'
                             : 'text-stone-400'
                         }`}>
                           {isFull ? 'Full' : `${count}/${max} booked`}
@@ -666,12 +666,12 @@ const BookingPage = () => {
                   onClick={() => setPaymentMethod('salon_cash')}
                   className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
                     paymentMethod === 'salon_cash'
-                      ? 'border-orange-800 bg-orange-50'
-                      : 'border-stone-200 bg-white hover:border-orange-300'
+                      ? 'border-brand-800 bg-brand-50'
+                      : 'border-stone-200 bg-white hover:border-brand-300'
                   }`}
                 >
-                  <CurrencyInr size={28} className={paymentMethod === 'salon_cash' ? 'text-orange-800' : 'text-stone-400'} />
-                  <span className={`font-semibold mt-2 ${paymentMethod === 'salon_cash' ? 'text-orange-900' : 'text-stone-700'}`}>
+                  <CurrencyInr size={28} className={paymentMethod === 'salon_cash' ? 'text-brand-800' : 'text-stone-400'} />
+                  <span className={`font-semibold mt-2 ${paymentMethod === 'salon_cash' ? 'text-brand-900' : 'text-stone-700'}`}>
                     Cash at Salon
                   </span>
                   <span className="text-xs text-stone-500 mt-1 text-center">Pay after service</span>
@@ -682,12 +682,12 @@ const BookingPage = () => {
                     onClick={() => setPaymentMethod('upi')}
                     className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${
                       paymentMethod === 'upi'
-                        ? 'border-orange-800 bg-orange-50'
-                        : 'border-stone-200 bg-white hover:border-orange-300'
+                        ? 'border-brand-800 bg-brand-50'
+                        : 'border-stone-200 bg-white hover:border-brand-300'
                     }`}
                   >
-                    <CreditCard size={28} className={paymentMethod === 'upi' ? 'text-orange-800' : 'text-stone-400'} />
-                    <span className={`font-semibold mt-2 ${paymentMethod === 'upi' ? 'text-orange-900' : 'text-stone-700'}`}>
+                    <CreditCard size={28} className={paymentMethod === 'upi' ? 'text-brand-800' : 'text-stone-400'} />
+                    <span className={`font-semibold mt-2 ${paymentMethod === 'upi' ? 'text-brand-900' : 'text-stone-700'}`}>
                       Pay with UPI
                     </span>
                     <span className="text-xs text-stone-500 mt-1 text-center">Pay the salon directly</span>
@@ -699,7 +699,7 @@ const BookingPage = () => {
                 <ShieldCheck size={14} weight="fill" className="text-green-600 shrink-0" />
                 <span>
                   You pay the salon directly — TrimiT never holds your money.{' '}
-                  <Link to="/help/payments" className="text-orange-800 hover:underline">
+                  <Link to="/help/payments" className="text-brand-800 hover:underline">
                     How payments work
                   </Link>
                 </span>
@@ -711,7 +711,7 @@ const BookingPage = () => {
                 Booking Summary
               </h3>
             {timeLeft != null && timeLeft > 0 && (
-              <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
+              <p className="text-sm text-brand-700 bg-brand-50 rounded-lg px-3 py-2 mb-4">
                 Slot held for {timeLeft}s — confirm before it expires.
               </p>
             )}
@@ -744,7 +744,7 @@ const BookingPage = () => {
               
               <div className="border-t border-stone-200 pt-3 flex justify-between">
                 <span className="font-medium text-stone-700">Total Amount</span>
-                <span className="font-bold text-orange-800 text-lg">
+                <span className="font-bold text-brand-800 text-lg">
                   {formatPrice(service?.price || 0)}
                 </span>
               </div>

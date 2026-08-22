@@ -27,8 +27,8 @@ const STATUS_LABEL = {
 const STATUS_TONE = {
   trial: 'bg-green-100 text-green-700',
   active: 'bg-green-100 text-green-700',
-  grace_period: 'bg-amber-100 text-amber-700',
-  past_due: 'bg-amber-100 text-amber-700',
+  grace_period: 'bg-brand-100 text-brand-700',
+  past_due: 'bg-brand-100 text-brand-700',
   expired: 'bg-red-100 text-red-700',
   cancelled: 'bg-red-100 text-red-700',
   payment_failed: 'bg-red-100 text-red-700',

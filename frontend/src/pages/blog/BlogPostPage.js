@@ -16,11 +16,11 @@ export default function BlogPostPage() {
     <article className="min-h-screen bg-stone-50 py-12 px-4">
       <div className="max-w-3xl mx-auto">
         <nav className="flex items-center gap-1 text-sm text-stone-500 mb-8">
-          <Link to="/" className="hover:text-orange-800">
+          <Link to="/" className="hover:text-brand-800">
             Home
           </Link>
           <CaretRight size={14} />
-          <Link to="/blog" className="hover:text-orange-800">
+          <Link to="/blog" className="hover:text-brand-800">
             Blog
           </Link>
           <CaretRight size={14} />

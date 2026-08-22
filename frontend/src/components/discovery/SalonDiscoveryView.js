@@ -136,7 +136,7 @@ export default function SalonDiscoveryView({
                   onChange={(e) => setSearchQuery(e.target.value)}
                   data-testid="search-input"
                   placeholder="Search salons, parlours, haircut, facial..."
-                  className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                  className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
                 />
               </div>
               {showLocationButton && (
@@ -154,7 +154,7 @@ export default function SalonDiscoveryView({
               </button>
             </form>
             <p className="flex items-center gap-1.5 text-sm text-stone-500 mt-3">
-              <MapPin size={16} weight="fill" className="text-orange-800" />
+              <MapPin size={16} weight="fill" className="text-brand-800" />
               {locationLabel} · {JAMMU_CITY.region}
             </p>
             <ServiceCityNotice className="mt-4" />

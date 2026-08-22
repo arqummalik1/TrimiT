@@ -6,6 +6,7 @@ auth + response, not Supabase.
 """
 
 from fastapi import status
+from httpx import Response
 
 
 ADMIN_TOKEN = "secret-admin-token"
@@ -64,3 +65,17 @@ def test_grant_rejects_bad_days(client, monkeypatch):
         headers={"Authorization": f"Bearer {ADMIN_TOKEN}"},
     )
     assert resp.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+def test_block_user_reports_failure_when_write_fails(client, mock_supabase, monkeypatch):
+    from config import settings
+
+    monkeypatch.setattr(settings, "ADMIN_API_TOKEN", ADMIN_TOKEN)
+    mock_supabase.patch("/rest/v1/users").return_value = Response(500, json={"error": "db"})
+    response = client.post(
+        "/api/v1/admin/users/block",
+        json={"user_id": "u1"},
+        headers={"Authorization": f"Bearer {ADMIN_TOKEN}"},
+    )
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.json()["error"]["code"] == "BLOCK_FAILED"

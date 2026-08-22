@@ -28,7 +28,7 @@ export default function MobileBreadcrumbs() {
               {crumb.to && !isLast ? (
                 <Link
                   to={crumb.to}
-                  className="truncate max-w-[9rem] sm:max-w-[12rem] hover:text-orange-800 transition-colors"
+                  className="truncate max-w-[9rem] sm:max-w-[12rem] hover:text-brand-800 transition-colors"
                 >
                   {crumb.label}
                 </Link>

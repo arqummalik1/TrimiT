@@ -3,6 +3,8 @@
  * customer payments are UPI-intent + manual verification and never touch this.
  */
 
+import brandScale from '../theme/brandScale.json';
+
 const RAZORPAY_SCRIPT_SRC = 'https://checkout.razorpay.com/v1/checkout.js';
 
 let loadPromise = null;
@@ -65,7 +67,7 @@ export async function openSubscriptionCheckout(order, { name, email, contact } =
         email: email || undefined,
         contact: contact || undefined,
       },
-      theme: { color: '#9a3412' },
+      theme: { color: brandScale[800] },
       modal: {
         ondismiss: () => reject(new Error('RAZORPAY_CHECKOUT_DISMISSED')),
       },

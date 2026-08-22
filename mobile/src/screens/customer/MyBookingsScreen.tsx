@@ -40,6 +40,7 @@ import { Theme } from "../../theme/tokens";
 import { useAuthStore } from "../../store/authStore";
 import {
   subscribeToUserBookings,
+  syncSupabaseAuthSession,
   unsubscribeFromBookings,
 } from "../../lib/supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -90,9 +91,20 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
     React.useCallback(() => {
       if (!userId) return;
 
-      const channel: RealtimeChannel = subscribeToUserBookings(
-        userId,
-        (payload) => {
+      let cancelled = false;
+      let channel: RealtimeChannel | null = null;
+
+      void (async () => {
+        // Realtime `postgres_changes` is RLS-gated, so the Supabase JS client
+        // needs our JWT before the channel joins — otherwise it subscribes
+        // anonymously and never receives an event.
+        const { token, refreshToken } = useAuthStore.getState();
+        if (token) {
+          await syncSupabaseAuthSession(token, refreshToken);
+        }
+        if (cancelled) return;
+
+        const created = subscribeToUserBookings(userId, (payload) => {
           logger.debug("[MyBookings] realtime event", {
             type: payload.eventType,
             bookingId:
@@ -100,11 +112,21 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
               (payload.old as { id?: string } | null)?.id,
           });
           void queryClient.invalidateQueries({ queryKey: ["myBookings"] });
-        },
-      );
+        });
+
+        if (cancelled) {
+          unsubscribeFromBookings(created);
+          return;
+        }
+        channel = created;
+      })();
 
       return () => {
-        unsubscribeFromBookings(channel);
+        cancelled = true;
+        if (channel) {
+          unsubscribeFromBookings(channel);
+          channel = null;
+        }
       };
     }, [userId, queryClient]),
   );

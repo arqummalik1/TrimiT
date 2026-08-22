@@ -31,9 +31,9 @@ const ContactPage = () => (
           {/* Email Card */}
           <a
             href={`mailto:${SUPPORT_EMAIL}`}
-            className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-orange-200 hover:shadow-sm transition-all text-center group"
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-brand-200 hover:shadow-sm transition-all text-center group"
           >
-            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-orange-100 text-orange-800 group-hover:scale-110 transition-transform">
+            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-brand-100 text-brand-800 group-hover:scale-110 transition-transform">
               <EnvelopeSimple size={24} weight="duotone" />
             </div>
             <div>
@@ -45,7 +45,7 @@ const ContactPage = () => (
           {/* Phone Card */}
           <a
             href={`tel:${SUPPORT_PHONE}`}
-            className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-orange-200 hover:shadow-sm transition-all text-center group"
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-brand-200 hover:shadow-sm transition-all text-center group"
           >
             <div className="w-12 h-12 flex items-center justify-center rounded-full bg-emerald-100 text-emerald-800 group-hover:scale-110 transition-transform">
               <Phone size={24} weight="duotone" />
@@ -61,7 +61,7 @@ const ContactPage = () => (
             href={SOCIAL_INSTAGRAM}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-orange-200 hover:shadow-sm transition-all text-center group"
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-brand-200 hover:shadow-sm transition-all text-center group"
           >
             <div className="w-12 h-12 flex items-center justify-center rounded-full bg-pink-100 text-pink-600 group-hover:scale-110 transition-transform">
               <InstagramLogo size={24} weight="duotone" />
@@ -77,7 +77,7 @@ const ContactPage = () => (
             href={SOCIAL_FACEBOOK}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-orange-200 hover:shadow-sm transition-all text-center group"
+            className="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-brand-200 hover:shadow-sm transition-all text-center group"
           >
             <div className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 group-hover:scale-110 transition-transform">
               <FacebookLogo size={24} weight="duotone" />

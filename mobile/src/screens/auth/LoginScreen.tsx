@@ -28,6 +28,7 @@ import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { ErrorState } from '../../components/ErrorState';
 import { GoogleSignInButton } from '../../components/GoogleSignInButton';
+import { AppleSignInButton } from '../../components/AppleSignInButton';
 import { showToast } from '../../store/toastStore';
 import { getAuthRateLimitMessage } from '../../lib/authRateLimitMessages';
 import { typography, spacing, borderRadius } from '../../lib/utils';
@@ -300,7 +301,7 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
 
-            {/* Google sign-in — always shown (Android + iOS). Never platform-hide. */}
+            {/* Social sign-in: Google (all platforms) + Apple (iOS HIG / App Store 4.8) */}
             <>
               <View style={styles.dividerRow}>
                 <View style={styles.dividerLine} />
@@ -309,6 +310,7 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
               </View>
 
               <GoogleSignInButton label="Sign in with Google" />
+              <AppleSignInButton />
             </>
           </View>
 

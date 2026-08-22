@@ -141,8 +141,8 @@ const OwnerDashboard = () => {
       title: "Today's Bookings",
       value: analytics?.today_bookings || 0,
       icon: Clock,
-      color: "bg-orange-100 text-orange-800",
-      iconColor: "text-orange-600",
+      color: "bg-brand-100 text-brand-800",
+      iconColor: "text-brand-600",
     },
     {
       title: "Pending",
@@ -159,7 +159,7 @@ const OwnerDashboard = () => {
           title: getVenueCopy(salon.gender_serve || "men").manageTitle,
           icon: Storefront,
           href: "/owner/salon",
-          color: "bg-orange-800",
+          color: "bg-brand-800",
         },
         {
           title: "View Bookings",
@@ -301,22 +301,22 @@ const OwnerDashboard = () => {
               >
                 <Link
                   to="/owner/bank-account"
-                  className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 transition-colors hover:bg-amber-100 group"
+                  className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-4 transition-colors hover:bg-brand-100 group"
                 >
-                  <span className="p-2 rounded-xl bg-amber-100 text-amber-700">
+                  <span className="p-2 rounded-xl bg-brand-100 text-brand-700">
                     <CreditCard size={22} weight="bold" />
                   </span>
                   <div className="flex-1">
-                    <p className="font-semibold text-amber-800">
+                    <p className="font-semibold text-brand-800">
                       Payouts: pending activation
                     </p>
-                    <p className="text-sm text-amber-700">
+                    <p className="text-sm text-brand-700">
                       {payoutBannerMessage}
                     </p>
                   </div>
                   <ArrowRight
                     size={18}
-                    className="text-amber-500 group-hover:text-amber-700 transition-colors"
+                    className="text-brand-500 group-hover:text-brand-700 transition-colors"
                   />
                 </Link>
               </motion.div>
@@ -448,7 +448,7 @@ const OwnerDashboard = () => {
                   </h2>
                   <Link
                     to="/owner/services"
-                    className="text-sm text-orange-800 font-medium hover:underline"
+                    className="text-sm text-brand-800 font-medium hover:underline"
                   >
                     Manage All
                   </Link>
@@ -467,7 +467,7 @@ const OwnerDashboard = () => {
                           {service.duration} mins
                         </p>
                       </div>
-                      <span className="font-semibold text-orange-800">
+                      <span className="font-semibold text-brand-800">
                         {formatPrice(service.price)}
                       </span>
                     </div>

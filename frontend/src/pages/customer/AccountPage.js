@@ -61,8 +61,8 @@ const AccountPage = () => {
 
       <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-            <User size={24} className="text-orange-800" />
+          <div className="w-12 h-12 bg-brand-100 rounded-full flex items-center justify-center">
+            <User size={24} className="text-brand-800" />
           </div>
           <div>
             <p className="font-semibold text-stone-900">{profile?.name || 'User'}</p>
@@ -98,7 +98,7 @@ const AccountPage = () => {
             <p className="text-sm text-stone-600">
               Permanently delete your TrimiT account and associated personal data. You can also
               request deletion by emailing{' '}
-              <a href={`mailto:${SUPPORT_EMAIL}`} className="text-orange-800 underline">
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-800 underline">
                 {SUPPORT_EMAIL}
               </a>
               .
@@ -123,7 +123,7 @@ const AccountPage = () => {
         </button>
 
         <p className="text-xs text-stone-500 mt-4 text-center">
-          <Link to="/contact" className="text-orange-800 hover:underline">
+          <Link to="/contact" className="text-brand-800 hover:underline">
             Account deletion help on Contact page
           </Link>
         </p>

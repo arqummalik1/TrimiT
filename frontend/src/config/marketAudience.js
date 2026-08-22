@@ -9,7 +9,7 @@ export const MARKET_AUDIENCE_OPTIONS = [
     exploreGender: 'men',
     icon: 'cut',
     gradient: 'from-stone-800 to-stone-900',
-    accent: 'text-orange-300',
+    accent: 'text-brand-300',
   },
   {
     id: 'women',
@@ -17,8 +17,8 @@ export const MARKET_AUDIENCE_OPTIONS = [
     subtitle: 'Hair, facial & beauty',
     exploreGender: 'women',
     icon: 'sparkles',
-    gradient: 'from-orange-900 to-orange-950',
-    accent: 'text-orange-200',
+    gradient: 'from-brand-900 to-brand-950',
+    accent: 'text-brand-200',
   },
   {
     id: 'unisex',
@@ -27,7 +27,7 @@ export const MARKET_AUDIENCE_OPTIONS = [
     exploreGender: null,
     exploreQuery: 'unisex',
     icon: 'people',
-    gradient: 'from-stone-900 to-orange-950',
+    gradient: 'from-stone-900 to-brand-950',
     accent: 'text-emerald-300',
   },
 ];

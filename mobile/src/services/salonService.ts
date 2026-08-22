@@ -19,23 +19,27 @@ export const salonService = {
     // the request/response/error explicitly (visible in the Expo/Metro terminal).
     const payload = (salonData ?? {}) as Record<string, unknown>;
     const images = Array.isArray(payload.images) ? (payload.images as unknown[]) : [];
-    console.log('🏪 [SalonCreate][service] POST /salons/ →', {
-      name: payload.name,
-      city: payload.city,
-      gender_serve: payload.gender_serve,
-      hasPhone: !!payload.phone,
-      latitude: payload.latitude,
-      longitude: payload.longitude,
-      imageCount: images.length,
-      firstImage: typeof images[0] === 'string' ? images[0] : null,
-      payloadKeys: Object.keys(payload),
-    });
+    if (__DEV__) {
+      console.log('🏪 [SalonCreate][service] POST /salons/ →', {
+        name: payload.name,
+        city: payload.city,
+        gender_serve: payload.gender_serve,
+        hasPhone: !!payload.phone,
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+        imageCount: images.length,
+        firstImage: typeof images[0] === 'string' ? images[0] : null,
+        payloadKeys: Object.keys(payload),
+      });
+    }
     try {
       const response = await apiClient.post('/salons/', salonData);
-      console.log('✅ [SalonCreate][service] salon created', {
-        status: response.status,
-        salonId: (response.data as { id?: string })?.id,
-      });
+      if (__DEV__) {
+        console.log('✅ [SalonCreate][service] salon created', {
+          status: response.status,
+          salonId: (response.data as { id?: string })?.id,
+        });
+      }
       return normalizeSalon(response.data as Salon);
     } catch (error) {
       const appErr = error as {

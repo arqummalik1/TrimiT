@@ -154,8 +154,12 @@ def test_complete_profile_success(client, mock_supabase):
             200, json=[]
         )
         # Mocking rest POST to create user
-        mock_supabase.post("/rest/v1/users").return_value = Response(201, json={"id": "u1", "role": "customer", "name": "Test User"})
-        
+        mock_supabase.post("/rest/v1/users").return_value = Response(
+            201, json=[{"id": "u1", "role": "customer", "name": "Test User"}]
+        )
+        # Welcome campaign lookup after customer profile create (best-effort).
+        mock_supabase.get("/rest/v1/platform_campaigns").return_value = Response(200, json=[])
+
         response = client.post(
             "/api/v1/auth/complete-profile",
             json={"role": "customer", "name": "Test User", "phone": "+919876543210", "gender": "male"}

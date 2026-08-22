@@ -201,16 +201,16 @@ const MyBookings = () => {
     <div className="min-h-screen bg-stone-50 pb-12" data-testid="my-bookings">
       {/* Status Updates Banner */}
       {statusUpdates.length > 0 && (
-        <div className="bg-orange-50 border-b border-orange-200 px-4 py-2">
+        <div className="bg-brand-50 border-b border-brand-200 px-4 py-2">
           <div className="max-w-3xl mx-auto flex items-center gap-2">
-            <Bell size={16} className="text-orange-600" />
-            <span className="text-sm text-orange-800">
+            <Bell size={16} className="text-brand-600" />
+            <span className="text-sm text-brand-800">
               <strong>{statusUpdates.length}</strong> booking status update
               {statusUpdates.length > 1 ? "s" : ""} received
             </span>
             <button
               onClick={() => setStatusUpdates([])}
-              className="ml-auto text-xs text-orange-600 hover:text-orange-800 underline"
+              className="ml-auto text-xs text-brand-600 hover:text-brand-800 underline"
             >
               Clear
             </button>
@@ -294,7 +294,7 @@ const MyBookings = () => {
                       >
                         Payment: {booking.payment_status}
                       </span>
-                      <span className="font-bold text-orange-800">
+                      <span className="font-bold text-brand-800">
                         {formatPrice(booking.amount || 0)}
                       </span>
                     </div>
@@ -307,7 +307,7 @@ const MyBookings = () => {
                             <button
                               onClick={() => handlePayWithUpi(booking)}
                               data-testid={`pay-upi-${booking.id}`}
-                              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-orange-700 hover:bg-orange-800 rounded-lg transition-colors"
+                              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-brand-700 hover:bg-brand-800 rounded-lg transition-colors"
                             >
                               <CreditCard size={18} />
                               {booking.payment_verification_status === "waiting_verification"

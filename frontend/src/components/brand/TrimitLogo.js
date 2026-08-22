@@ -64,7 +64,7 @@ export function TrimitLogo({
   if (!asLink) return content;
 
   return (
-    <Link to={to} className="group inline-flex focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-800/40 rounded-lg">
+    <Link to={to} className="group inline-flex focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-800/40 rounded-lg">
       {content}
     </Link>
   );

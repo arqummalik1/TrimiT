@@ -97,7 +97,7 @@ const SalonDetail = () => {
   return (
     <div className="min-h-screen bg-stone-50 pb-24" data-testid="salon-detail">
       {!isAuthenticated && (
-        <motion.div className="sticky top-16 z-30 bg-orange-800 text-white px-4 py-3 text-center text-sm">
+        <motion.div className="sticky top-16 z-30 bg-brand-800 text-white px-4 py-3 text-center text-sm">
           <Link to="/signup" className="font-bold underline underline-offset-2">
             Sign up free
           </Link>{' '}
@@ -225,18 +225,18 @@ const SalonDetail = () => {
                   transition={{ delay: 0.1 + index * 0.05 }}
                   className={`rounded-2xl p-5 transition-all duration-300 ${
                     service.is_on_offer 
-                      ? 'bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-300 shadow-lg' 
+                      ? 'bg-gradient-to-br from-brand-50 to-brand-100 border-2 border-brand-300 shadow-lg' 
                       : 'bg-white border border-stone-200 hover:shadow-lg'
                   }`}
                 >
                   {/* Offer Badge */}
                   {service.is_on_offer && service.discount_percentage && (
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-orange-600 to-red-600 text-white text-xs font-bold rounded-full">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-brand-600 to-red-600 text-white text-xs font-bold rounded-full">
                         🔥 {service.discount_percentage}% OFF
                       </span>
                       {service.offer_end_date && (
-                        <span className="text-xs text-orange-700">
+                        <span className="text-xs text-brand-700">
                           Ends {new Date(service.offer_end_date).toLocaleDateString()}
                         </span>
                       )}
@@ -264,7 +264,7 @@ const SalonDetail = () => {
                       
                       {/* Offer Tagline */}
                       {service.is_on_offer && service.offer_tagline && (
-                        <p className="text-xs text-orange-700 italic mb-3">
+                        <p className="text-xs text-brand-700 italic mb-3">
                           🏷 {service.offer_tagline}
                         </p>
                       )}
@@ -280,12 +280,12 @@ const SalonDetail = () => {
                               <span className="text-stone-400 line-through text-sm">
                                 {formatPrice(service.original_price)}
                               </span>
-                              <span className="font-bold text-orange-800 text-lg">
+                              <span className="font-bold text-brand-800 text-lg">
                                 {formatPrice(service.price)}
                               </span>
                             </>
                           ) : (
-                            <span className="font-semibold text-orange-800">
+                            <span className="font-semibold text-brand-800">
                               {formatPrice(service.price)}
                             </span>
                           )}
@@ -308,7 +308,7 @@ const SalonDetail = () => {
                         data-testid={`book-service-${service.id}`}
                         className={`text-sm px-5 py-2.5 flex items-center gap-2 rounded-full font-semibold transition-all ${
                           service.is_on_offer
-                            ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white hover:from-orange-700 hover:to-red-700'
+                            ? 'bg-gradient-to-r from-brand-600 to-red-600 text-white hover:from-brand-700 hover:to-red-700'
                             : 'btn-primary'
                         }`}
                       >
@@ -366,7 +366,7 @@ const SalonDetail = () => {
                               key={i}
                               size={14}
                               weight={i < review.rating ? 'fill' : 'regular'}
-                              className={i < review.rating ? 'text-amber-400' : 'text-stone-300'}
+                              className={i < review.rating ? 'text-brand-400' : 'text-stone-300'}
                             />
                           ))}
                         </div>

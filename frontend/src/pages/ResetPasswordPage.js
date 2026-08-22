@@ -147,7 +147,7 @@ const ResetPasswordPage = () => {
         <div className="bg-white rounded-3xl shadow-xl p-8 border border-stone-200">
           {isValidating ? (
             <div className="text-center py-12">
-              <div className="w-8 h-8 border-2 border-orange-800/30 border-t-orange-800 rounded-full animate-spin mx-auto" />
+              <div className="w-8 h-8 border-2 border-brand-800/30 border-t-brand-800 rounded-full animate-spin mx-auto" />
               <p className="text-stone-500 mt-4 text-sm">Validating reset link…</p>
             </div>
           ) : isSuccess ? (
@@ -182,7 +182,7 @@ const ResetPasswordPage = () => {
                     <p className="font-medium">{error}</p>
                     <Link
                       to="/forgot-password"
-                      className="text-orange-800 font-medium hover:underline mt-2 inline-block"
+                      className="text-brand-800 font-medium hover:underline mt-2 inline-block"
                     >
                       Request new reset link
                     </Link>
@@ -214,7 +214,7 @@ const ResetPasswordPage = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={!isValidToken}
-                    className="w-full pl-12 pr-12 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors disabled:bg-stone-100 disabled:cursor-not-allowed"
+                    className="w-full pl-12 pr-12 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800 transition-colors disabled:bg-stone-100 disabled:cursor-not-allowed"
                     placeholder="Min 6 characters"
                     required
                     minLength={6}
@@ -246,7 +246,7 @@ const ResetPasswordPage = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={!isValidToken}
-                    className="w-full pl-12 pr-12 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors disabled:bg-stone-100 disabled:cursor-not-allowed"
+                    className="w-full pl-12 pr-12 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800 transition-colors disabled:bg-stone-100 disabled:cursor-not-allowed"
                     placeholder="Confirm your new password"
                     required
                     autoComplete="new-password"
@@ -281,7 +281,7 @@ const ResetPasswordPage = () => {
             <div className="mt-6 text-center">
               <p className="text-stone-500 text-sm">
                 Remember your password?{' '}
-                <Link to="/login" className="text-orange-800 font-semibold hover:underline">
+                <Link to="/login" className="text-brand-800 font-semibold hover:underline">
                   Sign in
                 </Link>
               </p>

@@ -1,15 +1,7 @@
 import React, { useMemo } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  ActivityIndicator,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, FlatList } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
-import { Ionicons } from "@expo/vector-icons";
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from "../../components/ScreenWrapper";
 import { useTheme } from "../../theme/ThemeContext";
 import { Theme } from "../../theme/tokens";
@@ -17,6 +9,13 @@ import { borderRadius, fonts, formatPrice } from "../../lib/utils";
 import { promotionRepository } from "../../repositories/promotionRepository";
 import { format } from "date-fns";
 import { ProfileStackScreenProps } from "../../navigation/types";
+import { EmptyState } from "../../components/EmptyState";
+import { ErrorState } from "../../components/ErrorState";
+import { HeaderBackButton, HeaderBackButtonSpacer } from "../../components/HeaderBackButton";
+import { OfferListSkeleton } from "../../components/skeletons/OfferListSkeleton";
+import { useMinLoadingTime } from "../../hooks/useMinLoadingTime";
+import { handleApiError } from "../../lib/errorHandler";
+import { resetToCustomerDiscover } from "../../lib/navigationHelpers";
 
 export default function MyOffersScreen({
   navigation,
@@ -25,35 +24,68 @@ export default function MyOffersScreen({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
 
-  const { data: grants = [], isLoading } = useQuery({
+  const {
+    data: grants = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["myGrants"],
     queryFn: () => promotionRepository.getMyGrants(),
   });
 
+  const showSkeleton = useMinLoadingTime(isLoading);
   const now = Date.now();
+
+  const header = (
+    <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <HeaderBackButton onPress={() => navigation.goBack()} />
+      <Text style={styles.headerTitle}>My offers</Text>
+      <HeaderBackButtonSpacer />
+    </View>
+  );
+
+  if (isError && !showSkeleton) {
+    const appErr = handleApiError(error);
+    return (
+      <ScreenWrapper variant="stack" edges={["top"]}>
+        {header}
+        <ErrorState
+          title="Couldn't load your offers"
+          message={appErr.message}
+          kind={appErr.kind}
+          onRetry={() => void refetch()}
+        />
+      </ScreenWrapper>
+    );
+  }
 
   return (
     <ScreenWrapper variant="stack" edges={["top"]}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My offers</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      {header}
 
-      {isLoading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={theme.colors.primary} />
+      {showSkeleton ? (
+        <OfferListSkeleton />
       ) : (
         <FlatList
           data={grants}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{
-            padding: 16,
-            paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 24,
-          }}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 24 },
+          ]}
           ListEmptyComponent={
-            <Text style={styles.empty}>No offers yet — check back after booking!</Text>
+            <EmptyState
+              icon="pricetag-outline"
+              title="No offers yet"
+              message="Offers land here after you book. Explore salons near you to earn your first one."
+              compact
+              action={{
+                label: "Explore salons",
+                onPress: () => resetToCustomerDiscover(navigation),
+              }}
+            />
           }
           renderItem={({ item }) => {
             const expired = new Date(item.expires_at).getTime() < now;
@@ -110,8 +142,8 @@ const createStyles = (theme: Theme) =>
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingHorizontal: 16,
-      paddingBottom: 12,
+      paddingHorizontal: 8,
+      paddingBottom: 8,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
     },
@@ -120,12 +152,9 @@ const createStyles = (theme: Theme) =>
       fontSize: 18,
       color: theme.colors.text,
     },
-    empty: {
-      fontFamily: fonts.body,
-      fontSize: 14,
-      color: theme.colors.textSecondary,
-      textAlign: "center",
-      marginTop: 48,
+    listContent: {
+      padding: 16,
+      flexGrow: 1,
     },
     card: {
       flexDirection: "row",

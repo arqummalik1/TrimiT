@@ -40,10 +40,10 @@ const FEATURES = [
 export default function ForSalonsPage() {
   return (
     <div className="min-h-screen bg-stone-50">
-      <section className="relative py-20 sm:py-28 px-4 overflow-hidden bg-gradient-to-br from-stone-900 to-orange-950 text-white">
+      <section className="relative py-20 sm:py-28 px-4 overflow-hidden bg-gradient-to-br from-stone-900 to-brand-950 text-white">
         <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center relative z-10">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <span className="text-xs font-bold tracking-[0.2em] uppercase text-orange-300">
+            <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-300">
               For business owners
             </span>
             <h1 className="font-heading text-4xl sm:text-5xl font-extrabold mt-4 mb-6 leading-tight">
@@ -53,14 +53,14 @@ export default function ForSalonsPage() {
               Get more bookings, accept appointments 24/7, and manage your business digitally. Men&apos;s
               salons, beauty parlours, and unisex studios — list for free in Jammu &amp; Kashmir.
               {isOfferActive() && (
-                <span className="block mt-3 text-orange-300 font-semibold text-base">
+                <span className="block mt-3 text-brand-300 font-semibold text-base">
                   🎉 Limited Offer: First 30 days completely free. Offer ends June 30.
                 </span>
               )}
             </p>
             <Link
               to={PROMO.ctaPath}
-              className="inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-900 rounded-full font-bold hover:bg-orange-50"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-white text-brand-900 rounded-full font-bold hover:bg-brand-50"
             >
               {isOfferActive() ? PROMO.ctaLabel : 'List your business free'}
               <ArrowRight size={20} weight="bold" />
@@ -85,7 +85,7 @@ export default function ForSalonsPage() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
               >
-                <f.icon size={32} weight="duotone" className="text-orange-800 mb-4" />
+                <f.icon size={32} weight="duotone" className="text-brand-800 mb-4" />
                 <h3 className="font-heading font-bold text-stone-900 mb-2">{f.title}</h3>
                 <p className="text-stone-600 text-sm">{f.text}</p>
               </motion.div>
@@ -100,7 +100,7 @@ export default function ForSalonsPage() {
       <section className="py-20 px-4 bg-white">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <span className="text-xs font-bold tracking-[0.2em] uppercase text-orange-700">
+            <span className="text-xs font-bold tracking-[0.2em] uppercase text-brand-700">
               Payments
             </span>
             <h2 className="font-heading text-3xl font-bold text-stone-900 mt-3 mb-3">
@@ -138,7 +138,7 @@ export default function ForSalonsPage() {
           <div className="text-center mt-10">
             <Link
               to="/help/payments"
-              className="inline-flex items-center gap-1.5 text-orange-800 font-semibold hover:underline"
+              className="inline-flex items-center gap-1.5 text-brand-800 font-semibold hover:underline"
             >
               See how payments &amp; payouts work
               <ArrowRight size={18} weight="bold" />
@@ -165,13 +165,13 @@ export default function ForSalonsPage() {
 
       <FaqSection items={OWNER_FAQ} title="Questions from salon & parlour owners" />
 
-      <section className="py-16 px-4 bg-orange-800 text-center">
+      <section className="py-16 px-4 bg-brand-800 text-center">
         <h2 className="font-heading text-3xl font-bold text-white mb-6">
           Ready to get discovered in Jammu &amp; Kashmir?
         </h2>
         <Link
           to={PROMO.ctaPath}
-          className="inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-800 rounded-full font-bold"
+          className="inline-flex items-center gap-2 px-8 py-4 bg-white text-brand-800 rounded-full font-bold"
         >
           {isOfferActive() ? PROMO.ctaLabel : 'Start free today'}
           <ArrowRight size={20} weight="bold" />

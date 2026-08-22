@@ -52,7 +52,7 @@ const Footer = () => {
                 href={SOCIAL_INSTAGRAM}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-stone-400 hover:text-orange-300 transition-colors"
+                className="text-stone-400 hover:text-brand-300 transition-colors"
                 aria-label="Instagram"
               >
                 <InstagramLogo size={24} weight="fill" />
@@ -61,7 +61,7 @@ const Footer = () => {
                 href={SOCIAL_FACEBOOK}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-stone-400 hover:text-orange-300 transition-colors"
+                className="text-stone-400 hover:text-brand-300 transition-colors"
                 aria-label="Facebook"
               >
                 <FacebookLogo size={24} weight="fill" />
@@ -73,7 +73,7 @@ const Footer = () => {
             <p className="text-sm font-semibold text-stone-200 mb-4">Discover</p>
             <nav className="flex flex-col gap-2 text-sm" aria-label="Discover">
               {MARKETING_ROUTES.map(({ to, label }) => (
-                <Link key={to} to={to} className="hover:text-orange-300 transition-colors">
+                <Link key={to} to={to} className="hover:text-brand-300 transition-colors">
                   {label}
                 </Link>
               ))}
@@ -87,7 +87,7 @@ const Footer = () => {
                 <Link
                   key={s.id}
                   to={s.seoPath}
-                  className="hover:text-orange-300 transition-colors"
+                  className="hover:text-brand-300 transition-colors"
                 >
                   {s.heading.replace(' in Jammu', '')}
                 </Link>
@@ -99,7 +99,7 @@ const Footer = () => {
             <p className="text-sm font-semibold text-stone-200 mb-4">Legal & app</p>
             <nav className="flex flex-col gap-2 text-sm mb-6" aria-label="Legal">
               {LEGAL_LINKS.map(({ to, label }) => (
-                <Link key={to} to={to} className="hover:text-orange-300 transition-colors">
+                <Link key={to} to={to} className="hover:text-brand-300 transition-colors">
                   {label}
                 </Link>
               ))}
@@ -116,7 +116,7 @@ const Footer = () => {
             {LEGAL_LINKS.map(({ to, label }, i) => (
               <React.Fragment key={to}>
                 {i > 0 && <span className="text-stone-600 hidden sm:inline" aria-hidden>|</span>}
-                <Link to={to} className="hover:text-orange-300 transition-colors">
+                <Link to={to} className="hover:text-brand-300 transition-colors">
                   {label}
                 </Link>
               </React.Fragment>
@@ -129,7 +129,7 @@ const Footer = () => {
               {PRODUCT_NAME} v{APP_VERSION} · {APP_RELEASE_CHANNEL} · {COPYRIGHT_YEAR} ·{' '}
               <a
                 href="https://trimit.online"
-                className="hover:text-orange-300 transition-colors"
+                className="hover:text-brand-300 transition-colors"
                 rel="noopener noreferrer"
               >
                 trimit.online

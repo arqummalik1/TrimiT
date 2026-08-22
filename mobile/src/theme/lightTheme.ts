@@ -1,7 +1,6 @@
 /**
  * lightTheme.ts
- * Clean, premium light theme matching the TrimiT web frontend.
- * Source of truth: frontend/tailwind.config.js + frontend/src/index.css
+ * TrimiT Organic & Earthy (Terracotta & Emerald on Warm Stone).
  */
 
 import { lightPalette } from './colors';

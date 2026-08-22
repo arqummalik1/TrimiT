@@ -14,13 +14,13 @@ export const WHY_TRIMIT_FEATURES = [
     icon: Lightning,
     title: 'Book salons instantly',
     description: 'Pick a service and confirm your slot in minutes — no phone tag.',
-    accent: 'from-orange-50 to-amber-50',
+    accent: 'from-brand-50 to-brand-100',
   },
   {
     icon: ShieldCheck,
     title: 'Verified professionals',
     description: 'Salon profiles and services listed by real businesses in Jammu.',
-    accent: 'from-stone-50 to-orange-50/80',
+    accent: 'from-stone-50 to-brand-50/80',
   },
   {
     icon: CalendarCheck,
@@ -32,19 +32,19 @@ export const WHY_TRIMIT_FEATURES = [
     icon: CheckCircle,
     title: 'Instant confirmation',
     description: 'Get appointment confirmation as soon as you book.',
-    accent: 'from-amber-50 to-orange-50',
+    accent: 'from-brand-100 to-brand-50',
   },
   {
     icon: CurrencyInr,
     title: 'Transparent pricing',
     description: 'Service prices shown upfront before you commit.',
-    accent: 'from-orange-50 to-stone-50',
+    accent: 'from-brand-50 to-stone-50',
   },
   {
     icon: Star,
     title: 'Real customer reviews',
     description: 'Ratings from people who actually visited the salon.',
-    accent: 'from-rose-50 to-orange-50',
+    accent: 'from-rose-50 to-brand-50',
   },
   {
     icon: Wallet,
@@ -56,6 +56,6 @@ export const WHY_TRIMIT_FEATURES = [
     icon: Clock,
     title: '24/7 booking',
     description: 'Book your next haircut or spa slot anytime, day or night.',
-    accent: 'from-orange-100/50 to-amber-50',
+    accent: 'from-brand-100/50 to-brand-50',
   },
 ];

@@ -174,16 +174,39 @@ export const useAuthStore = create(
         }
       },
 
-      // Shared session hydration for OAuth (Google) callbacks. Given a Supabase
-      // session, mirrors the verify-otp store logic: set the bearer token, ask
-      // the backend who this is (/auth/me), and gate new users into
-      // CompleteProfile. No new backend endpoint is needed — a Google session
-      // is a normal Supabase session, so /auth/me returns profile_complete.
+      // ── Sign in with Apple (OAuth redirect) ──────────────────────────
+      // Same callback + hydrate path as Google. Requires Apple provider in
+      // Supabase Dashboard (Services ID + secret JWT from Apple .p8 key).
+      appleSignIn: async () => {
+        set({ error: null });
+        try {
+          const redirectTo = `${window.location.origin}/auth/callback`;
+          const { error } = await supabase.auth.signInWithOAuth({
+            provider: "apple",
+            options: { redirectTo },
+          });
+          if (error) {
+            return { success: false, error: error.message };
+          }
+          return { success: true };
+        } catch (e) {
+          return {
+            success: false,
+            error: e?.message || "Could not start Apple sign-in.",
+          };
+        }
+      },
+
+      // Shared session hydration for OAuth (Google / Apple) callbacks. Given a
+      // Supabase session, mirrors the verify-otp store logic: set the bearer
+      // token, ask the backend who this is (/auth/me), and gate new users into
+      // CompleteProfile. No new backend endpoint is needed — an Apple/Google
+      // session is a normal Supabase session, so /auth/me returns profile_complete.
       hydrateFromSupabaseSession: async (session) => {
         const accessToken = session?.access_token;
         const refreshToken = session?.refresh_token ?? null;
         if (!accessToken) {
-          return { success: false, error: "No session returned from Google." };
+          return { success: false, error: "No session returned from sign-in." };
         }
         set({ isLoading: true, error: null });
         try {

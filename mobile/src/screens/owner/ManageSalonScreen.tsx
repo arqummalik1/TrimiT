@@ -282,15 +282,17 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   };
 
   const handleSubmit = async () => {
-    console.log('🏪 [SalonCreate][screen] handleSubmit tapped', {
-      mode: salon ? 'update' : 'create',
-      gender_serve: formData.gender_serve,
-      pendingImages: pendingImages.length,
-      uploadedImages: formData.images.length,
-      locationSet,
-      lat: formData.latitude,
-      lng: formData.longitude,
-    });
+    if (__DEV__) {
+      console.log('🏪 [SalonCreate][screen] handleSubmit tapped', {
+        mode: salon ? 'update' : 'create',
+        gender_serve: formData.gender_serve,
+        pendingImages: pendingImages.length,
+        uploadedImages: formData.images.length,
+        locationSet,
+        lat: formData.latitude,
+        lng: formData.longitude,
+      });
+    }
 
     if (pendingImages.some((p) => p.status === 'uploading')) {
       console.warn('⚠️ [SalonCreate][screen] blocked: images still uploading', {
@@ -353,11 +355,13 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       gender_serve: formData.gender_serve,
     };
 
-    console.log('🏪 [SalonCreate][screen] validation passed, submitting', {
-      mode: salon ? 'update' : 'create',
-      imageCount: payload.images.length,
-      payloadKeys: Object.keys(payload),
-    });
+    if (__DEV__) {
+      console.log('🏪 [SalonCreate][screen] validation passed, submitting', {
+        mode: salon ? 'update' : 'create',
+        imageCount: payload.images.length,
+        payloadKeys: Object.keys(payload),
+      });
+    }
 
     try {
       if (salon) {
@@ -376,7 +380,9 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     attemptTokens.current[id] = token;
     const isCurrent = () => attemptTokens.current[id] === token;
 
-    console.log('🖼️ [SalonCreate][image] upload started', { id, attempt: token, uri });
+    if (__DEV__) {
+      console.log('🖼️ [SalonCreate][image] upload started', { id, attempt: token, uri });
+    }
 
     setPendingImages((prev) => {
       const next: PendingImage = {

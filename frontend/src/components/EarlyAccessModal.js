@@ -102,7 +102,7 @@ export function EarlyAccessModal({ isOpen, onClose }) {
             <button
               type="button"
               onClick={onClose}
-              className="absolute top-4 right-4 p-1.5 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-800/20"
+              className="absolute top-4 right-4 p-1.5 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-800/20"
               aria-label="Close modal"
             >
               <X size={20} weight="bold" />
@@ -118,7 +118,7 @@ export function EarlyAccessModal({ isOpen, onClose }) {
                   transition={{ duration: 0.2 }}
                 >
                   {/* Decorative Icon */}
-                  <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-orange-800">
+                  <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-800">
                     <Sparkle size={26} weight="duotone" className="animate-pulse" />
                   </div>
 
@@ -160,7 +160,7 @@ export function EarlyAccessModal({ isOpen, onClose }) {
                         onChange={handleEmailChange}
                         disabled={isPending}
                         placeholder="you@example.com"
-                        className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl bg-stone-50/50 text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 focus:bg-white transition-all disabled:opacity-50"
+                        className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl bg-stone-50/50 text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800 focus:bg-white transition-all disabled:opacity-50"
                         required
                         aria-label="Email address"
                       />
@@ -169,7 +169,7 @@ export function EarlyAccessModal({ isOpen, onClose }) {
                     <button
                       type="submit"
                       disabled={isPending}
-                      className="w-full btn-primary py-3 flex items-center justify-center gap-2 font-semibold shadow-md shadow-orange-800/10 hover:shadow-lg hover:shadow-orange-800/15 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full btn-primary py-3 flex items-center justify-center gap-2 font-semibold shadow-md shadow-brand-800/10 hover:shadow-lg hover:shadow-brand-800/15 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isPending ? (
                         <>

@@ -167,3 +167,75 @@ def test_list_my_bookings_owner_without_salon_returns_empty(client, mock_supabas
         assert response.json() == []
     finally:
         app.dependency_overrides = {}
+
+
+def test_owner_cannot_complete_cancelled_booking(client, mock_supabase):
+    app = client.app
+    _override_user(
+        app,
+        {
+            "id": "owner1",
+            "access_token": "tok",
+            "profile": {"role": "owner"},
+        },
+    )
+    try:
+        mock_supabase.get("/rest/v1/bookings").return_value = Response(
+            200,
+            json=[
+                {
+                    "id": "b1",
+                    "user_id": "cust1",
+                    "salon_id": "s1",
+                    "status": "cancelled",
+                }
+            ],
+        )
+        mock_supabase.get("/rest/v1/salons").return_value = Response(
+            200, json=[{"id": "s1", "owner_id": "owner1"}]
+        )
+        response = client.patch(
+            "/api/v1/bookings/b1/status", json={"status": "completed"}
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["error"]["code"] == "INVALID_STATUS_TRANSITION"
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_owner_cannot_confirm_unverified_upi(client, mock_supabase):
+    app = client.app
+    _override_user(
+        app,
+        {
+            "id": "owner1",
+            "access_token": "tok",
+            "profile": {"role": "owner"},
+        },
+    )
+    try:
+        # First GET is booking auth row; second GET (same path) is payment fields.
+        mock_supabase.get("/rest/v1/bookings").return_value = Response(
+            200,
+            json=[
+                {
+                    "id": "b1",
+                    "user_id": "cust1",
+                    "salon_id": "s1",
+                    "status": "pending",
+                    "payment_method": "upi",
+                    "payment_status": "pending",
+                    "payment_verification_status": "waiting_verification",
+                }
+            ],
+        )
+        mock_supabase.get("/rest/v1/salons").return_value = Response(
+            200, json=[{"id": "s1", "owner_id": "owner1"}]
+        )
+        response = client.patch(
+            "/api/v1/bookings/b1/status", json={"status": "confirmed"}
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["error"]["code"] == "PAYMENT_NOT_VERIFIED"
+    finally:
+        app.dependency_overrides = {}

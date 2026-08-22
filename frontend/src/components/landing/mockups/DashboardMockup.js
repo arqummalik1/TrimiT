@@ -13,7 +13,7 @@ export default function DashboardMockup({ className = '' }) {
     >
       <motion.div className="px-4 py-3 border-b border-stone-700 flex items-center gap-2">
         <div className="w-3 h-3 rounded-full bg-red-500/80" />
-        <div className="w-3 h-3 rounded-full bg-amber-400/80" />
+        <div className="w-3 h-3 rounded-full bg-brand-400/80" />
         <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
         <span className="ml-2 text-xs text-stone-400 font-medium">TrimiT Owner Dashboard</span>
       </motion.div>
@@ -40,7 +40,7 @@ export default function DashboardMockup({ className = '' }) {
           {bars.map((h, i) => (
             <motion.div
               key={i}
-              className="flex-1 rounded-t-md bg-gradient-to-t from-orange-800 to-orange-500"
+              className="flex-1 rounded-t-md bg-gradient-to-t from-brand-800 to-brand-500"
               initial={{ height: 0 }}
               whileInView={{ height: `${h}%` }}
               viewport={{ once: true }}

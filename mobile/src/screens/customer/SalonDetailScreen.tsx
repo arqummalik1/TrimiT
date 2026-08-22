@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +20,9 @@ import { Theme } from '../../theme/tokens';
 
 import { Button } from '../../components/Button';
 import { ServiceCard } from '../../components/ServiceCard';
+import { ErrorState } from '../../components/ErrorState';
+import { HeaderBackButton } from '../../components/HeaderBackButton';
+import { SalonDetailSkeleton } from '../../components/skeletons/SalonDetailSkeleton';
 import ImageCarousel from '../../components/ImageCarousel';
 import { getSalonMapPinColor } from '../../lib/mapMarkers';
 import { openNativeDirections } from '../../lib/maps';
@@ -72,7 +74,7 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   
   const { salonId } = validation.data;
 
-  const { data: salon, isLoading, error } = useQuery<Salon>({
+  const { data: salon, isLoading, error, refetch } = useQuery<Salon>({
     queryKey: ['salon', salonId],
     queryFn: async () => {
       try {
@@ -140,18 +142,32 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
   if (isLoading) {
     return (
-      <ScreenWrapper variant="stack">
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+      <ScreenWrapper variant="fullscreen">
+        <SalonDetailSkeleton />
       </ScreenWrapper>
     );
   }
 
+  // A deleted salon and a dead network are different problems: only the former
+  // is a dead end, so only the former hides the retry.
   if (error || !salon) {
+    const appErr = handleApiError(error);
+    const isMissing = appErr.status === 404;
     return (
       <ScreenWrapper variant="stack">
-        <Ionicons name="alert-circle" size={64} color={theme.colors.border} />
-        <Text style={styles.errorTitle}>Salon Not Found</Text>
-        <Button title="Go Back" onPress={() => navigation.goBack()} variant="outline" />
+        <View style={styles.errorHeader}>
+          <HeaderBackButton onPress={() => navigation.goBack()} />
+        </View>
+        <ErrorState
+          title={isMissing ? 'Salon not available' : "Couldn't load this salon"}
+          message={
+            isMissing
+              ? 'This salon is no longer listed on TrimiT. Browse others near you.'
+              : appErr.message
+          }
+          kind={appErr.kind}
+          onRetry={isMissing ? undefined : () => void refetch()}
+        />
       </ScreenWrapper>
     );
   }
@@ -166,14 +182,7 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           {/* Header chrome — back + call */}
           <SafeAreaView style={styles.headerButtons}>
             <View style={styles.headerButtonRow}>
-              <TouchableOpacity
-                style={styles.headerIconButton}
-                onPress={() => navigation.goBack()}
-                accessibilityLabel="Go back"
-                accessibilityRole="button"
-              >
-                <Ionicons name="arrow-back" size={22} color={theme.colors.white} />
-              </TouchableOpacity>
+              <HeaderBackButton variant="overlay" onPress={() => navigation.goBack()} />
               {salon.phone ? (
                 <TouchableOpacity
                   style={styles.headerIconButton}
@@ -382,10 +391,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.colors.background,
     gap: 16,
   },
-  errorTitle: {
-    fontFamily: fonts.heading,
-    fontSize: 24,
-    color: theme.colors.text,
+  errorHeader: {
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
   },
   heroContainer: {
     height: 320,

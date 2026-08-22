@@ -21,12 +21,12 @@ export default function BlogIndexPage() {
                 to={`/blog/${post.slug}`}
                 className="group flex flex-col sm:flex-row gap-5 rounded-2xl bg-white border border-stone-200 p-6 hover:shadow-lg transition-all items-start"
               >
-                <div className="shrink-0 w-16 h-16 rounded-2xl bg-orange-50 text-orange-400 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                <div className="shrink-0 w-16 h-16 rounded-2xl bg-brand-50 text-brand-400 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
                   {post.icon}
                 </div>
                 <div>
                   <p className="text-xs text-stone-500 mb-1">{post.date}</p>
-                  <h2 className="font-heading text-xl font-bold text-stone-900 group-hover:text-orange-800 transition-colors">
+                  <h2 className="font-heading text-xl font-bold text-stone-900 group-hover:text-brand-800 transition-colors">
                     {post.title}
                   </h2>
                   <p className="text-stone-600 mt-2">{post.excerpt}</p>

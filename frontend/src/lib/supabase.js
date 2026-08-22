@@ -174,34 +174,9 @@ export const unsubscribeFromChannel = (channel) => {
   }
 };
 
-/**
- * Upload an image to Supabase Storage
- * @param {File} file - The file to upload
- * @param {string} bucket - The storage bucket name (default: 'salon-images')
- * @returns {Promise<string>} - The public URL of the uploaded image
- */
-export const uploadImage = async (file, bucket = "salon-images") => {
-  if (!file) throw new Error("No file provided");
-
-  const fileExt = file.name.split(".").pop();
-  const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-  const filePath = `${fileName}`;
-
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .upload(filePath, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
-
-  if (error) throw error;
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from(bucket).getPublicUrl(filePath);
-
-  return publicUrl;
-};
+// Image uploads go through the authenticated backend endpoint
+// (services/uploadService.js → POST /uploads/service-image), never the anon
+// browser client, so the owner's JWT is verified server-side.
 
 /**
  * Delete an image from Supabase Storage

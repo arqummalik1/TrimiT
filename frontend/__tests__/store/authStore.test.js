@@ -139,6 +139,19 @@ describe('authStore', () => {
     });
   });
 
+  it('appleSignIn starts Supabase Apple OAuth redirect', async () => {
+    supabase.auth.signInWithOAuth.mockResolvedValueOnce({ error: null });
+    const store = useAuthStore.getState();
+    const result = await store.appleSignIn();
+    expect(result.success).toBe(true);
+    expect(supabase.auth.signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'apple',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+  });
+
   it('hydrateFromSupabaseSession loads profile via /auth/me', async () => {
     api.get.mockResolvedValueOnce({
       data: {

@@ -10,22 +10,22 @@ function translateOAuthError(raw) {
   if (msg.includes('already registered') || msg.includes('already exists')) {
     return (
       'An account with this email already exists. Sign in with your email OTP or password, ' +
-      'then link Google from account settings — or use the same Google account you signed up with.'
+      'then try the same social provider again — or use the original sign-in method for that email.'
     );
   }
   if (msg.includes('identity') && msg.includes('link')) {
-    return 'This Google account could not be linked. Try signing in with the method you used originally.';
+    return 'This social account could not be linked. Try signing in with the method you used originally.';
   }
   if (msg.includes('access_denied') || msg.includes('cancel')) {
-    return 'Google sign-in was cancelled.';
+    return 'Sign-in was cancelled.';
   }
-  return raw || 'We could not complete Google sign-in. Please try again.';
+  return raw || 'We could not complete social sign-in. Please try again.';
 }
 
 /**
- * OAuth callback landing page (Google).
+ * OAuth callback landing page (Google / Apple).
  *
- * Supabase redirects here after Google auth. We resolve the session (PKCE
+ * Supabase redirects here after OAuth. We resolve the session (PKCE
  * `?code=...` exchange, or an implicit-flow token hash that supabase-js parses
  * automatically), hand it to the auth store, then route exactly like the OTP
  * flow: new users → /complete-profile (pick role), existing users → home.
@@ -75,7 +75,7 @@ const AuthCallbackPage = () => {
         if (sessionError || !data?.session) {
           setError(
             sessionError?.message ||
-              'We could not complete Google sign-in. Please try again.'
+              'We could not complete sign-in. Please try again.'
           );
           return;
         }
@@ -117,7 +117,7 @@ const AuthCallbackPage = () => {
             <p className="text-red-600 font-medium mb-3">{error}</p>
             <button
               onClick={() => navigate('/login', { replace: true })}
-              className="text-orange-800 font-semibold hover:underline"
+              className="text-brand-800 font-semibold hover:underline"
             >
               Back to sign in
             </button>

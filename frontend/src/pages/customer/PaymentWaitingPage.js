@@ -138,8 +138,8 @@ const PaymentWaitingPage = () => {
             </>
           ) : (
             <>
-              <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-5">
-                <Hourglass size={32} weight="duotone" className="text-orange-700" />
+              <div className="w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-5">
+                <Hourglass size={32} weight="duotone" className="text-brand-700" />
               </div>
               <h2 className="font-heading text-lg font-bold text-stone-900 mb-2">
                 {isTimeout ? 'Still waiting for verification' : 'Waiting for salon verification'}

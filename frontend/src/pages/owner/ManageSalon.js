@@ -17,7 +17,8 @@ import {
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import { useAuthStore } from '../../store/authStore';
-import { uploadImage, deleteImage } from '../../lib/supabase';
+import { deleteImage } from '../../lib/supabase';
+import { uploadSalonImage } from '../../services/uploadService';
 import LocationPicker from '../../components/LocationPicker';
 import { FilterChipRow } from '../../components/FilterChipRow';
 import { SALON_SERVE_OPTIONS, getVenueCopy } from '../../lib/genderServe';
@@ -179,8 +180,8 @@ const ManageSalon = () => {
           continue;
         }
         
-        // Upload to Supabase Storage
-        const publicUrl = await uploadImage(file, 'salon-images');
+        // Authenticated backend upload — owner JWT enforced server-side
+        const publicUrl = await uploadSalonImage(file);
         uploadedUrls.push(publicUrl);
         
         setUploadProgress(Math.round(((i + 1) / files.length) * 100));
@@ -296,7 +297,7 @@ const ManageSalon = () => {
                   value={formData.name}
                   onChange={handleChange}
                   data-testid="salon-name"
-                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
                   placeholder={venueCopy.namePlaceholder}
                   required
                 />
@@ -312,7 +313,7 @@ const ManageSalon = () => {
                   onChange={handleChange}
                   data-testid="salon-description"
                   rows={3}
-                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 resize-none"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800 resize-none"
                   placeholder={venueCopy.descriptionPlaceholder}
                 />
               </div>
@@ -337,7 +338,7 @@ const ManageSalon = () => {
                   value={formData.address}
                   onChange={handleChange}
                   data-testid="salon-address"
-                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
                   placeholder="123 Main Street, Sector 15"
                   required
                 />
@@ -353,7 +354,7 @@ const ManageSalon = () => {
                   value={formData.city}
                   onChange={handleChange}
                   data-testid="salon-city"
-                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
                   placeholder="New Delhi"
                   required
                 />
@@ -369,7 +370,7 @@ const ManageSalon = () => {
                   value={formData.phone}
                   onChange={handleChange}
                   data-testid="salon-phone"
-                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
                   placeholder="+91 98765 43210"
                   required
                 />
@@ -398,7 +399,7 @@ const ManageSalon = () => {
                 }
               />
               {!locationSet && (
-                <p className="mt-2 text-sm text-orange-800 flex items-center gap-1">
+                <p className="mt-2 text-sm text-brand-800 flex items-center gap-1">
                   <MapPin size={14} weight="fill" /> {venueCopy.pinLocationHint}
                 </p>
               )}
@@ -438,7 +439,7 @@ const ManageSalon = () => {
                   value={formData.opening_time}
                   onChange={handleChange}
                   data-testid="salon-opening"
-                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
                 />
               </div>
 
@@ -452,7 +453,7 @@ const ManageSalon = () => {
                   value={formData.closing_time}
                   onChange={handleChange}
                   data-testid="salon-closing"
-                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
                 />
               </div>
             </div>
@@ -520,7 +521,7 @@ const ManageSalon = () => {
                 type="button"
                 onClick={handleAddImage}
                 disabled={uploading}
-                className="aspect-video rounded-xl border-2 border-dashed border-stone-300 flex flex-col items-center justify-center text-stone-400 hover:border-orange-800 hover:text-orange-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="aspect-video rounded-xl border-2 border-dashed border-stone-300 flex flex-col items-center justify-center text-stone-400 hover:border-brand-800 hover:text-brand-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Camera size={28} />
                 <span className="text-sm mt-2 font-medium">Add Photo</span>

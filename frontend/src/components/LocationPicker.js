@@ -157,7 +157,7 @@ export default function LocationPicker({ latitude, longitude, onChange, onAddres
 
   if (!getGoogleMapsKey()) {
     return (
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800 text-sm flex items-center gap-2">
+      <div className="rounded-xl border border-brand-200 bg-brand-50 p-4 text-brand-800 text-sm flex items-center gap-2">
         <Warning size={18} /> Map unavailable — Google Maps key not configured.
       </div>
     );
@@ -174,13 +174,13 @@ export default function LocationPicker({ latitude, longitude, onChange, onAddres
             value={search}
             onChange={(e) => { setSearch(e.target.value); setSearchError(null); }}
             placeholder="Search address or area..."
-            className="w-full pl-10 pr-3 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800"
+            className="w-full pl-10 pr-3 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
           />
         </div>
         <button
           type="submit"
           disabled={searching || !search.trim()}
-          className="px-4 py-3 rounded-xl bg-orange-800 text-white font-semibold disabled:opacity-50"
+          className="px-4 py-3 rounded-xl bg-brand-800 text-white font-semibold disabled:opacity-50"
         >
           {searching ? '…' : 'Find'}
         </button>
@@ -189,7 +189,7 @@ export default function LocationPicker({ latitude, longitude, onChange, onAddres
           onClick={handleUseMyLocation}
           disabled={locating}
           title="Use my location"
-          className="px-3 py-3 rounded-xl border border-stone-200 text-orange-800 hover:bg-stone-50 disabled:opacity-50"
+          className="px-3 py-3 rounded-xl border border-stone-200 text-brand-800 hover:bg-stone-50 disabled:opacity-50"
         >
           <CrosshairSimple size={20} />
         </button>
@@ -221,7 +221,7 @@ export default function LocationPicker({ latitude, longitude, onChange, onAddres
           {addressLabel && <p className="mt-1 text-stone-600">{addressLabel}</p>}
         </div>
         <div className="flex items-center gap-1 text-xs text-stone-700 shrink-0 tabular-nums">
-          <MapPin size={14} className="text-orange-800" weight="fill" />
+          <MapPin size={14} className="text-brand-800" weight="fill" />
           {Number.isFinite(latitude) ? latitude.toFixed(5) : '—'},{' '}
           {Number.isFinite(longitude) ? longitude.toFixed(5) : '—'}
         </div>

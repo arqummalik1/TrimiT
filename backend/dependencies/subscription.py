@@ -68,8 +68,15 @@ async def require_active_subscription(current_user: dict = Depends(get_current_u
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("[Sub] access check failed user=%s err=%s — allowing", current_user.get("id"), e)
-        return current_user
+        # Fail closed when enforcement is on — a DB blip must not grant premium.
+        logger.error("[Sub] access check failed user=%s err=%s — denying", current_user.get("id"), e)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "code": "SUBSCRIPTION_CHECK_FAILED",
+                "message": "We couldn't verify your subscription right now. Please try again in a moment.",
+            },
+        )
 
     if not has_access:
         msg = (

@@ -13,8 +13,8 @@ export function FilterChipRow({ options, value, onChange, testIDPrefix = 'chip' 
             onClick={() => onChange(opt.value)}
             className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
               active
-                ? 'bg-orange-800 text-white border-orange-800'
-                : 'bg-white text-stone-700 border-stone-200 hover:border-orange-300'
+                ? 'bg-brand-800 text-white border-brand-800'
+                : 'bg-white text-stone-700 border-stone-200 hover:border-brand-300'
             }`}
           >
             {opt.label}

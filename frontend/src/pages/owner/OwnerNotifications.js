@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bell, Trash2, CheckAll, Filter, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
+import { Bell, Trash, Checks, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
 import { useNotificationStore } from '../../store/notificationStore';
 import { formatDistanceToNow } from 'date-fns';
 import api from '../../lib/api';
@@ -57,7 +57,7 @@ const OwnerNotifications = () => {
       case 'booking_rejected':
         return <span className="text-red-500">❌</span>;
       case 'booking_cancelled':
-        return <span className="text-orange-500">🗑️</span>;
+        return <span className="text-brand-500">🗑️</span>;
       default:
         return <span className="text-gray-500">🔔</span>;
     }
@@ -108,7 +108,7 @@ const OwnerNotifications = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={toggleSound}
-                className="p-2 bg-white rounded-xl border border-stone-200 hover:border-orange-800 transition-colors"
+                className="p-2 bg-white rounded-xl border border-stone-200 hover:border-brand-800 transition-colors"
                 title={soundEnabled ? 'Disable sound' : 'Enable sound'}
               >
                 {soundEnabled ? (
@@ -123,7 +123,7 @@ const OwnerNotifications = () => {
                   className="p-2 bg-white rounded-xl border border-stone-200 hover:border-red-600 transition-colors"
                   title="Clear all notifications"
                 >
-                  <Trash2 size={20} className="text-stone-600" />
+                  <Trash size={20} className="text-stone-600" />
                 </button>
               )}
             </div>
@@ -149,8 +149,8 @@ const OwnerNotifications = () => {
                 onClick={() => setFilter(item.value)}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                   filter === item.value
-                    ? 'bg-orange-800 text-white'
-                    : 'bg-white text-stone-600 border border-stone-200 hover:border-orange-800'
+                    ? 'bg-brand-800 text-white'
+                    : 'bg-white text-stone-600 border border-stone-200 hover:border-brand-800'
                 }`}
               >
                 {item.label}
@@ -182,9 +182,9 @@ const OwnerNotifications = () => {
               <div className="mb-4">
                 <button
                   onClick={markAllAsRead}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-800 text-white rounded-lg hover:bg-orange-900 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-brand-800 text-white rounded-lg hover:bg-brand-900 transition-colors"
                 >
-                  <CheckAll size={20} />
+                  <Checks size={20} />
                   Mark all as read
                 </button>
               </div>
@@ -201,8 +201,8 @@ const OwnerNotifications = () => {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     className={`mb-2 bg-white rounded-xl border ${
-                      !notification.isRead ? 'border-orange-300 bg-orange-50/30' : 'border-stone-200'
-                    } hover:border-orange-800 transition-colors`}
+                      !notification.isRead ? 'border-brand-300 bg-brand-50/30' : 'border-stone-200'
+                    } hover:border-brand-800 transition-colors`}
                   >
                     <div className="p-4">
                       <div className="flex items-start gap-3">
@@ -226,7 +226,7 @@ const OwnerNotifications = () => {
                                 className="p-1.5 hover:bg-stone-100 rounded-lg transition-colors"
                                 title="Delete"
                               >
-                                <Trash2 size={18} className="text-stone-400 hover:text-red-600" />
+                                <Trash size={18} className="text-stone-400 hover:text-red-600" />
                               </button>
                             </div>
                           </div>

@@ -1,5 +1,15 @@
 # TrimiT - V2 Progress
 
+## Accomplished (2026-08-03)
+- **Critical/High audit fix pass (DB + BE + mobile + web):**
+  - **RLS hardening applied in production** (`database/62_rls_hardening_critical.sql`): bookings UPDATE/DELETE revoked from anon/authenticated (live-verified); users UPDATE locked against role/`is_blocked`/`deleted_at` escalation; unrestricted users/promo_usage INSERTs dropped; salon bank **UPDATE** denied to JWT clients; atomic `claim_staff_invite` RPC. Salon/staff SELECT column-hiding must wait until this backend is deployed (applying it early broke live `select=*` — hotfixed; optional SQL is commented at the bottom of migration 62).
+  - **Backend:** owner-only bank details via service_role; subscription gate fails closed; booking status transitions + UPI confirm/complete gate; admin block/delete check write status; bounded nearby-salons fallback; promo stats ownership check; public staff PII stripped; structured `detail.code` preserved in exception handler.
+  - **Mobile:** Realtime CHANNEL_ERROR auto re-subscribe with backoff; silent mutation toasts; My Bookings JWT sync before subscribe; reschedule double-submit guard; `__DEV__` log gates; slot grid auto-refetch on `needsRefresh`.
+  - **Web:** Removed fabricated admin charts; 401 interceptor no longer wipes session on credential failures; `/owner/notifications` wired; shared post-login redirect; salon uploads via authenticated `/uploads/service-image`.
+  - **Tests:** backend 169 passed; mobile 856; web 107. Stale backend tests updated.
+  - **Next ops step:** commit + deploy backend/mobile/web, then run the optional SELECT column-hide block at the bottom of migration 62.
+  - **Deferred (still High, needs product/ops design):** Admin PIN → static `ADMIN_API_TOKEN` bearer (BE-5). Do not rotate live without a session/store plan.
+
 ## Accomplished (2026-07-19)
 - **iOS Google “Unable to open Safari”:** Treat GIDSignIn Safari-open failures as recoverable (Screen Time / presentation): clear user copy + OTP fallback; log warn not Sentry error; wait for AppState active before sign-in.
 - **Web password reset UX + 400 fix:** Forgot-password shows “check your email” (link, not OTP redirect). Reset page centered with site Header. Reset API validates recovery JWT then admin-updates password when user PUT fails. Success hydrates session and routes home.
