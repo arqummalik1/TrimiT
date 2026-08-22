@@ -6,8 +6,14 @@ import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
 import GoogleSignInButton from '../components/auth/GoogleSignInButton';
-import { GOOGLE_LOGIN_ENABLED, OTP_RESEND_COOLDOWN_SECONDS } from '../config/auth';
+import AppleSignInButton from '../components/auth/AppleSignInButton';
+import {
+  GOOGLE_LOGIN_ENABLED,
+  APPLE_LOGIN_ENABLED,
+  OTP_RESEND_COOLDOWN_SECONDS,
+} from '../config/auth';
 import { safeInternalPath } from '../lib/utils';
+import { resolvePostLoginPath } from '../lib/postLoginRedirect';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -57,7 +63,13 @@ const LoginPage = () => {
     const result = await login(email.trim(), password);
     if (result.success) {
       useToastStore.getState().success('Signed in successfully.');
-      navigate(redirectAfterLogin || '/');
+      navigate(
+        resolvePostLoginPath({
+          profile: result.profile,
+          hasSalon: result.hasSalon,
+          redirectTo: redirectAfterLogin,
+        })
+      );
     }
   };
 
@@ -107,7 +119,7 @@ const LoginPage = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   data-testid="login-email"
-                  className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
+                  className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800 transition-colors"
                   placeholder="you@example.com"
                   required
                 />
@@ -122,7 +134,7 @@ const LoginPage = () => {
                   </label>
                   <Link
                     to={`/forgot-password?email=${encodeURIComponent(email.trim())}`}
-                    className="text-sm font-medium text-orange-800 hover:underline"
+                    className="text-sm font-medium text-brand-800 hover:underline"
                   >
                     Forgot password?
                   </Link>
@@ -137,7 +149,7 @@ const LoginPage = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     data-testid="login-password"
-                    className="w-full pl-12 pr-12 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
+                    className="w-full pl-12 pr-12 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800 transition-colors"
                     placeholder="••••••••"
                     required
                   />
@@ -174,14 +186,14 @@ const LoginPage = () => {
                   setIsOtpLogin(!isOtpLogin);
                   clearError();
                 }}
-                className="text-sm font-semibold text-orange-800 hover:underline"
+                className="text-sm font-semibold text-brand-800 hover:underline"
               >
                 {isOtpLogin ? 'Sign in with Email and Password' : 'Sign in with OTP'}
               </button>
             </div>
           </form>
 
-          {GOOGLE_LOGIN_ENABLED && (
+          {(GOOGLE_LOGIN_ENABLED || APPLE_LOGIN_ENABLED) && (
             <>
               <div className="flex items-center gap-3 my-6">
                 <div className="flex-1 h-px bg-stone-200" />
@@ -189,7 +201,14 @@ const LoginPage = () => {
                 <div className="flex-1 h-px bg-stone-200" />
               </div>
 
-              <GoogleSignInButton label="Sign in with Google" />
+              <div className="space-y-3">
+                {GOOGLE_LOGIN_ENABLED && (
+                  <GoogleSignInButton label="Sign in with Google" />
+                )}
+                {APPLE_LOGIN_ENABLED && (
+                  <AppleSignInButton label="Sign in with Apple" />
+                )}
+              </div>
             </>
           )}
 
@@ -198,7 +217,7 @@ const LoginPage = () => {
               Don't have an account?{' '}
               <Link 
                 to="/signup" 
-                className="text-orange-800 font-semibold hover:underline"
+                className="text-brand-800 font-semibold hover:underline"
                 data-testid="signup-link"
               >
                 Sign up

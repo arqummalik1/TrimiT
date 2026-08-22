@@ -75,13 +75,18 @@ async def get_primary_salon_for_manager(
     *,
     token: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Salon dict for owner or linked employee (owner dashboard)."""
+    """Salon dict for owner or linked employee (owner dashboard).
+
+    Always uses service_role so bank columns remain readable for the owner
+    path after column-level REVOKE from authenticated. Callers must strip
+    bank fields before returning to employees / clients if needed.
+    """
+    _ = token  # retained for call-site compatibility; never used for salon fetch
     if role == "owner":
         resp = await supabase.request(
             "GET",
             f"rest/v1/salons?owner_id=eq.{user_id}&select=*",
-            token=token,
-            service_role=not token,
+            service_role=True,
         )
         if resp.status_code == 200 and resp.json():
             return resp.json()[0]
@@ -94,11 +99,19 @@ async def get_primary_salon_for_manager(
         resp = await supabase.request(
             "GET",
             f"rest/v1/salons?id=eq.{staff['salon_id']}&select=*",
-            token=token,
-            service_role=not token,
+            service_role=True,
         )
         if resp.status_code == 200 and resp.json():
             salon = resp.json()[0]
+            # Employees must never see payout fields.
+            for key in (
+                "bank_account_number",
+                "bank_ifsc",
+                "bank_account_holder_name",
+                "bank_name",
+                "account_holder_name",
+            ):
+                salon.pop(key, None)
             salon["_employee_staff_id"] = staff.get("id")
             salon["_employee_staff_name"] = staff.get("name")
             return salon
@@ -111,47 +124,32 @@ async def link_employee_from_pending_invite(
     email: Optional[str],
 ) -> Optional[str]:
     """
-    Find pending staff invite by phone (preferred) or email.
-    Links user_id and sets app_access_status=active. Returns staff id.
-    """
-    phone_digits = normalize_phone_digits(phone)
-    if phone_digits:
-        resp = await supabase.request(
-            "GET",
-            "rest/v1/staff"
-            "?app_access_status=eq.pending"
-            "&is_active=eq.true"
-            "&select=id,salon_id,phone,email",
-            service_role=True,
-        )
-        if resp.status_code == 200:
-            for row in resp.json() or []:
-                if normalize_phone_digits(row.get("phone")) == phone_digits:
-                    staff_id = row["id"]
-                    patch = await supabase.request(
-                        "PATCH",
-                        f"rest/v1/staff?id=eq.{staff_id}",
-                        json={"user_id": user_id, "app_access_status": "active"},
-                        service_role=True,
-                    )
-                    if patch.status_code in (200, 204):
-                        return staff_id
+    Atomically claim a pending staff invite by phone (preferred) or email.
 
-    if email:
-        email_norm = email.strip().lower()
-        resp = await supabase.request(
-            "GET",
-            f"rest/v1/staff?app_access_status=eq.pending&is_active=eq.true&email=eq.{email_norm}&select=id",
-            service_role=True,
-        )
-        if resp.status_code == 200 and resp.json():
-            staff_id = resp.json()[0]["id"]
-            patch = await supabase.request(
-                "PATCH",
-                f"rest/v1/staff?id=eq.{staff_id}",
-                json={"user_id": user_id, "app_access_status": "active"},
-                service_role=True,
-            )
-            if patch.status_code in (200, 204):
-                return staff_id
-    return None
+    Uses SECURITY DEFINER RPC claim_staff_invite so only one claimant wins
+    (FOR UPDATE SKIP LOCKED + user_id IS NULL). Prefer verified JWT email when
+    present; phone digits are last-10 match against the invite row.
+    """
+    phone_digits = normalize_phone_digits(phone) or None
+    email_norm = (email or "").strip().lower() or None
+    if not phone_digits and not email_norm:
+        return None
+
+    resp = await supabase.request(
+        "POST",
+        "rest/v1/rpc/claim_staff_invite",
+        json={
+            "p_user_id": user_id,
+            "p_phone_digits": phone_digits,
+            "p_email": email_norm,
+        },
+        service_role=True,
+    )
+    if resp.status_code != 200:
+        return None
+    body = resp.json()
+    if isinstance(body, str) and body:
+        return body
+    if isinstance(body, dict) and body.get("claim_staff_invite"):
+        return body["claim_staff_invite"]
+    return body if body else None

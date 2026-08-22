@@ -78,7 +78,7 @@ const ForgotPasswordPage = () => {
               <button
                 type="button"
                 onClick={() => setSent(false)}
-                className="mt-4 text-sm text-stone-500 hover:text-orange-800 transition-colors"
+                className="mt-4 text-sm text-stone-500 hover:text-brand-800 transition-colors"
               >
                 Use a different email
               </button>
@@ -89,11 +89,11 @@ const ForgotPasswordPage = () => {
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-950 text-sm"
+                  className="p-4 bg-brand-50 border border-brand-200 rounded-xl text-brand-950 text-sm"
                   role="alert"
                 >
                   {errorTitle ? (
-                    <p className="font-semibold text-amber-900 mb-2">{errorTitle}</p>
+                    <p className="font-semibold text-brand-900 mb-2">{errorTitle}</p>
                   ) : null}
                   <p className="whitespace-pre-line leading-relaxed">{error}</p>
                 </motion.div>
@@ -112,7 +112,7 @@ const ForgotPasswordPage = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
+                    className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800 transition-colors"
                     placeholder="you@example.com"
                     required
                     autoComplete="email"
@@ -138,7 +138,7 @@ const ForgotPasswordPage = () => {
             <div className="mt-6 pt-6 border-t border-stone-100">
               <Link
                 to="/login"
-                className="flex items-center justify-center gap-2 text-stone-500 hover:text-orange-800 transition-colors"
+                className="flex items-center justify-center gap-2 text-stone-500 hover:text-brand-800 transition-colors"
               >
                 <ArrowLeft size={20} />
                 <span>Back to Sign In</span>

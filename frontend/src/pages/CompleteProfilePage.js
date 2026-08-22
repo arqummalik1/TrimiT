@@ -176,15 +176,15 @@ const CompleteProfilePage = () => {
                   data-testid="complete-role-customer"
                   className={`p-6 border-2 rounded-2xl transition-all group ${
                     role === 'customer'
-                      ? 'border-orange-800 bg-orange-50'
-                      : 'border-stone-200 hover:border-orange-800 hover:bg-orange-50'
+                      ? 'border-brand-800 bg-brand-50'
+                      : 'border-stone-200 hover:border-brand-800 hover:bg-brand-50'
                   }`}
                 >
                   <Users
                     size={40}
                     weight="duotone"
                     className={`mx-auto mb-3 transition-colors ${
-                      role === 'customer' ? 'text-orange-800' : 'text-stone-400'
+                      role === 'customer' ? 'text-brand-800' : 'text-stone-400'
                     }`}
                   />
                   <span className="block font-semibold text-stone-900">Customer</span>
@@ -196,15 +196,15 @@ const CompleteProfilePage = () => {
                   data-testid="complete-role-owner"
                   className={`p-6 border-2 rounded-2xl transition-all group ${
                     role === 'owner'
-                      ? 'border-orange-800 bg-orange-50'
-                      : 'border-stone-200 hover:border-orange-800 hover:bg-orange-50'
+                      ? 'border-brand-800 bg-brand-50'
+                      : 'border-stone-200 hover:border-brand-800 hover:bg-brand-50'
                   }`}
                 >
                   <Storefront
                     size={40}
                     weight="duotone"
                     className={`mx-auto mb-3 transition-colors ${
-                      role === 'owner' ? 'text-orange-800' : 'text-stone-400'
+                      role === 'owner' ? 'text-brand-800' : 'text-stone-400'
                     }`}
                   />
                   <span className="block font-semibold text-stone-900">Business owner</span>
@@ -239,7 +239,7 @@ const CompleteProfilePage = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   data-testid="complete-name"
-                  className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
+                  className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800 transition-colors"
                   placeholder="John Doe"
                   required
                 />
@@ -266,7 +266,7 @@ const CompleteProfilePage = () => {
                     if (fieldError) setFieldError(null);
                   }}
                   data-testid="complete-phone"
-                  className="w-full pl-20 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
+                  className="w-full pl-20 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800 transition-colors"
                   placeholder="98765 43210"
                 />
               </div>
@@ -275,7 +275,7 @@ const CompleteProfilePage = () => {
             {role === 'owner' && (
               <div>
                 <label className="block text-sm font-medium text-stone-700 mb-2">
-                  UPI ID <span className="text-orange-800">*</span>
+                  UPI ID <span className="text-brand-800">*</span>
                 </label>
                 <div className="relative">
                   <Wallet
@@ -293,7 +293,7 @@ const CompleteProfilePage = () => {
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}
-                    className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors ${
+                    className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800 transition-colors ${
                       upiError ? 'border-red-300' : 'border-stone-200'
                     }`}
                     placeholder="glowsalon@okaxis"
@@ -317,16 +317,16 @@ const CompleteProfilePage = () => {
                 type="checkbox"
                 checked={acceptedTerms}
                 onChange={(e) => setAcceptedTerms(e.target.checked)}
-                className="mt-1 rounded border-stone-300 text-orange-800 focus:ring-orange-800"
+                className="mt-1 rounded border-stone-300 text-brand-800 focus:ring-brand-800"
                 data-testid="complete-terms"
               />
               <span className="text-sm text-stone-600">
                 I agree to the{' '}
-                <Link to="/terms" className="text-orange-800 font-medium hover:underline">
+                <Link to="/terms" className="text-brand-800 font-medium hover:underline">
                   Terms of Service
                 </Link>{' '}
                 and{' '}
-                <Link to="/privacy" className="text-orange-800 font-medium hover:underline">
+                <Link to="/privacy" className="text-brand-800 font-medium hover:underline">
                   Privacy Policy
                 </Link>
               </span>

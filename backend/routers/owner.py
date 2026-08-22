@@ -222,12 +222,20 @@ async def get_owner_analytics(period: str = "today", current_user: dict = Depend
     return analytics_data
 
 
-# ── Bank details \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+# ── Bank details ─────────────────────────────────────────────────────────────
 
-async def _get_owner_salon_id(current_user: dict) -> str:
-    """Fetch salon ID for owner or linked employee."""
+async def _get_owner_only_salon_id(current_user: dict) -> str:
+    """Salon ID for the authenticated *owner* only (employees cannot access bank fields)."""
     profile = current_user.get("profile") or {}
     role = profile.get("role", "customer")
+    if role != "owner":
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "OWNER_ONLY",
+                "message": "Only the salon owner can view or update bank details.",
+            },
+        )
     salon_ids = await get_managed_salon_ids(current_user.get("id"), role)
     if not salon_ids:
         raise HTTPException(status_code=404, detail="No salon found for this account")
@@ -237,11 +245,11 @@ async def _get_owner_salon_id(current_user: dict) -> str:
 @router.get("/bank-details")
 async def get_bank_details(current_user: dict = Depends(get_current_user)):
     """Return (masked) bank details for the owner's salon."""
-    salon_id = await _get_owner_salon_id(current_user)
+    salon_id = await _get_owner_only_salon_id(current_user)
     resp = await supabase.request(
         "GET",
         f"rest/v1/salons?id=eq.{salon_id}&select=bank_account_number,bank_ifsc,bank_account_holder_name",
-        token=current_user.get("access_token"),
+        service_role=True,
     )
     if resp.status_code != 200 or not resp.json():
         raise HTTPException(status_code=500, detail="Failed to fetch bank details")
@@ -261,7 +269,7 @@ async def update_bank_details(
     current_user: dict = Depends(get_current_user),
 ):
     """Update bank details for the owner's salon."""
-    salon_id = await _get_owner_salon_id(current_user)
+    salon_id = await _get_owner_only_salon_id(current_user)
     update_payload = {k: v for k, v in data.model_dump().items() if v is not None}
     if not update_payload:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -270,7 +278,7 @@ async def update_bank_details(
         "PATCH",
         f"rest/v1/salons?id=eq.{salon_id}",
         json=update_payload,
-        token=current_user.get("access_token"),
+        service_role=True,
     )
     if resp.status_code not in (200, 204):
         logger.error("[update_bank_details] failed: %s %s", resp.status_code, resp.text)

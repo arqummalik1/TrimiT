@@ -81,7 +81,7 @@ def test_forgot_password_always_returns_success(client, mock_supabase):
         json={"email": "someone@example.com", "redirect_to": "trimit://reset-password"},
     )
     assert response.status_code == status.HTTP_200_OK
-    assert response.json()["message"] == "An OTP code has been sent if the email is valid"
+    assert response.json()["message"] == "If an account exists for that email, a password reset link has been sent"
 
 
 def test_forgot_password_hides_unknown_email(client, mock_supabase):
@@ -96,7 +96,7 @@ def test_forgot_password_hides_unknown_email(client, mock_supabase):
         json={"email": "ghost@example.com", "redirect_to": "trimit://reset-password"},
     )
     assert response.status_code == status.HTTP_200_OK
-    assert response.json()["message"] == "An OTP code has been sent if the email is valid"
+    assert response.json()["message"] == "If an account exists for that email, a password reset link has been sent"
 
 
 def test_forgot_password_rate_limited_surfaces_429(client, mock_supabase):

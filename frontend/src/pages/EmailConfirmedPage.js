@@ -60,7 +60,7 @@ const EmailConfirmedPage = () => {
 
         {status === 'loading' && (
           <>
-            <div className="w-10 h-10 border-2 border-orange-800/30 border-t-orange-800 rounded-full animate-spin mx-auto mb-4" />
+            <div className="w-10 h-10 border-2 border-brand-800/30 border-t-brand-800 rounded-full animate-spin mx-auto mb-4" />
             <h1 className="font-heading text-2xl font-bold text-stone-900 mb-2">
               Confirming your email…
             </h1>
@@ -88,9 +88,9 @@ const EmailConfirmedPage = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-start gap-3 p-4 bg-orange-50 border border-orange-100 rounded-2xl text-left mb-6"
+              className="flex items-start gap-3 p-4 bg-brand-50 border border-brand-100 rounded-2xl text-left mb-6"
             >
-              <DeviceMobile size={28} className="text-orange-800 shrink-0 mt-0.5" />
+              <DeviceMobile size={28} className="text-brand-800 shrink-0 mt-0.5" />
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -142,7 +142,7 @@ const EmailConfirmedPage = () => {
         <motion.div className="mt-8 pt-6 border-t border-stone-100">
           <Link
             to="/"
-            className="text-sm text-orange-800 font-semibold hover:underline"
+            className="text-sm text-brand-800 font-semibold hover:underline"
           >
             Back to TrimiT website
           </Link>

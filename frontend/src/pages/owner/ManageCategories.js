@@ -230,7 +230,7 @@ const ManageCategories = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   data-testid="category-name-input"
-                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20"
                   placeholder="e.g. Hair, Face, Beard"
                   required
                 />

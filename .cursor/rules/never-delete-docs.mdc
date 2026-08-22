@@ -1,0 +1,36 @@
+---
+description: Never delete project documentation (strict, always on)
+alwaysApply: true
+---
+
+# Never delete docs (non-negotiable)
+
+Documentation is permanent project knowledge. **Never delete or wipe it.**
+
+## Forbidden (without the user **explicitly** asking to delete a specific named file)
+
+- `rm`, `git rm`, delete, trash any file under:
+  - `docs/**`
+  - `**/docs/**`
+  - `*.md` that is project documentation (setup, architecture, progress, remaining issues, guides)
+  - Repo root engineering docs such as `RULES.md`, `PROGRESS.md`, `REMAINING_ISSUES.md`, `README.md` when they are product/engineering sources of truth
+- Emptying a doc’s contents (blank file / replace with almost nothing) as a substitute for delete
+- `git clean` that would remove docs
+- “Tidying up” by removing “old”, “duplicate”, “stale”, or “unused” docs of your own initiative
+
+## Allowed
+
+- **Edit / update / expand** docs (preferred)
+- **Add** new docs when useful
+- Deprecate content **in place** with a short “Superseded by …” note at the top — still keep the file
+- Move/rename **only** if the user explicitly requests it — preserve full content (history in git is not enough excuse to lose the working tree file without asking)
+
+## If the user says vague things like “clean up docs” or “remove clutter”
+
+1. **Do not delete.**
+2. Propose what would be archived or merged.
+3. Wait for **explicit** approval that names **exact file paths** to remove.
+
+## Scope note
+
+This does **not** apply to auto-generated caches, build artifacts, or the user’s explicit ask to remove a specific `temp/` scratch file they named. When in doubt: **keep the doc, ask first.**

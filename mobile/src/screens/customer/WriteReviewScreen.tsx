@@ -16,6 +16,7 @@ import { useMutation } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { handleApiError } from '../../lib/errorHandler';
 import { Button } from '../../components/Button';
+import { HeaderBackButton, HeaderBackButtonSpacer } from '../../components/HeaderBackButton';
 import { typography, spacing, borderRadius, shadows } from '../../lib/utils';
 import { showToast } from '../../store/toastStore';
 import { useTheme } from '../../theme/ThemeContext';
@@ -47,9 +48,7 @@ export default function WriteReviewScreen({ navigation, route }: CustomerDiscove
       showToast('Review submitted successfully!', 'success');
       navigation.goBack();
     },
-    onError: (error) => {
-      handleApiError(error);
-    },
+    onError: (error: unknown) => showToast(handleApiError(error).message, 'error'),
   });
 
   const handleSubmit = () => {
@@ -83,14 +82,9 @@ export default function WriteReviewScreen({ navigation, route }: CustomerDiscove
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
-            >
-              <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
-            </TouchableOpacity>
+            <HeaderBackButton onPress={() => navigation.goBack()} />
             <Text style={styles.title}>Write a Review</Text>
-            <View style={{ width: 40 }} />
+            <HeaderBackButtonSpacer />
           </View>
 
           {/* Rating */}
@@ -102,6 +96,9 @@ export default function WriteReviewScreen({ navigation, route }: CustomerDiscove
                   key={star}
                   onPress={() => setRating(star)}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Rate ${star} out of 5`}
+                  accessibilityState={{ selected: star <= rating }}
                 >
                   <Ionicons
                     name={star <= rating ? 'star' : 'star-outline'}
@@ -181,10 +178,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.lg,
-  },
-  backButton: {
-    padding: spacing.sm,
+    paddingVertical: spacing.md,
+    marginHorizontal: -spacing.md,
   },
   title: {
     ...typography.h3,

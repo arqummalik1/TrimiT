@@ -10,7 +10,7 @@ export function HeroAccentIllustration({ className = '' }) {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
-      <circle cx="200" cy="200" r="168" stroke="rgba(251,146,60,0.28)" strokeWidth="1.5" />
+      <circle cx="200" cy="200" r="168" stroke="rgb(var(--brand-400-rgb)/0.28)" strokeWidth="1.5" />
       <circle cx="200" cy="200" r="128" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
 
       {/* Phone frame */}
@@ -19,16 +19,16 @@ export function HeroAccentIllustration({ className = '' }) {
 
       {/* App screen */}
       <rect x="140" y="108" width="120" height="196" rx="16" fill="rgba(255,247,237,0.96)" />
-      <rect x="140" y="108" width="120" height="36" rx="16" fill="rgba(234,88,12,0.92)" />
+      <rect x="140" y="108" width="120" height="36" rx="16" fill="rgb(var(--brand-600-rgb)/0.92)" />
       <path d="M156 128h88M156 160h56M156 184h72" stroke="rgba(120,53,15,0.3)" strokeWidth="3" strokeLinecap="round" />
-      <rect x="156" y="200" width="88" height="28" rx="8" fill="rgba(251,146,60,0.25)" />
-      <rect x="156" y="236" width="88" height="28" rx="8" fill="rgba(251,146,60,0.15)" />
+      <rect x="156" y="200" width="88" height="28" rx="8" fill="rgb(var(--brand-400-rgb)/0.25)" />
+      <rect x="156" y="236" width="88" height="28" rx="8" fill="rgb(var(--brand-400-rgb)/0.15)" />
 
       {/* Scissors accent */}
       <g transform="translate(72 108) rotate(-22)">
         <circle cx="16" cy="16" r="12" stroke="rgba(255,237,213,0.9)" strokeWidth="2.5" fill="none" />
         <circle cx="38" cy="38" r="12" stroke="rgba(255,237,213,0.9)" strokeWidth="2.5" fill="none" />
-        <path d="M24 24 L44 44" stroke="#fb923c" strokeWidth="3" strokeLinecap="round" />
+        <path d="M24 24 L44 44" stroke="var(--brand-400)" strokeWidth="3" strokeLinecap="round" />
       </g>
 
       {/* Success badge */}
@@ -41,8 +41,8 @@ export function HeroAccentIllustration({ className = '' }) {
         strokeLinejoin="round"
       />
 
-      <circle cx="312" cy="108" r="7" fill="#fb923c" opacity="0.9" />
-      <circle cx="88" cy="288" r="5" fill="#fdba74" opacity="0.85" />
+      <circle cx="312" cy="108" r="7" fill="var(--brand-400)" opacity="0.9" />
+      <circle cx="88" cy="288" r="5" fill="var(--brand-300)" opacity="0.85" />
     </svg>
   );
 }
@@ -77,7 +77,7 @@ export function StepIllustration({ step, className = '' }) {
   return (
     <svg className={className} viewBox="0 0 128 128" fill="none" aria-hidden>
       <rect width="128" height="128" rx="28" fill="currentColor" fillOpacity="0.08" />
-      <g className="text-orange-800" transform="translate(32 32)">
+      <g className="text-brand-800" transform="translate(32 32)">
         {icons[step]}
       </g>
     </svg>

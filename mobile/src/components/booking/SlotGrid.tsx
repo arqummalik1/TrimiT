@@ -6,13 +6,14 @@
  * Extracted verbatim from the original BookingScreen "Select Time" grid block.
  */
 import React from 'react';
-import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatTime } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { ENABLE_MULTI_BOOKING_PER_SLOT } from '../../lib/featureFlags';
+import { SlotGridSkeleton } from '../skeletons/SlotGridSkeleton';
 import type { TimeSlot } from '../../types';
-import type { BookingStyles } from './styles';
+import { SLOT_META_MAX_SCALE, SLOT_TEXT_MAX_SCALE, type BookingStyles } from './styles';
 
 interface SlotGridProps {
   slots: TimeSlot[];
@@ -36,9 +37,7 @@ const SlotGrid: React.FC<SlotGridProps> = ({
   const { theme } = useTheme();
 
   if (loading) {
-    return (
-      <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 20 }} />
-    );
+    return <SlotGridSkeleton />;
   }
 
   if (!slots || slots.length === 0) {
@@ -82,8 +81,15 @@ const SlotGrid: React.FC<SlotGridProps> = ({
               }
             }}
             disabled={!slot.available}
+            accessibilityRole="button"
+            accessibilityLabel={`${formatTime(slot.time)}${isFull ? ', unavailable' : ''}`}
+            accessibilityState={{
+              selected: selectedSlot === slot.time,
+              disabled: !slot.available,
+            }}
           >
             <Text
+              maxFontSizeMultiplier={SLOT_TEXT_MAX_SCALE}
               style={[
                 styles.slotText,
                 isFull && styles.slotTextDisabled,
@@ -96,6 +102,7 @@ const SlotGrid: React.FC<SlotGridProps> = ({
             {/* Multi-booking: show count/max */}
             {isMulti && (
               <Text
+                maxFontSizeMultiplier={SLOT_META_MAX_SCALE}
                 style={[
                   styles.slotCapacityText,
                   isFull && styles.slotCapacityFull,
@@ -108,12 +115,16 @@ const SlotGrid: React.FC<SlotGridProps> = ({
             )}
             {/* Single booking: show "Booked" label */}
             {!isMulti && isFull && (
-              <Text style={styles.slotBookedLabel}>Booked</Text>
+              <Text maxFontSizeMultiplier={SLOT_META_MAX_SCALE} style={styles.slotBookedLabel}>
+                Booked
+              </Text>
             )}
             {/* Just taken indicator (single mode only) */}
             {isJustBooked && !isMulti && (
               <View style={styles.justBookedIndicator}>
-                <Text style={styles.justBookedText}>Just taken!</Text>
+                <Text maxFontSizeMultiplier={SLOT_META_MAX_SCALE} style={styles.justBookedText}>
+                  Just taken!
+                </Text>
               </View>
             )}
           </TouchableOpacity>

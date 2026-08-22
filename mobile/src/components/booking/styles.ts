@@ -15,6 +15,14 @@ import type { Theme } from '../../theme/tokens';
 export type BookingStyles = ReturnType<typeof createBookingStyles>;
 
 /**
+ * Dynamic Type ceilings for the slot grid. The pills are dense and sit three
+ * to a row, so unbounded scaling shreds the layout — cap the time label and
+ * cap the 9-10pt meta labels harder.
+ */
+export const SLOT_TEXT_MAX_SCALE = 1.3;
+export const SLOT_META_MAX_SCALE = 1.2;
+
+/**
  * Build the full style sheet for the booking flow given the active theme.
  * The key names mirror the original BookingScreen.createStyles verbatim so
  * refs like `styles.slotButton` keep working after the refactor.

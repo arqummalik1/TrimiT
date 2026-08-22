@@ -109,7 +109,7 @@ const NotificationBell = ({ isOwner = false }) => {
       case 'booking_rejected':
         return <span className="text-red-500">❌</span>;
       case 'booking_cancelled':
-        return <span className="text-orange-500">🗑️</span>;
+        return <span className="text-brand-500">🗑️</span>;
       default:
         return <span className="text-gray-500">🔔</span>;
     }
@@ -146,7 +146,7 @@ const NotificationBell = ({ isOwner = false }) => {
       >
         <Bell weight={isOpen ? 'fill' : 'regular'} size={24} className="text-stone-700" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-orange-800 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-bounce">
+          <span className="absolute -top-1 -right-1 bg-brand-800 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-bounce">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -159,7 +159,7 @@ const NotificationBell = ({ isOwner = false }) => {
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-stone-800">Notifications</h3>
               {unreadCount > 0 && (
-                <span className="bg-orange-800 text-white text-xs px-2 py-0.5 rounded-full">
+                <span className="bg-brand-800 text-white text-xs px-2 py-0.5 rounded-full">
                   {unreadCount} new
                 </span>
               )}
@@ -182,7 +182,7 @@ const NotificationBell = ({ isOwner = false }) => {
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllAsRead}
-                  className="text-xs text-orange-800 hover:text-orange-900 font-medium"
+                  className="text-xs text-brand-800 hover:text-brand-900 font-medium"
                 >
                   Mark all read
                 </button>
@@ -207,7 +207,7 @@ const NotificationBell = ({ isOwner = false }) => {
                     <div
                       key={notification.id}
                       className={`px-4 py-3 border-b border-stone-100 hover:bg-stone-50 transition-colors ${
-                        !notification.isRead ? 'bg-orange-50/50' : ''
+                        !notification.isRead ? 'bg-brand-50/50' : ''
                       }`}
                       onClick={() => handleMarkAsRead(null, notification.id)}
                     >
@@ -280,12 +280,12 @@ const NotificationBell = ({ isOwner = false }) => {
             )}
           </div>
 
-          {/* Footer */}
-          {notifications.length > 0 && (
+          {/* Footer — owners only; customers have no notifications page. */}
+          {isOwner && notifications.length > 0 && (
             <div className="px-4 py-2 bg-stone-50 border-t border-stone-200">
               <Link
-                to={isOwner ? '/owner/notifications' : '/notifications'}
-                className="text-sm text-orange-800 hover:text-orange-900 font-medium block text-center"
+                to="/owner/notifications"
+                className="text-sm text-brand-800 hover:text-brand-900 font-medium block text-center"
                 onClick={() => setIsOpen(false)}
               >
                 View all notifications →

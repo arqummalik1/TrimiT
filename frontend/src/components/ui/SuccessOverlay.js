@@ -32,7 +32,7 @@ const SuccessOverlay = ({ isOpen, isNewUser, userName, onClose }) => {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-                className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center text-orange-800"
+                className="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center text-brand-800"
               >
                 <CheckCircle size={48} weight="fill" />
               </motion.div>
@@ -50,7 +50,7 @@ const SuccessOverlay = ({ isOpen, isNewUser, userName, onClose }) => {
 
             <button
               onClick={onClose}
-              className="w-full bg-orange-800 hover:bg-orange-700 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-md shadow-orange-800/10 cursor-pointer focus:outline-none"
+              className="w-full bg-brand-800 hover:bg-brand-700 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-md shadow-brand-800/10 cursor-pointer focus:outline-none"
             >
               Continue
             </button>

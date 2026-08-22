@@ -25,7 +25,13 @@ logger = logging.getLogger("trimit")
 router = APIRouter(prefix="/salons", tags=["Salons"])
 
 # ── Sensitive field stripping ───────────────────────────────────────────────
-_BANK_FIELDS = ("bank_account_number", "bank_ifsc", "bank_account_holder_name")
+_BANK_FIELDS = (
+    "bank_account_number",
+    "bank_ifsc",
+    "bank_account_holder_name",
+    "bank_name",
+    "account_holder_name",
+)
 
 
 def _strip_bank_details(salon: dict) -> dict:
@@ -92,7 +98,17 @@ async def _fallback_nearby_salons(
     Used when RPC get_nearby_salons_v1 is missing or errors (e.g. migration not applied).
     Mirrors RPC shape enough for mobile list + SalonCard.
     """
-    resp = await supabase.request("GET", "rest/v1/salons", params={"select": "*"})
+    resp = await supabase.request(
+        "GET",
+        "rest/v1/salons",
+        params={
+            "select": "id,owner_id,name,description,address,city,latitude,longitude,phone,"
+            "opening_time,closing_time,images,image_url,about,show_offers,payment_methods,"
+            "subscription_active,accepting_bookings,closed_until,gender_serve,created_at",
+            "subscription_active": "eq.true",
+            "limit": "500",
+        },
+    )
     if resp.status_code != 200:
         logger.error(f"[get_salons fallback] salons fetch failed: {resp.text}")
         return []
@@ -214,7 +230,11 @@ async def get_salon(salon_id: str):
     except ValueError:
         raise HTTPException(status_code=404, detail="Salon not found")
         
-    response = await supabase.request("GET", f"rest/v1/salons?id=eq.{salon_id}&select=*,services(*),reviews(*)")
+    response = await supabase.request(
+        "GET",
+        f"rest/v1/salons?id=eq.{salon_id}&select=*,services(*),reviews(*)",
+        service_role=True,
+    )
     if response.status_code != 200:
         raise HTTPException(status_code=500, detail={"code": "DETAIL_QUERY_FAILED", "message": "Failed to fetch salon detail"})
     if not response.json():
@@ -367,7 +387,7 @@ async def update_salon(salon_id: str, data: SalonUpdate, current_user: dict = De
         "PATCH",
         f"rest/v1/salons?id=eq.{salon_id}",
         json=update_data,
-        token=current_user.get("access_token"),
+        service_role=True,
     )
     if response.status_code not in (200, 204):
         logger.error("[update_salon] patch failed: %s %s", response.status_code, response.text)
@@ -376,11 +396,11 @@ async def update_salon(salon_id: str, data: SalonUpdate, current_user: dict = De
     fetch = await supabase.request(
         "GET",
         f"rest/v1/salons?id=eq.{salon_id}&select=*",
-        token=current_user.get("access_token"),
+        service_role=True,
     )
     if fetch.status_code != 200 or not fetch.json():
         raise HTTPException(status_code=500, detail="Salon updated but could not reload")
-    return fetch.json()[0]
+    return _strip_bank_details(fetch.json()[0])
 
 
 @router.patch("/{salon_id}/availability")
@@ -418,7 +438,7 @@ async def update_salon_availability(
         "PATCH",
         f"rest/v1/salons?id=eq.{salon_id}",
         json=update_data,
-        token=current_user.get("access_token"),
+        service_role=True,
     )
     if response.status_code not in (200, 204):
         logger.error(
@@ -434,7 +454,7 @@ async def update_salon_availability(
     fetch = await supabase.request(
         "GET",
         f"rest/v1/salons?id=eq.{salon_id}&select=*",
-        token=current_user.get("access_token"),
+        service_role=True,
     )
     if fetch.status_code != 200 or not fetch.json():
         raise HTTPException(status_code=500, detail="Availability updated but could not reload")

@@ -21,15 +21,15 @@ export default function BookingFlowAnimation() {
           transition={{ delay: i * 0.15 }}
         >
           {i < STEPS.length - 1 && (
-            <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-0.5 bg-gradient-to-r from-orange-300 to-orange-500/40" />
+            <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-0.5 bg-gradient-to-r from-brand-300 to-brand-500/40" />
           )}
           <motion.div
             className="w-16 h-16 rounded-2xl bg-white border border-stone-200 shadow-lg flex items-center justify-center mb-4"
             whileHover={{ scale: 1.05 }}
           >
-            <step.icon size={32} weight="duotone" className="text-orange-800" />
+            <step.icon size={32} weight="duotone" className="text-brand-800" />
           </motion.div>
-          <span className="text-xs font-bold text-orange-800 uppercase tracking-wider">
+          <span className="text-xs font-bold text-brand-800 uppercase tracking-wider">
             Step {i + 1}
           </span>
           <h3 className="font-heading font-bold text-stone-900 mt-1">{step.title}</h3>

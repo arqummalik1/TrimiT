@@ -103,6 +103,8 @@ module.exports = ({ config }) => {
     'expo-location',
     'expo-image-picker',
     'expo-secure-store',
+    // Sign in with Apple (iOS capability; required when offering Google / social login).
+    'expo-apple-authentication',
     [
       'expo-build-properties',
       {
@@ -174,6 +176,8 @@ module.exports = ({ config }) => {
         buildNumber: appVersion.iosBuildNumber,
         supportsTablet: true,
         bundleIdentifier: 'online.trimit.app',
+        // App Store Guideline 4.8: required when offering Google / social login.
+        usesAppleSignIn: true,
         // Time Sensitive + Critical Alerts (Rapido-style): ring when app is
         // backgrounded/killed, including mute switch / Focus — requires Apple
         // Critical Alerts entitlement approval for online.trimit.app.

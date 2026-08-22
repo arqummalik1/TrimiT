@@ -40,11 +40,11 @@ export default function PromoBanner() {
           <span className="hidden sm:block w-px h-3 bg-stone-600" />
           <p className="text-sm text-stone-200 text-center">
             Salon owners get{' '}
-            <span className="font-bold text-orange-400">30 days free</span>
+            <span className="font-bold text-brand-400">30 days free</span>
             {' '}— onboarding is completely free.{' '}
             <Link
               to={PROMO.ctaPath}
-              className="font-bold text-white underline underline-offset-2 hover:text-orange-300 transition-colors"
+              className="font-bold text-white underline underline-offset-2 hover:text-brand-300 transition-colors"
             >
               Start Free Trial
             </Link>

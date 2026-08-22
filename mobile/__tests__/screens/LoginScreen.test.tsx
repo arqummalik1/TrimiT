@@ -14,6 +14,7 @@ const mockStore = {
   sendOtp: mockSendOtp,
   resendConfirmation: mockResendConfirmation,
   googleSignIn: jest.fn(async () => ({ success: true })),
+  appleSignIn: jest.fn(async () => ({ success: true })),
   isLoading: false,
   error: null as string | null,
   clearError: mockClearError,
@@ -51,6 +52,14 @@ function renderScreen(navigation: any) {
     </SafeAreaProvider>
   );
 }
+
+jest.mock('../../src/components/AppleSignInButton', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    AppleSignInButton: () => React.createElement(View, { testID: 'apple-signin-stub' }),
+  };
+});
 
 describe('LoginScreen', () => {
   beforeEach(() => {

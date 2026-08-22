@@ -16,8 +16,8 @@ export function DownloadAppButton({ onClick, className = '' }) {
       className={`download-app-btn group relative inline-flex shrink-0 ${className}`}
     >
       <span className="download-app-btn__ring" aria-hidden="true" />
-      <span className="download-app-btn__inner relative z-10 inline-flex items-center justify-center gap-2 rounded-full bg-white px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-orange-900 shadow-sm transition-all duration-200 group-hover:bg-orange-50 group-hover:shadow-md">
-        <DownloadSimple size={18} weight="bold" className="text-orange-800 shrink-0" />
+      <span className="download-app-btn__inner relative z-10 inline-flex items-center justify-center gap-2 rounded-full bg-white px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-brand-900 shadow-sm transition-all duration-200 group-hover:bg-brand-50 group-hover:shadow-md">
+        <DownloadSimple size={18} weight="bold" className="text-brand-800 shrink-0" />
         <span className="hidden sm:inline">Download App</span>
         <span className="sm:hidden">App</span>
       </span>

@@ -36,15 +36,26 @@ jest.mock('../../src/lib/errorHandler', () => ({
   handleApiError: (err: any) => ({ kind: 'unauthorized', message: err?.message ?? 'error' }),
 }));
 
-// useFocusEffect needs a NavigationContainer; we don't test focus behaviour here.
-jest.mock('@react-navigation/native', () => ({
-  useFocusEffect: jest.fn(),
-}));
+// useFocusEffect needs a NavigationContainer; run the effect on mount instead so
+// the focus-driven realtime subscription is exercised.
+jest.mock('@react-navigation/native', () => {
+  const ReactModule = require('react');
+  return {
+    useFocusEffect: (effect: () => void | (() => void)) =>
+      ReactModule.useEffect(effect, [effect]),
+  };
+});
 
-// Realtime is a side effect we don't exercise here — no-op the channel lifecycle.
+// Realtime opens a socket — stub the channel lifecycle, but keep the mocks so the
+// test can assert the JWT is synced BEFORE the channel is created (RLS).
+const mockSubscribeToUserBookings = jest.fn(() => ({ unsubscribe: jest.fn() }));
+const mockUnsubscribeFromBookings = jest.fn();
+const mockSyncSupabaseAuthSession = jest.fn().mockResolvedValue(undefined);
+
 jest.mock('../../src/lib/supabase', () => ({
-  subscribeToUserBookings: jest.fn(() => ({ unsubscribe: jest.fn() })),
-  unsubscribeFromBookings: jest.fn(),
+  subscribeToUserBookings: (...a: unknown[]) => mockSubscribeToUserBookings(...(a as [])),
+  unsubscribeFromBookings: (...a: unknown[]) => mockUnsubscribeFromBookings(...(a as [])),
+  syncSupabaseAuthSession: (...a: unknown[]) => mockSyncSupabaseAuthSession(...(a as [])),
 }));
 
 // Reminder scheduling is a side effect (dynamically imported); no-op it here.
@@ -53,10 +64,17 @@ jest.mock('../../src/lib/notifications', () => ({
   cancelBookingReminder: jest.fn().mockResolvedValue(undefined),
 }));
 
-// Keep the user id stable so the realtime effect path is deterministic.
-jest.mock('../../src/store/authStore', () => ({
-  useAuthStore: (selector: (s: any) => unknown) => selector({ user: { id: 'u1' } }),
-}));
+// Keep the user id + tokens stable so the realtime effect path is deterministic.
+const mockAuthState = {
+  user: { id: 'u1' },
+  token: 'access-token',
+  refreshToken: 'refresh-token',
+};
+jest.mock('../../src/store/authStore', () => {
+  const useAuthStore = (selector: (s: any) => unknown) => selector(mockAuthState);
+  useAuthStore.getState = () => mockAuthState;
+  return { useAuthStore };
+});
 
 // Replace heavy children with trivial stand-ins exposing testIDs / labels.
 jest.mock('../../src/components/BookingCard', () => {
@@ -143,6 +161,34 @@ it('renders a card per booking once loaded', async () => {
   renderScreen();
   await waitFor(() => expect(screen.getByTestId('booking-b1')).toBeTruthy());
   expect(screen.getByTestId('booking-b2')).toBeTruthy();
+});
+
+it('syncs the Supabase JWT before opening the realtime channel', async () => {
+  mockGetMyBookings.mockResolvedValue([]);
+  renderScreen();
+
+  await waitFor(() =>
+    expect(mockSubscribeToUserBookings).toHaveBeenCalledWith(
+      'u1',
+      expect.any(Function),
+    ),
+  );
+  expect(mockSyncSupabaseAuthSession).toHaveBeenCalledWith(
+    'access-token',
+    'refresh-token',
+  );
+  expect(mockSyncSupabaseAuthSession.mock.invocationCallOrder[0]).toBeLessThan(
+    mockSubscribeToUserBookings.mock.invocationCallOrder[0],
+  );
+});
+
+it('removes the realtime channel on unmount', async () => {
+  mockGetMyBookings.mockResolvedValue([]);
+  const { unmount } = renderScreen();
+  await waitFor(() => expect(mockSubscribeToUserBookings).toHaveBeenCalled());
+
+  unmount();
+  expect(mockUnsubscribeFromBookings).toHaveBeenCalledTimes(1);
 });
 
 it('shows the error state with retry when the query fails', async () => {

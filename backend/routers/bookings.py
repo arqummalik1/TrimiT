@@ -29,6 +29,16 @@ logger = logging.getLogger("trimit")
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
+# Manager-allowed transitions. Customers may only cancel (enforced separately).
+_MANAGER_STATUS_TRANSITIONS: dict[str, set[str]] = {
+    "pending": {"confirmed", "cancelled", "no_show"},
+    "confirmed": {"in_service", "completed", "cancelled", "no_show"},
+    "in_service": {"completed", "cancelled", "no_show"},
+    "completed": set(),
+    "cancelled": set(),
+    "no_show": set(),
+}
+
 BOOKING_LIST_SELECT = "*,salons(*),services(*),users(*)"
 BOOKING_DETAIL_SELECT = "*,salons(*),services(*),users(*)"
 
@@ -111,9 +121,36 @@ async def update_booking_status(
                 status_code=403, detail="Customers may only cancel bookings"
             )
 
+    old = (old_status or "").strip() or "pending"
+    new = body.status.value
+    if old != new:
+        if is_salon_manager_role(role):
+            allowed = _MANAGER_STATUS_TRANSITIONS.get(old)
+            if allowed is None or new not in allowed:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "INVALID_STATUS_TRANSITION",
+                        "message": f"Cannot change booking from '{old}' to '{new}'.",
+                    },
+                )
+        else:
+            # Customers: only pending/confirmed/in_service → cancelled
+            if old not in ("pending", "confirmed", "in_service") or new != "cancelled":
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "INVALID_STATUS_TRANSITION",
+                        "message": f"Cannot cancel a booking that is already '{old}'.",
+                    },
+                )
+
     patch_json: dict = {"status": body.status.value}
 
-    if is_salon_manager_role(role) and body.status == BookingStatus.completed:
+    if is_salon_manager_role(role) and body.status in (
+        BookingStatus.completed,
+        BookingStatus.confirmed,
+    ):
         b_full = await supabase.request(
             "GET",
             f"rest/v1/bookings?id=eq.{booking_id}&select=payment_method,payment_status,payment_verification_status",
@@ -127,16 +164,23 @@ async def update_booking_status(
             pay_method = str(row.get("payment_method") or "")
             pay_status = str(row.get("payment_status") or "")
             verify_status = str(row.get("payment_verification_status") or "")
-        # A UPI booking can only be completed once its payment is verified.
+        # UPI bookings must be verified via POST /payments/{id}/verify before
+        # confirm or complete — prevents unpaid confirmations.
         if pay_method == "upi" and verify_status != "verified":
             raise HTTPException(
                 status_code=400,
                 detail={
                     "code": "PAYMENT_NOT_VERIFIED",
-                    "message": "Verify the UPI payment before completing this booking.",
+                    "message": (
+                        "Verify the UPI payment before confirming or completing this booking."
+                        if body.status == BookingStatus.confirmed
+                        else "Verify the UPI payment before completing this booking."
+                    ),
                 },
             )
-        if pay_method == "salon_cash" or pay_status == "paid":
+        if body.status == BookingStatus.completed and (
+            pay_method == "salon_cash" or pay_status == "paid"
+        ):
             patch_json["payment_status"] = "paid"
 
     patch = await supabase.request(

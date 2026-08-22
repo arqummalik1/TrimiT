@@ -34,6 +34,7 @@ import ManageSalon from "./pages/owner/ManageSalon";
 import ManageServices from "./pages/owner/ManageServices";
 import ManageCategories from "./pages/owner/ManageCategories";
 import ManageBookings from "./pages/owner/ManageBookings";
+import OwnerNotifications from "./pages/owner/OwnerNotifications";
 import SettingsPage from "./pages/owner/SettingsPage";
 import SubscriptionPage from "./pages/owner/SubscriptionPage";
 import UpiSettingsPage from "./pages/owner/UpiSettingsPage";
@@ -309,6 +310,16 @@ function App() {
               <ProtectedRoute allowedRoles={["owner"]}>
                 <OwnerSubscriptionGate>
                   <ManageBookings />
+                </OwnerSubscriptionGate>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/owner/notifications"
+            element={
+              <ProtectedRoute allowedRoles={["owner"]}>
+                <OwnerSubscriptionGate>
+                  <OwnerNotifications />
                 </OwnerSubscriptionGate>
               </ProtectedRoute>
             }

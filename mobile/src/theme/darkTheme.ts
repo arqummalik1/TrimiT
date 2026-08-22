@@ -1,6 +1,6 @@
 /**
  * darkTheme.ts
- * Luxury dark theme — gold + obsidian system (existing palette, unchanged values).
+ * TrimiT Luxury & Editorial (Champagne Gold on Deep Obsidian).
  */
 
 import { darkPalette } from './colors';

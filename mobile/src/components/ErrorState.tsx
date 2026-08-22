@@ -22,7 +22,9 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography, spacing, borderRadius, shadows } from '../lib/utils';
+import { typography, spacing, borderRadius, shadows } from '../lib/utils';
+import { useTheme } from '../theme/ThemeContext';
+import { Theme } from '../theme/tokens';
 import { ErrorKind } from '../types/error';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -62,12 +64,14 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   retryLabel = 'Try Again',
   style,
 }) => {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const iconName = ERROR_ICONS[kind] ?? 'alert-circle-outline';
 
   if (variant === 'inline') {
     return (
       <View style={[styles.inlineContainer, style]}>
-        <Ionicons name={iconName} size={16} color={colors.error} />
+        <Ionicons name={iconName} size={16} color={theme.colors.error} />
         <Text style={styles.inlineMessage}>{message}</Text>
         {onRetry && (
           <TouchableOpacity onPress={onRetry} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -82,13 +86,13 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
     return (
       <View style={[styles.cardContainer, shadows.md, style]}>
         <View style={styles.cardIconContainer}>
-          <Ionicons name={iconName} size={32} color={colors.error} />
+          <Ionicons name={iconName} size={32} color={theme.colors.error} />
         </View>
         <Text style={styles.cardTitle}>{title}</Text>
         <Text style={styles.cardMessage}>{message}</Text>
         {onRetry && (
           <TouchableOpacity style={styles.cardRetryButton} onPress={onRetry} activeOpacity={0.8}>
-            <Ionicons name="refresh" size={16} color={colors.primary} />
+            <Ionicons name="refresh" size={16} color={theme.colors.primary} />
             <Text style={styles.cardRetryText}>{retryLabel}</Text>
           </TouchableOpacity>
         )}
@@ -100,7 +104,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   return (
     <View style={[styles.fullscreenContainer, style]}>
       <View style={styles.iconContainer}>
-        <Ionicons name={iconName} size={48} color={colors.error} />
+        <Ionicons name={iconName} size={48} color={theme.colors.error} />
       </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
@@ -109,8 +113,10 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
           style={styles.retryButton}
           onPress={onRetry}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={retryLabel}
         >
-          <Ionicons name="refresh" size={18} color={colors.white} />
+          <Ionicons name="refresh" size={18} color={theme.colors.textInverse} />
           <Text style={styles.retryText}>{retryLabel}</Text>
         </TouchableOpacity>
       )}
@@ -120,35 +126,35 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   // ── Fullscreen ───────────────────────────────────────────────────────────
   fullscreenContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xxxl,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   iconContainer: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: colors.errorLight,
+    backgroundColor: theme.colors.errorLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xxl,
     borderWidth: 1,
-    borderColor: colors.error + '20',
+    borderColor: theme.colors.error + '20',
   },
   title: {
     ...typography.h3,
-    color: colors.text,
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: spacing.md,
   },
   message: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: spacing.xxxl,
@@ -157,11 +163,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xxxl,
     borderRadius: borderRadius.pill,
-    shadowColor: colors.primary,
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -169,37 +175,37 @@ const styles = StyleSheet.create({
   },
   retryText: {
     ...typography.button,
-    color: colors.textInverse,
+    color: theme.colors.textInverse,
   },
 
   // ── Card ─────────────────────────────────────────────────────────────────
   cardContainer: {
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: borderRadius.xl,
     padding: spacing.xxl,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.error + '30',
+    borderColor: theme.colors.error + '30',
     marginHorizontal: spacing.lg,
   },
   cardIconContainer: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.errorLight,
+    backgroundColor: theme.colors.errorLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,
   },
   cardTitle: {
     ...typography.h4,
-    color: colors.text,
+    color: theme.colors.text,
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
   cardMessage: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.xl,
   },
@@ -211,11 +217,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     borderRadius: borderRadius.pill,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: theme.colors.primary,
   },
   cardRetryText: {
     ...typography.buttonSmall,
-    color: colors.primary,
+    color: theme.colors.primary,
   },
 
   // ── Inline ────────────────────────────────────────────────────────────────
@@ -223,21 +229,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.errorLight,
+    backgroundColor: theme.colors.errorLight,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
     borderLeftWidth: 3,
-    borderLeftColor: colors.error,
+    borderLeftColor: theme.colors.error,
   },
   inlineMessage: {
     ...typography.bodySmall,
-    color: colors.error,
+    color: theme.colors.error,
     flex: 1,
   },
   inlineRetry: {
     ...typography.captionMedium,
-    color: colors.primary,
+    color: theme.colors.primary,
     textDecorationLine: 'underline',
   },
 });

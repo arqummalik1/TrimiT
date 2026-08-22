@@ -124,6 +124,107 @@ export const subscribeToBookings = (
   return channel;
 };
 
+// ── Realtime auto re-join ────────────────────────────────────────────────────
+// A channel that hits CHANNEL_ERROR / TIMED_OUT stays dead: Supabase never
+// re-joins it, so the list silently stops updating until the screen remounts.
+// We re-join with exponential backoff instead.
+const REALTIME_RETRY_BASE_MS = 1000;
+const REALTIME_RETRY_MAX_MS = 30000;
+const REALTIME_RETRY_JITTER_RATIO = 0.2;
+
+type RealtimeSubscribeStatus = Parameters<NonNullable<Parameters<RealtimeChannel['subscribe']>[0]>>[0];
+
+/**
+ * Backoff for realtime re-join attempts: 1s, 2s, 4s, 8s … capped at 30s, plus
+ * up to 20% jitter so every device on a flaky network doesn't retry in lockstep.
+ * `attempt` is 0-based.
+ */
+export function computeRealtimeRetryDelayMs(attempt: number, random: () => number = Math.random): number {
+  const exponent = Math.max(0, Math.floor(attempt));
+  const base = Math.min(REALTIME_RETRY_BASE_MS * 2 ** exponent, REALTIME_RETRY_MAX_MS);
+  return Math.round(base + base * REALTIME_RETRY_JITTER_RATIO * random());
+}
+
+/**
+ * Subscribe a channel and keep it alive: retries CHANNEL_ERROR / TIMED_OUT with
+ * exponential backoff, resets the backoff on SUBSCRIBED, and cancels any pending
+ * retry as soon as the caller tears the channel down (`unsubscribeFromBookings`
+ * / `supabase.removeChannel`, both of which go through `channel.unsubscribe()`).
+ * Returns the same channel instance so callers keep their existing teardown.
+ */
+const subscribeWithBackoff = (
+  channel: RealtimeChannel,
+  label: string,
+  context: Record<string, string>
+): RealtimeChannel => {
+  // Bound before patching so our own re-join doesn't cancel itself.
+  const leaveChannel = channel.unsubscribe.bind(channel);
+  let attempt = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  let stopped = false;
+
+  const cancelRetry = (): void => {
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
+  };
+
+  const rejoin = async (): Promise<void> => {
+    if (stopped) return;
+    try {
+      await leaveChannel();
+    } catch (e) {
+      if (__DEV__) {
+        console.warn(`[Supabase] ${label} leave before re-join failed`, { ...context, err: String(e) });
+      }
+    }
+    if (stopped) return;
+    if (__DEV__) {
+      console.log(`[Supabase] ${label} re-subscribing`, { ...context, attempt });
+    }
+    channel.subscribe(onStatus);
+  };
+
+  const scheduleRetry = (): void => {
+    if (stopped || retryTimer) return;
+    const delay = computeRealtimeRetryDelayMs(attempt);
+    attempt += 1;
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      void rejoin();
+    }, delay);
+  };
+
+  const onStatus = (status: RealtimeSubscribeStatus, err?: Error): void => {
+    if (status === 'SUBSCRIBED') {
+      attempt = 0;
+      cancelRetry();
+      if (__DEV__) {
+        console.log(`[Supabase] ${label} status`, { ...context, status });
+      }
+      return;
+    }
+    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      console.error(`[Supabase] ❌ ${label} ${status}`, { ...context, err: err?.message });
+      scheduleRetry();
+      return;
+    }
+    if (__DEV__) {
+      console.log(`[Supabase] ${label} status`, { ...context, status, err: err?.message });
+    }
+  };
+
+  channel.unsubscribe = async (timeout?: number) => {
+    stopped = true;
+    cancelRetry();
+    return leaveChannel(timeout);
+  };
+
+  channel.subscribe(onStatus);
+  return channel;
+};
+
 // Helper to unsubscribe from a channel
 export const unsubscribeFromBookings = (channel: RealtimeChannel): void => {
   if (__DEV__) {
@@ -161,16 +262,9 @@ export const subscribeToSalonBookings = (
         }
         onChange(payload);
       }
-    )
-    .subscribe((status, err) => {
-      if (status === 'CHANNEL_ERROR') {
-        console.error('[Supabase] ❌ salon-bookings CHANNEL_ERROR', { salonId, err });
-      } else if (__DEV__) {
-        console.log('[Supabase] salon-bookings status', { salonId, status, err: err?.message });
-      }
-    });
+    );
 
-  return channel;
+  return subscribeWithBackoff(channel, 'salon-bookings', { salonId });
 };
 
 /**
@@ -202,14 +296,7 @@ export const subscribeToUserBookings = (
         }
         onChange(payload);
       }
-    )
-    .subscribe((status, err) => {
-      if (status === 'CHANNEL_ERROR') {
-        console.error('[Supabase] ❌ user-bookings CHANNEL_ERROR', { userId, err });
-      } else if (__DEV__) {
-        console.log('[Supabase] user-bookings status', { userId, status, err: err?.message });
-      }
-    });
+    );
 
-  return channel;
+  return subscribeWithBackoff(channel, 'user-bookings', { userId });
 };

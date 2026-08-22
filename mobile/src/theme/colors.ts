@@ -5,8 +5,8 @@
  */
 
 // =============================================================================
-// LIGHT PALETTE — Derived from web frontend (tailwind.config.js + index.css)
-// Primary: orange-800 (#9A3412) | Background: stone-50 (#FAFAF9)
+// LIGHT PALETTE — TrimiT Organic & Earthy (Terracotta Orange & Deep Emerald on Warm Stone)
+// Primary: Orange-800 (#9A3412) | Secondary: Emerald-800 (#065F46) | Background: Stone-50 (#FAFAF9)
 // =============================================================================
 export const lightPalette = {
   // Backgrounds
@@ -25,12 +25,12 @@ export const lightPalette = {
   textInverse:  '#FFFFFF', // white — text on brand bg
   textAccent:   '#9A3412', // orange-800 — brand-tinted text
 
-  // Brand — orange-800 system (matches web btn-primary)
+  // Brand — orange-800 system
   primary:      '#9A3412', // orange-800
   primaryDark:  '#C2410C', // orange-700 — pressed / hover
   primaryLight: '#FFF7ED', // orange-50 — tint background
 
-  // Secondary — emerald system (matches web btn-secondary)
+  // Secondary — emerald system
   secondary:      '#065F46', // emerald-800
   secondaryDark:  '#047857', // emerald-700
   secondaryLight: '#ECFDF5', // emerald-50
@@ -80,8 +80,8 @@ export const lightPalette = {
 } as const;
 
 // =============================================================================
-// DARK PALETTE — Luxury / Editorial (existing gold + obsidian system)
-// Primary: light gold (#f1d18d) | Background: deep obsidian (#121411)
+// DARK PALETTE — TrimiT Luxury & Editorial (Champagne Gold on Deep Obsidian)
+// Primary: Light Gold (#f1d18d) | Secondary: Deep Forest (#1A2D22) | Background: Deep Obsidian (#121411)
 // =============================================================================
 export const darkPalette = {
   // Backgrounds
@@ -139,7 +139,7 @@ export const darkPalette = {
   statusInProgress:    '#F97316',
   statusInProgressBg:  '#2E160D',
 
-  // Premium Orange Gradients (Stops)
+  // Premium Gradients (Stops)
   gradientPrimary:   ['#9A3412', '#7C2D12'] as readonly string[],
   gradientPremium:   ['#f1d18d', '#C2410C', '#9A3412'] as readonly string[],
   gradientHighlight: ['#2E160D', '#121411'] as readonly string[],

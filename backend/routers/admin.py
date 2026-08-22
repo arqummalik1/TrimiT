@@ -309,13 +309,26 @@ async def block_user(
     """Block a user from accessing the app."""
     _require_admin(authorization)
     try:
-        await supabase.request(
+        resp = await supabase.request(
             "PATCH",
             f"rest/v1/users?id=eq.{payload.user_id}",
             service_role=True,
             json={"is_blocked": True},
         )
+        if resp.status_code not in (200, 201, 204):
+            logger.error(
+                "[Admin] block user write failed user=%s status=%s body=%s",
+                payload.user_id,
+                resp.status_code,
+                (resp.text or "")[:300],
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={"code": "BLOCK_FAILED", "message": "Could not block user."},
+            )
         return {"status": "blocked", "user_id": payload.user_id}
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("[Admin] block user failed: %s", exc)
         raise HTTPException(
@@ -334,13 +347,26 @@ async def unblock_user(
     """Unblock a user."""
     _require_admin(authorization)
     try:
-        await supabase.request(
+        resp = await supabase.request(
             "PATCH",
             f"rest/v1/users?id=eq.{payload.user_id}",
             service_role=True,
             json={"is_blocked": False},
         )
+        if resp.status_code not in (200, 201, 204):
+            logger.error(
+                "[Admin] unblock user write failed user=%s status=%s body=%s",
+                payload.user_id,
+                resp.status_code,
+                (resp.text or "")[:300],
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={"code": "UNBLOCK_FAILED", "message": "Could not unblock user."},
+            )
         return {"status": "unblocked", "user_id": payload.user_id}
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("[Admin] unblock user failed: %s", exc)
         raise HTTPException(
@@ -359,13 +385,26 @@ async def delete_user(
     """Delete a user (soft delete by setting deleted_at)."""
     _require_admin(authorization)
     try:
-        await supabase.request(
+        resp = await supabase.request(
             "PATCH",
             f"rest/v1/users?id=eq.{user_id}",
             service_role=True,
             json={"deleted_at": datetime.now(timezone.utc).isoformat()},
         )
+        if resp.status_code not in (200, 201, 204):
+            logger.error(
+                "[Admin] delete user write failed user=%s status=%s body=%s",
+                user_id,
+                resp.status_code,
+                (resp.text or "")[:300],
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={"code": "DELETE_FAILED", "message": "Could not delete user."},
+            )
         return {"status": "deleted", "user_id": user_id}
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("[Admin] delete user failed: %s", exc)
         raise HTTPException(

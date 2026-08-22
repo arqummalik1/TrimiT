@@ -261,7 +261,7 @@ const ManageBookings = () => {
                         <Clock size={16} className="text-stone-500" />
                         {formatTime(booking.time_slot)}
                       </div>
-                      <div className="flex items-center gap-2 text-sm font-semibold text-orange-800">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-brand-800">
                         <CurrencyInr size={16} />
                         {formatPrice(booking.amount || 0)}
                       </div>

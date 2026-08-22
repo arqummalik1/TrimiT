@@ -98,7 +98,7 @@ async def get_salon_staff(
     if not include_inactive:
         query_url += "&is_active=eq.true"
         
-    response = await supabase.request("GET", query_url)
+    response = await supabase.request("GET", query_url, service_role=True)
     
     if response.status_code != 200:
         raise HTTPException(
@@ -106,10 +106,13 @@ async def get_salon_staff(
             detail="Failed to fetch staff"
         )
     
-    # Transform data to include services array
+    # Transform data to include services array; strip PII for public listing.
     staff_list = []
     for staff in response.json() or []:
         staff_dict = {**staff}
+        staff_dict.pop("phone", None)
+        staff_dict.pop("email", None)
+        staff_dict.pop("user_id", None)
         staff_dict["services"] = []
         for ss in staff.get("staff_services", []):
             if ss.get("services"):
@@ -135,7 +138,8 @@ async def get_staff(
     select_query = "*,staff_services(*,services(*))"
     response = await supabase.request(
         "GET",
-        f"rest/v1/staff?id=eq.{staff_id}&select={select_query}"
+        f"rest/v1/staff?id=eq.{staff_id}&select={select_query}",
+        service_role=True,
     )
     
     if response.status_code != 200 or not response.json():
@@ -143,9 +147,12 @@ async def get_staff(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Staff member not found"
         )
-    
+
     staff = response.json()[0]
     staff_dict = {**staff}
+    staff_dict.pop("phone", None)
+    staff_dict.pop("email", None)
+    staff_dict.pop("user_id", None)
     staff_dict["services"] = []
     for ss in staff.get("staff_services", []):
         if ss.get("services"):

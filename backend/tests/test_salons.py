@@ -67,6 +67,7 @@ def test_get_salon_computes_avg_rating(client, mock_supabase):
             }
         ],
     )
+    mock_supabase.get("/rest/v1/service_categories").return_value = Response(200, json=[])
     response = client.get("/api/v1/salons/33333333-3333-3333-3333-333333333333")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()

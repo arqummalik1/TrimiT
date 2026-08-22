@@ -27,10 +27,10 @@ const toastConfig = {
   },
   warning: {
     icon: Warning,
-    bgColor: 'bg-amber-50',
-    borderColor: 'border-amber-200',
-    iconColor: 'text-amber-600',
-    progressColor: 'bg-amber-500'
+    bgColor: 'bg-brand-50',
+    borderColor: 'border-brand-200',
+    iconColor: 'text-brand-600',
+    progressColor: 'bg-brand-500'
   },
   info: {
     icon: Info,
@@ -109,7 +109,7 @@ const ToastItem = ({ toast }) => {
                     onClick={() => handleAction(action)}
                     className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                       action.primary
-                        ? 'bg-orange-800 text-white hover:bg-orange-900'
+                        ? 'bg-brand-800 text-white hover:bg-brand-900'
                         : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-50'
                     }`}
                   >

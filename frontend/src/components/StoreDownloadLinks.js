@@ -11,10 +11,10 @@ export function StoreDownloadLinks({ variant = 'light' }) {
 
   const isDark = variant === 'dark';
   const btnBase =
-    'inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-800/40';
+    'inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-800/40';
   const playClass = isDark
     ? `${btnBase} bg-stone-800 border-stone-600 text-white hover:bg-stone-700 hover:border-stone-500`
-    : `${btnBase} bg-white border-stone-200 text-stone-900 hover:border-orange-300 hover:shadow-sm`;
+    : `${btnBase} bg-white border-stone-200 text-stone-900 hover:border-brand-300 hover:shadow-sm`;
   const iosClass = isDark
     ? `${btnBase} bg-stone-800/60 border-stone-600 text-stone-300 hover:bg-stone-700 hover:text-white`
     : `${btnBase} bg-stone-50 border-stone-200 text-stone-600 hover:border-stone-300 hover:text-stone-900`;
@@ -102,7 +102,7 @@ export function StoreDownloadLinks({ variant = 'light' }) {
             </p>
             <a
               href={PUBLIC_SITE_URL}
-              className="block w-full text-center py-3 rounded-xl bg-orange-800 text-white font-semibold hover:bg-orange-900 transition-colors"
+              className="block w-full text-center py-3 rounded-xl bg-brand-800 text-white font-semibold hover:bg-brand-900 transition-colors"
             >
               Book on trimit.online
             </a>

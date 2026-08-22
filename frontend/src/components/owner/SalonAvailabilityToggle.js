@@ -96,7 +96,7 @@ export default function SalonAvailabilityToggle({ salon }) {
               onClick={() => close(opt.until, opt.msg)}
               className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-stone-700 transition hover:bg-stone-50"
             >
-              <Moon size={16} className="text-orange-700" />
+              <Moon size={16} className="text-brand-700" />
               {opt.label}
             </button>
           ))}

@@ -48,13 +48,13 @@ export default function SeoCategoryPage() {
 
   return (
     <>
-      <section className="bg-gradient-to-b from-orange-50 to-stone-50 border-b border-stone-200">
+      <section className="bg-gradient-to-b from-brand-50 to-stone-50 border-b border-stone-200">
         <motion.div className="max-w-6xl mx-auto px-4 py-10 sm:py-14">
           <nav
             className="hidden lg:flex items-center gap-1 text-sm text-stone-500 mb-6"
             aria-label="Breadcrumb"
           >
-            <Link to="/" className="hover:text-orange-800">
+            <Link to="/" className="hover:text-brand-800">
               Home
             </Link>
             <CaretRight size={14} />
@@ -79,7 +79,7 @@ export default function SeoCategoryPage() {
                 <Link
                   key={path}
                   to={path}
-                  className="text-sm px-3 py-1.5 rounded-full bg-white border border-stone-200 text-stone-700 hover:border-orange-300 capitalize"
+                  className="text-sm px-3 py-1.5 rounded-full bg-white border border-stone-200 text-stone-700 hover:border-brand-300 capitalize"
                 >
                   {path.replace(/^\//, '').replace(/-/g, ' ')}
                 </Link>
@@ -108,7 +108,7 @@ export default function SeoCategoryPage() {
         ) : (
           <p className="text-stone-500">
             More salons joining soon.{' '}
-            <Link to={explorePath()} className="text-orange-800 font-semibold">
+            <Link to={explorePath()} className="text-brand-800 font-semibold">
               Explore all listings
             </Link>
           </p>

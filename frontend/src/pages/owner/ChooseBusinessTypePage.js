@@ -58,25 +58,25 @@ const ChooseBusinessTypePage = () => {
                   onClick={() => setSelected(opt.value)}
                   className={`w-full flex items-center gap-4 p-5 rounded-2xl border-2 text-left transition-all ${
                     active
-                      ? 'border-orange-800 bg-orange-50'
+                      ? 'border-brand-800 bg-brand-50'
                       : 'border-stone-200 bg-white hover:border-stone-300'
                   }`}
                 >
                   <div
                     className={`w-14 h-14 rounded-xl flex items-center justify-center ${
-                      active ? 'bg-orange-100' : 'bg-stone-100'
+                      active ? 'bg-brand-100' : 'bg-stone-100'
                     }`}
                   >
                     <Icon
                       size={28}
                       weight="duotone"
-                      className={active ? 'text-orange-800' : 'text-stone-500'}
+                      className={active ? 'text-brand-800' : 'text-stone-500'}
                     />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p
                       className={`font-semibold text-lg ${
-                        active ? 'text-orange-900' : 'text-stone-900'
+                        active ? 'text-brand-900' : 'text-stone-900'
                       }`}
                     >
                       {opt.title}
@@ -84,7 +84,7 @@ const ChooseBusinessTypePage = () => {
                     <p className="text-sm text-stone-500">{opt.subtitle}</p>
                   </div>
                   {active ? (
-                    <CheckCircle size={24} weight="fill" className="text-orange-800 shrink-0" />
+                    <CheckCircle size={24} weight="fill" className="text-brand-800 shrink-0" />
                   ) : (
                     <span className="w-6 h-6 rounded-full border-2 border-stone-300 shrink-0" />
                   )}

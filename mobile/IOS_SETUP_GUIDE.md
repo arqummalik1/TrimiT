@@ -182,9 +182,21 @@ You already created this. Double-check:
 1. **Certificates, Identifiers & Profiles** → **Identifiers**
 2. Find **`online.trimit.app`**
 3. Open it → confirm **Push Notifications** is enabled (recommended for booking alerts)
-4. Save if you changed anything
+4. Enable **Sign In with Apple** (required by App Store when Google social login is offered)
+5. Save if you changed anything
 
-**Outcome:** Identifier `online.trimit.app` exists and matches what Xcode and App Store Connect will use later.
+**Outcome:** Identifier `online.trimit.app` exists, matches Xcode / App Store Connect, and has Sign In with Apple enabled.
+
+**Sign in with Apple — complete setup (after capability is on):**
+
+1. **Keys** → **+** → name `TrimiT Sign in with Apple` → check **Sign in with Apple** → download `.p8` once; note **Key ID** + **Team ID**.
+2. **(Web OAuth only)** Identifiers → **Services IDs** → e.g. `online.trimit.app.auth` → enable Sign In with Apple → return URL  
+   `https://<YOUR_SUPABASE_REF>.supabase.co/auth/v1/callback`
+3. **Supabase** → Authentication → Providers → **Apple** → enable; paste Services ID / bundle ID, Team ID, Key ID, and secret JWT generated from the `.p8` (see Supabase “Login with Apple” docs).
+4. Enable **Link identities** so Apple + Google + OTP share one account per verified email.
+5. **Rebuild iOS** (new Xcode Archive / TestFlight) — capability is not added by Metro reload.
+
+Full client flow: `docs/architecture/auth-flow.md`.
 
 ---
 

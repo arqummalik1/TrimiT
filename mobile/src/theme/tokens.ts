@@ -65,7 +65,7 @@ export type ThemeColors = {
   statusInProgress:    string;
   statusInProgressBg:  string;
 
-  // Premium Orange Gradients
+  // Brand Gold Gradients
   gradientPrimary:   readonly string[];
   gradientPremium:   readonly string[];
   gradientHighlight: readonly string[];
@@ -263,29 +263,31 @@ export const shadows = {
 // =============================================================================
 export type StatusColorMap = Record<string, { bg: string; text: string }>;
 
+/** Mirrors lightPalette.status* — keep the two in sync. */
 export const getLightStatusColors = (): StatusColorMap => ({
-  pending:     { bg: '#FEF3C7', text: '#B45309' }, // amber
-  confirmed:   { bg: '#DBEAFE', text: '#1D4ED8' }, // blue
-  completed:   { bg: '#D1FAE5', text: '#047857' }, // emerald
-  cancelled:   { bg: '#FEE2E2', text: '#B91C1C' }, // red
-  rescheduled: { bg: '#EDE9FE', text: '#6D28D9' }, // purple
-  inProgress:  { bg: '#FFEDD5', text: '#C2410C' }, // orange
+  pending:     { bg: '#FEF3C7', text: '#B45309' }, // Amber-700 / Amber-100
+  confirmed:   { bg: '#DBEAFE', text: '#1D4ED8' }, // Blue-700 / Blue-100
+  completed:   { bg: '#D1FAE5', text: '#047857' }, // Emerald-700 / Emerald-100
+  cancelled:   { bg: '#FEE2E2', text: '#B91C1C' }, // Red-700 / Red-100
+  rescheduled: { bg: '#EDE9FE', text: '#6D28D9' }, // Purple-700 / Purple-100
+  inProgress:  { bg: '#FFEDD5', text: '#C2410C' }, // Orange-700 / Orange-100
 });
 
+/** Mirrors darkPalette.status* — keep the two in sync. */
 export const getDarkStatusColors = (): StatusColorMap => ({
-  pending:     { bg: '#2D2D1A', text: '#F7DC6F' }, // gold
-  confirmed:   { bg: '#1A242D', text: '#85C1E9' }, // blue
-  completed:   { bg: '#1A2D22', text: '#82E0AA' }, // emerald
-  cancelled:   { bg: '#2D1A1A', text: '#FF5F5F' }, // red
-  rescheduled: { bg: '#1A1A2D', text: '#BB8FCE' }, // purple
-  inProgress:  { bg: '#2E160D', text: '#F97316' }, // orange
+  pending:     { bg: '#2D2D1A', text: '#F7DC6F' },
+  confirmed:   { bg: '#1A242D', text: '#85C1E9' },
+  completed:   { bg: '#1A2D22', text: '#82E0AA' },
+  cancelled:   { bg: '#2D1A1A', text: '#FF5F5F' },
+  rescheduled: { bg: '#1A1A2D', text: '#BB8FCE' },
+  inProgress:  { bg: '#2E160D', text: '#F97316' },
 });
 
 export const getLightPaymentColors = (): StatusColorMap => ({
-  pending:  { bg: '#FFFBEB', text: '#D97706' },
-  paid:     { bg: '#ECFDF5', text: '#059669' },
-  failed:   { bg: '#FEF2F2', text: '#DC2626' },
-  refunded: { bg: '#F5F3FF', text: '#7C3AED' },
+  pending:  { bg: '#FEF3C7', text: '#B45309' },
+  paid:     { bg: '#D1FAE5', text: '#047857' },
+  failed:   { bg: '#FEE2E2', text: '#B91C1C' },
+  refunded: { bg: '#EDE9FE', text: '#6D28D9' },
 });
 
 export const getDarkPaymentColors = (): StatusColorMap => ({

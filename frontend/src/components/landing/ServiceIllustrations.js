@@ -3,8 +3,8 @@ import React from 'react';
 const ILLUSTRATIONS = {
   haircut: (
     <>
-      <circle cx="120" cy="108" r="72" fill="#fed7aa" opacity="0.35" />
-      <ellipse cx="118" cy="92" rx="44" ry="50" fill="#451a03" />
+      <circle cx="120" cy="108" r="72" fill="var(--brand-200)" opacity="0.35" />
+      <ellipse cx="118" cy="92" rx="44" ry="50" fill="var(--brand-950)" />
       <path
         d="M88 78c6-18 22-28 30-28s24 10 30 28c-4 6-12 10-30 10s-26-4-30-10z"
         fill="#292524"
@@ -15,13 +15,13 @@ const ILLUSTRATIONS = {
       />
       <path d="M98 88c8 6 16 8 24 8s16-2 24-8" stroke="#1c1917" strokeWidth="2" strokeLinecap="round" fill="none" />
       <g transform="translate(158 48) rotate(28)">
-        <path d="M4 4 L52 52" stroke="#9a3412" strokeWidth="4" strokeLinecap="round" />
-        <path d="M12 0 L56 44" stroke="#c2410c" strokeWidth="2.5" strokeLinecap="round" />
-        <circle cx="56" cy="48" r="12" fill="#ea580c" />
-        <circle cx="56" cy="48" r="5" fill="#ffedd5" />
+        <path d="M4 4 L52 52" stroke="var(--brand-800)" strokeWidth="4" strokeLinecap="round" />
+        <path d="M12 0 L56 44" stroke="var(--brand-700)" strokeWidth="2.5" strokeLinecap="round" />
+        <circle cx="56" cy="48" r="12" fill="var(--brand-600)" />
+        <circle cx="56" cy="48" r="5" fill="var(--brand-100)" />
       </g>
-      <rect x="42" y="158" width="56" height="36" rx="10" fill="#fff7ed" opacity="0.9" />
-      <path d="M52 172h36M48 182h44" stroke="#ea580c" strokeWidth="2.5" strokeLinecap="round" />
+      <rect x="42" y="158" width="56" height="36" rx="10" fill="var(--brand-50)" opacity="0.9" />
+      <path d="M52 172h36M48 182h44" stroke="var(--brand-600)" strokeWidth="2.5" strokeLinecap="round" />
     </>
   ),
   spa: (
@@ -58,11 +58,11 @@ const ILLUSTRATIONS = {
       />
       <path d="M104 90 Q120 98 136 90" stroke="#292524" strokeWidth="2" fill="none" strokeLinecap="round" />
       <g transform="translate(162 128) rotate(-32)">
-        <rect x="0" y="10" width="16" height="72" rx="5" fill="#ea580c" />
-        <path d="M3 10h10M3 22h10M3 34h10M3 46h10M3 58h10" stroke="#9a3412" strokeWidth="1.2" />
-        <rect x="-5" y="0" width="26" height="14" rx="4" fill="#c2410c" />
+        <rect x="0" y="10" width="16" height="72" rx="5" fill="var(--brand-600)" />
+        <path d="M3 10h10M3 22h10M3 34h10M3 46h10M3 58h10" stroke="var(--brand-800)" strokeWidth="1.2" />
+        <rect x="-5" y="0" width="26" height="14" rx="4" fill="var(--brand-700)" />
       </g>
-      <circle cx="58" cy="150" r="8" fill="#fdba74" opacity="0.55" />
+      <circle cx="58" cy="150" r="8" fill="var(--brand-300)" opacity="0.55" />
     </>
   ),
   facial: (
@@ -72,8 +72,8 @@ const ILLUSTRATIONS = {
       <ellipse cx="108" cy="88" rx="7" ry="4" fill="#1c1917" opacity="0.12" />
       <ellipse cx="132" cy="88" rx="7" ry="4" fill="#1c1917" opacity="0.12" />
       <path d="M110 100 Q120 106 130 100" stroke="#be123c" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-      <rect x="82" y="118" width="76" height="52" rx="16" fill="#fff7ed" />
-      <path d="M94 132h52M90 144h60M96 156h48" stroke="#fdba74" strokeWidth="2" strokeLinecap="round" />
+      <rect x="82" y="118" width="76" height="52" rx="16" fill="var(--brand-50)" />
+      <path d="M94 132h52M90 144h60M96 156h48" stroke="var(--brand-300)" strokeWidth="2" strokeLinecap="round" />
       <circle cx="68" cy="148" r="10" fill="#38bdf8" opacity="0.45" />
       <circle cx="172" cy="132" r="12" fill="#7dd3fc" opacity="0.4" />
       <circle cx="120" cy="178" r="9" fill="#bae6fd" opacity="0.5" />

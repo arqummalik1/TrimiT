@@ -10,6 +10,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { isAppError } from '../types/error';
 import { logger } from '../lib/logger';
 import { translateGoogleAuthError } from '../lib/googleAuthErrors';
+import { translateAppleAuthError } from '../lib/appleAuthErrors';
 
 interface AuthState {
   user: User | null;
@@ -57,6 +58,7 @@ interface AuthState {
   ) => Promise<{ success: boolean; error?: string; session?: any }>;
   sendOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
   googleSignIn: () => Promise<{ success: boolean; error?: string; cancelled?: boolean }>;
+  appleSignIn: () => Promise<{ success: boolean; error?: string; cancelled?: boolean }>;
   isOnboardingCompleted: boolean;
   completeOnboarding: () => void;
   completeProfile: (data: {
@@ -495,6 +497,87 @@ export const useAuthStore = create<AuthState>()(
           void syncSupabaseAuthSession(accessToken, refreshToken);
 
           // /auth/me is the source of truth for profile + profile_complete.
+          const { authService } = require('../services/authService');
+          const meResponse = await authService.getMe();
+          const responseData = meResponse.data as {
+            profile?: User;
+            profile_complete?: boolean;
+          };
+          const profileComplete = responseData.profile_complete ?? false;
+          const profile = profileComplete
+            ? normalizeAuthUser(responseData)
+            : null;
+
+          if (!profileComplete) {
+            set({
+              user: null,
+              token: accessToken,
+              refreshToken,
+              isAuthenticated: true,
+              profileComplete: false,
+              isLoading: false,
+              error: null,
+              authBootstrapComplete: true,
+            });
+            return { success: true };
+          }
+
+          set({
+            user: profile,
+            token: accessToken,
+            refreshToken,
+            isAuthenticated: true,
+            profileComplete: true,
+            isLoading: false,
+            error: null,
+            authBootstrapComplete: true,
+          });
+          return { success: true };
+        } catch (err) {
+          const { parseAuthFailure } = require('../repositories/authRepository');
+          const { message } = parseAuthFailure(err);
+          set({ isLoading: false, error: message });
+          return { success: false, error: message };
+        }
+      },
+
+      // ── Sign in with Apple (native iOS) ────────────────────────────────
+      // Same session pipeline as Google: idToken → Supabase → /auth/me.
+      // Pass raw nonce to Supabase (Apple received SHA-256 of that nonce).
+      appleSignIn: async () => {
+        set({ isLoading: true, error: null, sessionExpired: false });
+        try {
+          const { signInWithApple } = require('../services/appleAuthService');
+          const outcome = await signInWithApple();
+
+          if (!outcome.ok) {
+            set({
+              isLoading: false,
+              error: outcome.cancelled ? null : outcome.error,
+            });
+            return { success: false, error: outcome.error, cancelled: outcome.cancelled };
+          }
+
+          const { data, error } = await supabase.auth.signInWithIdToken({
+            provider: 'apple',
+            token: outcome.idToken,
+            nonce: outcome.rawNonce,
+          });
+
+          if (error || !data?.session?.access_token) {
+            const message = translateAppleAuthError(
+              error?.message || 'Apple sign-in failed. Please try again.',
+            );
+            set({ isLoading: false, error: message });
+            return { success: false, error: message };
+          }
+
+          const accessToken = data.session.access_token;
+          const refreshToken = data.session.refresh_token ?? null;
+
+          setAuthToken(accessToken);
+          void syncSupabaseAuthSession(accessToken, refreshToken);
+
           const { authService } = require('../services/authService');
           const meResponse = await authService.getMe();
           const responseData = meResponse.data as {

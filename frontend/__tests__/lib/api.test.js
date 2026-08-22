@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import api, { isPublicSalonRead } from '../../src/lib/api';
+import api, { isPublicSalonRead, isProtectedAuthFailure } from '../../src/lib/api';
 import { pathRequiresIdempotencyKey } from '../../src/lib/idempotency';
 
 // Mock dependencies
@@ -16,8 +16,17 @@ vi.mock('../../src/lib/session', () => ({
 vi.mock('../../src/lib/supabase', () => ({
   supabase: {
     auth: {
-      signOut: vi.fn()
+      signOut: vi.fn(),
+      setSession: vi.fn()
     }
+  }
+}));
+
+const mockLogout = vi.fn();
+vi.mock('../../src/store/authStore', () => ({
+  useAuthStore: {
+    getState: () => ({ refreshToken: null, logout: mockLogout }),
+    setState: vi.fn()
   }
 }));
 
@@ -92,6 +101,95 @@ describe('api.js', () => {
       const result = await interceptor(config);
       
       expect(result.headers['Idempotency-Key']).toBe('existing-key');
+    });
+  });
+
+  describe('isProtectedAuthFailure', () => {
+    it('is false for 401s from auth credential endpoints', () => {
+      const credentialPaths = [
+        '/auth/login',
+        '/auth/signup',
+        '/auth/send-otp',
+        '/auth/verify-otp',
+        '/auth/forgot-password',
+        '/auth/reset-password',
+        '/auth/validate-reset-token',
+        '/auth/resend-confirmation',
+      ];
+      credentialPaths.forEach((url) => {
+        expect(isProtectedAuthFailure(401, { url })).toBe(false);
+      });
+    });
+
+    it('is true for 401s from protected endpoints', () => {
+      expect(isProtectedAuthFailure(401, { url: '/auth/me' })).toBe(true);
+      expect(isProtectedAuthFailure(401, { url: '/auth/complete-profile' })).toBe(true);
+      expect(isProtectedAuthFailure(401, { url: '/bookings' })).toBe(true);
+      expect(isProtectedAuthFailure(401, { url: '/owner/salon' })).toBe(true);
+    });
+
+    it('is false for non-401 statuses', () => {
+      expect(isProtectedAuthFailure(403, { url: '/bookings' })).toBe(false);
+      expect(isProtectedAuthFailure(500, { url: '/bookings' })).toBe(false);
+      expect(isProtectedAuthFailure(undefined, { url: '/bookings' })).toBe(false);
+    });
+  });
+
+  // A wrong password / wrong OTP in an already-signed-in tab must not destroy
+  // the live session — only a 401 on a protected call means the session died.
+  describe('401 handling in the response interceptor', () => {
+    const rejectInterceptor = () => api.interceptors.response.handlers[0].rejected;
+
+    const unauthorized = (url) => ({
+      response: { status: 401, data: {} },
+      config: { url, method: 'post', headers: {} },
+      message: 'Request failed with status code 401',
+    });
+
+    beforeEach(() => {
+      delete api.defaults.headers.common.Authorization;
+    });
+
+    it('does not clear the session when login credentials are rejected', async () => {
+      const { clearPersistedAuth } = await import('../../src/lib/session');
+      api.defaults.headers.common.Authorization = 'Bearer live-session-token';
+
+      await expect(rejectInterceptor()(unauthorized('/auth/login'))).rejects.toBeTruthy();
+
+      expect(mockLogout).not.toHaveBeenCalled();
+      expect(clearPersistedAuth).not.toHaveBeenCalled();
+      expect(api.defaults.headers.common.Authorization).toBe('Bearer live-session-token');
+    });
+
+    it('does not clear the session when an OTP is rejected', async () => {
+      const { clearPersistedAuth } = await import('../../src/lib/session');
+      api.defaults.headers.common.Authorization = 'Bearer live-session-token';
+
+      await expect(rejectInterceptor()(unauthorized('/auth/verify-otp'))).rejects.toBeTruthy();
+
+      expect(mockLogout).not.toHaveBeenCalled();
+      expect(clearPersistedAuth).not.toHaveBeenCalled();
+      expect(api.defaults.headers.common.Authorization).toBe('Bearer live-session-token');
+    });
+
+    it('clears the session when a protected request returns 401', async () => {
+      const { clearPersistedAuth } = await import('../../src/lib/session');
+
+      await expect(rejectInterceptor()(unauthorized('/auth/me'))).rejects.toBeTruthy();
+
+      expect(mockLogout).toHaveBeenCalled();
+      expect(clearPersistedAuth).toHaveBeenCalled();
+      expect(api.defaults.headers.common.Authorization).toBeUndefined();
+    });
+
+    it('leaves the session alone on non-401 failures', async () => {
+      const { clearPersistedAuth } = await import('../../src/lib/session');
+      const error = { response: { status: 500 }, config: { url: '/bookings', headers: {} } };
+
+      await expect(rejectInterceptor()(error)).rejects.toBeTruthy();
+
+      expect(mockLogout).not.toHaveBeenCalled();
+      expect(clearPersistedAuth).not.toHaveBeenCalled();
     });
   });
 });

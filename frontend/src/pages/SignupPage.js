@@ -6,7 +6,12 @@ import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import AuthBrandMark from '../components/brand/AuthBrandMark';
 import GoogleSignInButton from '../components/auth/GoogleSignInButton';
-import { GOOGLE_LOGIN_ENABLED, OTP_RESEND_COOLDOWN_SECONDS } from '../config/auth';
+import AppleSignInButton from '../components/auth/AppleSignInButton';
+import {
+  GOOGLE_LOGIN_ENABLED,
+  APPLE_LOGIN_ENABLED,
+  OTP_RESEND_COOLDOWN_SECONDS,
+} from '../config/auth';
 
 // Email-only OTP signup — identical flow to the mobile app and to LoginPage.
 // The user enters only their email, receives a 6-digit OTP, verifies it, and
@@ -90,7 +95,7 @@ const SignupPage = () => {
                     if (fieldError) setFieldError(null);
                   }}
                   data-testid="signup-email"
-                  className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-800/20 focus:border-orange-800 transition-colors"
+                  className="w-full pl-12 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800 transition-colors"
                   placeholder="you@example.com"
                   required
                 />
@@ -113,7 +118,7 @@ const SignupPage = () => {
             </button>
           </form>
 
-          {GOOGLE_LOGIN_ENABLED && (
+          {(GOOGLE_LOGIN_ENABLED || APPLE_LOGIN_ENABLED) && (
             <>
               <div className="flex items-center gap-3 my-6">
                 <div className="flex-1 h-px bg-stone-200" />
@@ -121,7 +126,14 @@ const SignupPage = () => {
                 <div className="flex-1 h-px bg-stone-200" />
               </div>
 
-              <GoogleSignInButton label="Sign up with Google" />
+              <div className="space-y-3">
+                {GOOGLE_LOGIN_ENABLED && (
+                  <GoogleSignInButton label="Sign up with Google" />
+                )}
+                {APPLE_LOGIN_ENABLED && (
+                  <AppleSignInButton label="Sign up with Apple" />
+                )}
+              </div>
             </>
           )}
 
@@ -130,7 +142,7 @@ const SignupPage = () => {
               Already have an account?{' '}
               <Link
                 to="/login"
-                className="text-orange-800 font-semibold hover:underline"
+                className="text-brand-800 font-semibold hover:underline"
                 data-testid="login-link"
               >
                 Sign in

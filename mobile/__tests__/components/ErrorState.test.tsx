@@ -5,6 +5,10 @@
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
+import { ThemeContext } from '../../src/theme/ThemeContext';
+import { lightTheme } from '../../src/theme/lightTheme';
+import { darkTheme } from '../../src/theme/darkTheme';
 import { ErrorState } from '../../src/components/ErrorState';
 
 jest.mock('@expo/vector-icons', () => {
@@ -13,6 +17,24 @@ jest.mock('@expo/vector-icons', () => {
     Ionicons: ({ name }: any) => <Text>{name}</Text>,
   };
 });
+
+const withTheme = (ui: React.ReactElement, isDark: boolean) =>
+  render(
+    <ThemeContext.Provider
+      value={{
+        theme: isDark ? darkTheme : lightTheme,
+        isDark,
+        themeMode: isDark ? 'dark' : 'light',
+        setThemeMode: jest.fn(),
+        toggleTheme: jest.fn(),
+      }}
+    >
+      {ui}
+    </ThemeContext.Provider>,
+  );
+
+const rootStyle = (json: unknown) =>
+  StyleSheet.flatten((json as any).props.style) as Record<string, string>;
 
 describe('ErrorState', () => {
   // ─── Defaults ─────────────────────────────────────────────────────────────
@@ -115,5 +137,41 @@ describe('ErrorState', () => {
     render(<ErrorState onRetry={jest.fn()} retryLabel="Reconnect" />);
     expect(screen.getByText('Reconnect')).toBeTruthy();
     expect(screen.queryByText('Try Again')).toBeNull();
+  });
+
+  // ─── Theming ──────────────────────────────────────────────────────────────
+  // Regression: ErrorState used to import the static `colors` export from
+  // lib/utils, which is the DARK palette. Light-mode users saw dark chrome on
+  // every error screen.
+  describe('follows the active theme', () => {
+    it('paints the light background in light mode', () => {
+      const { toJSON } = withTheme(<ErrorState />, false);
+      expect(rootStyle(toJSON()).backgroundColor).toBe(lightTheme.colors.background);
+    });
+
+    it('paints the dark background in dark mode', () => {
+      const { toJSON } = withTheme(<ErrorState />, true);
+      expect(rootStyle(toJSON()).backgroundColor).toBe(darkTheme.colors.background);
+    });
+
+    it('does not fall back to the dark palette in light mode', () => {
+      const { toJSON } = withTheme(<ErrorState />, false);
+      expect(rootStyle(toJSON()).backgroundColor).not.toBe(
+        darkTheme.colors.background,
+      );
+    });
+
+    it('themes the card variant surface too', () => {
+      const { toJSON } = withTheme(<ErrorState variant="card" />, false);
+      expect(rootStyle(toJSON()).backgroundColor).toBe(lightTheme.colors.surface);
+    });
+
+    it('themes the inline variant tint too', () => {
+      const { toJSON } = withTheme(<ErrorState variant="inline" message="x" />, false);
+      const style = rootStyle(toJSON());
+
+      expect(style.backgroundColor).toBe(lightTheme.colors.errorLight);
+      expect(style.borderLeftColor).toBe(lightTheme.colors.error);
+    });
   });
 });

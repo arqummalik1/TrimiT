@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MapTrifold } from '@phosphor-icons/react';
 import { loadGoogleMaps } from '../../lib/googleMaps';
 import { JAMMU_CITY } from '../../config/jammu';
+import brandScale from '../../theme/brandScale.json';
 
 /**
  * Real Google map for customer salon discovery (web). Reuses the same
@@ -77,7 +78,7 @@ export default function GoogleSalonMap({ salons = [], userLocation }) {
             <div style="color:#78716c;font-size:12px;margin-bottom:6px">${escapeHtml(
               [salon.address, salon.city].filter(Boolean).join(', ')
             )}</div>
-            <a href="/salon/${salon.id}" style="color:#9a3412;font-weight:600;font-size:13px">View salon →</a>
+            <a href="/salon/${salon.id}" style="color:${brandScale[800]};font-weight:600;font-size:13px">View salon →</a>
           </div>`;
         infoRef.current.setContent(html);
         infoRef.current.open(mapRef.current, marker);
@@ -120,7 +121,7 @@ export default function GoogleSalonMap({ salons = [], userLocation }) {
       <div ref={mapDivRef} className="w-full aspect-[16/9] min-h-[360px]" />
       {status === 'loading' && (
         <div className="absolute inset-0 flex items-center justify-center bg-stone-100">
-          <div className="h-8 w-8 rounded-full border-2 border-orange-700 border-t-transparent animate-spin" />
+          <div className="h-8 w-8 rounded-full border-2 border-brand-700 border-t-transparent animate-spin" />
         </div>
       )}
     </div>

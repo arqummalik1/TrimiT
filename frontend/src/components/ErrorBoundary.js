@@ -32,8 +32,8 @@ class ErrorBoundary extends React.Component {
       return (
         <div className="min-h-screen bg-stone-50 flex items-center justify-center p-6">
           <div className="max-w-md w-full bg-white border border-stone-200 rounded-2xl p-8 text-center shadow-sm">
-            <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
-              <Warning size={32} weight="duotone" className="text-orange-800" />
+            <div className="w-16 h-16 bg-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
+              <Warning size={32} weight="duotone" className="text-brand-800" />
             </div>
             <h1 className="font-heading text-2xl font-bold text-stone-900 mb-2">
               Something went wrong
@@ -44,7 +44,7 @@ class ErrorBoundary extends React.Component {
             <div className="flex flex-col gap-3">
               <button
                 onClick={this.handleReload}
-                className="w-full bg-orange-800 hover:bg-orange-900 text-white font-medium px-6 py-3 rounded-full transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-brand-800 hover:bg-brand-900 text-white font-medium px-6 py-3 rounded-full transition-colors flex items-center justify-center gap-2"
               >
                 <ArrowClockwise size={18} weight="bold" />
                 Reload page

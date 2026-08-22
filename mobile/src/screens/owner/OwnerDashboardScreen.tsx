@@ -302,6 +302,7 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
     onError: (err: unknown) => {
       const appErr = handleApiError(err);
       console.error('[Dashboard] Status update failed:', appErr);
+      showToast(appErr.message, 'error');
     },
   });
 

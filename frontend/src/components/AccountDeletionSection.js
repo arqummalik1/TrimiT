@@ -57,11 +57,11 @@ const AccountDeletionSection = () => {
       </button>
 
       <p className="text-xs text-stone-500 text-center">
-        <Link to="/contact" className="text-orange-800 hover:underline">
+        <Link to="/contact" className="text-brand-800 hover:underline">
           Request deletion on the web
         </Link>
         {' · '}
-        <a href={`mailto:${SUPPORT_EMAIL}`} className="text-orange-800 hover:underline">
+        <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-800 hover:underline">
           {SUPPORT_EMAIL}
         </a>
       </p>

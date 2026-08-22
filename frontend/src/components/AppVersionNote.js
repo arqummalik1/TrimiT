@@ -9,11 +9,11 @@ export default function AppVersionNote({ className = '' }) {
       {formatVersionLine()}
       <span className="block mt-1">{formatCopyright()}</span>
       <span className="block mt-2">
-        <Link to="/terms" className="text-orange-800 hover:underline">
+        <Link to="/terms" className="text-brand-800 hover:underline">
           Terms & Conditions
         </Link>
         {' · '}
-        <Link to="/privacy" className="text-orange-800 hover:underline">
+        <Link to="/privacy" className="text-brand-800 hover:underline">
           Privacy Policy
         </Link>
       </span>

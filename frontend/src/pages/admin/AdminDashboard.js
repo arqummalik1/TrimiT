@@ -5,8 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import {
   LockKey, ShieldCheck, SignOut, ArrowsClockwise, MagnifyingGlass,
@@ -15,6 +14,7 @@ import {
   CaretDown, Sparkle, UserCircle, Prohibit, Trash, UserPlus,
   EnvelopeSimple, X, TrendUp, TrendDown, Export, Plus, Minus, MapPin
 } from '@phosphor-icons/react';
+import brandScale from '../../theme/brandScale.json';
 import adminService from '../../services/adminService';
 import { getAdminToken, setAdminToken, clearAdminToken } from '../../lib/adminAuth';
 import { getApiErrorMessage } from '../../lib/utils';
@@ -22,9 +22,9 @@ import {
   detailViewTitle, filterOwnersByView, salonServeLabel, statCardViewMap,
 } from '../../lib/adminDashboardHelpers';
 
-// TrimiT Brand Colors
+// TrimiT Brand Colors — brand ramp shared with tailwind.config.js
 const BRAND = {
-  primary: '#9A3412', primaryDark: '#C2410C', primaryLight: '#EA580C',
+  primary: brandScale[800], primaryDark: brandScale[700], primaryLight: brandScale[600],
   gold: '#F59E0B', emerald: '#059669', sky: '#0EA5E9', violet: '#7C3AED', rose: '#E11D48',
 };
 
@@ -76,8 +76,8 @@ function timeAgo(value) {
 const STATUS_META = {
   active: { label: 'Active', cls: 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30' },
   trial: { label: 'Trial', cls: 'bg-sky-500/15 text-sky-300 ring-sky-500/30' },
-  grace_period: { label: 'Grace', cls: 'bg-amber-500/15 text-amber-300 ring-amber-500/30' },
-  past_due: { label: 'Past due', cls: 'bg-amber-500/15 text-amber-300 ring-amber-500/30' },
+  grace_period: { label: 'Grace', cls: 'bg-brand-500/15 text-brand-300 ring-brand-500/30' },
+  past_due: { label: 'Past due', cls: 'bg-brand-500/15 text-brand-300 ring-brand-500/30' },
   payment_failed: { label: 'Failed', cls: 'bg-rose-500/15 text-rose-300 ring-rose-500/30' },
   expired: { label: 'Expired', cls: 'bg-rose-500/15 text-rose-300 ring-rose-500/30' },
   cancelled: { label: 'Cancelled', cls: 'bg-rose-500/15 text-rose-300 ring-rose-500/30' },
@@ -96,32 +96,6 @@ function StatusBadge({ status }) {
 }
 
 const isAuthError = (err) => err?.response?.status === 401 || err?.response?.status === 403;
-
-// Mock chart data
-function generateRevenueTrend() {
-  return Array.from({ length: 30 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (29 - i));
-    return { date: d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), revenue: Math.floor(Math.random() * 5000) + 2000 };
-  });
-}
-
-function generateUserGrowth() {
-  return Array.from({ length: 12 }, (_, i) => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - (11 - i));
-    return { month: d.toLocaleDateString('en-IN', { month: 'short' }), owners: Math.floor(Math.random() * 20) + 5, customers: Math.floor(Math.random() * 100) + 20 };
-  });
-}
-
-function generateBookingsByStatus() {
-  return [
-    { name: 'Pending', count: Math.floor(Math.random() * 30) + 5 },
-    { name: 'Confirmed', count: Math.floor(Math.random() * 80) + 20 },
-    { name: 'Completed', count: Math.floor(Math.random() * 60) + 15 },
-    { name: 'Cancelled', count: Math.floor(Math.random() * 15) + 2 },
-  ];
-}
 
 export default function AdminDashboard() {
   const [token, setToken] = useState(() => getAdminToken());
@@ -173,11 +147,11 @@ function PinLock({ onUnlocked }) {
   return (
     <div className="relative flex min-h-screen items-center justify-center px-4">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-40 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-orange-600/20 blur-[120px]" />
+        <div className="absolute -top-40 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-brand-600/20 blur-[120px]" />
       </div>
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="relative w-full max-w-sm rounded-3xl border border-white/10 bg-slate-900/70 p-8 shadow-2xl backdrop-blur-xl">
         <div className="mb-7 flex flex-col items-center text-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-orange-700 shadow-lg">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lg">
             <ShieldCheck size={32} weight="fill" className="text-white" />
           </div>
           <h1 className="text-xl font-bold text-white">TrimiT Admin</h1>
@@ -186,9 +160,9 @@ function PinLock({ onUnlocked }) {
         <form onSubmit={submit} className="space-y-4">
           <input type="password" inputMode="numeric" autoFocus value={pin}
             onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 10)); setError(''); }}
-            placeholder="••••••" className="w-full rounded-2xl border border-white/10 bg-slate-950/60 py-3.5 text-center text-lg tracking-[0.4em] text-white outline-none focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/30" />
+            placeholder="••••••" className="w-full rounded-2xl border border-white/10 bg-slate-950/60 py-3.5 text-center text-lg tracking-[0.4em] text-white outline-none focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/30" />
           {error && <p className="flex items-center gap-1.5 text-sm text-rose-400"><WarningCircle size={16} weight="fill" />{error}</p>}
-          <button type="submit" disabled={pin.length < 6 || submitting || locked} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-700 py-3.5 font-semibold text-white shadow-lg transition disabled:opacity-50">
+          <button type="submit" disabled={pin.length < 6 || submitting || locked} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-brand-500 to-brand-700 py-3.5 font-semibold text-white shadow-lg transition disabled:opacity-50">
             {submitting ? <><Spinner size={18} className="animate-spin" /> Unlocking…</> : locked && cooldown > 0 ? `Wait ${cooldown}s` : <><LockKey size={18} weight="bold" /> Unlock</>}
           </button>
         </form>
@@ -198,21 +172,21 @@ function PinLock({ onUnlocked }) {
 }
 
 // UI Components
-function StatCard({ icon: Icon, label, value, sub, accent = 'orange', trend, loading, onClick }) {
+function StatCard({ icon: Icon, label, value, sub, accent = 'brand', trend, loading, onClick }) {
   const accents = {
-    orange: 'from-orange-500/20 to-orange-500/5 text-orange-300 ring-orange-500/20',
+    brand: 'from-brand-500/20 to-brand-500/5 text-brand-300 ring-brand-500/20',
     emerald: 'from-emerald-500/20 to-emerald-500/5 text-emerald-300 ring-emerald-500/20',
     sky: 'from-sky-500/20 to-sky-500/5 text-sky-300 ring-sky-500/20',
     violet: 'from-violet-500/20 to-violet-500/5 text-violet-300 ring-violet-500/20',
     rose: 'from-rose-500/20 to-rose-500/5 text-rose-300 ring-rose-500/20',
-    amber: 'from-amber-500/20 to-amber-500/5 text-amber-300 ring-amber-500/20',
+    amber: 'from-brand-500/20 to-brand-500/5 text-brand-300 ring-brand-500/20',
   };
   const Tag = onClick ? 'button' : 'div';
   return (
     <Tag
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`group w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 p-5 text-left transition hover:border-white/20 ${onClick ? 'cursor-pointer hover:bg-slate-900/80 focus:outline-none focus:ring-2 focus:ring-orange-500/40' : ''}`}
+      className={`group w-full overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 p-5 text-left transition hover:border-white/20 ${onClick ? 'cursor-pointer hover:bg-slate-900/80 focus:outline-none focus:ring-2 focus:ring-brand-500/40' : ''}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -230,7 +204,7 @@ function StatCard({ icon: Icon, label, value, sub, accent = 'orange', trend, loa
         </div>
       </div>
       {onClick && !loading && (
-        <p className="mt-3 text-xs font-medium text-orange-300/80 opacity-0 transition group-hover:opacity-100">Tap for details →</p>
+        <p className="mt-3 text-xs font-medium text-brand-300/80 opacity-0 transition group-hover:opacity-100">Tap for details →</p>
       )}
     </Tag>
   );
@@ -240,7 +214,7 @@ function SectionCard({ title, icon: Icon, right, children }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
-        <h2 className="flex items-center gap-2 text-base font-semibold text-white">{Icon && <Icon size={20} weight="duotone" className="text-orange-300" />}{title}</h2>
+        <h2 className="flex items-center gap-2 text-base font-semibold text-white">{Icon && <Icon size={20} weight="duotone" className="text-brand-300" />}{title}</h2>
         {right}
       </div>
       {children}
@@ -252,7 +226,7 @@ function SearchInput({ value, onChange, placeholder }) {
   return (
     <div className="relative">
       <MagnifyingGlass size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full rounded-xl border border-white/10 bg-slate-950/60 py-2 pl-9 pr-3 text-sm text-white outline-none focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/20 sm:w-64" />
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full rounded-xl border border-white/10 bg-slate-950/60 py-2 pl-9 pr-3 text-sm text-white outline-none focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20 sm:w-64" />
     </div>
   );
 }
@@ -543,9 +517,6 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
   const [deleteModal, setDeleteModal] = useState({ open: false, user: null, type: null });
   const [inviteModal, setInviteModal] = useState({ open: false, type: null });
   const [actionLoading, setActionLoading] = useState(false);
-  const [revenueData] = useState(generateRevenueTrend);
-  const [userGrowthData] = useState(generateUserGrowth);
-  const [bookingsData] = useState(generateBookingsByStatus);
   const [salons, setSalons] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [detailView, setDetailView] = useState(null);
@@ -778,7 +749,7 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
       {/* Header */}
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-orange-700 shadow-lg shadow-orange-900/40">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lg shadow-brand-900/40">
             <ShieldCheck size={24} weight="fill" className="text-white" />
           </div>
           <div>
@@ -808,7 +779,7 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
             onClick={() => setView(key)}
             className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
               view === key
-                ? 'border-orange-500 text-white'
+                ? 'border-brand-500 text-white'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -827,7 +798,7 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
       <>
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard icon={Storefront} accent="orange" label="Salon Owners" value={formatNumber(totals.owners)} loading={loading} onClick={() => openDetail('owners')} />
+        <StatCard icon={Storefront} accent="brand" label="Salon Owners" value={formatNumber(totals.owners)} loading={loading} onClick={() => openDetail('owners')} />
         <StatCard icon={UsersThree} accent="sky" label="Customers" value={formatNumber(totals.customers)} loading={loading} onClick={() => openDetail('customers')} />
         <StatCard icon={Buildings} accent="violet" label="Salons" value={formatNumber(totals.salons)} loading={loading} onClick={() => openDetail('salons')} />
         <StatCard icon={CalendarCheck} accent="emerald" label="Bookings" value={formatNumber(totals.bookings)} loading={loading} onClick={() => openDetail('bookings')} />
@@ -836,7 +807,7 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
       <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard icon={Wallet} accent="emerald" label="MRR" value={formatINR(subs.mrr)} loading={loading} onClick={() => openDetail('mrr')} />
         <StatCard icon={ChartLineUp} accent="emerald" label="ARR" value={formatINR(subs.arr)} loading={loading} onClick={() => openDetail('arr')} />
-        <StatCard icon={CurrencyInr} accent="orange" label="Revenue" value={formatINR(subs.total_revenue_collected)} loading={loading} onClick={() => openDetail('revenue')} />
+        <StatCard icon={CurrencyInr} accent="brand" label="Revenue" value={formatINR(subs.total_revenue_collected)} loading={loading} onClick={() => openDetail('revenue')} />
         <StatCard icon={CheckCircle} accent="sky" label="Active Subs" value={formatNumber(subs.active)} sub={`${formatNumber(subs.trialing)} trialing`} loading={loading} onClick={() => openDetail('active')} />
       </div>
 
@@ -844,27 +815,14 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
         <StatCard icon={Sparkle} accent="amber" label="Trials" value={formatNumber(subs.trialing)} loading={loading} onClick={() => openDetail('trials')} />
         <StatCard icon={WarningCircle} accent="rose" label="Expired" value={formatNumber(subs.expired_or_lapsed)} loading={loading} onClick={() => openDetail('expired')} />
         <StatCard icon={Eye} accent="violet" label="Views (24h)" value={formatNumber(visitors.page_views_24h)} sub={`${formatNumber(visitors.page_views_7d)} in 7d`} loading={loading} onClick={() => openDetail('views')} />
-        <StatCard icon={UserCircle} accent="orange" label="Visitors (30d)" value={formatNumber(visitors.unique_visitors_30d)} loading={loading} onClick={() => openDetail('visitors')} />
+        <StatCard icon={UserCircle} accent="brand" label="Visitors (30d)" value={formatNumber(visitors.unique_visitors_30d)} loading={loading} onClick={() => openDetail('visitors')} />
       </div>
 
-      {/* Charts */}
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        {/* Revenue Trend */}
-        <SectionCard title="Revenue Trend (30 days)" icon={ChartLineUp}>
-          <div className="h-72 p-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueData}>
-                <defs><linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={BRAND.primary} stopOpacity={0.3} /><stop offset="95%" stopColor={BRAND.primary} stopOpacity={0} /></linearGradient></defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="date" stroke="#64748B" fontSize={11} />
-                <YAxis stroke="#64748B" fontSize={11} tickFormatter={(v) => `₹${v / 1000}k`} />
-                <Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155', borderRadius: 8 }} labelStyle={{ color: '#F8FAFC' }} formatter={(v) => [formatINR(v), 'Revenue']} />
-                <Area type="monotone" dataKey="revenue" stroke={BRAND.primary} strokeWidth={2} fill="url(#revGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </SectionCard>
-
+      {/* Charts — only the subscription breakdown has a real backing series
+          in GET /admin/dashboard/overview. Revenue-trend / user-growth /
+          bookings-by-status are intentionally absent until the backend
+          exposes those time series. */}
+      <div className="mt-8">
         {/* Subscription Breakdown */}
         <SectionCard title="Subscriptions" icon={Sparkle}>
           <div className="h-72 p-4">
@@ -879,44 +837,13 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
             </ResponsiveContainer>
           </div>
         </SectionCard>
-
-        {/* User Growth */}
-        <SectionCard title="User Growth (12 mo)" icon={TrendUp}>
-          <div className="h-72 p-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={userGrowthData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="month" stroke="#64748B" fontSize={11} />
-                <YAxis stroke="#64748B" fontSize={11} />
-                <Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155', borderRadius: 8 }} />
-                <Area type="monotone" dataKey="customers" stroke={BRAND.sky} fill={BRAND.sky} fillOpacity={0.2} name="Customers" />
-                <Area type="monotone" dataKey="owners" stroke={BRAND.primary} fill={BRAND.primary} fillOpacity={0.2} name="Owners" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </SectionCard>
-
-        {/* Bookings by Status */}
-        <SectionCard title="Bookings by Status" icon={CalendarCheck}>
-          <div className="h-72 p-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={bookingsData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="name" stroke="#64748B" fontSize={11} />
-                <YAxis stroke="#64748B" fontSize={11} />
-                <Tooltip contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155', borderRadius: 8 }} />
-                <Bar dataKey="count" fill={BRAND.primary} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </SectionCard>
       </div>
 
       {/* Owners Table */}
       <div className="mt-8">
         <SectionCard title="Salon Owners" icon={Storefront} right={
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setInviteModal({ open: true, type: 'owner' })} className="flex items-center gap-1.5 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-semibold text-orange-200 transition hover:bg-orange-500/20">
+            <button onClick={() => setInviteModal({ open: true, type: 'owner' })} className="flex items-center gap-1.5 rounded-lg border border-brand-500/30 bg-brand-500/10 px-3 py-1.5 text-xs font-semibold text-brand-200 transition hover:bg-brand-500/20">
               <UserPlus size={14} weight="bold" /> Invite Owner
             </button>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="appearance-none rounded-xl border border-white/10 bg-slate-950/60 py-2 pl-3 pr-9 text-sm text-white outline-none">
@@ -969,7 +896,7 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
                           <button onClick={() => handleGrant(o)} disabled={grantingId === o.owner_id} className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/20 disabled:opacity-50">
                             {grantingId === o.owner_id ? <Spinner size={12} className="animate-spin" /> : <CheckCircle size={12} weight="bold" />} Grant
                           </button>
-                          <button onClick={() => setBlockModal({ open: true, user: o, type: 'owner' })} className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-200 transition hover:bg-amber-500/20">
+                          <button onClick={() => setBlockModal({ open: true, user: o, type: 'owner' })} className="inline-flex items-center gap-1 rounded-lg border border-brand-500/30 bg-brand-500/10 px-2 py-1 text-xs font-semibold text-brand-200 transition hover:bg-brand-500/20">
                             <Prohibit size={12} weight="bold" /> Block
                           </button>
                           <button onClick={() => setDeleteModal({ open: true, user: o, type: 'owner' })} className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-xs font-semibold text-rose-200 transition hover:bg-rose-500/20">
@@ -1022,7 +949,7 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
                       <td className="px-5 py-4 text-slate-400">{formatDateTime(c.created_at)}</td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
-                          <button onClick={() => setBlockModal({ open: true, user: c, type: 'customer' })} className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-200 transition hover:bg-amber-500/20">
+                          <button onClick={() => setBlockModal({ open: true, user: c, type: 'customer' })} className="inline-flex items-center gap-1 rounded-lg border border-brand-500/30 bg-brand-500/10 px-2 py-1 text-xs font-semibold text-brand-200 transition hover:bg-brand-500/20">
                             <Prohibit size={12} weight="bold" /> Block
                           </button>
                           <button onClick={() => setDeleteModal({ open: true, user: c, type: 'customer' })} className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-xs font-semibold text-rose-200 transition hover:bg-rose-500/20">
@@ -1049,7 +976,7 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
             All salons participate unless excluded below. Lane A salon codes are managed by owners in the app.
           </p>
           {campaignsLoading ? (
-            <div className="flex justify-center py-12"><Spinner size={28} className="animate-spin text-orange-400" /></div>
+            <div className="flex justify-center py-12"><Spinner size={28} className="animate-spin text-brand-400" /></div>
           ) : campaigns.length === 0 ? (
             <EmptyState icon={Sparkle} title="No campaigns" subtitle="Apply migration 61 in Supabase." />
           ) : (
@@ -1102,8 +1029,8 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
       {view === 'leads' && (
       <>
       {/* Notify Me — out-of-area demand leads (separate screen) */}
-      <div className="mb-4 flex items-center gap-2 rounded-xl border border-orange-500/20 bg-orange-500/10 px-4 py-3 text-sm text-orange-100">
-        <MapPin size={16} weight="fill" className="text-orange-300" />
+      <div className="mb-4 flex items-center gap-2 rounded-xl border border-brand-500/20 bg-brand-500/10 px-4 py-3 text-sm text-brand-100">
+        <MapPin size={16} weight="fill" className="text-brand-300" />
         TrimiT is currently live in <strong className="text-white">Jammu</strong>. These people asked to be notified when we launch in their area.
       </div>
       <div className="mt-2 mb-12">
@@ -1126,7 +1053,7 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
             <div className="flex flex-wrap gap-2 border-b border-white/10 px-5 py-4">
               {leadsByArea.map((b) => (
                 <span key={b.area} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-800/60 px-3 py-1 text-xs text-slate-300">
-                  <MapPin size={12} weight="duotone" className="text-orange-300" />
+                  <MapPin size={12} weight="duotone" className="text-brand-300" />
                   <span className="font-medium text-white">{b.area}</span>
                   <span className="text-slate-400">· {b.count}</span>
                 </span>
@@ -1142,7 +1069,7 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
                       <input
                         type="checkbox"
                         aria-label="Select all leads"
-                        className="h-4 w-4 rounded border-white/20 bg-slate-800 accent-orange-500"
+                        className="h-4 w-4 rounded border-white/20 bg-slate-800 accent-brand-500"
                         checked={leads.length > 0 && selectedLeadIds.size === leads.length}
                         onChange={(e) => toggleAllLeads(leads.map((l) => l.id), e.target.checked)}
                       />
@@ -1158,12 +1085,12 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {leads.map((l) => (
-                    <tr key={l.id} className={`transition hover:bg-white/[0.03] ${selectedLeadIds.has(l.id) ? 'bg-orange-500/[0.06]' : ''}`}>
+                    <tr key={l.id} className={`transition hover:bg-white/[0.03] ${selectedLeadIds.has(l.id) ? 'bg-brand-500/[0.06]' : ''}`}>
                       <td className="px-5 py-4">
                         <input
                           type="checkbox"
                           aria-label={`Select ${l.email}`}
-                          className="h-4 w-4 rounded border-white/20 bg-slate-800 accent-orange-500"
+                          className="h-4 w-4 rounded border-white/20 bg-slate-800 accent-brand-500"
                           checked={selectedLeadIds.has(l.id)}
                           onChange={() => toggleLead(l.id)}
                         />
@@ -1197,7 +1124,7 @@ function DashboardShell({ token, onLock, onAuthExpired }) {
         <p className="mb-4 text-slate-300">Are you sure you want to block <strong className="text-white">{blockModal.user?.name || blockModal.user?.email}</strong>? They will not be able to access the app.</p>
         <div className="flex justify-end gap-3">
           <button onClick={() => setBlockModal({ open: false, user: null, type: null })} className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 transition hover:bg-white/5">Cancel</button>
-          <button onClick={() => handleBlock(blockModal.user?.id || blockModal.user?.owner_id)} disabled={actionLoading} className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-500 disabled:opacity-50">
+          <button onClick={() => handleBlock(blockModal.user?.id || blockModal.user?.owner_id)} disabled={actionLoading} className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-50">
             {actionLoading ? <Spinner size={14} className="animate-spin" /> : <Prohibit size={14} weight="bold" />} Block User
           </button>
         </div>
@@ -1258,15 +1185,15 @@ function InviteModal({ open, onClose, type, onInvite, loading }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="mb-1.5 block text-xs font-medium text-slate-400">Email</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" required className="w-full rounded-xl border border-white/10 bg-slate-950/60 py-2.5 px-4 text-sm text-white outline-none focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/20" />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" required className="w-full rounded-xl border border-white/10 bg-slate-950/60 py-2.5 px-4 text-sm text-white outline-none focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20" />
         </div>
         <div>
           <label className="mb-1.5 block text-xs font-medium text-slate-400">Name (optional)</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" className="w-full rounded-xl border border-white/10 bg-slate-950/60 py-2.5 px-4 text-sm text-white outline-none focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/20" />
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" className="w-full rounded-xl border border-white/10 bg-slate-950/60 py-2.5 px-4 text-sm text-white outline-none focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20" />
         </div>
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={onClose} className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 transition hover:bg-white/5">Cancel</button>
-          <button type="submit" disabled={!email.trim() || loading} className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-700 px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-50">
+          <button type="submit" disabled={!email.trim() || loading} className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand-500 to-brand-700 px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-50">
             {loading ? <Spinner size={14} className="animate-spin" /> : <EnvelopeSimple size={14} weight="bold" />} Send Invite
           </button>
         </div>

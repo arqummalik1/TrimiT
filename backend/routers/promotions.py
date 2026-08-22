@@ -367,12 +367,19 @@ async def get_promotion_stats(
         )
     
     promo = check.json()[0]
-    
-    # Get detailed usage stats
+    salon_id = promo.get("salon_id")
+    if not salon_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "FORBIDDEN", "message": "Global promo stats are not available."},
+        )
+    await assert_salon_owner(salon_id, current_user.get("id"))
+
+    # Get detailed usage stats (service role after ownership check)
     usage_response = await supabase.request(
         "GET",
         f"rest/v1/promo_usage?promo_id=eq.{promo_id}&select=discount_applied,user_id",
-        token=current_user.get("access_token")
+        service_role=True,
     )
     
     if usage_response.status_code != 200:

@@ -6,6 +6,7 @@ import AuthBrandMark from '../components/brand/AuthBrandMark';
 import { useToastStore } from '../store/toastStore';
 import SuccessOverlay from '../components/ui/SuccessOverlay';
 import { safeInternalPath } from '../lib/utils';
+import { resolvePostLoginPath } from '../lib/postLoginRedirect';
 import { OTP_RESEND_COOLDOWN_SECONDS } from '../config/auth';
 
 export default function VerifyOtpPage() {
@@ -131,34 +132,26 @@ export default function VerifyOtpPage() {
         return;
       }
 
+      // Shared with the password path (LoginPage) so the two can't drift.
       // New / broken account → finish profile (pick role + name). Mirrors
       // the mobile app: role is decided AFTER OTP on CompleteProfile.
-      if (result.profileComplete === false) {
-        navigate('/complete-profile', { replace: true });
+      // P0-3 Security Fix: an explicit redirect param wins over role routing so
+      // a guest who clicked "Sign in to book" lands back on the booking page.
+      const redirectPath = resolvePostLoginPath({
+        profile: result.profile,
+        hasSalon: result.hasSalon,
+        profileComplete: result.profileComplete,
+        redirectTo: redirectParam,
+      });
+
+      // Only an existing user returning to their own home gets the celebration.
+      if (result.profileComplete === false || redirectParam) {
+        navigate(redirectPath, { replace: true });
         return;
       }
 
-      // P0-3 Security Fix: Use redirect param if provided, otherwise default to role-based routing
-      if (redirectParam) {
-        // Guest clicked "Sign in to book" from /booking page - send them back there
-        navigate(redirectParam, { replace: true });
-        return;
-      }
-
-      // Existing user — route to role-based dashboard.
-      const isNew = result.session?.is_new_user;
-      const name = result.profile?.name || email.split('@')[0];
-
-      setIsNewUser(isNew);
-      setUserName(name);
-
-      let redirectPath = '/';
-      const role = result.profile?.role;
-      if (role === 'owner') {
-        redirectPath = result.hasSalon ? '/owner/dashboard' : '/owner/salon';
-      } else {
-        redirectPath = '/explore';
-      }
+      setIsNewUser(result.session?.is_new_user);
+      setUserName(result.profile?.name || email.split('@')[0]);
       setTargetRedirect(redirectPath);
       setShowSuccessModal(true);
     }
@@ -231,7 +224,7 @@ export default function VerifyOtpPage() {
                   onKeyDown={(e) => handleKeyDown(e, index)}
                   onPaste={handlePaste}
                   className={`w-12 h-14 border-2 rounded-xl text-center text-2xl font-bold bg-white focus:outline-none transition-colors ${
-                    value ? 'border-orange-800 bg-orange-50/20' : 'border-stone-200'
+                    value ? 'border-brand-800 bg-brand-50/20' : 'border-stone-200'
                   }`}
                   disabled={isLoading}
                 />
@@ -241,7 +234,7 @@ export default function VerifyOtpPage() {
             <button
               type="submit"
               disabled={isVerifyDisabled}
-              className={`w-full btn-primary flex justify-center items-center py-3 px-4 border border-transparent rounded-xl text-sm font-semibold text-white bg-orange-800 hover:bg-orange-700 focus:outline-none transition-colors ${
+              className={`w-full btn-primary flex justify-center items-center py-3 px-4 border border-transparent rounded-xl text-sm font-semibold text-white bg-brand-800 hover:bg-brand-700 focus:outline-none transition-colors ${
                 isVerifyDisabled ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
@@ -264,7 +257,7 @@ export default function VerifyOtpPage() {
                 type="button"
                 onClick={handleResend}
                 disabled={isLoading}
-                className="text-xs text-orange-800 hover:underline font-semibold"
+                className="text-xs text-brand-800 hover:underline font-semibold"
               >
                 Resend Code
               </button>

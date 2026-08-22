@@ -66,7 +66,7 @@ const Header = () => {
   const mobileNavClass = (active) =>
     `block w-full text-left px-4 py-3 rounded-xl text-base font-medium transition-colors ${
       active
-        ? 'bg-orange-50 text-orange-900'
+        ? 'bg-brand-50 text-brand-900'
         : 'text-stone-700 hover:bg-stone-100'
     }`;
 
