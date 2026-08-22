@@ -25,7 +25,13 @@ logger = logging.getLogger("trimit")
 router = APIRouter(prefix="/salons", tags=["Salons"])
 
 # ── Sensitive field stripping ───────────────────────────────────────────────
-_BANK_FIELDS = ("bank_account_number", "bank_ifsc", "bank_account_holder_name")
+_BANK_FIELDS = (
+    "bank_account_number",
+    "bank_ifsc",
+    "bank_account_holder_name",
+    "bank_name",
+    "account_holder_name",
+)
 
 
 def _strip_bank_details(salon: dict) -> dict:
