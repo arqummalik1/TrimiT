@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, HTTPException, Depends, status
+from fastapi import APIRouter, Request, HTTPException, Depends, status, Body
 from fastapi.responses import JSONResponse
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
@@ -21,6 +21,7 @@ from models.auth import (
     VerifyOtpRequest,
     OtpType,
     CompleteProfileRequest,
+    AccountDeletionRequest,
 )
 from dependencies.auth import get_current_user, user_profile_cache
 from services.auth_errors import map_supabase_signup_error, safe_auth_response_json
@@ -45,6 +46,13 @@ from services.auth_signup import (
     admin_confirm_user,
     _fetch_auth_user_admin,
     _is_email_confirmed,
+)
+from services.account_deletion import (
+    AccountDeletionCleanupError,
+    auth_provider_context_for_user,
+    delete_account_media,
+    delete_email_leads,
+    revoke_apple_authorization_code,
 )
 
 logger = logging.getLogger("trimit")
@@ -575,13 +583,14 @@ async def complete_profile(
     """
     Create the public.users profile for a newly-authenticated user.
 
-    This is the mandatory second step after OTP verification for users who do
-    not yet have a profile row. It is idempotent — calling it twice for the
-    same user returns the existing profile without error (safe for retries).
+    Idempotent application-profile bootstrap after authentication. Customer and
+    owner profiles are created without an additional identity form; missing
+    role-specific details are collected only when the related feature needs them.
 
-    Role assignment is enforced here, server-side. No role can be escalated
-    after the first successful call creates the row — subsequent calls return
-    the already-persisted row unchanged.
+    Role assignment is enforced here, server-side. Existing customer profiles
+    can activate the owner workspace only through an explicit owner intent;
+    employee activation additionally requires a validated pending invitation.
+    Team accounts are never downgraded by a customer booking intent.
 
     Requires: valid Bearer token from verify-otp.
     """
@@ -590,9 +599,8 @@ async def complete_profile(
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     email = current_user.get("email", "")
+    metadata = current_user.get("user_metadata") or {}
 
-    # Salon owners are paid directly via UPI, so a valid UPI ID is required at
-    # signup. Validated here (after the model) so we return a structured error.
     is_owner = data.role.value == "owner"
     is_employee = data.role.value == "employee"
 
@@ -623,7 +631,7 @@ async def complete_profile(
                 },
             )
         phone_e164 = normalize_india_phone(phone) or phone
-    else:
+    elif data.phone:
         phone_e164 = normalize_india_phone(data.phone)
         if not phone_e164:
             raise HTTPException(
@@ -634,7 +642,8 @@ async def complete_profile(
                 },
             )
 
-        # Block duplicate customer phones (welcome voucher anti-abuse)
+        # Block duplicate customer phones (welcome voucher anti-abuse) only
+        # once a customer supplies a booking contact number.
         if not is_owner:
             dup = await supabase.request(
                 "GET",
@@ -653,26 +662,80 @@ async def complete_profile(
                     )
 
     upi_id = (data.upi_id or "").strip()
-    if is_owner:
+    if is_owner and upi_id:
         import re as _re
-
-        if not upi_id:
-            raise HTTPException(
-                status_code=422,
-                detail={"code": "UPI_REQUIRED", "message": "A UPI ID is required for salon owners."},
-            )
         if not _re.match(r"^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$", upi_id):
             raise HTTPException(
                 status_code=422,
                 detail={"code": "INVALID_UPI", "message": "Enter a valid UPI ID like name@bank."},
             )
 
+    supplied_name = (data.name or "").strip()
+    provider_name = str(
+        metadata.get("full_name")
+        or metadata.get("name")
+        or ""
+    ).strip()
+    if not provider_name:
+        given = str(metadata.get("given_name") or "").strip()
+        family = str(metadata.get("family_name") or "").strip()
+        provider_name = " ".join(part for part in (given, family) if part)
+    email_label = (email.split("@", 1)[0] if email else "").replace(".", " ").replace("_", " ").strip()
+    resolved_name = supplied_name or provider_name or email_label.title() or "TrimiT Member"
+
+    # Intent-driven role activation for an already-authenticated profile. A
+    # customer may explicitly start owner setup; employee activation still
+    # reaches this point only after the pending invite was validated above.
+    existing_profile = await fetch_profile_service_role(user_id)
+    if existing_profile:
+        existing_role = existing_profile.get("role")
+        requested_role = data.role.value
+        role_patch: Optional[str] = None
+        if requested_role == "owner" and existing_role == "customer":
+            role_patch = "owner"
+        elif requested_role == "employee" and existing_role in ("customer", "employee"):
+            role_patch = "employee"
+
+        if role_patch:
+            patch_payload: Dict[str, Any] = {"role": role_patch}
+            if phone_e164:
+                patch_payload["phone"] = phone_e164
+            role_resp = await supabase.request(
+                "PATCH",
+                f"rest/v1/users?id=eq.{user_id}",
+                json=patch_payload,
+                service_role=True,
+            )
+            if role_resp.status_code not in (200, 201, 204):
+                raise HTTPException(
+                    status_code=500,
+                    detail={
+                        "code": "ROLE_ACTIVATION_FAILED",
+                        "message": "Could not activate this workspace. Please try again.",
+                    },
+                )
+            user_profile_cache.pop(user_id, None)
+            profile = await fetch_profile_service_role(user_id) or {**existing_profile, **patch_payload}
+            return {
+                "profile": profile,
+                "message": "Workspace activated successfully",
+                "welcome_grant": None,
+            }
+
+        # Idempotent retry or an attempt to downgrade a team account to
+        # customer: preserve the server-authoritative role.
+        return {
+            "profile": existing_profile,
+            "message": "Profile already exists",
+            "welcome_grant": None,
+        }
+
     try:
         profile = await create_new_profile(
             user_id=user_id,
             email=email,
             role=data.role.value,
-            name=data.name,
+            name=resolved_name,
             phone=phone_e164,
             upi_id=upi_id if is_owner else None,
             gender=data.gender,
@@ -706,7 +769,7 @@ async def complete_profile(
     )
 
     welcome_grant = None
-    if profile.get("role") == "customer":
+    if profile.get("role") == "customer" and phone_e164:
         welcome_grant = await campaign_service.issue_welcome_grant(
             user_id=user_id,
             phone=phone_e164,
@@ -864,6 +927,36 @@ async def update_profile(
     if not payload:
         return {"message": "No changes"}
 
+    existing_profile = current_user.get("profile") or {}
+    normalized_contact: Optional[str] = None
+    if "phone" in payload:
+        normalized_contact = normalize_india_phone(payload.get("phone"))
+        if not normalized_contact:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "INVALID_PHONE",
+                    "message": "Enter a valid 10-digit Indian mobile number.",
+                },
+            )
+        if existing_profile.get("role") == "customer":
+            duplicate = await supabase.request(
+                "GET",
+                f"rest/v1/users?phone=eq.{normalized_contact}&role=eq.customer&select=id",
+                service_role=True,
+            )
+            if duplicate.status_code == 200 and duplicate.json():
+                duplicate_id = duplicate.json()[0].get("id")
+                if duplicate_id != user_id:
+                    raise HTTPException(
+                        status_code=422,
+                        detail={
+                            "code": "PHONE_ALREADY_REGISTERED",
+                            "message": "This mobile number is already registered.",
+                        },
+                    )
+        payload["phone"] = normalized_contact
+
     resp = await supabase.request(
         "PATCH",
         f"rest/v1/users?id=eq.{user_id}",
@@ -882,6 +975,15 @@ async def update_profile(
     # Cache might still hold the old row; drop it so /auth/me is fresh.
     user_profile_cache.pop(user_id, None)
     fresh = await fetch_profile_service_role(user_id)
+    if (
+        normalized_contact
+        and existing_profile.get("role") == "customer"
+        and not existing_profile.get("phone")
+    ):
+        await campaign_service.issue_welcome_grant(
+            user_id=user_id,
+            phone=normalized_contact,
+        )
     return {"message": "Profile updated", "profile": fresh or {}}
 
 
@@ -962,14 +1064,91 @@ async def update_notification_preferences(
     return {"message": "Preferences updated", "profile": fresh or {}}
 
 
+@router.get("/account/deletion-context")
+async def account_deletion_context(current_user: dict = Depends(get_current_user)):
+    """Return the provider confirmation required for safe account deletion."""
+    user_id = current_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        context = await auth_provider_context_for_user(user_id)
+    except AccountDeletionCleanupError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "ACCOUNT_DELETE_CONTEXT_FAILED", "message": str(exc)},
+        ) from exc
+    return {
+        "requires_apple_confirmation": "apple" in context.providers,
+        "has_google_identity": "google" in context.providers,
+    }
+
+
 @router.delete("/account")
-async def delete_account(current_user: dict = Depends(get_current_user)):
-    """Delete the authenticated user's account permanently (auth + profile)."""
+async def delete_account(
+    payload: AccountDeletionRequest | None = Body(default=None),
+    current_user: dict = Depends(get_current_user),
+):
+    """Permanently delete the authenticated account and associated data."""
     user_id = current_user.get("id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Auth row delete (service role; cascades to public.users via FK ON DELETE CASCADE).
+    try:
+        provider_context = await auth_provider_context_for_user(user_id)
+        if "apple" in provider_context.providers:
+            apple_code = (payload.apple_authorization_code if payload else None) or ""
+            if not apple_code.strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "APPLE_REAUTH_REQUIRED",
+                        "message": "Confirm with Apple before deleting this account.",
+                    },
+                )
+            await revoke_apple_authorization_code(
+                apple_code.strip(),
+                expected_subject=provider_context.apple_subject,
+            )
+
+        # Uploaded media lives outside Postgres and must be removed through the
+        # Storage API before its owning identity disappears.
+        await delete_account_media(user_id)
+        await delete_email_leads(current_user.get("email"))
+    except HTTPException:
+        raise
+    except AccountDeletionCleanupError as exc:
+        logger.error("[delete_account] cleanup failed user=%s", user_id)
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "ACCOUNT_DELETE_CLEANUP_FAILED", "message": str(exc)},
+        ) from exc
+
+    # Delete the application profile first. Migration 63 makes every associated
+    # application record cascade or detach without risking a half-deleted Auth
+    # identity when a database constraint is misconfigured.
+    profile_resp = await supabase.request(
+        "DELETE",
+        f"rest/v1/users?id=eq.{user_id}",
+        service_role=True,
+    )
+    if profile_resp.status_code not in (200, 204, 404):
+        logger.error(
+            "[delete_account] profile delete failed user=%s status=%s body=%s",
+            user_id,
+            profile_resp.status_code,
+            profile_resp.text[:200],
+        )
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "ACCOUNT_DATA_DELETE_BLOCKED",
+                "message": "Account data could not be removed. Please try again after the server is updated.",
+            },
+        )
+
+    # Auth admin delete removes identities/sessions and invalidates refresh
+    # tokens. Protected requests also verify the live Supabase session so an
+    # already-issued access JWT cannot keep using the API after this succeeds.
     auth_resp = await supabase.request(
         "DELETE",
         f"auth/v1/admin/users/{user_id}",
@@ -984,11 +1163,5 @@ async def delete_account(current_user: dict = Depends(get_current_user)):
         )
         raise HTTPException(status_code=400, detail="Could not delete account")
 
-    # Defensive: if FK cascade didn't fire (older schema), clear the row directly.
-    await supabase.request(
-        "DELETE",
-        f"rest/v1/users?id=eq.{user_id}",
-        service_role=True,
-    )
     user_profile_cache.pop(user_id, None)
-    return {"message": "Account deleted"}
+    return {"message": "Account and associated data deleted"}

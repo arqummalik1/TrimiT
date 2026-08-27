@@ -16,7 +16,7 @@ export const PROMO = {
   /** CTA label used across hero, header, and final CTA sections */
   ctaLabel: 'Start Free Trial',
   /** Route all CTAs point to */
-  ctaPath: '/signup',
+  ctaPath: '/owner/start',
   /** Customer-facing value prop */
   customerProp: 'Free for Customers — Forever',
   /** Owner-facing value prop */

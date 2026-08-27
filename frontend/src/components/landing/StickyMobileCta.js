@@ -15,7 +15,7 @@ export default function StickyMobileCta() {
           Find businesses
         </Link>
         <Link
-          to="/signup?role=owner"
+          to="/owner/start"
           className="inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-full border border-stone-200 text-stone-800 font-semibold text-sm"
         >
           <Storefront size={18} />

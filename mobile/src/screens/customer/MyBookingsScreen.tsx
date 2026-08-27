@@ -45,6 +45,7 @@ import {
 } from "../../lib/supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { logger } from "../../lib/logger";
+import { requestAuthentication } from "../../lib/authGate";
 
 import { AppError } from "../../types/error";
 import { CustomerTabScreenProps } from "../../navigation/types";
@@ -68,6 +69,7 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
   } = useQuery<Booking[]>({
     queryKey: ["myBookings"],
     queryFn: bookingRepository.getMyBookings,
+    enabled: !!userId,
     retry: (failureCount, error) => {
       const appErr = handleApiError(error);
       if (appErr.kind === "unauthorized") return false;
@@ -217,6 +219,26 @@ export const MyBookingsScreen: React.FC<MyBookingsProps> = ({ navigation }) => {
   // PaymentWaiting). There is no separate "pay online" entry from the list.
 
   // ── Error state ────────────────────────────────────────────────────────────
+  if (!userId) {
+    return (
+      <ScreenWrapper variant="tab">
+        <View style={styles.header}>
+          <Text style={styles.title}>My Bookings</Text>
+          <Text style={styles.subtitle}>Your appointments will stay together here</Text>
+        </View>
+        <EmptyState
+          icon="calendar-outline"
+          title="Sign in when you're ready to book"
+          message="You can keep browsing salons without an account. Sign in only when you want to book or manage an appointment."
+          action={{
+            label: "Sign in to view bookings",
+            onPress: () => requestAuthentication({ kind: 'my_bookings' }),
+          }}
+        />
+      </ScreenWrapper>
+    );
+  }
+
   if (isError && !showSkeleton) {
     const appErr = handleApiError(rawError);
     return (

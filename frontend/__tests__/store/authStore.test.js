@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAuthStore } from '../../src/store/authStore';
 import api from '../../src/lib/api';
 import { supabase } from '../../src/lib/supabase';
+import { setPendingAuthIntent } from '../../src/lib/pendingAuthIntent';
 
 // Mock dependencies
 vi.mock('../../src/lib/api', () => ({
@@ -20,6 +21,7 @@ vi.mock('../../src/lib/supabase', () => ({
       getSession: vi.fn(),
       setSession: vi.fn(),
       signInWithOAuth: vi.fn(),
+      updateUser: vi.fn(),
     }
   }
 }));
@@ -27,6 +29,7 @@ vi.mock('../../src/lib/supabase', () => ({
 describe('authStore', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     useAuthStore.setState({
       user: null,
       profile: null,
@@ -175,6 +178,34 @@ describe('authStore', () => {
     expect(useAuthStore.getState().token).toBe('google-access');
   });
 
+  it('preserves a first-time Apple object name without blocking profile bootstrap', async () => {
+    api.get.mockResolvedValueOnce({
+      data: { id: 'apple-1', email: 'relay@privaterelay.appleid.com', profile: null, profile_complete: false },
+    });
+    api.post.mockResolvedValueOnce({
+      data: { profile: { id: 'apple-1', role: 'customer', name: 'Apple Person' } },
+    });
+    supabase.auth.updateUser.mockResolvedValueOnce({ error: null });
+
+    const result = await useAuthStore.getState().hydrateFromSupabaseSession({
+      access_token: 'apple-access',
+      refresh_token: 'apple-refresh',
+      user: { user_metadata: { name: { firstName: 'Apple', lastName: 'Person' } } },
+    });
+
+    expect(result.success).toBe(true);
+    expect(supabase.auth.updateUser).toHaveBeenCalledWith({
+      data: { full_name: 'Apple Person', name: 'Apple Person' },
+    });
+    expect(api.post).toHaveBeenCalledWith('/auth/complete-profile', {
+      role: 'customer',
+      name: 'Apple Person',
+      phone: undefined,
+      upi_id: undefined,
+      gender: undefined,
+    });
+  });
+
   it('completeProfile sends gender for customers', async () => {
     api.post.mockResolvedValueOnce({
       data: {
@@ -199,6 +230,59 @@ describe('authStore', () => {
       gender: 'female',
     });
     expect(useAuthStore.getState().profile.gender).toBe('female');
+  });
+
+  it('automatically bootstraps a new OTP customer without a profile form', async () => {
+    api.post
+      .mockResolvedValueOnce({
+        data: {
+          access_token: 'otp-access',
+          refresh_token: 'otp-refresh',
+          user: { id: 'u-new', email: 'new@example.com' },
+          profile: null,
+          profile_complete: false,
+        },
+      })
+      .mockResolvedValueOnce({
+        data: { profile: { id: 'u-new', role: 'customer', name: 'New' } },
+      });
+
+    const result = await useAuthStore.getState().verifyOtp(
+      'new@example.com', '123456', 'magiclink',
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.profileComplete).toBe(true);
+    expect(api.post).toHaveBeenNthCalledWith(2, '/auth/complete-profile', {
+      role: 'customer',
+      name: undefined,
+      phone: undefined,
+      upi_id: undefined,
+      gender: undefined,
+    });
+    expect(useAuthStore.getState().profile.role).toBe('customer');
+  });
+
+  it('activates owner role only after an explicit owner intent', async () => {
+    setPendingAuthIntent({ kind: 'owner_onboarding' });
+    api.post
+      .mockResolvedValueOnce({
+        data: {
+          access_token: 'owner-access',
+          refresh_token: 'owner-refresh',
+          user: { id: 'u-owner' },
+          profile: { id: 'u-owner', role: 'customer', name: 'Owner' },
+        },
+      })
+      .mockResolvedValueOnce({
+        data: { profile: { id: 'u-owner', role: 'owner', name: 'Owner' } },
+      });
+
+    const result = await useAuthStore.getState().login('owner@example.com', 'password');
+
+    expect(result.success).toBe(true);
+    expect(result.profile.role).toBe('owner');
+    expect(useAuthStore.getState().profile.role).toBe('owner');
   });
 
   it('updateProfile patches discovery_audience', async () => {

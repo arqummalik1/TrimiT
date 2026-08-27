@@ -159,7 +159,7 @@ describe('VerifyOtpScreen — welcome toasts (items 7, 18, 19)', () => {
     });
 
     expect(mockShowToast).toHaveBeenCalledWith(
-      "Welcome to TrimiT! Let's set up your profile.",
+      'Welcome to TrimiT. Taking you back to where you left off.',
       'success'
     );
   });

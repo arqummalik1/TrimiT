@@ -25,6 +25,7 @@ import {
   MENU_AUDIENCE_OPTIONS,
 } from '../../lib/genderServe';
 import { FilterChipRow } from '../../components/FilterChipRow';
+import { setPendingAuthIntent } from '../../lib/pendingAuthIntent';
 
 const SalonDetail = () => {
   const { id } = useParams();
@@ -98,10 +99,7 @@ const SalonDetail = () => {
     <div className="min-h-screen bg-stone-50 pb-24" data-testid="salon-detail">
       {!isAuthenticated && (
         <motion.div className="sticky top-16 z-30 bg-brand-800 text-white px-4 py-3 text-center text-sm">
-          <Link to="/signup" className="font-bold underline underline-offset-2">
-            Sign up free
-          </Link>{' '}
-          to book at {salon.name}
+          Browse every service freely. Sign in only when you’re ready to book at {salon.name}.
         </motion.div>
       )}
       {/* Hero Image */}
@@ -305,6 +303,15 @@ const SalonDetail = () => {
                     ) : (
                       <Link
                         to={bookTarget(service.id)}
+                        onClick={() => {
+                          if (!isAuthenticated) {
+                            setPendingAuthIntent({
+                              kind: 'customer_booking',
+                              salonId: salon.id,
+                              serviceId: service.id,
+                            });
+                          }
+                        }}
                         data-testid={`book-service-${service.id}`}
                         className={`text-sm px-5 py-2.5 flex items-center gap-2 rounded-full font-semibold transition-all ${
                           service.is_on_offer

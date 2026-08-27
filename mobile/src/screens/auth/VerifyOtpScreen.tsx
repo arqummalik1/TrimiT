@@ -221,7 +221,7 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
         const name = result.session?.profile?.name || email.split('@')[0];
 
         if (isNew) {
-          showToast("Welcome to TrimiT! Let's set up your profile.", 'success');
+          showToast('Welcome to TrimiT. Taking you back to where you left off.', 'success');
         } else {
           showToast(`Welcome back, ${name}!`, 'success');
         }

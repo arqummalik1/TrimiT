@@ -26,6 +26,7 @@ try {
 
   // Update values
   appVersion.version = newVersion;
+  appVersion.versionShort = newVersion;
   appVersion.androidVersionCode = (appVersion.androidVersionCode || 0) + 1;
   appVersion.iosBuildNumber = String(parseInt(appVersion.iosBuildNumber || "0", 10) + 1);
 

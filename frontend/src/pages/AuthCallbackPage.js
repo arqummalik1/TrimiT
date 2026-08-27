@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import TrimitLogo from '../components/brand/TrimitLogo';
 import { getSupabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
+import {
+  consumePendingAuthIntent,
+  pathForPendingAuthIntent,
+  peekPendingAuthIntent,
+} from '../lib/pendingAuthIntent';
 
 /** Map Supabase OAuth URL errors to user-facing copy. */
 function translateOAuthError(raw) {
@@ -28,7 +33,7 @@ function translateOAuthError(raw) {
  * Supabase redirects here after OAuth. We resolve the session (PKCE
  * `?code=...` exchange, or an implicit-flow token hash that supabase-js parses
  * automatically), hand it to the auth store, then route exactly like the OTP
- * flow: new users → /complete-profile (pick role), existing users → home.
+ * flow: exact protected intent first, otherwise the role-specific home.
  */
 const AuthCallbackPage = () => {
   const navigate = useNavigate();
@@ -88,13 +93,25 @@ const AuthCallbackPage = () => {
 
         // Clean the OAuth params out of the URL before routing.
         if (result.profileComplete === false) {
-          navigate('/complete-profile', { replace: true });
-        } else if (result.profile?.role === 'owner') {
+          navigate(
+            peekPendingAuthIntent()?.kind === 'employee_claim'
+              ? '/employee-access'
+              : '/login',
+            { replace: true },
+          );
+        } else {
+          const intendedPath = pathForPendingAuthIntent(consumePendingAuthIntent());
+          if (intendedPath) {
+            navigate(intendedPath, { replace: true });
+          } else if (result.profile?.role === 'owner') {
           navigate(result.hasSalon ? '/owner/dashboard' : '/owner/salon', {
             replace: true,
           });
-        } else {
-          navigate('/explore', { replace: true });
+          } else if (result.profile?.role === 'employee') {
+            navigate('/owner/dashboard', { replace: true });
+          } else {
+            navigate('/explore', { replace: true });
+          }
         }
       } catch (e) {
         setError(e?.message || 'Sign-in failed. Please try again.');

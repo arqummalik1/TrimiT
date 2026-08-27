@@ -43,14 +43,15 @@ describe('contactInfo', () => {
       expect(LEGAL_URLS.contact).toMatch(/\/contact$/);
     });
 
-    it('accountDeletion URL points to contact', () => {
-      expect(LEGAL_URLS.accountDeletion).toBe(LEGAL_URLS.contact);
+    it('accountDeletion URL points to the dedicated public deletion page', () => {
+      expect(LEGAL_URLS.accountDeletion).toBe(`${PUBLIC_SITE_URL}/delete-account`);
     });
 
     it('all URLs start with the public site URL', () => {
       expect(LEGAL_URLS.privacy).toMatch(new RegExp(`^${PUBLIC_SITE_URL}`));
       expect(LEGAL_URLS.terms).toMatch(new RegExp(`^${PUBLIC_SITE_URL}`));
       expect(LEGAL_URLS.contact).toMatch(new RegExp(`^${PUBLIC_SITE_URL}`));
+      expect(LEGAL_URLS.accountDeletion).toMatch(new RegExp(`^${PUBLIC_SITE_URL}`));
     });
   });
 });

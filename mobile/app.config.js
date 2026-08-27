@@ -30,6 +30,7 @@ function loadDotEnv() {
 loadDotEnv();
 
 const appVersion = require('../shared/app-version.json');
+const splashBranding = require('./src/config/splash-branding.json');
 
 const withAndroidPermissions = require('./plugins/withAndroidPermissions');
 
@@ -85,9 +86,24 @@ module.exports = ({ config }) => {
     './plugins/withFmtXcodeFix.js',
     // Survives folder renames: absolute node resolve for maps breaks Xcode xcconfig refs
     './plugins/withRelativeMapsPodPath.js',
+    // Xcode Run starts/reuses Metro and waits for it before launching Debug.
+    './plugins/withXcodeMetroLauncher.js',
     // Device Debug: embed JS — CLAT IPs (192.0.0.2) + ATS otherwise red-screen Metro
     './plugins/withIosDeviceEmbeddedBundle.js',
     'expo-asset',
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/trimit-t-transparent.png',
+        imageWidth: splashBranding.nativeImageWidth,
+        resizeMode: 'contain',
+        backgroundColor: splashBranding.backgroundColor,
+        dark: {
+          image: './assets/trimit-t-transparent.png',
+          backgroundColor: splashBranding.backgroundColor,
+        },
+      },
+    ],
     'expo-audio',
     'expo-font',
     [
@@ -167,11 +183,6 @@ module.exports = ({ config }) => {
       userInterfaceStyle: 'automatic',
       // New Arch off for release stability (avoids device-specific native crashes on some OEMs).
       newArchEnabled: false,
-      splash: {
-        image: './assets/trimit-t-transparent.png',
-        resizeMode: 'contain',
-        backgroundColor: '#000000',
-      },
       ios: {
         buildNumber: appVersion.iosBuildNumber,
         supportsTablet: true,
@@ -220,7 +231,7 @@ module.exports = ({ config }) => {
         },
         adaptiveIcon: {
           foregroundImage: './assets/adaptive-icon.png',
-          backgroundColor: '#000000',
+          backgroundColor: splashBranding.backgroundColor,
         },
         edgeToEdgeEnabled: true,
         // NOTE: READ_MEDIA_IMAGES is intentionally NOT declared. Salon photo

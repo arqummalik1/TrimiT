@@ -104,8 +104,9 @@ export const ServiceAreaGate: React.FC<ServiceAreaGateProps> = ({ result, coords
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const user = useAuthStore((s) => s.user);
-  // Clear the floating tab bar (same token as Discover lists / ScreenWrapper).
-  const scrollBottomPad = TAB_BAR_BASE_HEIGHT + insets.bottom;
+  const scrollBottomPad = user
+    ? TAB_BAR_BASE_HEIGHT + insets.bottom
+    : insets.bottom + 32;
 
   const [email, setEmail] = useState(user?.email ?? '');
   const [name, setName] = useState(user?.name ?? '');
@@ -166,19 +167,24 @@ export const ServiceAreaGate: React.FC<ServiceAreaGateProps> = ({ result, coords
         showsVerticalScrollIndicator={false}
         testID="service-area-gate-scroll"
       >
-        <AnimatedLocationPin color={theme.colors.primary} />
+        <View style={styles.heroCard}>
+          <Text style={styles.eyebrow}>{launchingSoon ? 'COMING SOON' : 'TRIMIT IS GROWING'}</Text>
+          <AnimatedLocationPin color={theme.colors.primary} />
+          <Text style={styles.title}>{headline}</Text>
+          <Text style={styles.subtitle}>{servesText}</Text>
 
-        <Text style={styles.title}>{headline}</Text>
-        <Text style={styles.subtitle}>{servesText}</Text>
-
-        {typeof result.nearest_distance_km === 'number' && nearest?.name ? (
-          <View style={styles.distancePill}>
-            <Ionicons name="navigate-outline" size={14} color={theme.colors.primary} />
-            <Text style={styles.distanceText}>
-              Nearest city: {nearest.name} · ~{Math.round(result.nearest_distance_km)} km away
-            </Text>
-          </View>
-        ) : null}
+          {nearest?.name ? (
+            <View style={styles.distancePill}>
+              <Ionicons name="navigate-outline" size={14} color={theme.colors.primary} />
+              <Text style={styles.distanceText} numberOfLines={2}>
+                Nearest TrimiT city: {nearest.name}
+                {typeof result.nearest_distance_km === 'number' && result.nearest_distance_km <= 1000
+                  ? ` · ~${Math.round(result.nearest_distance_km)} km away`
+                  : ''}
+              </Text>
+            </View>
+          ) : null}
+        </View>
 
         {status === 'success' ? (
           <View style={styles.successCard}>
@@ -190,8 +196,9 @@ export const ServiceAreaGate: React.FC<ServiceAreaGateProps> = ({ result, coords
           </View>
         ) : (
           <View style={styles.form}>
+            <Text style={styles.formEyebrow}>BRING TRIMIT TO YOUR CITY</Text>
             <Text style={styles.formPrompt}>
-              Want TrimiT in your city? Get notified the moment we launch near you.
+              Be first to know when bookings open near you.
             </Text>
             <Input
               label="Name (optional)"
@@ -233,17 +240,17 @@ export const ServiceAreaGate: React.FC<ServiceAreaGateProps> = ({ result, coords
 
 const pinStyles = StyleSheet.create({
   wrap: {
-    width: 160,
-    height: 140,
+    width: 124,
+    height: 104,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 2,
   },
   ring: {
     position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     borderWidth: 2,
   },
 });
@@ -254,17 +261,28 @@ const createStyles = (theme: Theme) =>
     container: {
       flexGrow: 1,
       alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 28,
-      paddingTop: 40,
-      // paddingBottom set at render: TAB_BAR_BASE_HEIGHT + safe-area inset
+      paddingHorizontal: 16,
+      paddingTop: 20,
+    },
+    heroCard: {
+      width: '100%',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      borderRadius: 24,
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 22,
+    },
+    eyebrow: {
+      ...theme.typography.overline,
+      color: theme.colors.primary,
+      marginBottom: 6,
     },
     title: {
-      fontSize: 24,
-      fontWeight: '800',
+      ...theme.typography.h2,
       color: theme.colors.text,
       textAlign: 'center',
-      marginTop: 8,
+      marginTop: 4,
     },
     subtitle: {
       fontSize: 15,
@@ -282,6 +300,7 @@ const createStyles = (theme: Theme) =>
       paddingVertical: 7,
       borderRadius: 999,
       marginTop: 16,
+      maxWidth: '100%',
     },
     distanceText: {
       fontSize: 13,
@@ -290,14 +309,21 @@ const createStyles = (theme: Theme) =>
     },
     form: {
       width: '100%',
-      marginTop: 28,
+      marginTop: 16,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 24,
+      padding: 20,
+    },
+    formEyebrow: {
+      ...theme.typography.overline,
+      color: theme.colors.primary,
+      marginBottom: 6,
     },
     formPrompt: {
-      fontSize: 14,
+      ...theme.typography.bodyMedium,
       color: theme.colors.text,
-      textAlign: 'center',
+      textAlign: 'left',
       marginBottom: 18,
-      fontWeight: '600',
     },
     cta: {
       marginTop: 4,

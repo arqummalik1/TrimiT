@@ -7,8 +7,8 @@ import GoogleGLogo from './GoogleGLogo';
  * "Sign in with Google" button (web) — follows Google identity branding.
  *
  * Starts Supabase Google OAuth. On return, /auth/callback exchanges the code,
- * hydrates the session, and routes like OTP: existing user by role, new user
- * → /complete-profile. Same email via OTP + Google stays one account when
+ * hydrates the session, and returns to the approved action. Same email via
+ * OTP + Google stays one account when
  * Supabase "Link identities" is enabled (Dashboard → Auth).
  */
 const GoogleSignInButton = ({ label = 'Sign in with Google' }) => {

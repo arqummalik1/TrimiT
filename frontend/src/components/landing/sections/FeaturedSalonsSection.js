@@ -65,7 +65,7 @@ export default function FeaturedSalonsSection({
         ) : (
           <p className="text-center text-stone-500 py-12">
             Businesses in Jammu are joining TrimiT.{' '}
-            <Link to="/signup?role=owner" className="text-orange-800 font-semibold">
+            <Link to="/owner/start" className="text-orange-800 font-semibold">
               List yours first
             </Link>
             .

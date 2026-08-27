@@ -7,7 +7,6 @@ import SalonCard from '../../components/salon/SalonCard';
 import { usePublicSalons } from '../../hooks/usePublicSalons';
 import FaqSection from '../../components/landing/sections/FaqSection';
 import { explorePath } from '../../config/jammu';
-import StickyMobileCta from '../../components/landing/StickyMobileCta';
 import { HOMEPAGE_FAQ } from '../../config/faq';
 
 function pageFaq(page) {
@@ -116,7 +115,6 @@ export default function SeoCategoryPage() {
       </section>
 
       {faqItems.length > 0 && <FaqSection items={faqItems} title={`${page.h1} — FAQ`} />}
-      <StickyMobileCta />
     </>
   );
 }

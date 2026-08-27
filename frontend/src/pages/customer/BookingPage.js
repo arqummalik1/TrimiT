@@ -12,7 +12,8 @@ import {
   Timer,
   Warning,
   CreditCard,
-  ShieldCheck
+  ShieldCheck,
+  Phone
 } from '@phosphor-icons/react';
 import api from '../../lib/api';
 import { formatPrice, formatTime, normalizeSlotTimeToHHMM, getApiErrorMessage, getApiErrorCode } from '../../lib/utils';
@@ -21,6 +22,7 @@ import { createIdempotencyKey } from '../../lib/idempotency';
 import { useToastStore } from '../../store/toastStore';
 import { createAuthenticatedClient, unsubscribeFromChannel } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
+import { sanitizePhoneInput, isValidNationalPhone, toE164, phoneDialCode } from '../../config/phone';
 
 const HOLD_SECONDS = 90;
 const RESERVE_TIMEOUT_MS = 28000;
@@ -30,7 +32,14 @@ const BookingPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { success, error: showError } = useToastStore();
-  const { token } = useAuthStore();
+  const { token, profile, updateProfile } = useAuthStore();
+  const initialPhoneDigits = String(profile?.phone || '').replace(/\D/g, '');
+  const initialNationalPhone = initialPhoneDigits.startsWith('91') && initialPhoneDigits.length > 10
+    ? initialPhoneDigits.slice(2, 12)
+    : initialPhoneDigits.slice(0, 10);
+  const [contactPhone, setContactPhone] = useState(initialNationalPhone);
+  const [contactConfirmed, setContactConfirmed] = useState(isValidNationalPhone(initialNationalPhone));
+  const [contactSaving, setContactSaving] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedSlot, setSelectedSlot] = useState(null);
@@ -151,7 +160,7 @@ const BookingPage = () => {
       });
       return response.data;
     },
-    enabled: !!selectedDate,
+    enabled: !!selectedDate && contactConfirmed,
   });
   
   const slots = slotsData?.slots || [];
@@ -323,11 +332,36 @@ const BookingPage = () => {
   });
 
   const handleSelectSlot = (slotTime) => {
+    if (!contactConfirmed) return;
     idempotencyKeyRef.current = null;
     setSelectedSlot(slotTime);
     setHoldId(null);
     setTimeLeft(null);
     reserveMutation.mutate(slotTime);
+  };
+
+  const confirmBookingContact = async () => {
+    if (!isValidNationalPhone(contactPhone)) {
+      showError('Enter a valid 10-digit mobile number so the salon can contact you.', {
+        title: 'Contact number required',
+        duration: 5000,
+      });
+      return;
+    }
+    setContactSaving(true);
+    const e164 = toE164(contactPhone);
+    const result = e164 === profile?.phone
+      ? { success: true }
+      : await updateProfile({ phone: e164 });
+    setContactSaving(false);
+    if (!result.success) {
+      showError(result.error || 'Could not save your contact number.', {
+        title: 'Contact could not be saved',
+        duration: 5000,
+      });
+      return;
+    }
+    setContactConfirmed(true);
   };
 
   const handleSelectDate = (dateValue) => {
@@ -517,6 +551,43 @@ const BookingPage = () => {
           </motion.div>
         )}
 
+        <div className="bg-white rounded-2xl border border-stone-200 p-5 mb-6">
+          <h2 className="font-heading text-lg font-bold text-stone-900 mb-2 flex items-center gap-2">
+            <Phone size={22} weight="duotone" /> Booking contact
+          </h2>
+          <p className="text-sm text-stone-500 mb-4">
+            The salon may use this number only for updates about this appointment.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 text-sm">{phoneDialCode()}</span>
+              <input
+                type="tel"
+                value={contactPhone}
+                onChange={(event) => {
+                  setContactPhone(sanitizePhoneInput(event.target.value));
+                  setContactConfirmed(false);
+                  setSelectedSlot(null);
+                  resetBookingAttempt();
+                }}
+                data-testid="booking-contact-phone"
+                className="w-full pl-14 pr-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-800/20 focus:border-brand-800"
+                placeholder="98765 43210"
+                autoComplete="tel"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => void confirmBookingContact()}
+              disabled={contactSaving || contactConfirmed}
+              data-testid="confirm-booking-contact"
+              className="px-5 py-3 rounded-xl bg-brand-800 text-white font-semibold disabled:bg-emerald-100 disabled:text-emerald-800"
+            >
+              {contactSaving ? 'Saving…' : contactConfirmed ? 'Contact confirmed' : 'View availability'}
+            </button>
+          </div>
+        </div>
+
         {/* Date Selection */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -564,7 +635,11 @@ const BookingPage = () => {
             Select Time
           </h2>
           
-          {slotsLoading ? (
+          {!contactConfirmed ? (
+            <div className="bg-brand-50 border border-brand-100 rounded-2xl p-6 text-center text-brand-900">
+              Confirm your booking contact above to view and reserve live availability.
+            </div>
+          ) : slotsLoading ? (
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
               {[...Array(12)].map((_, i) => (
                 <div key={i} className="h-12 bg-stone-200 rounded-xl animate-pulse" />

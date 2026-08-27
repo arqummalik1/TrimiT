@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { EnvelopeSimple } from '@phosphor-icons/react';
 import { useAuthStore } from '../store/authStore';
@@ -12,20 +12,32 @@ import {
   APPLE_LOGIN_ENABLED,
   OTP_RESEND_COOLDOWN_SECONDS,
 } from '../config/auth';
+import { safeInternalPath } from '../lib/utils';
+import { intentForProtectedPath, setPendingAuthIntent } from '../lib/pendingAuthIntent';
 
 // Email-only OTP signup — identical flow to the mobile app and to LoginPage.
 // The user enters only their email, receives a 6-digit OTP, verifies it, and
-// (if new) finishes on CompleteProfile where they pick their role. Role is
-// decided AFTER OTP. There is no upfront role/name/phone form anymore.
+// New customers bootstrap automatically; owner and employee roles are entered
+// only from their explicit workspace actions. No generic profile form.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const SignupPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectAfterLogin = safeInternalPath(searchParams.get('redirect'));
+  const requestedOwner = searchParams.get('role') === 'owner';
   const { sendOtp, isLoading, error, clearError } = useAuthStore();
 
   const [email, setEmail] = useState('');
   const [fieldError, setFieldError] = useState(null);
   const [resendTimer, setResendTimer] = useState(0);
+
+  useEffect(() => {
+    const intent = requestedOwner
+      ? { kind: 'owner_onboarding' }
+      : intentForProtectedPath(redirectAfterLogin);
+    if (intent) setPendingAuthIntent(intent);
+  }, [redirectAfterLogin, requestedOwner]);
 
   useEffect(() => {
     if (resendTimer === 0) return;
@@ -46,7 +58,7 @@ const SignupPage = () => {
       useToastStore.getState().success('Verification OTP code sent to your email.');
       setResendTimer(OTP_RESEND_COOLDOWN_SECONDS);
       navigate(
-        `/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}&type=magiclink`
+        `/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}&type=magiclink${redirectAfterLogin ? `&redirect=${encodeURIComponent(redirectAfterLogin)}` : ''}`
       );
     }
   };

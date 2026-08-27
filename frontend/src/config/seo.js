@@ -27,6 +27,10 @@ export const SEO_BY_PATH = {
   },
   ...seoData.SEO_BY_PATH,
   ...SEO_PAGE_MAP,
+  '/delete-account': {
+    title: 'Delete Your TrimiT Account | Account & Data Deletion',
+    description: 'Permanently delete your TrimiT account and associated personal data.',
+  },
 };
 
 BLOG_POSTS.forEach((post) => {

@@ -96,10 +96,24 @@ describe('authService HTTP contract', () => {
     expect(res).toEqual({ data: { profile: { id: 'u1' } } });
   });
 
+  it('gets the account deletion provider context', async () => {
+    mockedApi.get.mockResolvedValue({ data: { requires_apple_confirmation: true } } as any);
+    await authService.getAccountDeletionContext();
+    expect(mockedApi.get).toHaveBeenCalledWith('/auth/account/deletion-context');
+  });
+
   it('deleteAccount DELETEs /auth/account', async () => {
     mockedApi.delete.mockResolvedValue({ data: {} } as any);
     await authService.deleteAccount();
-    expect(mockedApi.delete).toHaveBeenCalledWith('/auth/account');
+    expect(mockedApi.delete).toHaveBeenCalledWith('/auth/account', { data: {} });
+  });
+
+  it('sends fresh Apple authorization when deleting an Apple-linked account', async () => {
+    mockedApi.delete.mockResolvedValue({ data: {} } as any);
+    await authService.deleteAccount({ apple_authorization_code: 'fresh-code' });
+    expect(mockedApi.delete).toHaveBeenCalledWith('/auth/account', {
+      data: { apple_authorization_code: 'fresh-code' },
+    });
   });
 
   it('sendOtp POSTs /auth/send-otp with email', async () => {

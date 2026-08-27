@@ -22,7 +22,7 @@ const CARDS = [
     title: '30 Days Free Trial',
     desc: 'List your salon, beauty parlour, or unisex studio — accept bookings and manage everything digitally. Free for one month.',
     cta: 'Start Free Trial',
-    href: '/signup?role=owner',
+    href: '/owner/start',
     accent: 'bg-orange-50 border-orange-300',
     badgeColor: 'bg-orange-100 text-orange-800',
     iconColor: 'text-orange-700',

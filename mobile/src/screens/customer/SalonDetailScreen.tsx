@@ -17,6 +17,8 @@ import { Salon, Service } from '../../types';
 import { fonts, spacing, borderRadius, formatDate } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
+import { useAuthStore } from '../../store/authStore';
+import { requestAuthentication } from '../../lib/authGate';
 
 import { Button } from '../../components/Button';
 import { ServiceCard } from '../../components/ServiceCard';
@@ -121,6 +123,10 @@ export const SalonDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const handleBookService = (service: Service) => {
     if (notBookable) {
       showToast("This salon isn't taking bookings right now.", 'info');
+      return;
+    }
+    if (!useAuthStore.getState().isAuthenticated) {
+      requestAuthentication({ kind: 'customer_booking', salonId, serviceId: service.id });
       return;
     }
     navigation.navigate('Booking', { salonId, serviceId: service.id });

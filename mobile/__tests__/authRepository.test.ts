@@ -21,6 +21,7 @@ const mockCompleteProfile = jest.fn();
 const mockResendConfirmation = jest.fn();
 const mockUpdateProfile = jest.fn();
 const mockDeleteAccount = jest.fn();
+const mockGetAccountDeletionContext = jest.fn();
 
 jest.mock('../src/services/authService', () => ({
   authService: {
@@ -31,6 +32,7 @@ jest.mock('../src/services/authService', () => ({
     completeProfile: (...a: unknown[]) => mockCompleteProfile(...a),
     resendConfirmation: (...a: unknown[]) => mockResendConfirmation(...a),
     updateProfile: (...a: unknown[]) => mockUpdateProfile(...a),
+    getAccountDeletionContext: (...a: unknown[]) => mockGetAccountDeletionContext(...a),
     deleteAccount: (...a: unknown[]) => mockDeleteAccount(...a),
   },
 }));
@@ -407,10 +409,26 @@ describe('authRepository.updateProfile', () => {
 });
 
 describe('authRepository.deleteAccount', () => {
+  it('normalizes the provider confirmation context', async () => {
+    mockGetAccountDeletionContext.mockResolvedValue({
+      data: { requires_apple_confirmation: true, has_google_identity: true },
+    });
+    const context = await authRepository.getAccountDeletionContext();
+    expect(context).toEqual({ requiresAppleConfirmation: true, hasGoogleIdentity: true });
+  });
+
   it('returns success when the service resolves', async () => {
     mockDeleteAccount.mockResolvedValue({ data: {} });
     const result = await authRepository.deleteAccount();
     expect(result.success).toBe(true);
+  });
+
+  it('forwards a fresh Apple authorization code', async () => {
+    mockDeleteAccount.mockResolvedValue({ data: {} });
+    await authRepository.deleteAccount({ appleAuthorizationCode: 'fresh-code' });
+    expect(mockDeleteAccount).toHaveBeenCalledWith({
+      apple_authorization_code: 'fresh-code',
+    });
   });
 
   it('surfaces an axios string detail on failure', async () => {
@@ -418,6 +436,14 @@ describe('authRepository.deleteAccount', () => {
     const result = await authRepository.deleteAccount();
     expect(result.success).toBe(false);
     expect(result.error).toBe('cannot delete');
+  });
+
+  it('surfaces the backend error envelope on failure', async () => {
+    mockDeleteAccount.mockRejectedValue(
+      axiosError({ error: { details: { code: 'APPLE_REAUTH_REQUIRED', message: 'Confirm with Apple.' } } }),
+    );
+    const result = await authRepository.deleteAccount();
+    expect(result.error).toBe('Confirm with Apple.');
   });
 
   it('returns a network error for a non-axios failure', async () => {

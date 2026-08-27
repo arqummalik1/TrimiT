@@ -25,12 +25,14 @@ def _raise_if_profile_blocked(profile_row: Optional[dict]) -> None:
 def _build_cached_user_data(
     user_id: str,
     email: Optional[str],
+    user_metadata: Optional[dict],
     profile_row: dict,
     access_token: str,
 ) -> dict:
     return {
         "id": user_id,
         "email": email,
+        "user_metadata": user_metadata or {},
         "profile": profile_row,
         # Always use the token from the current request so cache hits never
         # replay a stale pre-refresh access token.
@@ -103,21 +105,33 @@ async def get_current_user(authorization: str = Header(None)):
                 return _build_cached_user_data(
                     user_id,
                     cached.get("email"),
+                    cached.get("user_metadata"),
                     cached.get("profile"),
                     token,
                 )
 
+            # Supabase documents that an already-issued access JWT can remain
+            # cryptographically valid until its expiry after Auth user deletion.
+            # Revalidate on each short profile-cache miss; successful deletion
+            # evicts this user's local cache immediately.
+            session_response = await supabase.request("GET", "auth/v1/user", token=token)
+            if session_response.status_code != 200:
+                user_profile_cache.pop(user_id, None)
+                raise HTTPException(status_code=401, detail="Invalid or expired token")
+            auth_user = session_response.json()
+
             profile_row = await resolve_profile_for_user(
                 user_id,
-                payload.get("email", "") or "",
-                payload.get("user_metadata"),
+                auth_user.get("email", "") or "",
+                auth_user.get("user_metadata"),
                 user_jwt=token,
             )
             _raise_if_profile_blocked(profile_row)
 
             user_data = _build_cached_user_data(
                 user_id,
-                payload.get("email"),
+                auth_user.get("email"),
+                auth_user.get("user_metadata"),
                 profile_row,
                 token,
             )
@@ -150,6 +164,7 @@ async def get_current_user(authorization: str = Header(None)):
             user_data = _build_cached_user_data(
                 user_id,
                 user_info.get("email"),
+                user_info.get("user_metadata"),
                 profile_row,
                 token,
             )

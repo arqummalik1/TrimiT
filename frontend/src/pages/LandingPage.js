@@ -16,10 +16,9 @@ import FaqSection from '../components/landing/sections/FaqSection';
 import SeoContentSection from '../components/landing/sections/SeoContentSection';
 import BlogPreviewSection from '../components/landing/sections/BlogPreviewSection';
 import FinalCtaSection from '../components/landing/sections/FinalCtaSection';
-import StickyMobileCta from '../components/landing/StickyMobileCta';
 
 const LandingPage = () => (
-  <div className="min-h-screen bg-stone-50 pb-20 md:pb-0">
+  <div className="min-h-screen bg-stone-50">
     <HeroSection />
     <TrustStripSection />
     <MarketAudienceSection />
@@ -61,7 +60,6 @@ const LandingPage = () => (
     <SeoContentSection />
     <BlogPreviewSection />
     <FinalCtaSection />
-    <StickyMobileCta />
   </div>
 );
 

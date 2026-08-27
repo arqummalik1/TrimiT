@@ -319,14 +319,43 @@ export const authRepository = {
     }
   },
 
-  async deleteAccount(): Promise<{ success: boolean; error?: string }> {
+  async getAccountDeletionContext(): Promise<{
+    requiresAppleConfirmation: boolean;
+    hasGoogleIdentity: boolean;
+    error?: string;
+  }> {
     try {
-      await authService.deleteAccount();
+      const response = await authService.getAccountDeletionContext();
+      return {
+        requiresAppleConfirmation: response.data?.requires_apple_confirmation === true,
+        hasGoogleIdentity: response.data?.has_google_identity === true,
+      };
+    } catch (err: unknown) {
+      const { message } = parseAuthFailure(err);
+      return {
+        requiresAppleConfirmation: false,
+        hasGoogleIdentity: false,
+        error: message,
+      };
+    }
+  },
+
+  async deleteAccount(options?: {
+    appleAuthorizationCode?: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    try {
+      await authService.deleteAccount(
+        options?.appleAuthorizationCode
+          ? { apple_authorization_code: options.appleAuthorizationCode }
+          : undefined,
+      );
       return { success: true };
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         const detail = err.response?.data?.detail;
+        const nested = err.response?.data?.error?.details;
         const message =
+          (typeof nested === 'object' && nested?.message) ||
           (typeof detail === 'object' && detail?.message) ||
           (typeof detail === 'string' && detail) ||
           `Could not delete your account. Please try again or contact ${SUPPORT_EMAIL}.`;
@@ -396,7 +425,7 @@ export const authRepository = {
    */
   async completeProfile(data: {
     role: 'customer' | 'owner' | 'employee';
-    name: string;
+    name?: string;
     phone?: string;
     upi_id?: string;
     gender?: 'male' | 'female';

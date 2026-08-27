@@ -8,6 +8,11 @@ import SuccessOverlay from '../components/ui/SuccessOverlay';
 import { safeInternalPath } from '../lib/utils';
 import { resolvePostLoginPath } from '../lib/postLoginRedirect';
 import { OTP_RESEND_COOLDOWN_SECONDS } from '../config/auth';
+import {
+  consumePendingAuthIntent,
+  pathForPendingAuthIntent,
+  peekPendingAuthIntent,
+} from '../lib/pendingAuthIntent';
 
 export default function VerifyOtpPage() {
   const navigate = useNavigate();
@@ -133,11 +138,15 @@ export default function VerifyOtpPage() {
       }
 
       // Shared with the password path (LoginPage) so the two can't drift.
-      // New / broken account → finish profile (pick role + name). Mirrors
-      // the mobile app: role is decided AFTER OTP on CompleteProfile.
+      // New customers/owners bootstrap from the approved action; employee
+      // access pauses only for invitation verification.
       // P0-3 Security Fix: an explicit redirect param wins over role routing so
       // a guest who clicked "Sign in to book" lands back on the booking page.
-      const redirectPath = resolvePostLoginPath({
+      const pending = peekPendingAuthIntent();
+      const pendingPath = result.profileComplete === false
+        ? null
+        : pathForPendingAuthIntent(consumePendingAuthIntent());
+      const redirectPath = pendingPath || resolvePostLoginPath({
         profile: result.profile,
         hasSalon: result.hasSalon,
         profileComplete: result.profileComplete,
@@ -145,7 +154,7 @@ export default function VerifyOtpPage() {
       });
 
       // Only an existing user returning to their own home gets the celebration.
-      if (result.profileComplete === false || redirectParam) {
+      if (result.profileComplete === false || redirectParam || pending) {
         navigate(redirectPath, { replace: true });
         return;
       }

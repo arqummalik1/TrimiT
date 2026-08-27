@@ -11,6 +11,7 @@ import { isAppError } from '../types/error';
 import { logger } from '../lib/logger';
 import { translateGoogleAuthError } from '../lib/googleAuthErrors';
 import { translateAppleAuthError } from '../lib/appleAuthErrors';
+import { getRoleForPendingIntent } from './pendingAuthIntentStore';
 
 interface AuthState {
   user: User | null;
@@ -61,9 +62,11 @@ interface AuthState {
   appleSignIn: () => Promise<{ success: boolean; error?: string; cancelled?: boolean }>;
   isOnboardingCompleted: boolean;
   completeOnboarding: () => void;
+  /** Development preview helper; production UI never exposes this action. */
+  resetOnboarding: () => void;
   completeProfile: (data: {
     role: 'customer' | 'owner' | 'employee';
-    name: string;
+    name?: string;
     phone?: string;
     upi_id?: string;
     gender?: 'male' | 'female';
@@ -86,6 +89,7 @@ export const useAuthStore = create<AuthState>()(
       isOnboardingCompleted: false,
       profileComplete: false,
       completeOnboarding: () => set({ isOnboardingCompleted: true }),
+      resetOnboarding: () => set({ isOnboardingCompleted: false }),
       requiresEmailConfirmation: false,
       queryClient: null,
 
@@ -280,13 +284,58 @@ export const useAuthStore = create<AuthState>()(
 
       deleteAccount: async () => {
         set({ isLoading: true, error: null });
-        const result = await authRepository.deleteAccount();
+        let appleAuthorizationCode: string | undefined;
+
+        try {
+          const deletionContext = await authRepository.getAccountDeletionContext();
+          if (deletionContext.error) {
+            set({ isLoading: false, error: deletionContext.error });
+            return { success: false, error: deletionContext.error };
+          }
+
+          if (deletionContext.requiresAppleConfirmation) {
+            const { signInWithApple } = require('../services/appleAuthService');
+            const confirmation = await signInWithApple();
+            if (!confirmation.ok) {
+              const message = confirmation.cancelled
+                ? 'Account deletion was cancelled.'
+                : confirmation.error;
+              set({ isLoading: false, error: confirmation.cancelled ? null : message });
+              return { success: false, error: message };
+            }
+            if (!confirmation.authorizationCode) {
+              const message = 'Apple could not confirm account deletion. Please try again.';
+              set({ isLoading: false, error: message });
+              return { success: false, error: message };
+            }
+            appleAuthorizationCode = confirmation.authorizationCode;
+          }
+        } catch (error) {
+          logger.warn('[Auth] Could not inspect deletion provider', { error });
+          const message = 'Could not prepare account deletion. Please try again.';
+          set({ isLoading: false, error: message });
+          return { success: false, error: message };
+        }
+
+        const result = await authRepository.deleteAccount({ appleAuthorizationCode });
         if (!result.success) {
           set({ isLoading: false, error: result.error ?? 'Account deletion failed' });
           return result;
         }
-        await get().logout();
-        set({ isLoading: false });
+
+        try {
+          const { teardownPushNotifications } = await import('../lib/notifications');
+          await teardownPushNotifications();
+        } catch {
+          // The database profile (including its push token) is already gone.
+        }
+        try {
+          const { revokeGoogleAccess } = require('../services/googleAuthService');
+          await revokeGoogleAccess();
+        } catch {
+          // Account deletion must still complete when the native SDK is absent.
+        }
+        await get().clearSession({ sessionExpired: false });
         return { success: true };
       },
 
@@ -390,7 +439,57 @@ export const useAuthStore = create<AuthState>()(
         void syncSupabaseAuthSession(result.token, result.refreshToken);
 
         if (!result.profileComplete) {
-          // Gate the user: authenticated, but no public.users row yet.
+          if (type === 'recovery') {
+            set({
+              isAuthenticated: true,
+              profileComplete: false,
+              token: result.token,
+              refreshToken: result.refreshToken,
+              isLoading: false,
+              error: null,
+              authBootstrapComplete: true,
+            });
+            return { success: true, session: { ...result.rawSession, is_new_user: true } };
+          }
+
+          const intendedRole = getRoleForPendingIntent();
+
+          // Employee identities must prove possession of the invited phone on
+          // CompleteProfileScreen. Customer/owner profiles are bootstrapped
+          // immediately from verified identity metadata with no generic form.
+          if (intendedRole !== 'employee') {
+            const bootstrapped = await authRepository.completeProfile({
+              role: intendedRole,
+            });
+            if (bootstrapped.success && bootstrapped.profile) {
+              set({
+                user: bootstrapped.profile,
+                isAuthenticated: true,
+                profileComplete: true,
+                token: result.token,
+                refreshToken: result.refreshToken,
+                isLoading: false,
+                error: null,
+                authBootstrapComplete: true,
+              });
+              return {
+                success: true,
+                session: { ...result.rawSession, profile: bootstrapped.profile, is_new_user: true },
+              };
+            }
+
+            set({
+              isAuthenticated: true,
+              profileComplete: false,
+              token: result.token,
+              refreshToken: result.refreshToken,
+              isLoading: false,
+              error: bootstrapped.error ?? 'Could not finish sign-in. Please try again.',
+              authBootstrapComplete: true,
+            });
+            return { success: false, error: bootstrapped.error };
+          }
+
           set({
             isAuthenticated: true,
             profileComplete: false,
@@ -456,9 +555,9 @@ export const useAuthStore = create<AuthState>()(
       // ── Google sign-in (native) ───────────────────────────────────────
       // 1. Native Google picker → Google idToken.
       // 2. Trade idToken for a Supabase session (signInWithIdToken).
-      // 3. Reuse the exact OTP downstream: /auth/me decides new vs returning.
-      //    New user → profileComplete=false → RootNavigator shows
-      //    CompleteProfile (pick role). Returning user → routed by role.
+      // 3. /auth/me decides new vs returning. New customer/owner identities
+      //    are bootstrapped from the provider without a universal profile form;
+      //    employee intent continues to invitation verification.
       // One email = one account: Supabase automatically links Google to an
       // existing OTP/password user when the email is the same and verified.
       // Requires Google provider enabled in Supabase Dashboard.
@@ -509,6 +608,32 @@ export const useAuthStore = create<AuthState>()(
             : null;
 
           if (!profileComplete) {
+            const intendedRole = getRoleForPendingIntent();
+            if (intendedRole !== 'employee') {
+              const metadata = data.user?.user_metadata as Record<string, unknown> | undefined;
+              const providerName = String(metadata?.full_name || metadata?.name || '').trim() || undefined;
+              const bootstrapped = await authRepository.completeProfile({
+                role: intendedRole,
+                name: providerName,
+              });
+              if (!bootstrapped.success || !bootstrapped.profile) {
+                const message = bootstrapped.error ?? 'Could not finish Google sign-in. Please try again.';
+                set({ isLoading: false, error: message, isAuthenticated: true, profileComplete: false });
+                return { success: false, error: message };
+              }
+              set({
+                user: bootstrapped.profile,
+                token: accessToken,
+                refreshToken,
+                isAuthenticated: true,
+                profileComplete: true,
+                isLoading: false,
+                error: null,
+                authBootstrapComplete: true,
+              });
+              return { success: true };
+            }
+
             set({
               user: null,
               token: accessToken,
@@ -578,6 +703,20 @@ export const useAuthStore = create<AuthState>()(
           setAuthToken(accessToken);
           void syncSupabaseAuthSession(accessToken, refreshToken);
 
+          if (outcome.fullName) {
+            // Apple supplies the name only on the first authorization. Persist
+            // it immediately even when this identity links to an existing app
+            // profile, so later Apple authorizations can recover it.
+            const metadataResult = await supabase.auth.updateUser({
+              data: { full_name: outcome.fullName, name: outcome.fullName },
+            });
+            if (metadataResult.error) {
+              logger.warn('[Auth] Apple name metadata persistence failed', {
+                message: metadataResult.error.message,
+              });
+            }
+          }
+
           const { authService } = require('../services/authService');
           const meResponse = await authService.getMe();
           const responseData = meResponse.data as {
@@ -590,6 +729,34 @@ export const useAuthStore = create<AuthState>()(
             : null;
 
           if (!profileComplete) {
+            const intendedRole = getRoleForPendingIntent();
+            if (intendedRole !== 'employee') {
+              const sessionMetadata = data.user?.user_metadata as Record<string, unknown> | undefined;
+              const providerName = outcome.fullName
+                || String(sessionMetadata?.full_name || sessionMetadata?.name || '').trim()
+                || undefined;
+              const bootstrapped = await authRepository.completeProfile({
+                role: intendedRole,
+                name: providerName,
+              });
+              if (!bootstrapped.success || !bootstrapped.profile) {
+                const message = bootstrapped.error ?? 'Could not finish Apple sign-in. Please try again.';
+                set({ isLoading: false, error: message, isAuthenticated: true, profileComplete: false });
+                return { success: false, error: message };
+              }
+              set({
+                user: bootstrapped.profile,
+                token: accessToken,
+                refreshToken,
+                isAuthenticated: true,
+                profileComplete: true,
+                isLoading: false,
+                error: null,
+                authBootstrapComplete: true,
+              });
+              return { success: true };
+            }
+
             set({
               user: null,
               token: accessToken,

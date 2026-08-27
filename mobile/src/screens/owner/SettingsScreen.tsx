@@ -8,7 +8,6 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
-  Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
@@ -18,17 +17,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { Salon } from '../../types';
 import { Button } from '../../components/Button';
-import { useAuthStore } from '../../store/authStore';
 import { useTheme, ThemeMode } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { handleApiError } from '../../lib/errorHandler';
 import { salonRepository } from '../../repositories/salonRepository';
-import { showToast } from '../../store/toastStore';
 import { formatCopyright, formatVersionLine } from '../../config/appVersion';
-import {
-  ACCOUNT_DELETION_SUPPORT_EMAIL,
-  ACCOUNT_DELETION_WEB_URL,
-} from '../../lib/accountDeletion';
 import { NotificationSettingsSection } from '../../components/NotificationSettingsSection';
 import { SignOutButton } from '../../components/SignOutButton';
 import { normalizeSalon, resolveSalonImageSource } from '../../lib/salonImage';
@@ -51,8 +44,6 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
   const tabClearance = TAB_BAR_BASE_HEIGHT + insets.bottom + 16;
   const saveFooterHeight = 76;
   const queryClient = useQueryClient();
-  const { deleteAccount, isLoading: authLoading } = useAuthStore();
-  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [allowMultipleBookings, setAllowMultipleBookings] = useState(false);
   const [autoAccept, setAutoAccept] = useState(true);
   const [enableOffers, setEnableOffers] = useState(true);
@@ -120,60 +111,20 @@ export const SettingsScreen: React.FC<SettingsProps> = ({ navigation }) => {
     saveMutation.mutate();
   };
 
-  const openAccountDeletionWeb = () => {
-    void Linking.openURL(ACCOUNT_DELETION_WEB_URL).catch(() => {
-      showToast(`Visit ${ACCOUNT_DELETION_WEB_URL} or email ${ACCOUNT_DELETION_SUPPORT_EMAIL}`, 'error');
-    });
-  };
-
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete account',
-      'This permanently deletes your TrimiT account, salon data, and associated records. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete account',
-          style: 'destructive',
-          onPress: async () => {
-            setIsDeletingAccount(true);
-            const result = await deleteAccount();
-            setIsDeletingAccount(false);
-            if (!result.success) {
-              showToast(result.error ?? 'Could not delete account', 'error');
-            } else {
-              showToast('Your account has been deleted', 'success');
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const renderAccountDeletionSection = () => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Account</Text>
       <View style={styles.settingCard}>
         <Text style={styles.settingDescription}>
-          Delete your account and associated data from the app, or request deletion on the web.
+          Permanently remove your profile, salon workspace, and associated data.
         </Text>
         <TouchableOpacity
           style={styles.deleteAccountButton}
-          onPress={handleDeleteAccount}
-          disabled={isDeletingAccount || authLoading}
+          onPress={() => navigation.navigate('AccountDeletion')}
         >
-          {isDeletingAccount ? (
-            <ActivityIndicator size="small" color={theme.colors.error} />
-          ) : (
-            <>
-              <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
-              <Text style={styles.deleteAccountText}>Delete account</Text>
-            </>
-          )}
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteWebLink} onPress={openAccountDeletionWeb}>
-          <Text style={styles.deleteWebLinkText}>Request deletion on the web</Text>
-          <Ionicons name="open-outline" size={16} color={theme.colors.primary} />
+          <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+          <Text style={styles.deleteAccountText}>Review account deletion</Text>
+          <Ionicons name="chevron-forward" size={18} color={theme.colors.error} />
         </TouchableOpacity>
       </View>
     </View>

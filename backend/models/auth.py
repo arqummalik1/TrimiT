@@ -38,6 +38,12 @@ class PushTokenUpdate(BaseModel):
         description="Expo push token (ExponentPushToken[...]) or null to unregister",
     )
 
+
+class AccountDeletionRequest(BaseModel):
+    """Optional provider proof used to revoke Sign in with Apple access."""
+
+    apple_authorization_code: Optional[str] = Field(None, max_length=4096)
+
 class ResendConfirmationRequest(BaseModel):
     email: EmailStr
 
@@ -97,26 +103,20 @@ class CompleteProfileRequest(BaseModel):
     """
     Payload for POST /auth/complete-profile.
 
-    Called immediately after OTP verification when no public.users row
-    exists for the authenticated user. Role is required — there is no
-    server-side default. Name is required (min 1 char). Phone is optional.
+    Creates the application profile after authentication. Role remains explicit
+    and server-validated, while identity and role-specific setup fields are
+    progressive: provider name is used when available, phone is collected when
+    a customer books, and owner payment details are collected during salon setup.
 
-    upi_id is REQUIRED when role == 'owner' (salon owners are paid directly via
-    UPI), and ignored for customers. Validated in the handler so we can return a
-    structured error.
+    Employee claims are the exception: the invite phone is required so the
+    backend can link the authenticated identity to a pending staff invitation.
     """
     role: UserRole = Field(..., description="User role: 'customer', 'owner', or 'employee'. Required.")
-    name: str = Field(..., min_length=1, max_length=100, description="Full display name.")
-    phone: str = Field(..., min_length=10, max_length=20, description="Indian mobile (required).")
+    name: Optional[str] = Field(None, max_length=100, description="Provider display name, when available.")
+    phone: Optional[str] = Field(None, min_length=10, max_length=20, description="Indian mobile number.")
     upi_id: Optional[str] = Field(
         None, max_length=256, description="Owner UPI VPA (required for owners), e.g. name@bank."
     )
     gender: Optional[Literal["male", "female"]] = Field(
         None, description="Customer gender for personalized discovery."
     )
-
-    @model_validator(mode="after")
-    def customer_requires_gender(self):
-        if self.role == UserRole.customer and not self.gender:
-            raise ValueError("gender is required for customers")
-        return self

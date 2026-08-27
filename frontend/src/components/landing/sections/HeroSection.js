@@ -188,7 +188,7 @@ export default function HeroSection() {
                 <ArrowRight size={20} weight="bold" />
               </Link>
               <Link
-                to="/signup?role=owner"
+                to="/owner/start"
                 data-testid="hero-list-salon"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-base px-8 py-4 rounded-full font-bold text-white bg-white/10 border border-white/25 backdrop-blur-md hover:bg-white/20 transition-all"
               >

@@ -8,6 +8,7 @@ Login proxies Supabase /auth/v1/token (login_with_password).
 import pytest
 from fastapi import status
 from httpx import Response
+from unittest.mock import AsyncMock, patch
 
 
 def _override_user(app, user):
@@ -121,6 +122,88 @@ def test_delete_account_requires_auth(client):
     assert client.delete("/api/v1/auth/account").status_code == status.HTTP_401_UNAUTHORIZED
 
 
+def test_account_deletion_context_reports_provider_confirmations(client):
+    from services.account_deletion import AuthProviderContext
+
+    app = client.app
+    _override_user(app, {"id": "linked-user", "email": "linked@example.com"})
+    try:
+        with patch(
+            "routers.auth.auth_provider_context_for_user",
+            new=AsyncMock(
+                return_value=AuthProviderContext(frozenset({"apple", "google"}), "apple-sub")
+            ),
+        ):
+            response = client.get("/api/v1/auth/account/deletion-context")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == {
+            "requires_apple_confirmation": True,
+            "has_google_identity": True,
+        }
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_delete_account_removes_cleanup_profile_and_auth(client):
+    from services.account_deletion import AuthProviderContext
+
+    app = client.app
+    _override_user(app, {
+        "id": "delete-user",
+        "email": "delete@example.com",
+        "access_token": "tok",
+        "profile": {"id": "delete-user", "role": "customer"},
+    })
+    try:
+        request = AsyncMock(side_effect=[Response(204), Response(204)])
+        with (
+            patch(
+                "routers.auth.auth_provider_context_for_user",
+                new=AsyncMock(return_value=AuthProviderContext(frozenset({"email"}))),
+            ),
+            patch("routers.auth.delete_account_media", new=AsyncMock()) as media,
+            patch("routers.auth.delete_email_leads", new=AsyncMock()) as leads,
+            patch("routers.auth.supabase.request", new=request),
+        ):
+            response = client.request("DELETE", "/api/v1/auth/account", json={})
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["message"] == "Account and associated data deleted"
+        media.assert_awaited_once_with("delete-user")
+        leads.assert_awaited_once_with("delete@example.com")
+        assert request.await_args_list[0].args[:2] == (
+            "DELETE", "rest/v1/users?id=eq.delete-user"
+        )
+        assert request.await_args_list[1].args[:2] == (
+            "DELETE", "auth/v1/admin/users/delete-user"
+        )
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_delete_apple_account_requires_fresh_apple_confirmation(client):
+    from services.account_deletion import AuthProviderContext
+
+    app = client.app
+    _override_user(app, {"id": "apple-user", "email": "relay@apple.test", "access_token": "tok"})
+    try:
+        with patch(
+            "routers.auth.auth_provider_context_for_user",
+            new=AsyncMock(
+                return_value=AuthProviderContext(
+                    frozenset({"apple"}),
+                    "apple-subject",
+                )
+            ),
+        ):
+            response = client.request("DELETE", "/api/v1/auth/account", json={})
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["error"]["details"]["code"] == "APPLE_REAUTH_REQUIRED"
+    finally:
+        app.dependency_overrides = {}
+
+
 # ── complete profile ────────────────────────────────────────────────────────
 
 def test_complete_profile_requires_auth(client):
@@ -174,6 +257,107 @@ def test_complete_profile_success(client, mock_supabase):
         app.dependency_overrides = {}
 
 
+def test_social_customer_profile_does_not_require_name_phone_or_gender(client, mock_supabase):
+    app = client.app
+    _override_user(app, {
+        "id": "apple-user",
+        "email": "relay@privaterelay.appleid.com",
+        "user_metadata": {"full_name": "Apple Person"},
+        "access_token": "tok",
+    })
+    try:
+        mock_supabase.get("/rest/v1/users").return_value = Response(200, json=[])
+        mock_supabase.post("/rest/v1/users").return_value = Response(
+            201,
+            json=[{
+                "id": "apple-user",
+                "role": "customer",
+                "name": "Apple Person",
+                "email": "relay@privaterelay.appleid.com",
+                "phone": None,
+            }],
+        )
+
+        response = client.post(
+            "/api/v1/auth/complete-profile",
+            json={"role": "customer"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["profile"]["name"] == "Apple Person"
+        assert response.json()["profile"]["phone"] is None
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_owner_profile_defers_upi_and_phone_to_salon_setup(client, mock_supabase):
+    app = client.app
+    _override_user(app, {
+        "id": "owner-user",
+        "email": "owner@example.com",
+        "user_metadata": {"name": "Owner Person"},
+        "access_token": "tok",
+    })
+    try:
+        mock_supabase.get("/rest/v1/users").return_value = Response(200, json=[])
+        mock_supabase.post("/rest/v1/users").return_value = Response(
+            201,
+            json=[{"id": "owner-user", "role": "owner", "name": "Owner Person"}],
+        )
+        response = client.post(
+            "/api/v1/auth/complete-profile",
+            json={"role": "owner"},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["profile"]["role"] == "owner"
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_existing_customer_can_explicitly_activate_owner_workspace(client):
+    app = client.app
+    _override_user(app, {
+        "id": "customer-owner",
+        "email": "owner@example.com",
+        "access_token": "tok",
+    })
+    existing = {"id": "customer-owner", "role": "customer", "name": "Owner Person"}
+    activated = {**existing, "role": "owner"}
+    try:
+        with (
+            patch(
+                "routers.auth.fetch_profile_service_role",
+                new=AsyncMock(side_effect=[existing, activated]),
+            ),
+            patch("routers.auth.supabase.request", new=AsyncMock(return_value=Response(204))) as request,
+        ):
+            response = client.post(
+                "/api/v1/auth/complete-profile",
+                json={"role": "owner"},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["profile"]["role"] == "owner"
+        assert response.json()["message"] == "Workspace activated successfully"
+        assert request.await_args.kwargs["json"] == {"role": "owner"}
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_employee_claim_still_requires_invited_phone(client):
+    app = client.app
+    _override_user(app, {"id": "employee-user", "email": "employee@example.com", "access_token": "tok"})
+    try:
+        response = client.post(
+            "/api/v1/auth/complete-profile",
+            json={"role": "employee"},
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert "PHONE_REQUIRED" in str(response.json())
+    finally:
+        app.dependency_overrides = {}
+
+
 @pytest.mark.asyncio
 async def test_resolve_profile_for_user_missing_returns_none(mock_supabase):
     # Mock GET /rest/v1/users returning empty list (meaning profile missing)
@@ -202,5 +386,3 @@ async def test_resolve_profile_for_user_exists_returns_row(mock_supabase):
     assert result is not None
     assert result["role"] == "owner"
     assert result["name"] == "Existing Owner"
-
-

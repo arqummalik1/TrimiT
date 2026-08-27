@@ -23,6 +23,7 @@ type GoogleSigninModule = {
     hasPlayServices: (opts?: Record<string, unknown>) => Promise<boolean>;
     signIn: () => Promise<unknown>;
     signOut: () => Promise<unknown>;
+    revokeAccess?: () => Promise<unknown>;
   };
   statusCodes: {
     SIGN_IN_CANCELLED: string;
@@ -234,5 +235,21 @@ export async function signOutGoogle(): Promise<void> {
     await mod.GoogleSignin.signOut();
   } catch (err) {
     logger.warn('[GoogleAuth] signOut failed', { err: String(err) });
+  }
+}
+
+/** Best-effort revocation used after permanent account deletion. */
+export async function revokeGoogleAccess(): Promise<void> {
+  const mod = loadGoogleSignin();
+  if (!mod?.GoogleSignin.revokeAccess) return;
+  try {
+    configureGoogleSignIn();
+    await mod.GoogleSignin.revokeAccess();
+  } catch (err) {
+    // The backend account has already been deleted at this point. Do not trap
+    // the user in a deleted session if the provider SDK has nothing to revoke.
+    logger.warn('[GoogleAuth] revokeAccess failed after account deletion', {
+      err: String(err),
+    });
   }
 }

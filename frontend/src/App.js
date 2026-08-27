@@ -51,6 +51,14 @@ import BlogPostPage from "./pages/blog/BlogPostPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import { SEO_PAGE_PATHS } from "./config/seoPages";
 import { usePageviewTracker } from "./hooks/usePageviewTracker";
+import OwnerStartPage from "./pages/OwnerStartPage";
+import ProfileBootstrapPage from "./pages/ProfileBootstrapPage";
+import AccountDeletionPage from "./pages/AccountDeletionPage";
+import {
+  intentForProtectedPath,
+  loginPathForIntent,
+  setPendingAuthIntent,
+} from "./lib/pendingAuthIntent";
 
 // Components
 import Header from "./components/Header";
@@ -64,6 +72,7 @@ import PromoBanner from "./components/PromoBanner";
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, profile, isInitializing } = useAuthStore();
+  const location = useLocation();
 
   if (isInitializing) {
     return (
@@ -83,17 +92,24 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    const intent = intentForProtectedPath(location.pathname);
+    return <Navigate to={intent ? loginPathForIntent(intent) : "/login"} replace />;
   }
 
-  // Authenticated but no profile row yet (new user mid-signup, or a broken
-  // account). Force them through CompleteProfile before any protected page —
-  // same gate as the mobile app.
+  // Automatic profile creation may have been interrupted by a transient error.
+  // Retry it without asking the user for identity data or a generic role form.
   if (!profile?.role) {
-    return <Navigate to="/complete-profile" replace />;
+    const intent = intentForProtectedPath(location.pathname);
+    if (intent) setPendingAuthIntent(intent);
+    return <Navigate to={intent?.kind === 'employee_claim' ? "/employee-access" : "/complete-profile"} replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(profile.role)) {
+    const intent = intentForProtectedPath(location.pathname);
+    if (intent?.kind === 'owner_onboarding' && profile.role === 'customer') {
+      setPendingAuthIntent(intent);
+      return <Navigate to="/owner/start" replace />;
+    }
     return <Navigate to="/" replace />;
   }
 
@@ -169,11 +185,12 @@ function App() {
   // Redirect based on role and salon existence
   const getHomeRoute = () => {
     if (!isAuthenticated) return "/";
-    if (isAuthenticated && !profile?.role) return "/complete-profile";
+    if (isAuthenticated && !profile?.role) return "/login";
     if (profile?.role === "owner") {
       // If owner has no salon, redirect to create salon page
       return hasSalon ? "/owner/dashboard" : "/owner/salon";
     }
+    if (profile?.role === "employee") return "/owner/dashboard";
     return "/explore";
   };
 
@@ -193,7 +210,9 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-otp" element={<VerifyOtpPage />} />
-          <Route path="/complete-profile" element={<CompleteProfilePage />} />
+          <Route path="/complete-profile" element={<ProfileBootstrapPage />} />
+          <Route path="/employee-access" element={<CompleteProfilePage />} />
+          <Route path="/owner/start" element={<OwnerStartPage />} />
           <Route
             path="/auth/email-confirmed"
             element={<EmailConfirmedPage />}
@@ -202,6 +221,7 @@ function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/delete-account" element={<AccountDeletionPage />} />
           <Route path="/explore" element={<ExplorePage />} />
           <Route path="/for-salons" element={<ForSalonsPage />} />
           <Route path="/help/payments" element={<PaymentsHelpPage />} />
@@ -223,7 +243,7 @@ function App() {
           <Route
             path="/booking/:salonId/:serviceId"
             element={
-              <ProtectedRoute allowedRoles={["customer"]}>
+              <ProtectedRoute allowedRoles={["customer", "owner", "employee"]}>
                 <BookingPage />
               </ProtectedRoute>
             }
@@ -231,7 +251,7 @@ function App() {
           <Route
             path="/payment/:bookingId/waiting"
             element={
-              <ProtectedRoute allowedRoles={["customer"]}>
+              <ProtectedRoute allowedRoles={["customer", "owner", "employee"]}>
                 <PaymentWaitingPage />
               </ProtectedRoute>
             }
@@ -239,7 +259,7 @@ function App() {
           <Route
             path="/my-bookings"
             element={
-              <ProtectedRoute allowedRoles={["customer"]}>
+              <ProtectedRoute allowedRoles={["customer", "owner", "employee"]}>
                 <MyBookings />
               </ProtectedRoute>
             }
@@ -247,7 +267,7 @@ function App() {
           <Route
             path="/account"
             element={
-              <ProtectedRoute allowedRoles={["customer"]}>
+              <ProtectedRoute allowedRoles={["customer", "owner", "employee"]}>
                 <AccountPage />
               </ProtectedRoute>
             }
@@ -257,7 +277,7 @@ function App() {
           <Route
             path="/owner/dashboard"
             element={
-              <ProtectedRoute allowedRoles={["owner"]}>
+              <ProtectedRoute allowedRoles={["owner", "employee"]}>
                 <OwnerSubscriptionGate>
                   <OwnerDashboard />
                 </OwnerSubscriptionGate>
@@ -307,7 +327,7 @@ function App() {
           <Route
             path="/owner/bookings"
             element={
-              <ProtectedRoute allowedRoles={["owner"]}>
+              <ProtectedRoute allowedRoles={["owner", "employee"]}>
                 <OwnerSubscriptionGate>
                   <ManageBookings />
                 </OwnerSubscriptionGate>

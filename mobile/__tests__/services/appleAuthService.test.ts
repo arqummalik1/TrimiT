@@ -44,6 +44,7 @@ describe('appleAuthService', () => {
   it('returns idToken + rawNonce on success', async () => {
     mockSignInAsync.mockResolvedValue({
       identityToken: 'apple.jwt.token',
+      authorizationCode: 'fresh-apple-code',
       fullName: { givenName: 'Ada', familyName: 'Lovelace' },
     });
 
@@ -52,6 +53,7 @@ describe('appleAuthService', () => {
     if (result.ok) {
       expect(result.idToken).toBe('apple.jwt.token');
       expect(result.rawNonce.length).toBeGreaterThan(10);
+      expect(result.authorizationCode).toBe('fresh-apple-code');
       expect(result.fullName).toBe('Ada Lovelace');
     }
     expect(mockSignInAsync).toHaveBeenCalledWith(

@@ -51,6 +51,12 @@ describe('Header Component', () => {
     // Should see sign in / sign up
     expect(screen.getByTestId('login-btn')).toBeInTheDocument();
     expect(screen.getByTestId('signup-btn')).toBeInTheDocument();
+
+    // Personal destinations are not navigation for a guest. They appear only
+    // after authentication instead of being rendered in a disabled state.
+    expect(screen.queryByTestId('nav-account')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('nav-my-bookings')).not.toBeInTheDocument();
+    expect(screen.queryByText('My bookings')).not.toBeInTheDocument();
   });
 
   it('renders correctly for authenticated customer', () => {
