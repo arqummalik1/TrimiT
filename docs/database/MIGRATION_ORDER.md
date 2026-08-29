@@ -52,4 +52,19 @@ Apply manually in the Supabase SQL editor. **Do not rename** files already appli
 |---|------|-----|
 | 44 | `44_fix_salon_subscription_trigger_fk.sql` | Migration 41's BEFORE INSERT trigger breaks new salon inserts (FK on `subscriptions.salon_id`). **Every new owner is blocked until this runs.** |
 
-After 44, continue with `45` … `61` in numeric order (see `docs/v2_docs/MIGRATION_ORDER_v2.md` when present).
+After 44, continue with `45` … `63` in numeric order (see `docs/v2_docs/MIGRATION_ORDER_v2.md` when present).
+
+## Critical — permanent account deletion
+
+Before deploying the mobile/web account-deletion flow:
+
+1. Apply `62_rls_hardening_critical.sql` if it is not already present.
+2. Apply `63_account_deletion_integrity.sql` in the Supabase SQL Editor.
+3. Deploy the backend containing both `GET /api/v1/auth/account/deletion-context`
+   and `DELETE /api/v1/auth/account`.
+4. Verify both unauthenticated routes return `401` (not `404`) before shipping
+   the corresponding mobile build.
+
+Migration 63 changes the remaining blocking foreign keys to `CASCADE` or
+`SET NULL`. Without it, deleting an owner or a user referenced by payment,
+notification, reschedule, promotion, or verification records can fail partway.

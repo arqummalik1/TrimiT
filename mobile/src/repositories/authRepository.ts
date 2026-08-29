@@ -24,6 +24,7 @@ export type AuthErrorCode =
   | 'PROFILE_CREATE_FAILED'
   | 'LOGIN_FAILED'
   | 'SIGNUP_FAILED'
+  | 'NOT_FOUND'
   | 'NETWORK_ERROR'
   | 'UNKNOWN';
 
@@ -38,7 +39,13 @@ function translateMobileAuthError(message: string): string {
     return 'The verification code you entered is invalid or has expired. Please check the code or request a new one.';
   }
 
-  if (lowerMessage.includes('invalid login credentials') || (lowerMessage.includes('credentials') && lowerMessage.includes('invalid')) || lowerMessage.includes('incorrect') || lowerMessage.includes('not found')) {
+  if (
+    lowerMessage.includes('invalid login credentials') ||
+    lowerMessage.includes('invalid email or password') ||
+    (lowerMessage.includes('email') &&
+      lowerMessage.includes('password') &&
+      lowerMessage.includes('incorrect'))
+  ) {
     return 'The email address or password you entered is incorrect. Please verify and try again.';
   }
 
@@ -331,11 +338,15 @@ export const authRepository = {
         hasGoogleIdentity: response.data?.has_google_identity === true,
       };
     } catch (err: unknown) {
-      const { message } = parseAuthFailure(err);
+      const { message, code } = parseAuthFailure(err);
+      const endpointMissing =
+        code === 'NOT_FOUND' || (isAppError(err) && err.status === 404);
       return {
         requiresAppleConfirmation: false,
         hasGoogleIdentity: false,
-        error: message,
+        error: endpointMissing
+          ? `Account deletion is temporarily unavailable because the server needs to be updated. Please try again shortly or contact ${SUPPORT_EMAIL}.`
+          : message,
       };
     }
   },
@@ -351,11 +362,33 @@ export const authRepository = {
       );
       return { success: true };
     } catch (err: unknown) {
+      if (isAppError(err)) {
+        const { message, code } = parseAuthFailure(err);
+        const endpointMissing = code === 'NOT_FOUND' || err.status === 404;
+        return {
+          success: false,
+          error: endpointMissing
+            ? `Account deletion is temporarily unavailable because the server needs to be updated. Please try again shortly or contact ${SUPPORT_EMAIL}.`
+            : message,
+        };
+      }
       if (axios.isAxiosError(err)) {
         const detail = err.response?.data?.detail;
+        const envelope = err.response?.data?.error;
         const nested = err.response?.data?.error?.details;
+        const code =
+          (typeof nested === 'object' && nested?.code) ||
+          (typeof envelope === 'object' && envelope?.code) ||
+          (typeof detail === 'object' && detail?.code);
+        if (code === 'NOT_FOUND' || err.response?.status === 404) {
+          return {
+            success: false,
+            error: `Account deletion is temporarily unavailable because the server needs to be updated. Please try again shortly or contact ${SUPPORT_EMAIL}.`,
+          };
+        }
         const message =
           (typeof nested === 'object' && nested?.message) ||
+          (typeof envelope === 'object' && envelope?.message) ||
           (typeof detail === 'object' && detail?.message) ||
           (typeof detail === 'string' && detail) ||
           `Could not delete your account. Please try again or contact ${SUPPORT_EMAIL}.`;

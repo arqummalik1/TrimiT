@@ -189,12 +189,11 @@ module.exports = ({ config }) => {
         bundleIdentifier: 'online.trimit.app',
         // App Store Guideline 4.8: required when offering Google / social login.
         usesAppleSignIn: true,
-        // Time Sensitive + Critical Alerts (Rapido-style): ring when app is
-        // backgrounded/killed, including mute switch / Focus — requires Apple
-        // Critical Alerts entitlement approval for online.trimit.app.
+        // Time Sensitive notifications can break through Focus when the user
+        // allows them. Do not add Critical Alerts until Apple approves the
+        // managed capability for online.trimit.app; otherwise device signing fails.
         entitlements: {
           'com.apple.developer.usernotifications.time-sensitive': true,
-          'com.apple.developer.usernotifications.critical-alerts': true,
         },
         infoPlist: {
           NSLocationWhenInUseUsageDescription: 'TrimiT uses your location to find nearby salons.',

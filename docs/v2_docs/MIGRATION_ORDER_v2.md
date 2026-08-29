@@ -71,9 +71,29 @@ WHERE table_name = 'services' AND column_name = 'audience';
 -- 59–61: promo system
 SELECT to_regclass('public.platform_campaigns');
 SELECT code, active FROM platform_campaigns WHERE code = 'TRIMIT50';
+
+-- 63: account-deletion foreign keys must not block user/profile removal
+SELECT conrelid::regclass AS table_name,
+       conname,
+       confdeltype
+FROM pg_constraint
+WHERE contype = 'f'
+  AND conname IN (
+    'promotions_created_by_fkey',
+    'booking_reschedules_initiated_by_fkey',
+    'refunds_payment_id_fkey',
+    'payments_booking_id_fkey',
+    'payments_salon_id_fkey',
+    'payments_user_id_fkey',
+    'notification_events_recipient_user_id_fkey',
+    'bookings_verified_by_fkey'
+  )
+ORDER BY conname;
 ```
 
-Expected: `has_table_privilege` → **false** for authenticated UPDATE on bookings; all columns present.
+Expected: `has_table_privilege` → **false** for authenticated UPDATE on bookings;
+all columns present; migration 63 constraints report delete action `c` (cascade)
+or `n` (set null), never `a` (no action).
 
 ## After applying 55–61
 
@@ -82,3 +102,7 @@ Expected: `has_table_privilege` → **false** for authenticated UPDATE on bookin
 - Employee signs up with matching phone + role `employee`
 - **57–58 applied in Supabase SQL Editor (2026-07-05):** service categories + gender serve / discovery live in production
 - **59–61:** Lane A/B promo system — see `docs/v2_docs/DEVELOPER_GUIDE.md`
+- **62:** RLS hardening (already marked live in `PROGRESS_v2.md`)
+- **63:** Account-deletion integrity; apply before deploying/shipping the in-app
+  deletion flow, then verify both deletion API routes return `401`, not `404`,
+  without authentication.

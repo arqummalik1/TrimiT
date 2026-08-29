@@ -63,7 +63,10 @@ const appError = (kind: string, message: string, extra: Record<string, unknown> 
 });
 
 /** Build an axios-shaped error (jest.setup: isAxiosError = !!err.isAxiosError). */
-const axiosError = (data: unknown) => ({ isAxiosError: true, response: { data } });
+const axiosError = (data: unknown, status?: number) => ({
+  isAxiosError: true,
+  response: { data, status },
+});
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -83,6 +86,14 @@ describe('parseAuthFailure', () => {
   it('maps "invalid login credentials" to credentials copy', () => {
     const { message } = parseAuthFailure(appError('validation', 'Invalid login credentials'));
     expect(message).toMatch(/email address or password you entered is incorrect/i);
+  });
+
+  it('does not misreport a missing API route as bad email/password', () => {
+    const { message, code } = parseAuthFailure(
+      appError('unknown', 'Not Found', { code: 'NOT_FOUND', status: 404 }),
+    );
+    expect(message).toBe('Not Found');
+    expect(code).toBe('NOT_FOUND');
   });
 
   it('maps rate-limit phrases to throttling copy', () => {
@@ -417,6 +428,15 @@ describe('authRepository.deleteAccount', () => {
     expect(context).toEqual({ requiresAppleConfirmation: true, hasGoogleIdentity: true });
   });
 
+  it('reports a deployment mismatch when the deletion-context route is missing', async () => {
+    mockGetAccountDeletionContext.mockRejectedValue(
+      appError('unknown', 'Not Found', { code: 'NOT_FOUND', status: 404 }),
+    );
+    const context = await authRepository.getAccountDeletionContext();
+    expect(context.error).toMatch(/server needs to be updated/i);
+    expect(context.error).not.toMatch(/email address or password/i);
+  });
+
   it('returns success when the service resolves', async () => {
     mockDeleteAccount.mockResolvedValue({ data: {} });
     const result = await authRepository.deleteAccount();
@@ -444,6 +464,29 @@ describe('authRepository.deleteAccount', () => {
     );
     const result = await authRepository.deleteAccount();
     expect(result.error).toBe('Confirm with Apple.');
+  });
+
+  it('surfaces a normalized AppError from the shared API client', async () => {
+    mockDeleteAccount.mockRejectedValue(
+      appError('conflict', 'Account data could not be removed.', {
+        code: 'ACCOUNT_DATA_DELETE_BLOCKED',
+        status: 409,
+      }),
+    );
+    const result = await authRepository.deleteAccount();
+    expect(result.error).toBe('Account data could not be removed.');
+  });
+
+  it('reports a deployment mismatch when the delete route is missing', async () => {
+    mockDeleteAccount.mockRejectedValue(
+      axiosError(
+        { error: { code: 'NOT_FOUND', message: 'Not Found', details: {} } },
+        404,
+      ),
+    );
+    const result = await authRepository.deleteAccount();
+    expect(result.error).toMatch(/server needs to be updated/i);
+    expect(result.error).not.toMatch(/email address or password/i);
   });
 
   it('returns a network error for a non-axios failure', async () => {

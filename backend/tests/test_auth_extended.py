@@ -122,6 +122,11 @@ def test_delete_account_requires_auth(client):
     assert client.delete("/api/v1/auth/account").status_code == status.HTTP_401_UNAUTHORIZED
 
 
+def test_account_deletion_context_requires_auth(client):
+    response = client.get("/api/v1/auth/account/deletion-context")
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
 def test_account_deletion_context_reports_provider_confirmations(client):
     from services.account_deletion import AuthProviderContext
 

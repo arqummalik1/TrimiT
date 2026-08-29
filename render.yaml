@@ -24,6 +24,16 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      # Required for standards-compliant deletion of Sign in with Apple accounts.
+      # Keep the values in Render secrets; never commit the .p8 key.
+      - key: APPLE_CLIENT_ID
+        sync: false
+      - key: APPLE_TEAM_ID
+        sync: false
+      - key: APPLE_KEY_ID
+        sync: false
+      - key: APPLE_PRIVATE_KEY
+        sync: false
       - key: RAZORPAY_KEY_ID
         sync: false
       - key: RAZORPAY_KEY_SECRET

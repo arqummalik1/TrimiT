@@ -1210,7 +1210,7 @@ Only path that reliably rings through the **silent switch** for background pushe
 
 Closed-app alerts are **remote push**, not local code. The phone must have a valid push token and Expo must have your **APNs key**.
 
-**Mute switch / Focus (iOS):** To **force sound like Rapido even on silent**, Apple requires **Critical Alerts** entitlement. Without it, notification can still **appear** when killed, but sound may be silenced by the Ring/Silent switch. Code is already set for Critical Alerts — you must get Apple’s approval.
+**Mute switch / Focus (iOS):** To **force sound like Rapido even on silent**, Apple requires **Critical Alerts** entitlement. Without it, notification can still **appear** when killed, but sound may be silenced by the Ring/Silent switch. The current build uses Time Sensitive notifications so it remains signable while Critical Alerts approval is pending.
 
 ---
 
@@ -1218,10 +1218,10 @@ Closed-app alerts are **remote push**, not local code. The phone must have a val
 
 | Piece | Behavior |
 |-------|----------|
-| Backend booking push | `sound: notification.mp3`, `priority: high`, `interruptionLevel: critical`, `badge: 1` |
+| Backend booking push | `sound: notification.mp3`, `priority: high`, `interruptionLevel: time-sensitive`, `badge: 1` |
 | Android channel | `bookings_v2` + `bypassDnd: true` (already Rapido-like on Android) |
-| iOS entitlements | Time Sensitive + **Critical Alerts** |
-| Permission request | Alerts + Sound + **Critical Alerts** |
+| iOS entitlements | Time Sensitive; add **Critical Alerts only after Apple approval** |
+| Permission request | Alerts + Sound; add **Critical Alerts only after Apple approval** |
 | Foreground chime | `playsInSilentMode: true` |
 
 After any pull: **Part E** + reinstall on a **physical iPhone**.

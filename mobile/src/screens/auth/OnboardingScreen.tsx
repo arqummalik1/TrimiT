@@ -15,48 +15,46 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '../../components/Button';
+import { StatusBar } from 'expo-status-bar';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { useAuthStore } from '../../store/authStore';
-import { useTheme } from '../../theme/ThemeContext';
+import { lightTheme } from '../../theme/lightTheme';
 import { Theme } from '../../theme/tokens';
+import { KineticEditorialScene } from './onboarding/KineticEditorialScenes';
+import {
+  KINETIC_MOTION,
+  KineticLayout,
+  KineticSlideId,
+  kineticHaptics,
+} from './onboarding/kineticEditorial';
 
 type Slide = {
-  id: 'discover' | 'booking' | 'choices';
+  id: KineticSlideId;
   eyebrow: string;
   title: string;
   body: string;
 };
 
-type OnboardingLayout = {
-  screenWidth: number;
-  contentWidth: number;
-  compact: boolean;
-  visualHeight: number;
-};
-
 const SLIDES: Slide[] = [
   {
-    id: 'discover',
-    eyebrow: 'TIME, WELL SPENT',
-    title: 'Less waiting. More living.',
-    body: 'Plan ahead and keep your day moving.',
+    id: 'time',
+    eyebrow: 'TIME, BEAUTIFULLY YOURS',
+    title: 'Less waiting.\nMore living.',
+    body: 'Plan before you go—and\nkeep the rest of your day yours.',
   },
   {
-    id: 'booking',
+    id: 'book',
     eyebrow: 'BOOK AROUND YOUR DAY',
-    title: 'Plan it. Book it.',
-    body: 'Choose a salon, service, and available time.',
+    title: 'Your time.\nYour choice.',
+    body: 'Choose a salon, service, and\navailable time—on your terms.',
   },
   {
-    id: 'choices',
-    eyebrow: 'MORE CHOICE, ONE PLACE',
-    title: 'Explore salons & beauty parlours.',
-    body: 'Compare services, prices, reviews, and available slots.',
+    id: 'discover',
+    eyebrow: 'BEAUTY, YOUR WAY',
+    title: 'Find the place\nthat feels right.',
+    body: 'Compare services, prices, reviews,\nand availability—all in one place.',
   },
 ];
-
-type SceneMotionVariant = 'focus' | 'rise' | 'shift';
 
 function useReduceMotionPreference() {
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -64,7 +62,7 @@ function useReduceMotionPreference() {
   useEffect(() => {
     let mounted = true;
     AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (mounted && enabled) setReduceMotion(true);
+      if (mounted) setReduceMotion(enabled);
     });
     const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
     return () => {
@@ -76,270 +74,118 @@ function useReduceMotionPreference() {
   return reduceMotion;
 }
 
-function SceneEntrance({
-  active,
+function EditorialAction({
+  title,
+  onPress,
+  compact,
   reduceMotion,
-  variant,
-  children,
 }: {
-  active: boolean;
+  title: string;
+  onPress: () => void;
+  compact: boolean;
   reduceMotion: boolean;
-  variant: SceneMotionVariant;
-  children: React.ReactNode;
 }) {
-  const progress = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+  const theme = lightTheme;
+  const scale = useRef(new Animated.Value(1)).current;
+  const depth = useRef(new Animated.Value(0)).current;
+  const glow = useRef(new Animated.Value(0)).current;
+  const styles = useMemo(() => createActionStyles(theme, compact), [compact, theme]);
 
-  useEffect(() => {
-    progress.stopAnimation();
-    if (!active) {
-      progress.setValue(0);
+  const press = (pressed: boolean) => {
+    if (reduceMotion) return;
+    if (pressed) {
+      Animated.parallel([
+        Animated.timing(scale, {
+          toValue: KINETIC_MOTION.pressScale,
+          duration: KINETIC_MOTION.pressInMs,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(depth, {
+          toValue: KINETIC_MOTION.pressDepth,
+          duration: KINETIC_MOTION.pressInMs,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(glow, {
+          toValue: 1,
+          duration: KINETIC_MOTION.pressInMs,
+          useNativeDriver: true,
+        }),
+      ]).start();
       return;
     }
-    if (reduceMotion) {
-      progress.setValue(1);
-      return;
-    }
-    progress.setValue(0);
-    Animated.timing(progress, {
-      toValue: 1,
-      duration: 480,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [active, progress, reduceMotion]);
-
-  const transform = variant === 'focus'
-    ? [{ scale: progress.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }]
-    : variant === 'rise'
-      ? [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }]
-      : [{ translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [26, 0] }) }];
-
-  return (
-    <Animated.View style={[motionStyles.fill, { opacity: progress, transform }]}>
-      {children}
-    </Animated.View>
-  );
-}
-
-function TimeRespectCard({ theme, layout, reduceMotion }: { theme: Theme; layout: OnboardingLayout; reduceMotion: boolean }) {
-  const styles = useMemo(() => createVisualStyles(theme, layout), [theme, layout]);
-  const flipProgress = useRef(new Animated.Value(0)).current;
-  const [isFlipped, setIsFlipped] = useState(false);
-
-  const flip = () => {
-    const nextFlipped = !isFlipped;
-    setIsFlipped(nextFlipped);
-    Animated.timing(flipProgress, {
-      toValue: nextFlipped ? 1 : 0,
-      duration: reduceMotion ? 0 : 520,
-      easing: Easing.inOut(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: 1,
+        ...KINETIC_MOTION.spring,
+        useNativeDriver: true,
+      }),
+      Animated.spring(depth, {
+        toValue: 0,
+        ...KINETIC_MOTION.spring,
+        useNativeDriver: true,
+      }),
+      Animated.timing(glow, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
-  const frontRotation = flipProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
-  const backRotation = flipProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['180deg', '360deg'],
-  });
+  const activate = () => {
+    kineticHaptics.impact();
+    onPress();
+  };
 
   return (
-    <Pressable
-      testID="onboarding-time-card"
-      onPress={flip}
-      style={styles.flipPressable}
-      accessibilityRole="button"
-      accessibilityLabel={isFlipped ? 'Show the time-reserved card' : 'Show how TrimiT saves time'}
-      accessibilityHint="Flips the card"
-      accessibilityState={{ expanded: isFlipped }}
-    >
-      <View style={styles.flipStage}>
-        <Animated.View
-          pointerEvents={isFlipped ? 'none' : 'auto'}
-          accessibilityElementsHidden={isFlipped}
-          importantForAccessibility={isFlipped ? 'no-hide-descendants' : 'auto'}
-          style={[styles.flipFace, { transform: [{ perspective: 1000 }, { rotateY: frontRotation }] }]}
+    <View style={styles.shadowStage}>
+      <Animated.View style={[styles.pressGlow, { opacity: glow }]} />
+      <Animated.View style={{ transform: [{ translateY: depth }, { scale }] }}>
+        <Pressable
+          testID="onboarding-primary-action"
+          style={styles.action}
+          onPress={activate}
+          onPressIn={() => press(true)}
+          onPressOut={() => press(false)}
+          accessibilityRole="button"
+          accessibilityLabel={title}
         >
-          <View style={styles.timeTopRow}>
-            <Text style={styles.sceneOverline}>PLAN AHEAD</Text>
-            <View style={styles.touchBadge}>
-              <Ionicons name="hand-left-outline" size={16} color={theme.colors.primary} />
-            </View>
+          <Text style={styles.actionText}>{title}</Text>
+          <View style={styles.actionArrow}>
+            <Ionicons name="chevron-forward" size={compact ? 18 : 20} color={theme.colors.textInverse} />
           </View>
-          <View style={styles.timeFocus}>
-            <View style={styles.clockHalo}>
-              <View style={styles.clockCore}>
-                <Ionicons name="time-outline" size={layout.compact ? 31 : 38} color={theme.colors.textInverse} />
-              </View>
-            </View>
-            <Text style={styles.timeFocusTitle}>Plan before you go.</Text>
-            <Text style={styles.timeFocusMeta}>No uncertain walk-in queue.</Text>
-          </View>
-          <View style={styles.timeBottomRow}>
-            <View style={styles.flipHint}>
-              <Ionicons name="sync-outline" size={14} color={theme.colors.textSecondary} />
-              <Text style={styles.flipHintText}>Tap to see how</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={18} color={theme.colors.primary} />
-          </View>
-        </Animated.View>
-
-        <Animated.View
-          pointerEvents={isFlipped ? 'auto' : 'none'}
-          accessibilityElementsHidden={!isFlipped}
-          importantForAccessibility={isFlipped ? 'auto' : 'no-hide-descendants'}
-          style={[styles.flipFace, styles.flipBack, { transform: [{ perspective: 1000 }, { rotateY: backRotation }] }]}
-        >
-          <Text style={styles.backOverline}>YOUR DAY, UNINTERRUPTED</Text>
-          <Text style={styles.backTitle}>Your day stays yours.</Text>
-          <View style={styles.miniJourney}>
-            {[
-              ['search-outline', 'Find'],
-              ['calendar-outline', 'Plan'],
-              ['checkmark-outline', 'Go'],
-            ].map(([icon, label], index) => (
-              <React.Fragment key={label}>
-                <View style={styles.miniStep}>
-                  <View style={styles.miniStepIcon}>
-                    <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={15} color={theme.colors.textInverse} />
-                  </View>
-                  <Text style={styles.miniStepText}>{label}</Text>
-                </View>
-                {index < 2 ? <View style={styles.miniConnector} /> : null}
-              </React.Fragment>
-            ))}
-          </View>
-          <View style={styles.backHint}>
-            <Ionicons name="sync-outline" size={14} color={theme.colors.textInverse} />
-            <Text style={styles.backHintText}>Tap to flip back</Text>
-          </View>
-        </Animated.View>
-      </View>
-    </Pressable>
-  );
-}
-
-function SlideVisual({
-  id,
-  theme,
-  layout,
-  active,
-  reduceMotion,
-}: {
-  id: Slide['id'];
-  theme: Theme;
-  layout: OnboardingLayout;
-  active: boolean;
-  reduceMotion: boolean;
-}) {
-  const styles = useMemo(() => createVisualStyles(theme, layout), [theme, layout]);
-
-  if (id === 'discover') {
-    return (
-      <SceneEntrance active={active} reduceMotion={reduceMotion} variant="focus">
-        <TimeRespectCard theme={theme} layout={layout} reduceMotion={reduceMotion} />
-      </SceneEntrance>
-    );
-  }
-
-  if (id === 'booking') {
-    return (
-      <SceneEntrance active={active} reduceMotion={reduceMotion} variant="rise">
-        <View style={styles.bookingScene} testID="onboarding-booking-scene">
-          <View style={styles.bookingTopRow}>
-            <Text style={styles.sceneOverline}>CHOOSE YOUR TIME</Text>
-            <Ionicons name="calendar-outline" size={20} color={theme.colors.primary} />
-          </View>
-          <View style={styles.calendarHeading}>
-            <Text style={styles.calendarMonth}>Friday</Text>
-            <Text style={styles.calendarDate}>25 May</Text>
-          </View>
-          <View style={styles.dateRail}>
-            {[
-              ['THU', '24'],
-              ['FRI', '25'],
-              ['SAT', '26'],
-            ].map(([day, date], index) => (
-              <View key={date} style={[styles.dateCell, index === 1 && styles.dateCellSelected]}>
-                <Text style={[styles.dateDay, index === 1 && styles.dateTextSelected]}>{day}</Text>
-                <Text style={[styles.dateNumber, index === 1 && styles.dateTextSelected]}>{date}</Text>
-              </View>
-            ))}
-          </View>
-          <View style={styles.slotRail}>
-            <View style={styles.slotPillMuted}><Text style={styles.slotTextMuted}>10:30</Text></View>
-            <View style={styles.slotPillSelected}>
-              <Ionicons name="checkmark" size={15} color={theme.colors.textInverse} />
-              <Text style={styles.slotTextSelected}>11:45</Text>
-            </View>
-            <View style={styles.slotPillMuted}><Text style={styles.slotTextMuted}>1:15</Text></View>
-          </View>
-        </View>
-      </SceneEntrance>
-    );
-  }
-
-  return (
-    <SceneEntrance active={active} reduceMotion={reduceMotion} variant="shift">
-      <View style={styles.choicesScene} testID="onboarding-choices-scene">
-        <View style={styles.choicesTopRow}>
-          <Text style={styles.sceneOverline}>FIND YOUR PERFECT MATCH</Text>
-          <Ionicons name="search-outline" size={20} color={theme.colors.primary} />
-        </View>
-        <View style={styles.salonChoiceRail}>
-          {[
-            ['cut-outline', 'Salons'],
-            ['sparkles-outline', 'Beauty\nparlours'],
-            ['people-outline', 'Unisex'],
-          ].map(([icon, label], index) => (
-            <View key={label} style={[styles.salonChoice, index === 1 && styles.salonChoiceSelected]}>
-              <View style={[styles.salonChoiceIcon, index === 1 && styles.salonChoiceIconSelected]}>
-                <Ionicons
-                  name={icon as keyof typeof Ionicons.glyphMap}
-                  size={19}
-                  color={theme.colors.primary}
-                />
-              </View>
-              <Text style={[styles.salonChoiceLabel, index === 1 && styles.salonChoiceLabelSelected]}>
-                {label}
-              </Text>
-            </View>
-          ))}
-        </View>
-        <View style={styles.comparePill}>
-          <Ionicons name="options-outline" size={17} color={theme.colors.primary} />
-          <Text style={styles.compareText}>Services · prices · reviews</Text>
-          <Ionicons name="arrow-forward" size={17} color={theme.colors.primary} />
-        </View>
-      </View>
-    </SceneEntrance>
+        </Pressable>
+      </Animated.View>
+    </View>
   );
 }
 
 export const OnboardingScreen: React.FC = () => {
-  const { theme } = useTheme();
+  // The introduction is intentionally an authored light-mode experience. All
+  // values still come from the central theme, but user/system dark mode cannot
+  // change this first-launch art direction.
+  const theme = lightTheme;
   const reduceMotion = useReduceMotionPreference();
   const { width, height } = useWindowDimensions();
-  const layout = useMemo<OnboardingLayout>(() => {
-    const screenWidth = Math.max(width, 320);
-    const compact = height < 740 || screenWidth < 360;
-    const horizontalPadding = screenWidth >= 768 ? 48 : screenWidth >= 430 ? 28 : 20;
-    const contentWidth = Math.min(screenWidth - horizontalPadding * 2, 620);
-    const visualHeight = compact ? 214 : screenWidth >= 768 ? 310 : Math.min(274, Math.max(238, height * 0.3));
-    return {
-      screenWidth,
-      contentWidth,
-      compact,
-      visualHeight,
-    };
-  }, [height, width]);
-  const styles = useMemo(() => createStyles(theme, layout), [theme, layout]);
   const completeOnboarding = useAuthStore((state) => state.completeOnboarding);
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+
+  const layout = useMemo<KineticLayout>(() => {
+    const screenWidth = Math.max(width, 320);
+    const compact = height < 740 || screenWidth < 360;
+    const horizontalPadding = screenWidth >= 768 ? 48 : screenWidth >= 430 ? 28 : 20;
+    const contentWidth = Math.min(screenWidth - horizontalPadding * 2, screenWidth >= 768 ? 520 : 440);
+    const visualHeight = compact
+      ? Math.min(236, Math.max(200, height * 0.31))
+      : screenWidth >= 768
+        ? 372
+        : Math.min(410, Math.max(350, height * 0.46));
+    return { screenWidth, contentWidth, compact, visualHeight };
+  }, [height, width]);
+  const styles = useMemo(() => createStyles(theme, layout), [layout, theme]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ x: activeIndex * layout.screenWidth, animated: false });
@@ -347,7 +193,9 @@ export const OnboardingScreen: React.FC = () => {
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const nextIndex = Math.round(event.nativeEvent.contentOffset.x / layout.screenWidth);
-    if (nextIndex >= 0 && nextIndex < SLIDES.length && nextIndex !== activeIndex) setActiveIndex(nextIndex);
+    if (nextIndex >= 0 && nextIndex < SLIDES.length && nextIndex !== activeIndex) {
+      setActiveIndex(nextIndex);
+    }
   };
 
   const next = () => {
@@ -355,11 +203,14 @@ export const OnboardingScreen: React.FC = () => {
       completeOnboarding();
       return;
     }
-    scrollRef.current?.scrollTo({ x: (activeIndex + 1) * layout.screenWidth, animated: true });
+    const nextIndex = activeIndex + 1;
+    setActiveIndex(nextIndex);
+    scrollRef.current?.scrollTo({ x: nextIndex * layout.screenWidth, animated: !reduceMotion });
   };
 
   return (
-    <ScreenWrapper variant="auth">
+    <ScreenWrapper variant="auth" style={styles.screen}>
+      <StatusBar style="dark" />
       <View style={styles.container}>
         <View style={styles.topBar}>
           <View style={styles.topBarInner}>
@@ -377,10 +228,34 @@ export const OnboardingScreen: React.FC = () => {
               style={styles.skip}
               accessibilityRole="button"
               accessibilityLabel="Skip introduction"
+              activeOpacity={0.64}
             >
               <Text style={styles.skipText}>Skip</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        <View
+          testID="onboarding-page-indicator"
+          style={styles.progressRow}
+          accessibilityRole="progressbar"
+          accessibilityLabel={`Step ${activeIndex + 1} of ${SLIDES.length}`}
+          accessibilityValue={{ min: 1, max: SLIDES.length, now: activeIndex + 1 }}
+        >
+          {SLIDES.map((slide, index) => (
+            <View key={slide.id} style={styles.progressStep}>
+              {index < SLIDES.length - 1 ? (
+                <View style={[styles.progressLine, index < activeIndex && styles.progressLineComplete]} />
+              ) : null}
+              <View
+                style={[
+                  styles.progressDot,
+                  index <= activeIndex && styles.progressDotComplete,
+                  index === activeIndex && styles.progressDotActive,
+                ]}
+              />
+            </View>
+          ))}
         </View>
 
         <ScrollView
@@ -392,24 +267,32 @@ export const OnboardingScreen: React.FC = () => {
           onScroll={onScroll}
           scrollEventThrottle={16}
           style={styles.carousel}
+          accessibilityLabel="TrimiT introduction"
         >
-          {SLIDES.map((slide) => (
+          {SLIDES.map((slide, index) => (
             <View key={slide.id} style={styles.slide}>
               <View style={styles.slideContent}>
+                <View style={styles.copyBlock}>
+                  <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
+                  <Text
+                    style={styles.title}
+                    numberOfLines={3}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.82}
+                  >
+                    {slide.title}
+                  </Text>
+                  <Text style={styles.body}>{slide.body}</Text>
+                </View>
                 <View style={styles.visualShell}>
-                  <SlideVisual
+                  <KineticEditorialScene
                     id={slide.id}
                     theme={theme}
                     layout={layout}
-                    active={slide.id === SLIDES[activeIndex]?.id}
+                    active={index === activeIndex}
                     reduceMotion={reduceMotion}
                   />
                 </View>
-                <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
-                <Text style={styles.title} numberOfLines={3} adjustsFontSizeToFit minimumFontScale={0.88}>
-                  {slide.title}
-                </Text>
-                <Text style={styles.body}>{slide.body}</Text>
               </View>
             </View>
           ))}
@@ -417,22 +300,19 @@ export const OnboardingScreen: React.FC = () => {
 
         <View style={styles.footer}>
           <View style={styles.footerInner}>
-            <View
-              testID="onboarding-page-indicator"
-              style={styles.progressRow}
-              accessibilityLabel={`Step ${activeIndex + 1} of ${SLIDES.length}`}
-            >
-              {SLIDES.map((slide, index) => (
-                <View key={slide.id} style={[styles.progressDot, index === activeIndex && styles.progressDotActive]} />
-              ))}
-            </View>
-            <Button
+            <EditorialAction
               title={activeIndex === SLIDES.length - 1 ? 'Explore salons' : 'Continue'}
               onPress={next}
-              size={layout.compact ? 'md' : 'lg'}
-              style={styles.action}
+              compact={layout.compact}
+              reduceMotion={reduceMotion}
             />
-            <Text style={styles.footerNote}>No sign-in required to explore</Text>
+            <Text
+              style={[styles.footerNote, activeIndex !== SLIDES.length - 1 && styles.footerNoteHidden]}
+              accessibilityElementsHidden={activeIndex !== SLIDES.length - 1}
+              importantForAccessibility={activeIndex === SLIDES.length - 1 ? 'auto' : 'no-hide-descendants'}
+            >
+              No sign-in required to explore
+            </Text>
           </View>
         </View>
       </View>
@@ -440,22 +320,11 @@ export const OnboardingScreen: React.FC = () => {
   );
 };
 
-const getOnboardingGeometry = (theme: Theme, layout: OnboardingLayout) => {
-  const heroRadius = layout.compact
-    ? theme.borderRadius.xl
-    : theme.borderRadius.xxl - theme.spacing.xs;
-  return {
-    heroRadius,
-    panelRadius: heroRadius - theme.spacing.sm,
-  };
-};
-
-const createStyles = (theme: Theme, layout: OnboardingLayout) => {
-  const geometry = getOnboardingGeometry(theme, layout);
-  return StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
+const createStyles = (theme: Theme, layout: KineticLayout) => StyleSheet.create({
+  screen: { backgroundColor: theme.colors.editorialCanvas },
+  container: { flex: 1, backgroundColor: theme.colors.editorialCanvas },
   topBar: {
-    minHeight: layout.compact ? 48 : 56,
+    minHeight: layout.compact ? 46 : 52,
     justifyContent: 'center',
     paddingHorizontal: theme.spacing.xl,
   },
@@ -468,13 +337,14 @@ const createStyles = (theme: Theme, layout: OnboardingLayout) => {
   },
   brand: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
   logo: {
-    width: layout.compact ? 31 : 36,
-    height: layout.compact ? 31 : 36,
+    width: layout.compact ? 29 : 33,
+    height: layout.compact ? 29 : 33,
   },
   brandName: {
-    ...theme.typography.h3,
-    color: theme.colors.text,
-    fontSize: layout.compact ? 20 : theme.typography.h3.fontSize,
+    fontFamily: theme.fonts.headingMedium,
+    color: theme.colors.editorialInk,
+    fontSize: layout.compact ? 21 : 23,
+    lineHeight: layout.compact ? 25 : 28,
   },
   skip: {
     minWidth: 48,
@@ -483,277 +353,139 @@ const createStyles = (theme: Theme, layout: OnboardingLayout) => {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  skipText: { ...theme.typography.bodySmallMedium, color: theme.colors.textSecondary },
+  skipText: { ...theme.typography.bodySmallMedium, color: theme.colors.editorialInk },
+  progressRow: {
+    width: layout.compact ? 142 : 158,
+    minHeight: layout.compact ? 28 : 34,
+    flexDirection: 'row',
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressStep: {
+    width: layout.compact ? 46 : 52,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressLine: {
+    position: 'absolute',
+    left: '50%',
+    width: '100%',
+    height: 2,
+    backgroundColor: theme.colors.border,
+  },
+  progressLineComplete: { backgroundColor: theme.colors.editorialTerracotta },
+  progressDot: {
+    width: 9,
+    height: 9,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.border,
+    zIndex: 2,
+  },
+  progressDotComplete: { backgroundColor: theme.colors.editorialTerracotta },
+  progressDotActive: {
+    width: 12,
+    height: 12,
+    borderWidth: 3,
+    borderColor: theme.colors.editorialActiveRing,
+  },
   carousel: { flex: 1 },
   slide: { width: layout.screenWidth, alignItems: 'center' },
   slideContent: {
     width: layout.contentWidth,
-    paddingTop: layout.compact ? theme.spacing.xs : theme.spacing.sm,
+    flex: 1,
+    paddingTop: layout.compact ? 2 : theme.spacing.xs,
   },
-  visualShell: {
-    height: layout.visualHeight,
-    borderRadius: geometry.heroRadius,
+  copyBlock: {
+    minHeight: layout.compact ? 146 : 170,
     alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    marginBottom: layout.compact ? theme.spacing.lg : theme.spacing.xxl,
+    justifyContent: 'flex-start',
+    paddingHorizontal: layout.compact ? 2 : theme.spacing.sm,
   },
   eyebrow: {
     ...theme.typography.overline,
-    color: theme.colors.primary,
-    marginBottom: layout.compact ? theme.spacing.sm : theme.spacing.md,
+    color: theme.colors.editorialTerracotta,
+    textAlign: 'center',
+    marginTop: layout.compact ? 4 : 7,
+    marginBottom: layout.compact ? 8 : 11,
   },
   title: {
-    ...theme.typography.h1,
-    color: theme.colors.text,
-    fontSize: layout.compact ? 31 : layout.screenWidth >= 768 ? 42 : 36,
-    lineHeight: layout.compact ? 36 : layout.screenWidth >= 768 ? 48 : 42,
-    marginBottom: layout.compact ? theme.spacing.sm : theme.spacing.md,
+    fontFamily: theme.fonts.headingRegular,
+    fontWeight: '400',
+    color: theme.colors.editorialInk,
+    textAlign: 'center',
+    fontSize: layout.compact ? 31 : layout.screenWidth >= 768 ? 42 : 34,
+    lineHeight: layout.compact ? 33 : layout.screenWidth >= 768 ? 46 : 37,
+    letterSpacing: -0.45,
+    marginBottom: layout.compact ? 7 : 10,
   },
   body: {
     ...theme.typography.body,
-    color: theme.colors.textSecondary,
-    fontSize: layout.compact ? 14 : 16,
-    lineHeight: layout.compact ? 20 : 24,
+    color: theme.colors.editorialMuted,
+    textAlign: 'center',
+    maxWidth: layout.compact ? 320 : 370,
+    fontSize: layout.compact ? 13 : 14,
+    lineHeight: layout.compact ? 18 : 20,
+  },
+  visualShell: {
+    width: '100%',
+    height: layout.visualHeight,
+    overflow: 'visible',
+    marginTop: layout.compact ? 0 : 2,
   },
   footer: {
     paddingHorizontal: theme.spacing.xl,
-    paddingTop: layout.compact ? theme.spacing.sm : theme.spacing.md,
-    paddingBottom: layout.compact ? theme.spacing.xs : theme.spacing.sm,
+    paddingTop: layout.compact ? 8 : 10,
+    paddingBottom: layout.compact ? 2 : 5,
+    backgroundColor: theme.colors.editorialCanvas,
   },
   footerInner: { width: layout.contentWidth, alignSelf: 'center' },
-  progressRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: layout.compact ? theme.spacing.md : theme.spacing.xl,
-  },
-  progressDot: {
-    width: 7,
-    height: 7,
-    borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.border,
-  },
-  progressDotActive: { width: 28, backgroundColor: theme.colors.primary },
-  action: { width: '100%' },
   footerNote: {
     ...theme.typography.caption,
-    color: theme.colors.textTertiary,
+    color: theme.colors.editorialMuted,
     textAlign: 'center',
-    marginTop: theme.spacing.sm,
+    marginTop: layout.compact ? 5 : 7,
+    minHeight: 16,
   },
-  });
-};
+  footerNoteHidden: { opacity: 0 },
+});
 
-const createVisualStyles = (theme: Theme, layout: OnboardingLayout) => {
-  const geometry = getOnboardingGeometry(theme, layout);
-  return StyleSheet.create({
-  flipPressable: { width: '100%', height: '100%' },
-  flipStage: { width: '100%', height: '100%' },
-  flipFace: {
-    position: 'absolute',
+const createActionStyles = (theme: Theme, compact: boolean) => StyleSheet.create({
+  shadowStage: {
     width: '100%',
-    height: '100%',
-    borderRadius: geometry.heroRadius,
-    padding: layout.compact ? theme.spacing.lg : theme.spacing.xl,
-    backfaceVisibility: 'hidden',
-    overflow: 'hidden',
+    borderRadius: theme.borderRadius.full,
+    shadowColor: theme.colors.editorialShadowStrong,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  pressGlow: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.editorialTerracotta,
+    transform: [{ scale: 1.035 }],
+  },
+  action: {
+    width: '100%',
+    minHeight: compact ? 50 : 56,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.editorialTerracotta,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceSecondary,
-    justifyContent: 'space-between',
-  },
-  flipBack: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  timeTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sceneOverline: { ...theme.typography.overline, color: theme.colors.textSecondary, letterSpacing: 1.6 },
-  touchBadge: {
-    width: layout.compact ? 32 : 36,
-    height: layout.compact ? 32 : 36,
-    borderRadius: theme.borderRadius.full,
+    borderColor: theme.colors.editorialTerracotta,
+    paddingHorizontal: theme.spacing.xl,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.surfaceRaised,
   },
-  timeFocus: { alignItems: 'center' },
-  clockHalo: {
-    width: layout.compact ? 72 : 84,
-    height: layout.compact ? 72 : 84,
-    borderRadius: theme.borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.primaryLight,
-  },
-  clockCore: {
-    width: layout.compact ? 54 : 62,
-    height: layout.compact ? 54 : 62,
-    borderRadius: theme.borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.primary,
-  },
-  timeFocusTitle: {
-    ...theme.typography.h3,
-    color: theme.colors.text,
-    marginTop: layout.compact ? theme.spacing.sm : theme.spacing.md,
-  },
-  timeFocusMeta: {
-    ...theme.typography.caption,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-  },
-  timeBottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  flipHint: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs },
-  flipHintText: { ...theme.typography.captionMedium, color: theme.colors.textSecondary },
-  backOverline: { ...theme.typography.overline, color: theme.colors.textInverse, opacity: 0.72 },
-  backTitle: {
-    ...theme.typography.h2,
+  actionText: {
+    fontFamily: theme.fonts.headingRegular,
+    fontWeight: '400',
     color: theme.colors.textInverse,
-    fontSize: layout.compact ? 27 : 32,
-    lineHeight: layout.compact ? 32 : 38,
-    maxWidth: '82%',
+    fontSize: compact ? 15 : 17,
   },
-  miniJourney: { flexDirection: 'row', alignItems: 'center' },
-  miniStep: { alignItems: 'center', gap: theme.spacing.xs },
-  miniStepIcon: {
-    width: layout.compact ? 34 : 38,
-    height: layout.compact ? 34 : 38,
-    borderRadius: theme.borderRadius.full,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.textInverse,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  miniStepText: { ...theme.typography.captionMedium, color: theme.colors.textInverse },
-  miniConnector: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.colors.textInverse,
-    opacity: 0.45,
-    marginHorizontal: theme.spacing.sm,
-    marginBottom: theme.spacing.xl,
-  },
-  backHint: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs, opacity: 0.72 },
-  backHintText: { ...theme.typography.caption, color: theme.colors.textInverse },
-  bookingScene: {
-    width: '100%',
-    height: '100%',
-    borderRadius: geometry.heroRadius,
-    backgroundColor: theme.colors.surfaceSecondary,
-    padding: layout.compact ? theme.spacing.lg : theme.spacing.xl,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-  },
-  bookingTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  calendarHeading: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    marginTop: layout.compact ? theme.spacing.sm : theme.spacing.md,
-  },
-  calendarMonth: { ...theme.typography.h2, color: theme.colors.text },
-  calendarDate: { ...theme.typography.bodySmallMedium, color: theme.colors.textSecondary },
-  dateRail: { flexDirection: 'row', gap: theme.spacing.sm, marginTop: layout.compact ? theme.spacing.sm : theme.spacing.md },
-  dateCell: {
-    flex: 1,
-    height: layout.compact ? 60 : 68,
-    borderRadius: geometry.panelRadius,
-    backgroundColor: theme.colors.surfaceRaised,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dateCellSelected: { backgroundColor: theme.colors.primary },
-  dateDay: { ...theme.typography.captionMedium, color: theme.colors.textSecondary },
-  dateNumber: { ...theme.typography.h4, color: theme.colors.text, marginTop: 2 },
-  dateTextSelected: { color: theme.colors.textInverse },
-  slotRail: { flexDirection: 'row', gap: theme.spacing.sm, marginTop: theme.spacing.md },
-  slotPillMuted: {
-    flex: 1,
-    minHeight: layout.compact ? 34 : 38,
-    borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.surfaceRaised,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  slotPillSelected: {
-    flex: 1.2,
-    minHeight: layout.compact ? 34 : 38,
-    borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing.xs,
-  },
-  slotTextMuted: { ...theme.typography.captionMedium, color: theme.colors.textSecondary },
-  slotTextSelected: { ...theme.typography.captionMedium, color: theme.colors.textInverse },
-  choicesScene: {
-    width: '100%',
-    height: '100%',
-    borderRadius: geometry.heroRadius,
-    backgroundColor: theme.colors.surfaceSecondary,
-    padding: layout.compact ? theme.spacing.lg : theme.spacing.xl,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-  },
-  choicesTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  salonChoiceRail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    marginTop: layout.compact ? theme.spacing.md : theme.spacing.lg,
-  },
-  salonChoice: {
-    flex: 1,
-    height: layout.compact ? 82 : 96,
-    borderRadius: geometry.panelRadius,
-    backgroundColor: theme.colors.surfaceRaised,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing.xs,
-  },
-  salonChoiceSelected: {
-    height: layout.compact ? 92 : 108,
-    backgroundColor: theme.colors.primary,
-  },
-  salonChoiceIcon: {
-    width: layout.compact ? 34 : 40,
-    height: layout.compact ? 34 : 40,
-    borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  salonChoiceIconSelected: { backgroundColor: theme.colors.surfaceRaised },
-  salonChoiceLabel: {
-    ...theme.typography.captionMedium,
-    color: theme.colors.text,
-    textAlign: 'center',
-  },
-  salonChoiceLabelSelected: { color: theme.colors.textInverse },
-  comparePill: {
-    minHeight: 44,
-    borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.surfaceRaised,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    marginTop: layout.compact ? theme.spacing.md : theme.spacing.lg,
-  },
-  compareText: { ...theme.typography.captionMedium, color: theme.colors.text, flex: 1 },
-  });
-};
-
-const motionStyles = StyleSheet.create({
-  fill: { width: '100%', height: '100%' },
+  actionArrow: { position: 'absolute', right: theme.spacing.xl },
 });
 
 export default OnboardingScreen;
