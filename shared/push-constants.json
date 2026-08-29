@@ -5,7 +5,7 @@
   "promotionsChannelId": "promotions",
   "bookingSoundFile": "notification.mp3",
   "bookingSoundAndroidBase": "notification",
-  "iosInterruptionLevel": "critical",
+  "iosInterruptionLevel": "time-sensitive",
   "pushTtlSeconds": 86400,
   "ownerBookingCategoryId": "owner_booking_actions",
   "ownerPaymentCategoryId": "owner_payment_actions",

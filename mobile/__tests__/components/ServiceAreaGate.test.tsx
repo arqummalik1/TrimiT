@@ -31,7 +31,7 @@ function renderGate() {
 }
 
 describe('ServiceAreaGate', () => {
-  it('renders waitlist CTA and pads scroll content above the tab bar', () => {
+  it('renders the premium waitlist CTA without reserving guest tab-bar space', () => {
     const { getByText, getByTestId } = renderGate();
     expect(getByText('Notify me at launch')).toBeTruthy();
 
@@ -39,6 +39,7 @@ describe('ServiceAreaGate', () => {
     const flat = Array.isArray(scroll.props.contentContainerStyle)
       ? Object.assign({}, ...scroll.props.contentContainerStyle)
       : scroll.props.contentContainerStyle;
-    expect(flat.paddingBottom).toBeGreaterThanOrEqual(TAB_BAR_BASE_HEIGHT + 34);
+    expect(flat.paddingBottom).toBeGreaterThanOrEqual(34 + 32);
+    expect(flat.paddingBottom).toBeLessThan(TAB_BAR_BASE_HEIGHT + 34);
   });
 });

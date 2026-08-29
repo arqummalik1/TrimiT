@@ -50,6 +50,7 @@ const Header = () => {
   };
 
   const isOwner = profile?.role === 'owner';
+  const isEmployee = profile?.role === 'employee';
   const isCustomer = profile?.role === 'customer';
 
   const marketingLinks = MARKETING_LINKS.filter(
@@ -124,7 +125,7 @@ const Header = () => {
               </>
             )}
 
-            {isAuthenticated && isOwner && (
+            {isAuthenticated && (isOwner || isEmployee) && (
               <>
                 <Link
                   to="/owner/dashboard"
@@ -139,16 +140,13 @@ const Header = () => {
                     Dashboard
                   </span>
                 </Link>
-                <Link
-                  to="/owner/salon"
-                  data-testid="nav-salon"
-                  className={navClass(isActive('/owner/salon'))}
-                >
-                  <span className="flex items-center gap-2">
-                    <Storefront size={18} weight={isActive('/owner/salon') ? 'fill' : 'regular'} />
-                    Salon
-                  </span>
-                </Link>
+                {isOwner && (
+                  <Link to="/owner/salon" data-testid="nav-salon" className={navClass(isActive('/owner/salon'))}>
+                    <span className="flex items-center gap-2">
+                      <Storefront size={18} weight={isActive('/owner/salon') ? 'fill' : 'regular'} /> Salon
+                    </span>
+                  </Link>
+                )}
                 <Link
                   to="/owner/bookings"
                   data-testid="nav-bookings"
@@ -162,16 +160,13 @@ const Header = () => {
                     Bookings
                   </span>
                 </Link>
-                <Link
-                  to="/owner/services"
-                  data-testid="nav-services"
-                  className={navClass(isActive('/owner/services'))}
-                >
-                  <span className="flex items-center gap-2">
-                    <List size={18} weight={isActive('/owner/services') ? 'fill' : 'regular'} />
-                    Services
-                  </span>
-                </Link>
+                {isOwner && (
+                  <Link to="/owner/services" data-testid="nav-services" className={navClass(isActive('/owner/services'))}>
+                    <span className="flex items-center gap-2">
+                      <List size={18} weight={isActive('/owner/services') ? 'fill' : 'regular'} /> Services
+                    </span>
+                  </Link>
+                )}
               </>
             )}
           </nav>
@@ -273,7 +268,7 @@ const Header = () => {
                 </>
               )}
 
-              {isAuthenticated && isOwner && (
+              {isAuthenticated && (isOwner || isEmployee) && (
                 <>
                   <Link
                     to="/owner/dashboard"
@@ -282,13 +277,11 @@ const Header = () => {
                   >
                     Dashboard
                   </Link>
-                  <Link
-                    to="/owner/salon"
-                    className={mobileNavClass(isActive('/owner/salon'))}
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Salon
-                  </Link>
+                  {isOwner && (
+                    <Link to="/owner/salon" className={mobileNavClass(isActive('/owner/salon'))} onClick={() => setMenuOpen(false)}>
+                      Salon
+                    </Link>
+                  )}
                   <Link
                     to="/owner/bookings"
                     className={mobileNavClass(isActive('/owner/bookings'))}
@@ -296,13 +289,11 @@ const Header = () => {
                   >
                     Bookings
                   </Link>
-                  <Link
-                    to="/owner/services"
-                    className={mobileNavClass(isActive('/owner/services'))}
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Services
-                  </Link>
+                  {isOwner && (
+                    <Link to="/owner/services" className={mobileNavClass(isActive('/owner/services'))} onClick={() => setMenuOpen(false)}>
+                      Services
+                    </Link>
+                  )}
                 </>
               )}
 

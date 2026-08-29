@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Trash, Warning } from '@phosphor-icons/react';
+import { User, Trash, Warning, Storefront, Users } from '@phosphor-icons/react';
 import { useAuthStore } from '../../store/authStore';
 import { useToastStore } from '../../store/toastStore';
 import { SUPPORT_EMAIL } from '../../config/contact';
@@ -10,9 +10,7 @@ import { FilterChipRow } from '../../components/FilterChipRow';
 import { DISCOVERY_PREF_OPTIONS } from '../../lib/genderServe';
 
 const AccountPage = () => {
-  const navigate = useNavigate();
-  const { profile, user, deleteAccount, updateProfile, isLoading } = useAuthStore();
-  const [isDeleting, setIsDeleting] = useState(false);
+  const { profile, user, updateProfile } = useAuthStore();
   const [error, setError] = useState(null);
   const [discoveryAudience, setDiscoveryAudience] = useState(
     profile?.discovery_audience || user?.discovery_audience || 'auto',
@@ -30,24 +28,6 @@ const AccountPage = () => {
       setError(result.error || 'Could not update discovery preference');
       setDiscoveryAudience(profile?.discovery_audience || 'auto');
     }
-  };
-
-  const handleDelete = async () => {
-    const confirmed = window.confirm(
-      'Delete your TrimiT account permanently? This removes your profile and associated data. Active bookings may be cancelled. This cannot be undone.'
-    );
-    if (!confirmed) return;
-
-    setIsDeleting(true);
-    setError(null);
-    const result = await deleteAccount();
-    setIsDeleting(false);
-
-    if (!result.success) {
-      setError(result.error || 'Could not delete account');
-      return;
-    }
-    navigate('/');
   };
 
   return (
@@ -73,6 +53,25 @@ const AccountPage = () => {
           </div>
         </div>
       </div>
+
+      {profile?.role === 'customer' && (
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
+          <h2 className="font-semibold text-stone-900 mb-2">For salon teams</h2>
+          <p className="text-sm text-stone-500 mb-4">Enter a workspace only when it applies to you.</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Link to="/owner/start" className="rounded-xl border border-stone-200 p-4 hover:border-brand-500 hover:bg-brand-50">
+              <Storefront size={24} weight="duotone" className="text-brand-800 mb-2" />
+              <span className="block font-semibold text-stone-900">List or manage my salon</span>
+              <span className="text-xs text-stone-500">Start owner-specific setup</span>
+            </Link>
+            <Link to="/employee-access" className="rounded-xl border border-stone-200 p-4 hover:border-brand-500 hover:bg-brand-50">
+              <Users size={24} weight="duotone" className="text-brand-800 mb-2" />
+              <span className="block font-semibold text-stone-900">Employee access</span>
+              <span className="text-xs text-stone-500">Connect through a salon invitation</span>
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
         <h2 className="font-semibold text-stone-900 mb-2">Discovery</h2>
@@ -112,19 +111,17 @@ const AccountPage = () => {
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={isDeleting || isLoading}
+        <Link
+          to="/delete-account"
           className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-red-300 text-red-700 rounded-xl hover:bg-red-50 disabled:opacity-50"
         >
           <Trash size={20} />
-          {isDeleting ? 'Deleting…' : 'Delete account'}
-        </button>
+          Review account deletion
+        </Link>
 
         <p className="text-xs text-stone-500 mt-4 text-center">
-          <Link to="/contact" className="text-brand-800 hover:underline">
-            Account deletion help on Contact page
+          <Link to="/delete-account" className="text-brand-800 hover:underline">
+            Open the account and data deletion page
           </Link>
         </p>
 

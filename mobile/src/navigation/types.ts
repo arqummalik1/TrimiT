@@ -70,6 +70,7 @@ export type ProfileStackParamList = {
   Terms: undefined;
   Contact: undefined;
   PaymentsHelp: undefined;
+  AccountDeletion: undefined;
 };
 
 export type CustomerTabParamList = {
@@ -102,6 +103,7 @@ export type OwnerSettingsStackParamList = {
   Contact: undefined;
   PaymentsHelp: undefined;
   BankDetails: undefined;
+  AccountDeletion: undefined;
 };
 
 export type OwnerServicesStackParamList = {
@@ -122,9 +124,9 @@ export type OwnerTabParamList = {
 export type RootStackParamList = {
   Onboarding: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList>;
-  CompleteProfile: { prefilledName?: string; prefilledPhone?: string; prefilledRole?: 'customer' | 'owner' } | undefined;
-  CustomerTabs: NavigatorScreenParams<CustomerTabParamList>;
-  OwnerTabs: NavigatorScreenParams<OwnerTabParamList>;
+  CompleteProfile: { prefilledName?: string; prefilledPhone?: string; prefilledRole?: 'customer' | 'owner' | 'employee' } | undefined;
+  CustomerTabs: NavigatorScreenParams<CustomerTabParamList> | undefined;
+  OwnerTabs: NavigatorScreenParams<OwnerTabParamList> | undefined;
 };
 
 // =============================================================================

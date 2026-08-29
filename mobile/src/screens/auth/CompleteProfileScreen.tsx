@@ -1,527 +1,205 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { useAuthStore } from '../../store/authStore';
-import { useTheme } from '../../theme/ThemeContext';
+import React, { useMemo, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { Ionicons } from '@expo/vector-icons';
+import { ErrorState } from '../../components/ErrorState';
 import { RootScreenProps } from '../../navigation/types';
-import { ScreenWrapper } from '../../components/ScreenWrapper';
-import { FilterChipRow } from '../../components/FilterChipRow';
-import { CUSTOMER_GENDER_OPTIONS } from '../../lib/genderServe';
+import { useAuthStore } from '../../store/authStore';
+import { usePendingAuthIntentStore } from '../../store/pendingAuthIntentStore';
+import { showToast } from '../../store/toastStore';
+import { useTheme } from '../../theme/ThemeContext';
+import { Theme } from '../../theme/tokens';
+import { borderRadius, spacing, typography } from '../../lib/utils';
 
-const phoneRegex = /^[6-9]\d{9}$/;
-const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+function normalizePhoneInput(value: string): string {
+  const digits = value.replace(/\D/g, '');
+  const local = digits.startsWith('91') ? digits.slice(2) : digits;
+  return `+91 ${local.slice(0, 10)}`;
+}
 
-const ROLE_OPTIONS: {
-  value: 'customer' | 'owner' | 'employee';
-  title: string;
-  desc: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}[] = [
-  {
-    value: 'customer',
-    title: 'Customer',
-    desc: 'Looking for grooming services',
-    icon: 'cut-outline',
-  },
-  {
-    value: 'owner',
-    title: 'Business owner',
-    desc: 'Salon, beauty parlour, or unisex studio',
-    icon: 'storefront-outline',
-  },
-  {
-    value: 'employee',
-    title: 'Salon Employee',
-    desc: 'Invited by my salon owner',
-    icon: 'people-outline',
-  },
-];
-const profileSchema = z
-  .object({
-    name: z.string().min(2, 'Name must be at least 2 characters'),
-    phone: z
-      .string()
-      .min(10, 'Phone number is required')
-      .refine((val) => phoneRegex.test(val), {
-        message: 'Enter a valid 10-digit Indian mobile (e.g. 9876543210)',
-      }),
-    role: z.enum(['customer', 'owner', 'employee']),
-    gender: z.enum(['male', 'female']).optional(),
-    upi_id: z.string().optional().or(z.literal('')),
-    termsAccepted: z.boolean().refine((val) => val === true, {
-      message: 'You must accept the terms and conditions',
-    }),
-  })
-  .superRefine((data, ctx) => {
-    if (data.role === 'employee') {
-      const phone = (data.phone ?? '').trim();
-      if (!phone || !phoneRegex.test(phone)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['phone'],
-          message: 'Use the phone number your salon owner registered for you',
-        });
-      }
-    }
-    if (data.role === 'customer' && !data.gender) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['gender'],
-        message: 'Please select how we should personalize your salon discovery',
-      });
-    }
-    // UPI ID is REQUIRED for owners — customers must not see/submit it.
-    if (data.role !== 'owner') return;
-    const upi = (data.upi_id ?? '').trim();
-    if (!upi) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['upi_id'],
-        message: 'UPI ID is required so customers can pay you',
-      });
-      return;
-    }
-    if (!upiRegex.test(upi)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['upi_id'],
-        message: 'Enter a valid UPI ID (e.g. glowsalon@okaxis)',
-      });
-    }
-  });
-
-type ProfileFormData = z.infer<typeof profileSchema>;
-
-export default function CompleteProfileScreen({ route }: RootScreenProps<'CompleteProfile'>) {
+export default function CompleteProfileScreen({ navigation }: RootScreenProps<'CompleteProfile'>) {
   const { theme } = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const { completeProfile, logout, error, clearError } = useAuthStore();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const completeProfile = useAuthStore((state) => state.completeProfile);
+  const logout = useAuthStore((state) => state.logout);
+  const profileComplete = useAuthStore((state) => state.profileComplete);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const authError = useAuthStore((state) => state.error);
+  const [phone, setPhone] = useState('+91 ');
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const prefilled = route.params || {};
+  const cancelClaim = async () => {
+    usePendingAuthIntentStore.getState().clearIntent();
+    // A signed-in customer may be exploring employee access from their profile.
+    // Keep that existing session; only discard a brand-new, incomplete sign-in.
+    if (!profileComplete) await logout();
+    if (navigation.canGoBack()) navigation.goBack();
+  };
 
-  const {
-    control,
-    handleSubmit,
-    setValue,
-    setError,
-    watch,
-    formState: { errors },
-  } = useForm<ProfileFormData>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: {
-      name: prefilled.prefilledName || '',
-      phone: prefilled.prefilledPhone ? prefilled.prefilledPhone.replace(/^\+91/, '') : '',
-      role: prefilled.prefilledRole || 'customer',
-      gender: undefined,
-      upi_id: '',
-      termsAccepted: false,
-    },
-  });
-
-  const selectedRole = watch('role');
-  const termsAccepted = watch('termsAccepted');
-
-  const onSubmit = async (data: ProfileFormData) => {
-    clearError();
-    setLocalError(null);
-    setIsSubmitting(true);
-    
-    const formattedPhone = `+91${data.phone.replace(/\D/g, '').slice(-10)}`;
-    
-    const result = await completeProfile({
-      name: data.name,
-      phone: formattedPhone,
-      role: data.role,
-      gender: data.role === 'customer' ? data.gender : undefined,
-      // Only owners send a UPI ID; customers never do.
-      upi_id: data.role === 'owner' ? (data.upi_id ?? '').trim() : undefined,
-    });
-    
-    if (!result.success) {
-      // Map backend UPI validation codes to an inline field error rather than
-      // a generic banner, so the owner knows exactly what to fix.
-      if (result.errorCode === 'UPI_REQUIRED' || result.errorCode === 'INVALID_UPI') {
-        setError('upi_id', {
-          type: 'server',
-          message:
-            result.errorCode === 'UPI_REQUIRED'
-              ? 'UPI ID is required so customers can pay you'
-              : 'Enter a valid UPI ID (e.g. glowsalon@okaxis)',
-        });
-      } else if (result.errorCode === 'PHONE_ALREADY_REGISTERED') {
-        setError('phone', {
-          type: 'server',
-          message: 'This mobile number is already registered.',
-        });
-      } else {
-        setLocalError(result.error || 'Failed to complete profile');
-      }
+  const submit = async () => {
+    const compact = phone.replace(/\s/g, '');
+    if (!/^\+91[6-9]\d{9}$/.test(compact)) {
+      setLocalError('Enter the same 10-digit mobile number your salon owner invited.');
+      return;
     }
-    // On success, the RootNavigator will automatically unmount this screen 
-    // and render the correct Tabs based on the new profileComplete state.
-    
-    setIsSubmitting(false);
+    setLocalError(null);
+    const result = await completeProfile({ role: 'employee', phone: compact });
+    if (!result.success) {
+      setLocalError(result.error ?? 'We could not validate this employee invitation.');
+      return;
+    }
+    showToast('Employee access confirmed.', 'success');
   };
 
   return (
     <ScreenWrapper variant="auth">
       <KeyboardAvoidingView
-        style={styles.container}
+        style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-      <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Almost there!</Text>
-          <Text style={styles.subtitle}>Let's finish setting up your profile</Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Cancel employee sign in"
+            style={styles.closeButton}
+            onPress={() => void cancelClaim()}
+            disabled={isLoading}
+          >
+            <Ionicons name="close" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
 
-        {(error || localError) && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{localError || error}</Text>
+          <View style={styles.iconWrap}>
+            <Ionicons name="people" size={36} color={theme.colors.primary} />
           </View>
-        )}
+          <Text style={styles.eyebrow}>EMPLOYEE ACCESS</Text>
+          <Text style={styles.title}>Connect to your salon</Text>
+          <Text style={styles.subtitle}>
+            We only need the mobile number used in your staff invitation. Your identity details
+            come from the sign-in method you just completed.
+          </Text>
 
-        <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>I am a...</Text>
-          <View style={styles.roleContainer}>
-            {ROLE_OPTIONS.map((option) => {
-              const isActive = selectedRole === option.value;
-              const activeIconColor = theme.isDark
-                ? theme.colors.textInverse
-                : theme.colors.primary;
-              return (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[styles.roleCard, isActive && styles.roleCardActive]}
-                  onPress={() => setValue('role', option.value)}
-                  activeOpacity={0.7}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: isActive }}
-                >
-                  <View style={[styles.iconContainer, isActive && styles.iconContainerActive]}>
-                    <Ionicons
-                      name={option.icon}
-                      color={isActive ? activeIconColor : theme.colors.textSecondary}
-                      size={22}
-                    />
-                  </View>
-                  <View style={styles.roleTextContainer}>
-                    <Text style={[styles.roleTitle, isActive && styles.roleTitleActive]}>
-                      {option.title}
-                    </Text>
-                    <Text style={[styles.roleDesc, isActive && styles.roleDescActive]}>
-                      {option.desc}
-                    </Text>
-                  </View>
-                  <View style={[styles.radioOuter, isActive && styles.radioOuterActive]}>
-                    {isActive && <View style={styles.radioInner} />}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          {errors.role && <Text style={styles.fieldErrorText}>{errors.role.message}</Text>}
-
-          {selectedRole === 'customer' && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.sectionTitle}>I usually book at</Text>
-              <Controller
-                control={control}
-                name="gender"
-                render={({ field: { onChange, value } }) => (
-                  <FilterChipRow
-                    options={CUSTOMER_GENDER_OPTIONS}
-                    value={value ?? 'male'}
-                    onChange={onChange}
-                    testIDPrefix="profile-gender"
-                  />
-                )}
+          <View style={styles.card}>
+            {(localError || authError) ? (
+              <ErrorState
+                variant="inline"
+                message={localError || authError || ''}
+                kind="validation"
+                style={styles.error}
               />
-              {errors.gender && <Text style={styles.fieldErrorText}>{errors.gender.message}</Text>}
-            </View>
-          )}
-
-          <View style={styles.inputGroup}>
-            <Controller
-              control={control}
-              name="name"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  label="Full Name *"
-                  placeholder="John Doe"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.name?.message}
-                  autoCapitalize="words"
-                />
-              )}
+            ) : null}
+            <Input
+              label="Invited mobile number"
+              value={phone}
+              onChangeText={(value) => {
+                setPhone(normalizePhoneInput(value));
+                setLocalError(null);
+              }}
+              keyboardType="phone-pad"
+              placeholder="+91 98765 43210"
+              editable={!isLoading}
+              icon={<Ionicons name="call-outline" size={20} color={theme.colors.textSecondary} />}
+            />
+            <Button
+              title="Verify invitation"
+              onPress={() => void submit()}
+              loading={isLoading}
+              style={styles.button}
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Controller
-              control={control}
-              name="phone"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  label={
-                    selectedRole === 'employee'
-                      ? 'Phone Number *'
-                      : 'Phone Number (Required)'
-                  }
-                  placeholder="98765 43210"
-                  prefix="+91"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.phone?.message}
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                />
-              )}
-            />
+          <View style={styles.note}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={theme.colors.success} />
+            <Text style={styles.noteText}>
+              Employee permissions are granted only after the backend matches a pending invitation.
+            </Text>
           </View>
-
-          {selectedRole === 'owner' && (
-            <View style={styles.inputGroup}>
-              <Controller
-                control={control}
-                name="upi_id"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <Input
-                    label="UPI ID *"
-                    placeholder="glowsalon@okaxis"
-                    value={value ?? ''}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={errors.upi_id?.message}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="email-address"
-                  />
-                )}
-              />
-              <Text style={styles.upiHelpText}>
-                Customers pay you directly on this UPI ID. You can update it later in Settings.
-              </Text>
-            </View>
-          )}
-
-          <TouchableOpacity
-            style={styles.checkboxContainer}
-            onPress={() => setValue('termsAccepted', !termsAccepted, { shouldValidate: true })}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
-              {termsAccepted && <Text style={styles.checkmark}>✓</Text>}
-            </View>
-            <Text style={styles.checkboxLabel}>
-              I agree to the <Text style={styles.linkText}>Terms of Service</Text> and{' '}
-              <Text style={styles.linkText}>Privacy Policy</Text>
-            </Text>
-          </TouchableOpacity>
-          {errors.termsAccepted && (
-            <Text style={[styles.fieldErrorText, { marginTop: -theme.spacing.sm, marginBottom: theme.spacing.md }]}>
-              {errors.termsAccepted.message}
-            </Text>
-          )}
-
-          <Button
-            title="Complete Setup"
-            onPress={handleSubmit(onSubmit)}
-            loading={isSubmitting}
-            disabled={isSubmitting}
-            style={styles.submitButton}
-          />
-
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => logout()}
-            disabled={isSubmitting}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.cancelButtonText}>Sign Out & Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ScreenWrapper>
   );
 }
 
-const createStyles = (theme: any) => StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
+const createStyles = (theme: Theme) => StyleSheet.create({
+  flex: { flex: 1 },
+  content: {
     flexGrow: 1,
-    padding: theme.spacing.xl,
-    paddingTop: theme.spacing.xl,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxxl,
   },
-  header: {
-    marginBottom: theme.spacing.xxl,
-  },
-  title: {
-    ...theme.typography.h1,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
-  },
-  subtitle: {
-    ...theme.typography.body,
-    color: theme.colors.textSecondary,
-  },
-  errorContainer: {
-    backgroundColor: theme.colors.errorLight,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    marginBottom: theme.spacing.lg,
-  },
-  errorText: {
-    color: theme.colors.error,
-    ...theme.typography.caption,
-  },
-  formSection: {
-    flex: 1,
-  },
-  sectionTitle: {
-    ...theme.typography.h4,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.md,
-  },
-  roleContainer: {
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.xl,
-  },
-  roleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.lg,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-    backgroundColor: theme.colors.surface,
-  },
-  roleCardActive: {
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primaryLight,
-  },
-  iconContainer: {
+  closeButton: {
+    alignSelf: 'flex-end',
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: theme.colors.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: theme.spacing.md,
-  },
-  iconContainerActive: {
     backgroundColor: theme.colors.surface,
-  },
-  roleTextContainer: {
-    flex: 1,
-  },
-  roleTitle: {
-    ...theme.typography.bodySemiBold,
-    color: theme.colors.text,
-    marginBottom: 2,
-  },
-  roleTitleActive: {
-    color: theme.isDark ? theme.colors.textInverse : theme.colors.text,
-  },
-  roleDesc: {
-    ...theme.typography.caption,
-    color: theme.colors.textSecondary,
-  },
-  roleDescActive: {
-    color: theme.isDark ? theme.colors.textInverse : theme.colors.text,
-  },
-  radioOuter: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: theme.colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: theme.spacing.sm,
-  },
-  radioOuterActive: {
-    borderColor: theme.colors.primary,
-  },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: theme.colors.primary,
-  },
-  inputGroup: {
-    marginBottom: theme.spacing.lg,
-  },
-  fieldErrorText: {
-    ...theme.typography.caption,
-    color: theme.colors.error,
-    marginBottom: theme.spacing.md,
-  },
-  upiHelpText: {
-    ...theme.typography.caption,
-    color: theme.colors.textSecondary,
-    marginTop: theme.spacing.xs,
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: theme.spacing.xl,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: 4,
-    marginRight: theme.spacing.sm,
+  },
+  iconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    backgroundColor: theme.colors.primaryLight,
+    marginTop: spacing.xxxl,
+    marginBottom: spacing.xl,
   },
-  checkboxChecked: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
+  eyebrow: {
+    ...typography.caption,
+    color: theme.colors.primary,
+    fontWeight: '800',
+    letterSpacing: 1.4,
+    marginBottom: spacing.sm,
   },
-  checkmark: {
-    color: theme.colors.textInverse,
-    fontSize: 12,
-    fontWeight: 'bold',
+  title: {
+    ...typography.h1,
+    color: theme.colors.text,
+    fontWeight: '800',
+    marginBottom: spacing.md,
   },
-  checkboxLabel: {
-    ...theme.typography.bodySmall,
+  subtitle: {
+    ...typography.body,
+    color: theme.colors.textSecondary,
+    lineHeight: 24,
+  },
+  card: {
+    marginTop: spacing.xxxl,
+    padding: spacing.xl,
+    borderRadius: borderRadius.xl,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  error: { marginBottom: spacing.lg },
+  button: { marginTop: spacing.md },
+  note: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+    paddingHorizontal: spacing.sm,
+  },
+  noteText: {
+    ...typography.caption,
     color: theme.colors.textSecondary,
     flex: 1,
-    lineHeight: 20,
-  },
-  linkText: {
-    color: theme.colors.primary,
-    textDecorationLine: 'underline',
-  },
-  submitButton: {
-    marginTop: 'auto',
-  },
-  cancelButton: {
-    marginTop: theme.spacing.md,
-    alignItems: 'center',
-    paddingVertical: theme.spacing.md,
-  },
-  cancelButtonText: {
-    ...theme.typography.bodySmall,
-    color: theme.colors.textSecondary,
-    textDecorationLine: 'underline',
+    lineHeight: 19,
   },
 });

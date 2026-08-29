@@ -13,9 +13,9 @@ interface SignupPayload {
 /** Typed payload for POST /auth/complete-profile (new OTP post-auth path). */
 interface CompleteProfilePayload {
   role: 'customer' | 'owner' | 'employee';
-  name: string;
+  name?: string;
   phone?: string;
-  /** Owner UPI ID (VPA, e.g. "glowsalon@okaxis"). Required for owners. */
+  /** Owner UPI ID (VPA, e.g. "glowsalon@okaxis"). Collected during salon setup. */
   upi_id?: string;
   gender?: 'male' | 'female';
 }
@@ -65,8 +65,12 @@ export const authService = {
     return apiClient.get('/auth/me');
   },
 
-  deleteAccount: async (): Promise<AxiosResponse> => {
-    return apiClient.delete('/auth/account');
+  getAccountDeletionContext: async (): Promise<AxiosResponse> => {
+    return apiClient.get('/auth/account/deletion-context');
+  },
+
+  deleteAccount: async (data?: { apple_authorization_code?: string }): Promise<AxiosResponse> => {
+    return apiClient.delete('/auth/account', { data: data ?? {} });
   },
 
   sendOtp: async (email: string): Promise<AxiosResponse> => {
@@ -100,4 +104,3 @@ export const authService = {
     return apiClient.post('/auth/complete-profile', data);
   },
 };
-

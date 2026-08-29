@@ -10,6 +10,7 @@ import { CustomerTabParamList, ProfileStackParamList } from './types';
 
 import { useTheme } from '../theme/ThemeContext';
 import { FloatingTabBar } from '../components/FloatingTabBar';
+import { useAuthStore } from '../store/authStore';
 
 import CustomerStack from './CustomerStack';
 import MyBookingsScreen from '../screens/customer/MyBookingsScreen';
@@ -19,6 +20,7 @@ import PrivacyPolicyScreen from '../screens/legal/PrivacyPolicyScreen';
 import TermsScreen from '../screens/legal/TermsScreen';
 import ContactScreen from '../screens/legal/ContactScreen';
 import PaymentsHelpScreen from '../screens/legal/PaymentsHelpScreen';
+import AccountDeletionScreen from '../screens/account/AccountDeletionScreen';
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
 
@@ -36,9 +38,16 @@ const HIDDEN_TAB_BAR_ROUTES = new Set<string>([
 ]);
 
 function CustomerTabBar(props: BottomTabBarProps) {
+  const user = useAuthStore((state) => state.user);
   const { state } = props;
   const activeTabRoute = state.routes[state.index];
   const nestedRouteName = getFocusedRouteNameFromRoute(activeTabRoute);
+  // Guests are exploring a marketplace, not managing an account. Keep the
+  // full customer tab bar for signed-in customers only; guest account/support
+  // remains available from the discreet action in the Discover header.
+  if (!user) {
+    return null;
+  }
   if (nestedRouteName && HIDDEN_TAB_BAR_ROUTES.has(nestedRouteName)) {
     return null;
   }
@@ -55,6 +64,7 @@ function ProfileStackScreen() {
       <ProfileStack.Screen name="Terms" component={TermsScreen} />
       <ProfileStack.Screen name="Contact" component={ContactScreen} />
       <ProfileStack.Screen name="PaymentsHelp" component={PaymentsHelpScreen} />
+      <ProfileStack.Screen name="AccountDeletion" component={AccountDeletionScreen} />
     </ProfileStack.Navigator>
   );
 }

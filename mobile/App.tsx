@@ -116,6 +116,7 @@ function AppContent() {
     isAuthenticated,
     isHydrated,
     authBootstrapComplete,
+    isOnboardingCompleted,
     setQueryClient,
     user,
   } = useAuthStore();
@@ -386,7 +387,7 @@ function AppContent() {
       <RootNavigator />
       <SigningOutOverlay />
       <SessionExpiredModal />
-      <OfflineBanner />
+      {isOnboardingCompleted ? <OfflineBanner /> : null}
       <Toast />
       <PermissionPrimer
         isVisible={showNotificationPrimer}

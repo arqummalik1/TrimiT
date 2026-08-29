@@ -28,6 +28,7 @@ const LEGAL_LINKS = [
   { to: '/privacy', label: 'Privacy Policy' },
   { to: '/help/payments', label: 'Payments Help' },
   { to: '/contact', label: 'Contact' },
+  { to: '/delete-account', label: 'Delete Account' },
 ];
 
 const Footer = () => {

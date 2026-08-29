@@ -29,6 +29,13 @@ export const lightPalette = {
   primary:      '#9A3412', // orange-800
   primaryDark:  '#C2410C', // orange-700 — pressed / hover
   primaryLight: '#FFF7ED', // orange-50 — tint background
+  metallicAccent: '#C89B4A', // restrained champagne metal — editorial details
+  editorialCanvas: '#F9F8F5', // first-launch kinetic editorial canvas
+  editorialTerracotta: '#A83C1C', // sampled from the approved onboarding art direction
+  editorialInk: '#171411',
+  editorialMuted: '#665F59',
+  editorialPaper: '#F8F6F2',
+  editorialActiveRing: '#F3E1D8',
 
   // Secondary — emerald system
   secondary:      '#065F46', // emerald-800
@@ -72,6 +79,8 @@ export const lightPalette = {
   // Misc
   overlay:     'rgba(0,0,0,0.45)',
   shimmer:     '#F5F5F4',
+  editorialShadow: 'rgba(28,25,23,0.10)',
+  editorialShadowStrong: 'rgba(28,25,23,0.18)',
   white:       '#FFFFFF',
   black:       '#000000',
   transparent: 'transparent',
@@ -104,6 +113,13 @@ export const darkPalette = {
   primary:      '#f1d18d', // Light Gold
   primaryDark:  '#d4b574', // Muted Gold
   primaryLight: '#f9e8c4', // Cream Gold (tint)
+  metallicAccent: '#f1d18d', // shared editorial metal token
+  editorialCanvas: '#F9F8F5', // onboarding is intentionally light-only
+  editorialTerracotta: '#A83C1C',
+  editorialInk: '#171411',
+  editorialMuted: '#665F59',
+  editorialPaper: '#F8F6F2',
+  editorialActiveRing: '#F3E1D8',
 
   // Secondary — Forest system
   secondary:      '#1A2D22', // Deep Forest
@@ -147,6 +163,8 @@ export const darkPalette = {
   // Misc
   overlay:     'rgba(0,0,0,0.85)',
   shimmer:     '#1A1C19',
+  editorialShadow: 'rgba(0,0,0,0.28)',
+  editorialShadowStrong: 'rgba(0,0,0,0.46)',
   white:       '#FFFFFF',
   black:       '#000000',
   transparent: 'transparent',

@@ -97,6 +97,9 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   const [showWelcome, setShowWelcome] = useState(false);
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
+  const bottomChromeClearance = user
+    ? TAB_BAR_BASE_HEIGHT + insets.bottom
+    : insets.bottom + spacing.xl;
   const isFocused = useIsFocused();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -318,7 +321,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
     const edgePadding = {
       top: insets.top + 160,
       right: 72,
-      bottom: TAB_BAR_BASE_HEIGHT + insets.bottom + spacing.md,
+      bottom: bottomChromeClearance + spacing.md,
       left: spacing.lg,
     };
 
@@ -360,7 +363,11 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
       salons: salonCoords.length,
       includeUser,
     });
-  }, [coords, insets.top, insets.bottom, mapCenter.latitude, mapCenter.longitude, mapMarkersData]);
+  }, [bottomChromeClearance, coords, insets.top, mapCenter.latitude, mapCenter.longitude, mapMarkersData]);
+
+  const openGuestAccount = useCallback(() => {
+    navigation.navigate('Profile', { screen: 'ProfileMain' });
+  }, [navigation]);
 
   useEffect(() => {
     if (viewMode !== 'map') return;
@@ -550,6 +557,16 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
             <Text style={styles.titleLine}>Salons</Text>
           </View>
           <View style={styles.headerActions}>
+            {!user && (
+              <TouchableOpacity
+                style={styles.headerIconBtn}
+                onPress={openGuestAccount}
+                accessibilityLabel="Account and support"
+                accessibilityRole="button"
+              >
+                <Ionicons name="person-outline" size={20} color={theme.colors.text} />
+              </TouchableOpacity>
+            )}
             {!isOutOfArea && (
               <TouchableOpacity
                 style={[
@@ -683,7 +700,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           <View
             style={[
               styles.mapControls,
-              { bottom: TAB_BAR_BASE_HEIGHT + insets.bottom + spacing.md },
+              { bottom: bottomChromeClearance + spacing.md },
             ]}
             pointerEvents="box-none"
           >
@@ -723,7 +740,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
           contentContainerStyle={[
             styles.listContent,
             filteredSalons.length === 0 && styles.listContentEmpty,
-            { paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + 16 },
+            { paddingBottom: bottomChromeClearance + spacing.lg },
           ]}
           showsVerticalScrollIndicator={false}
           onEndReached={handleEndReached}

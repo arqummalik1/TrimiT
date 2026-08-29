@@ -85,6 +85,10 @@ const resetStore = () =>
 beforeEach(() => {
   jest.clearAllMocks();
   resetStore();
+  mockRepoCompleteProfile.mockResolvedValue({
+    success: true,
+    profile: { id: 'new-user', role: 'customer', email: 'new@x.com', name: 'New User' },
+  });
 });
 
 // ─── signup (items 1, 2) ──────────────────────────────────────────────────────
@@ -278,7 +282,7 @@ describe('clearSession / sessionExpired / dismiss', () => {
 
 // ─── role-based gating state (items 17, 18, 19) ───────────────────────────────
 describe('navigation gating state', () => {
-  it('new user via verifyOtp → authenticated but profileComplete=false (item 18)', async () => {
+  it('new customer via verifyOtp is bootstrapped without a profile form', async () => {
     mockRepoVerifyOtp.mockResolvedValue({
       token: 'tok', refreshToken: 'ref', profile: null, profileComplete: false,
       rawSession: { user: { id: 'u2' } },
@@ -287,10 +291,10 @@ describe('navigation gating state', () => {
     await useAuthStore.getState().verifyOtp('new@x.com', '123456', 'magiclink');
 
     const s = useAuthStore.getState();
-    // RootNavigator: isAuthenticated && !profileComplete → CompleteProfileScreen
     expect(s.isAuthenticated).toBe(true);
-    expect(s.profileComplete).toBe(false);
-    expect(s.user).toBeNull();
+    expect(s.profileComplete).toBe(true);
+    expect(s.user?.role).toBe('customer');
+    expect(mockRepoCompleteProfile).toHaveBeenCalledWith({ role: 'customer' });
   });
 
   it('completeProfile flips profileComplete=true and sets owner role → OwnerTabs (item 19)', async () => {
@@ -352,5 +356,27 @@ describe('persistence (partialize)', () => {
     expect(useAuthStore.getState().isOnboardingCompleted).toBe(false);
     useAuthStore.getState().completeOnboarding();
     expect(useAuthStore.getState().isOnboardingCompleted).toBe(true);
+  });
+
+  it('can replay onboarding in a development preview without clearing the session', () => {
+    const customer = {
+      id: 'customer-preview',
+      email: 'preview@trimit.test',
+      name: 'Preview Customer',
+      role: 'customer' as const,
+      created_at: '2026-08-27T00:00:00.000Z',
+    };
+    useAuthStore.setState({
+      isOnboardingCompleted: true,
+      user: customer,
+      token: 'kept-token',
+      isAuthenticated: true,
+    });
+
+    useAuthStore.getState().resetOnboarding();
+
+    expect(useAuthStore.getState().isOnboardingCompleted).toBe(false);
+    expect(useAuthStore.getState().user).toEqual(customer);
+    expect(useAuthStore.getState().token).toBe('kept-token');
   });
 });

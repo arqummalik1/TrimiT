@@ -78,6 +78,7 @@ import {
 import { HeaderBackButton } from "../../components/HeaderBackButton";
 import { SlotGridSkeleton } from "../../components/skeletons/SlotGridSkeleton";
 import { useInitiateUpi } from "../../hooks/usePayment";
+import { useAuthStore } from "../../store/authStore";
 
 // Staff selection imports
 import StaffPicker from "../../components/StaffPicker";
@@ -103,6 +104,15 @@ export const BookingScreen: React.FC<
   const styles = useMemo(() => createStyles(theme), [theme]);
   const pickerStyles = useMemo(() => createBookingStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
+  const user = useAuthStore((state) => state.user);
+  const [contactPhone, setContactPhone] = useState(user?.phone ?? '+91 ');
+  const [contactSaving, setContactSaving] = useState(false);
+  const contactPhoneNormalized = useMemo(() => {
+    const digits = contactPhone.replace(/\D/g, '');
+    const local = digits.startsWith('91') ? digits.slice(2) : digits;
+    return local.length === 10 ? `+91${local}` : '';
+  }, [contactPhone]);
+  const contactPhoneValid = /^\+91[6-9]\d{9}$/.test(contactPhoneNormalized);
 
   // Validate params
   const validation = BookingParamsSchema.safeParse(route.params);
@@ -1035,6 +1045,29 @@ export const BookingScreen: React.FC<
       return;
     }
 
+    if (!contactPhoneValid) {
+      Alert.alert(
+        'Contact number required',
+        'Enter a valid mobile number so the salon can contact you about this appointment.',
+      );
+      return;
+    }
+
+    if (contactPhoneNormalized !== user?.phone) {
+      setContactSaving(true);
+      const profileResult = await useAuthStore.getState().updateProfile({
+        phone: contactPhoneNormalized,
+      });
+      setContactSaving(false);
+      if (!profileResult.success) {
+        Alert.alert(
+          'Could not save contact number',
+          profileResult.error || 'Please check your connection and try again.',
+        );
+        return;
+      }
+    }
+
     if (reserveMutation.isPending) {
       logger.debug("[BookingFlow] confirm.blocked", {
         reason: "reserve_in_flight",
@@ -1314,6 +1347,34 @@ export const BookingScreen: React.FC<
           </View>
         )}
 
+        <View style={styles.contactCard}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="call" size={20} color={theme.colors.primary} />
+            <Text style={styles.sectionTitle}>Booking contact</Text>
+          </View>
+          <Text style={styles.contactHelp}>
+            Used only for appointment updates from the salon.
+          </Text>
+          <View style={[styles.contactInputWrap, !contactPhoneValid && contactPhone.length > 4 && styles.contactInputInvalid]}>
+            <TextInput
+              value={contactPhone}
+              onChangeText={(value) => {
+                const digits = value.replace(/\D/g, '');
+                const local = digits.startsWith('91') ? digits.slice(2) : digits;
+                setContactPhone(`+91 ${local.slice(0, 10)}`);
+              }}
+              keyboardType="phone-pad"
+              placeholder="+91 98765 43210"
+              placeholderTextColor={theme.colors.textTertiary}
+              style={styles.contactInput}
+              maxLength={14}
+            />
+            {contactPhoneValid ? (
+              <Ionicons name="checkmark-circle" size={20} color={theme.colors.success} />
+            ) : null}
+          </View>
+        </View>
+
         {/* Date Selection */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -1451,8 +1512,15 @@ export const BookingScreen: React.FC<
                       selectedSlot === slot.time && styles.slotSelected,
                       isJustBooked && !isMulti && styles.slotJustBooked,
                     ]}
-                    onPress={() => {
-                      if (selectedSlot !== slot.time) {
+                      onPress={() => {
+                        if (!contactPhoneValid) {
+                          Alert.alert(
+                            'Add your contact number',
+                            'Enter a valid booking contact above before selecting a time.',
+                          );
+                          return;
+                        }
+                        if (selectedSlot !== slot.time) {
                         resetBookingAttempt();
                         setSelectedSlot(slot.time);
                         reserveMutation.mutate(slot.time);
@@ -1649,7 +1717,7 @@ export const BookingScreen: React.FC<
           <Button
             title={selectedPaymentMethod === 'upi' ? 'Book & Pay' : 'Confirm Booking'}
             onPress={handleConfirmBooking}
-            loading={bookingMutation.isPending || reserveMutation.isPending}
+            loading={bookingMutation.isPending || reserveMutation.isPending || contactSaving}
             disabled={notBookable || salonClosed}
             icon={
               <Ionicons
@@ -1998,6 +2066,41 @@ const createStyles = (theme: Theme) =>
       borderRadius: 16,
       borderWidth: 1,
       borderColor: theme.colors.border,
+    },
+    contactCard: {
+      backgroundColor: theme.colors.surface,
+      padding: 18,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      marginBottom: 20,
+    },
+    contactHelp: {
+      fontFamily: fonts.body,
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      marginTop: -4,
+      marginBottom: 12,
+    },
+    contactInputWrap: {
+      minHeight: 50,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.background,
+      paddingHorizontal: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    contactInputInvalid: {
+      borderColor: theme.colors.error,
+    },
+    contactInput: {
+      flex: 1,
+      fontFamily: fonts.bodyMedium,
+      fontSize: 16,
+      color: theme.colors.text,
+      paddingVertical: 12,
     },
     summaryTitle: {
       fontFamily: fonts.bodyBold,

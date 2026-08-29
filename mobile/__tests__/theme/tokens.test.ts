@@ -41,7 +41,9 @@ const THEME_COLOR_KEYS: Record<keyof ThemeColors, true> = {
   background: true, surface: true, surfaceSecondary: true, surfaceRaised: true,
   surfaceElevated: true, surfaceFloating: true, surfaceHighlight: true,
   text: true, textSecondary: true, textTertiary: true, textInverse: true, textAccent: true,
-  primary: true, primaryDark: true, primaryLight: true,
+  primary: true, primaryDark: true, primaryLight: true, metallicAccent: true,
+  editorialCanvas: true, editorialTerracotta: true, editorialInk: true,
+  editorialMuted: true, editorialPaper: true, editorialActiveRing: true,
   secondary: true, secondaryDark: true, secondaryLight: true,
   border: true, borderFocus: true,
   error: true, errorLight: true, success: true, successLight: true,
@@ -50,7 +52,8 @@ const THEME_COLOR_KEYS: Record<keyof ThemeColors, true> = {
   statusCompleted: true, statusCompletedBg: true, statusCancelled: true, statusCancelledBg: true,
   statusRescheduled: true, statusRescheduledBg: true, statusInProgress: true, statusInProgressBg: true,
   gradientPrimary: true, gradientPremium: true, gradientHighlight: true,
-  overlay: true, shimmer: true, white: true, black: true, transparent: true,
+  overlay: true, shimmer: true, editorialShadow: true, editorialShadowStrong: true,
+  white: true, black: true, transparent: true,
   tabBar: true, tabBarBorder: true,
 };
 

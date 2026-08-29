@@ -5,9 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
-  Linking,
-  ActivityIndicator,
 } from 'react-native';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,26 +20,34 @@ import { useTheme, ThemeMode } from '../../theme/ThemeContext';
 import { handleApiError } from '../../lib/errorHandler';
 import { formatCopyright, formatVersionLine } from '../../config/appVersion';
 import { ProfileStackScreenProps } from '../../navigation/types';
-import {
-  ACCOUNT_DELETION_SUPPORT_EMAIL,
-  ACCOUNT_DELETION_WEB_URL,
-} from '../../lib/accountDeletion';
+import type { CustomerTabParamList } from '../../navigation/types';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NotificationSettingsSection } from '../../components/NotificationSettingsSection';
 import { DiscoverySettingsSection } from '../../components/DiscoverySettingsSection';
 import { SignOutButton } from '../../components/SignOutButton';
 import { SettingsSection, SettingsRow } from '../../components/settings/SettingsSection';
 import { createSettingsStyles } from '../../components/settings/settingsStyles';
+import {
+  requestAuthentication,
+  requestEmployeeWorkspace,
+  requestOwnerWorkspace,
+} from '../../lib/authGate';
 
 export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'ProfileMain'>) {
   const { theme, themeMode, setThemeMode } = useTheme();
   const styles = useMemo(() => createSettingsStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
-  const { user, deleteAccount, setUser, token, isLoading: authLoading } = useAuthStore();
+  const { user, setUser, token, resetOnboarding } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '+91 ');
+
+  const returnToDiscover = () => {
+    navigation
+      .getParent<BottomTabNavigationProp<CustomerTabParamList>>()
+      ?.navigate('Discover', { screen: 'DiscoverMain' });
+  };
 
   const handleSave = async () => {
     const trimmedName = name.trim();
@@ -77,35 +82,88 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
     }
   };
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete account',
-      'This permanently deletes your TrimiT account, profile, and associated data. Active bookings may be cancelled. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete account',
-          style: 'destructive',
-          onPress: async () => {
-            setIsDeleting(true);
-            const result = await deleteAccount();
-            setIsDeleting(false);
-            if (!result.success) {
-              showToast(result.error ?? 'Could not delete account', 'error');
-            } else {
-              showToast('Your account has been deleted', 'success');
-            }
-          },
-        },
-      ]
-    );
-  };
+  if (!user) {
+    return (
+      <ScreenWrapper variant="tab">
+        <View style={styles.screen}>
+          <View style={[styles.header, localStyles.guestHeader]}>
+            <TouchableOpacity
+              style={localStyles.guestBackButton}
+              onPress={returnToDiscover}
+              accessibilityRole="button"
+              accessibilityLabel="Back to Discover"
+            >
+              <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Account &amp; support</Text>
+          </View>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingBottom: insets.bottom + spacing.xxxl },
+            ]}
+          >
+            <View style={styles.section}>
+              <View style={[styles.profileCard, localStyles.guestCard]}>
+                <View style={localStyles.guestIcon}>
+                  <Ionicons name="sparkles" size={28} color={theme.colors.primary} />
+                </View>
+                <Text style={localStyles.guestTitle}>Browse freely. Sign in when it matters.</Text>
+                <Text style={localStyles.guestBody}>
+                  Book a service, manage appointments, or save your details when you're ready.
+                </Text>
+                <View style={localStyles.guestButtonWrap}>
+                  <Button
+                    title="Sign in or create account"
+                    onPress={() => requestAuthentication({ kind: 'profile' })}
+                    style={localStyles.guestPrimaryButton}
+                  />
+                </View>
+              </View>
+            </View>
 
-  const openAccountDeletionWeb = () => {
-    void Linking.openURL(ACCOUNT_DELETION_WEB_URL).catch(() => {
-      showToast(`Visit ${ACCOUNT_DELETION_WEB_URL} or email ${ACCOUNT_DELETION_SUPPORT_EMAIL}`, 'error');
-    });
-  };
+            <SettingsSection title="For salon teams">
+              <SettingsRow
+                title="List or manage my salon"
+                subtitle="Create your owner workspace"
+                onPress={() => requestAuthentication({ kind: 'owner_onboarding' })}
+              />
+              <SettingsRow
+                title="Employee access"
+                subtitle="Join using an invitation from your salon"
+                onPress={() => requestAuthentication({ kind: 'employee_claim' })}
+                isLast
+              />
+            </SettingsSection>
+
+            <SettingsSection title="Legal & support">
+              <SettingsRow title="Payments help" onPress={() => navigation.navigate('PaymentsHelp')} />
+              <SettingsRow title="Privacy policy" onPress={() => navigation.navigate('PrivacyPolicy')} />
+              <SettingsRow title="Terms of service" onPress={() => navigation.navigate('Terms')} />
+              <SettingsRow title="Contact us" onPress={() => navigation.navigate('Contact')} isLast />
+            </SettingsSection>
+
+            {__DEV__ ? (
+              <SettingsSection title="Developer preview">
+                <SettingsRow
+                  title="Replay introduction"
+                  subtitle="Preview the onboarding screens without clearing app data"
+                  onPress={resetOnboarding}
+                  isLast
+                />
+              </SettingsSection>
+            ) : null}
+
+            <View style={styles.section}>
+              <Text style={styles.footerMeta}>{formatVersionLine()}</Text>
+              <Text style={styles.footerMeta}>{formatCopyright()}</Text>
+            </View>
+          </ScrollView>
+        </View>
+      </ScreenWrapper>
+    );
+  }
 
   return (
     <ScreenWrapper variant="stack">
@@ -205,6 +263,21 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
           )}
 
           {user?.role === 'customer' && <DiscoverySettingsSection />}
+          {user?.role === 'customer' && (
+            <SettingsSection title="For salon teams">
+              <SettingsRow
+                title="List or manage my salon"
+                subtitle="Create an owner workspace"
+                onPress={requestOwnerWorkspace}
+              />
+              <SettingsRow
+                title="Employee access"
+                subtitle="Connect with a salon invitation"
+                onPress={requestEmployeeWorkspace}
+                isLast
+              />
+            </SettingsSection>
+          )}
           <NotificationSettingsSection />
 
           <SettingsSection title="Appearance">
@@ -234,6 +307,17 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
             </View>
           </SettingsSection>
 
+          {__DEV__ ? (
+            <SettingsSection title="Developer preview">
+              <SettingsRow
+                title="Replay introduction"
+                subtitle="Preview onboarding without signing out or clearing app data"
+                onPress={resetOnboarding}
+                isLast
+              />
+            </SettingsSection>
+          ) : null}
+
           <SettingsSection title="Legal & support">
             <SettingsRow
               title="Payments help"
@@ -255,17 +339,11 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
           </SettingsSection>
 
           <SettingsSection title="Account">
-            <SettingsRow title="Request deletion on the web" onPress={openAccountDeletionWeb} />
             <SettingsRow
-              title="Delete account"
+              title="Delete account and data"
+              subtitle="Review what is removed before continuing"
               destructive
-              onPress={handleDeleteAccount}
-              disabled={isDeleting || authLoading}
-              trailing={
-                isDeleting ? (
-                  <ActivityIndicator size="small" color={theme.colors.error} />
-                ) : undefined
-              }
+              onPress={() => navigation.navigate('AccountDeletion')}
               isLast
             />
           </SettingsSection>
@@ -296,5 +374,49 @@ const localStyles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     marginTop: spacing.sm,
+  },
+  guestCard: {
+    alignItems: 'flex-start',
+    padding: spacing.xxl,
+  },
+  guestHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  guestBackButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -spacing.sm,
+  },
+  guestIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(137, 91, 57, 0.10)',
+    marginBottom: spacing.lg,
+  },
+  guestTitle: {
+    fontSize: 23,
+    lineHeight: 30,
+    fontWeight: '800',
+    marginBottom: spacing.sm,
+  },
+  guestBody: {
+    fontSize: 15,
+    lineHeight: 22,
+    opacity: 0.72,
+  },
+  guestPrimaryButton: {
+    width: '100%',
+  },
+  guestButtonWrap: {
+    width: '100%',
+    marginTop: spacing.xl,
   },
 });

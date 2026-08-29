@@ -25,6 +25,7 @@ type AppleAuthModule = {
     nonce?: string;
   }) => Promise<{
     identityToken: string | null;
+    authorizationCode?: string | null;
     email?: string | null;
     fullName?: {
       givenName?: string | null;
@@ -102,7 +103,13 @@ async function randomNonce(length = 32): Promise<string> {
 }
 
 export type AppleSignInOutcome =
-  | { ok: true; idToken: string; rawNonce: string; fullName?: string | null }
+  | {
+      ok: true;
+      idToken: string;
+      rawNonce: string;
+      authorizationCode?: string | null;
+      fullName?: string | null;
+    }
   | { ok: false; cancelled?: boolean; error: string };
 
 /**
@@ -167,6 +174,7 @@ export async function signInWithApple(): Promise<AppleSignInOutcome> {
       ok: true,
       idToken: credential.identityToken,
       rawNonce,
+      authorizationCode: credential.authorizationCode ?? null,
       fullName,
     };
   } catch (err: unknown) {

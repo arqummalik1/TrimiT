@@ -39,6 +39,8 @@ import api from '../../lib/api';
 import { Salon, Service } from '../../types';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
+import { useAuthStore } from '../../store/authStore';
+import { requestAuthentication } from '../../lib/authGate';
 import { fonts, spacing, borderRadius, formatPrice } from '../../lib/utils';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { ErrorState } from '../../components/ErrorState';
@@ -112,6 +114,10 @@ export const ServiceDetailScreen: React.FC<CustomerDiscoverScreenProps<'ServiceD
     service.discount_percentage > 0;
 
   const handleBook = () => {
+    if (!useAuthStore.getState().isAuthenticated) {
+      requestAuthentication({ kind: 'customer_booking', salonId, serviceId });
+      return;
+    }
     navigation.navigate('Booking', { salonId, serviceId });
   };
 

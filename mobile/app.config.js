@@ -30,6 +30,7 @@ function loadDotEnv() {
 loadDotEnv();
 
 const appVersion = require('../shared/app-version.json');
+const splashBranding = require('./src/config/splash-branding.json');
 
 const withAndroidPermissions = require('./plugins/withAndroidPermissions');
 
@@ -85,9 +86,24 @@ module.exports = ({ config }) => {
     './plugins/withFmtXcodeFix.js',
     // Survives folder renames: absolute node resolve for maps breaks Xcode xcconfig refs
     './plugins/withRelativeMapsPodPath.js',
+    // Xcode Run starts/reuses Metro and waits for it before launching Debug.
+    './plugins/withXcodeMetroLauncher.js',
     // Device Debug: embed JS — CLAT IPs (192.0.0.2) + ATS otherwise red-screen Metro
     './plugins/withIosDeviceEmbeddedBundle.js',
     'expo-asset',
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/trimit-t-transparent.png',
+        imageWidth: splashBranding.nativeImageWidth,
+        resizeMode: 'contain',
+        backgroundColor: splashBranding.backgroundColor,
+        dark: {
+          image: './assets/trimit-t-transparent.png',
+          backgroundColor: splashBranding.backgroundColor,
+        },
+      },
+    ],
     'expo-audio',
     'expo-font',
     [
@@ -167,23 +183,17 @@ module.exports = ({ config }) => {
       userInterfaceStyle: 'automatic',
       // New Arch off for release stability (avoids device-specific native crashes on some OEMs).
       newArchEnabled: false,
-      splash: {
-        image: './assets/trimit-t-transparent.png',
-        resizeMode: 'contain',
-        backgroundColor: '#000000',
-      },
       ios: {
         buildNumber: appVersion.iosBuildNumber,
         supportsTablet: true,
         bundleIdentifier: 'online.trimit.app',
         // App Store Guideline 4.8: required when offering Google / social login.
         usesAppleSignIn: true,
-        // Time Sensitive + Critical Alerts (Rapido-style): ring when app is
-        // backgrounded/killed, including mute switch / Focus — requires Apple
-        // Critical Alerts entitlement approval for online.trimit.app.
+        // Time Sensitive notifications can break through Focus when the user
+        // allows them. Do not add Critical Alerts until Apple approves the
+        // managed capability for online.trimit.app; otherwise device signing fails.
         entitlements: {
           'com.apple.developer.usernotifications.time-sensitive': true,
-          'com.apple.developer.usernotifications.critical-alerts': true,
         },
         infoPlist: {
           NSLocationWhenInUseUsageDescription: 'TrimiT uses your location to find nearby salons.',
@@ -220,7 +230,7 @@ module.exports = ({ config }) => {
         },
         adaptiveIcon: {
           foregroundImage: './assets/adaptive-icon.png',
-          backgroundColor: '#000000',
+          backgroundColor: splashBranding.backgroundColor,
         },
         edgeToEdgeEnabled: true,
         // NOTE: READ_MEDIA_IMAGES is intentionally NOT declared. Salon photo

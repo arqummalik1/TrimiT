@@ -30,6 +30,13 @@ export type ThemeColors = {
   primary:      string;
   primaryDark:  string;
   primaryLight: string;
+  metallicAccent: string;
+  editorialCanvas: string;
+  editorialTerracotta: string;
+  editorialInk: string;
+  editorialMuted: string;
+  editorialPaper: string;
+  editorialActiveRing: string;
 
   // Secondary
   secondary:      string;
@@ -73,6 +80,8 @@ export type ThemeColors = {
   // Misc
   overlay:     string;
   shimmer:     string;
+  editorialShadow: string;
+  editorialShadowStrong: string;
   white:       string;
   black:       string;
   transparent: string;

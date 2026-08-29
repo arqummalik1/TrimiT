@@ -36,7 +36,7 @@ def test_urgent_booking_message_uses_custom_sound_and_category():
     )
     assert msg["sound"] == "notification.mp3"
     assert msg["channelId"] == "bookings_v4"
-    assert msg["interruptionLevel"] == "critical"
+    assert msg["interruptionLevel"] == "time-sensitive"
     assert msg["categoryId"] == OWNER_BOOKING_CATEGORY_ID
     assert msg["badge"] == 1
     assert msg["ttl"] == 86400

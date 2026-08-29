@@ -107,7 +107,7 @@ export default function SalonDiscoveryView({
   };
 
   return (
-    <motion.div className="min-h-screen bg-stone-50 pb-24">
+    <motion.div className="min-h-screen bg-stone-50 pb-12 md:pb-16">
       <div className="bg-white border-b border-stone-200">
         <div className="max-w-6xl mx-auto px-4 py-8">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>

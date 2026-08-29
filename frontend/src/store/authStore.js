@@ -5,6 +5,24 @@ import { clearPersistedAuth, AUTH_STORAGE_KEY } from "../lib/session";
 import { mapAuthApiError } from "../lib/authRateLimitMessages";
 import { SUPPORT_EMAIL } from "../config/contact";
 import { supabase } from "../lib/supabase";
+import {
+  peekPendingAuthIntent,
+  roleForPendingAuthIntent,
+} from "../lib/pendingAuthIntent";
+
+const providerDisplayName = (user) => {
+  const metadata = user?.user_metadata || {};
+  const raw = metadata.full_name || metadata.name;
+  if (typeof raw === 'string') return raw.trim() || undefined;
+  if (raw && typeof raw === 'object') {
+    const given = String(raw.given_name || raw.givenName || raw.firstName || '').trim();
+    const family = String(raw.family_name || raw.familyName || raw.lastName || '').trim();
+    return [given, family].filter(Boolean).join(' ') || undefined;
+  }
+  const given = String(metadata.given_name || metadata.givenName || '').trim();
+  const family = String(metadata.family_name || metadata.familyName || '').trim();
+  return [given, family].filter(Boolean).join(' ') || undefined;
+};
 
 const translateAuthError = (error, context = "generic") => {
   const detail = error.response?.data?.detail;
@@ -80,8 +98,7 @@ export const useAuthStore = create(
       isLoading: false,
       isInitializing: false,
       hasSalon: false,
-      // Mirrors mobile: false → new/broken account that must finish
-      // CompleteProfile (pick role + name) before accessing the app.
+      // False only while automatic bootstrap or employee invite claim is pending.
       profileComplete: false,
       error: null,
 
@@ -125,6 +142,28 @@ export const useAuthStore = create(
             }
           }
 
+          if (!profile?.role) {
+            set({
+              user: user || null,
+              profile: null,
+              token: access_token,
+              refreshToken: refresh_token ?? null,
+              isAuthenticated: true,
+              isLoading: false,
+              hasSalon: false,
+              profileComplete: false,
+              error: null,
+            });
+            const intendedRole = roleForPendingAuthIntent();
+            if (intendedRole === 'employee') {
+              return { success: true, profile: null, hasSalon: false, profileComplete: false };
+            }
+            return get().completeProfile({
+              role: intendedRole,
+              name: providerDisplayName(user),
+            });
+          }
+
           set({
             user,
             profile: profile || null,
@@ -137,7 +176,15 @@ export const useAuthStore = create(
             error: null,
           });
 
-          return { success: true, profile, hasSalon };
+          const pendingRole = roleForPendingAuthIntent();
+          if (peekPendingAuthIntent()?.kind === 'owner_onboarding' && profile.role === 'customer') {
+            return get().completeProfile({ role: 'owner' });
+          }
+          if (pendingRole === 'employee' && profile.role !== 'employee') {
+            return { success: true, profile, hasSalon: false, profileComplete: false };
+          }
+
+          return { success: true, profile, hasSalon, profileComplete: true };
         } catch (error) {
           const message = translateAuthError(error, "login");
           set({ isLoading: false, error: message });
@@ -148,8 +195,8 @@ export const useAuthStore = create(
       // ── Google sign-in (OAuth redirect) ──────────────────────────────
       // Starts Supabase's Google OAuth flow. The browser leaves the page and
       // returns to /auth/callback, which calls hydrateFromSupabaseSession().
-      // Same login-or-signup outcome as OTP: existing user is routed by role,
-      // a brand-new user is gated into CompleteProfile to pick a role.
+      // Same intent-driven outcome as OTP: customers bootstrap automatically,
+      // owners come from an explicit owner action, employees verify an invite.
       googleSignIn: async () => {
         set({ error: null });
         try {
@@ -199,8 +246,8 @@ export const useAuthStore = create(
 
       // Shared session hydration for OAuth (Google / Apple) callbacks. Given a
       // Supabase session, mirrors the verify-otp store logic: set the bearer
-      // token, ask the backend who this is (/auth/me), and gate new users into
-      // CompleteProfile. No new backend endpoint is needed — an Apple/Google
+      // token, ask the backend who this is (/auth/me), and bootstrap the
+      // intended profile. No new backend endpoint is needed — an Apple/Google
       // session is a normal Supabase session, so /auth/me returns profile_complete.
       hydrateFromSupabaseSession: async (session) => {
         const accessToken = session?.access_token;
@@ -236,7 +283,31 @@ export const useAuthStore = create(
               profileComplete: false,
               error: null,
             });
-            return { success: true, profileComplete: false };
+            const intendedRole = roleForPendingAuthIntent();
+            if (intendedRole === 'employee') {
+              return { success: true, profileComplete: false };
+            }
+
+            const providerName = providerDisplayName(session?.user);
+            if (providerName) {
+              // Apple may provide its name only on the first authorization.
+              // Normalize it in Supabase metadata immediately for later logins.
+              try {
+                const metadataResult = await supabase.auth.updateUser({
+                  data: { full_name: providerName, name: providerName },
+                });
+                if (metadataResult?.error) {
+                  console.warn('[Auth] Provider name metadata could not be normalized.');
+                }
+              } catch {
+                // Profile bootstrap still receives the provider name directly;
+                // a metadata write failure must never block authentication.
+              }
+            }
+            return get().completeProfile({
+              role: intendedRole,
+              name: providerName,
+            });
           }
 
           let hasSalon = false;
@@ -260,6 +331,13 @@ export const useAuthStore = create(
             profileComplete: true,
             error: null,
           });
+          const pendingRole = roleForPendingAuthIntent();
+          if (peekPendingAuthIntent()?.kind === 'owner_onboarding' && profile.role === 'customer') {
+            return get().completeProfile({ role: 'owner' });
+          }
+          if (pendingRole === 'employee' && profile.role !== 'employee') {
+            return { success: true, profileComplete: false, profile, hasSalon: false };
+          }
           return { success: true, profileComplete: true, profile, hasSalon };
         } catch (error) {
           set({ isLoading: false });
@@ -348,6 +426,23 @@ export const useAuthStore = create(
               userData.profile_complete ?? !!resolvedProfile?.role,
             error: null,
           });
+
+          const backendProfileComplete =
+            userData.profile_complete ?? !!resolvedProfile?.role;
+          if (!backendProfileComplete) {
+            const intendedRole = roleForPendingAuthIntent();
+            if (intendedRole !== 'employee') {
+              await get().completeProfile({
+                role: intendedRole,
+                name: providerDisplayName(userData),
+              });
+            }
+          } else if (
+            peekPendingAuthIntent()?.kind === 'owner_onboarding'
+            && resolvedProfile?.role === 'customer'
+          ) {
+            await get().completeProfile({ role: 'owner' });
+          }
         } catch (error) {
           if (error.response?.status === 401) {
             clearPersistedAuth();
@@ -443,7 +538,9 @@ export const useAuthStore = create(
           return { success: true };
         } catch (error) {
           const detail = error.response?.data?.detail;
+          const nested = error.response?.data?.error?.details;
           const message =
+            (typeof nested === "object" && nested?.message) ||
             (typeof detail === "object" && detail?.message) ||
             (typeof detail === "string" && detail) ||
             `Could not delete your account. Please try again or contact ${SUPPORT_EMAIL}.`;
@@ -490,10 +587,8 @@ export const useAuthStore = create(
             });
           }
 
-          // New / broken account (no public.users row yet). Mirror mobile:
-          // authenticate the session but gate the user into CompleteProfile
-          // where they pick role (customer/owner) + name. The backend creates
-          // the profile via /auth/complete-profile — role is decided AFTER OTP.
+          // New / interrupted account: bootstrap the role implied by the
+          // approved action. Only employee access pauses for invite validation.
           if (!profile_complete) {
             set({
               user: user || null,
@@ -506,9 +601,21 @@ export const useAuthStore = create(
               profileComplete: false,
               error: null,
             });
+            const intendedRole = roleForPendingAuthIntent();
+            if (intendedRole === 'employee') {
+              return {
+                success: true,
+                profileComplete: false,
+                session: response.data,
+              };
+            }
+            const bootstrapped = await get().completeProfile({
+              role: intendedRole,
+              name: providerDisplayName(user),
+            });
             return {
-              success: true,
-              profileComplete: false,
+              ...bootstrapped,
+              profileComplete: bootstrapped.success,
               session: response.data,
             };
           }
@@ -536,6 +643,21 @@ export const useAuthStore = create(
             error: null,
           });
 
+          const pendingRole = roleForPendingAuthIntent();
+          if (peekPendingAuthIntent()?.kind === 'owner_onboarding' && profile.role === 'customer') {
+            const activated = await get().completeProfile({ role: 'owner' });
+            return { ...activated, profileComplete: activated.success, session: response.data };
+          }
+          if (pendingRole === 'employee' && profile.role !== 'employee') {
+            return {
+              success: true,
+              profileComplete: false,
+              profile,
+              hasSalon: false,
+              session: response.data,
+            };
+          }
+
           return {
             success: true,
             profileComplete: true,
@@ -550,9 +672,8 @@ export const useAuthStore = create(
         }
       },
 
-      // Mandatory second step after OTP for new users. Creates the
-      // public.users row with the chosen role. Idempotent server-side —
-      // role cannot be escalated once the row exists.
+      // Progressive profile bootstrap. Customer/owner identity comes from the
+      // authentication provider; employees still prove a pending invitation.
       completeProfile: async ({ role, name, phone, upi_id, gender }) => {
         set({ isLoading: true, error: null });
         try {

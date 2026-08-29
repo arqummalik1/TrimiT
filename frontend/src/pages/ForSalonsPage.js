@@ -176,6 +176,12 @@ export default function ForSalonsPage() {
           {isOfferActive() ? PROMO.ctaLabel : 'Start free today'}
           <ArrowRight size={20} weight="bold" />
         </Link>
+        <p className="mt-5 text-sm text-brand-100">
+          Joining an existing team?{' '}
+          <Link to="/employee-access" className="font-semibold text-white underline underline-offset-4">
+            Open employee access
+          </Link>
+        </p>
       </section>
     </div>
   );

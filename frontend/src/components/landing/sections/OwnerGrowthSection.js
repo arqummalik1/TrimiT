@@ -52,7 +52,7 @@ export default function OwnerGrowthSection({ compact = false }) {
             </ul>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link
-                to="/signup?role=owner"
+                to="/owner/start"
                 className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-orange-900 rounded-full font-bold hover:bg-orange-50 transition-colors"
               >
                 List your business free

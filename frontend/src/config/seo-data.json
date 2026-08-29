@@ -494,6 +494,11 @@
       "description": "Contact TrimiT support for help with bookings, accounts, and salon listings.",
       "keywords": "TrimiT contact, salon booking support"
     },
+    "/delete-account": {
+      "title": "Delete Your TrimiT Account | Account & Data Deletion",
+      "description": "Permanently delete your TrimiT account and associated personal data.",
+      "keywords": "TrimiT delete account, delete TrimiT data, account deletion"
+    },
     "/help/payments": {
       "title": "Payments Help Center | TrimiT",
       "description": "How payments work on TrimiT — pay at salon/parlour, refunds, and owner payouts.",
@@ -527,6 +532,7 @@
     { "path": "/signup", "changefreq": "monthly", "priority": "0.8" },
     { "path": "/login", "changefreq": "monthly", "priority": "0.6" },
     { "path": "/contact", "changefreq": "monthly", "priority": "0.6" },
+    { "path": "/delete-account", "changefreq": "yearly", "priority": "0.6" },
     { "path": "/privacy", "changefreq": "yearly", "priority": "0.5" },
     { "path": "/terms", "changefreq": "yearly", "priority": "0.5" },
     { "path": "/help/payments", "changefreq": "monthly", "priority": "0.7" }

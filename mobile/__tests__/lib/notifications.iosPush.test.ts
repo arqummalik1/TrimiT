@@ -159,7 +159,7 @@ describe('notifications permission + token', () => {
     Object.defineProperty(Platform, 'OS', { configurable: true, get: () => 'ios' });
   });
 
-  it('requests critical alerts on iOS then returns Expo push token', async () => {
+  it('requests standard notification permissions on iOS then returns Expo push token', async () => {
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
       status: 'undetermined',
       canAskAgain: true,
@@ -178,7 +178,6 @@ describe('notifications permission + token', () => {
         allowAlert: true,
         allowBadge: true,
         allowSound: true,
-        allowCriticalAlerts: true,
       },
     });
     expect(token).toBe('ExponentPushToken[test-token]');

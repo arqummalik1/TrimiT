@@ -20,10 +20,10 @@ export function resolvePostLoginPath({
   profileComplete = true,
   redirectTo = null,
 } = {}) {
-  // New / broken account (no role yet) must pick role + name first — same gate
-  // as ProtectedRoute, so sending them anywhere else would just bounce.
+  // The only intentionally incomplete web profile is an employee waiting for
+  // invitation verification. Customer/owner profiles bootstrap automatically.
   if (profileComplete === false || !profile?.role) {
-    return '/complete-profile';
+    return '/employee-access';
   }
 
   const redirect = safeInternalPath(redirectTo);
@@ -32,5 +32,6 @@ export function resolvePostLoginPath({
   if (profile.role === 'owner') {
     return hasSalon ? '/owner/dashboard' : '/owner/salon';
   }
+  if (profile.role === 'employee') return '/owner/dashboard';
   return '/explore';
 }

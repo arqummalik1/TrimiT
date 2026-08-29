@@ -83,6 +83,15 @@ class Settings(BaseSettings):
     APP_REVIEW_OTP_EMAILS: Optional[str] = None
     APP_REVIEW_OTP_CODE: Optional[str] = None
 
+    # Sign in with Apple token revocation during account deletion. The private
+    # key is the contents of the Apple AuthKey_*.p8 file; Render may store it
+    # with literal "\\n" sequences. Keep all four unset to disable revocation
+    # in local development. Production iOS deletion should configure all four.
+    APPLE_CLIENT_ID: Optional[str] = None
+    APPLE_TEAM_ID: Optional[str] = None
+    APPLE_KEY_ID: Optional[str] = None
+    APPLE_PRIVATE_KEY: Optional[str] = None
+
     # ── Serviceability ──────────────────────────────────────────────────────
     # Optional GLOBAL override for every active service area's coverage radius
     # (km). When set (> 0), it wins over each row's `service_areas.radius_km`,

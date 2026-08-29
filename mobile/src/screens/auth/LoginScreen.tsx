@@ -35,6 +35,7 @@ import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
+import { usePendingAuthIntentStore } from '../../store/pendingAuthIntentStore';
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -84,6 +85,49 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isOtpLogin, setIsOtpLogin] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
+  const pendingKind = usePendingAuthIntentStore((state) => state.intent?.kind);
+
+  const authCopy = useMemo(() => {
+    switch (pendingKind) {
+      case 'customer_booking':
+        return {
+          title: 'Continue to booking',
+          subtitle: 'Sign in securely, then choose your date and time. Your selected service is saved.',
+        };
+      case 'owner_onboarding':
+        return {
+          title: 'Build your salon workspace',
+          subtitle: 'Sign in first, then we’ll guide you through your salon setup.',
+        };
+      case 'employee_claim':
+        return {
+          title: 'Employee access',
+          subtitle: 'Sign in securely, then verify the mobile number used in your invitation.',
+        };
+      case 'my_bookings':
+        return {
+          title: 'Your appointments',
+          subtitle: 'Sign in to view, reschedule, or manage your bookings.',
+        };
+      default:
+        return {
+          title: isOtpLogin ? 'Sign In with OTP' : 'Welcome Back',
+          subtitle: isOtpLogin
+            ? 'Use Apple, Google, or a secure email code. No profile form required.'
+            : 'Sign in to continue to TrimiT.',
+        };
+    }
+  }, [pendingKind, isOtpLogin]);
+
+  const closeAuth = async () => {
+    clearError();
+    usePendingAuthIntentStore.getState().clearIntent();
+    const authState = useAuthStore.getState();
+    if (authState.isAuthenticated && !authState.profileComplete) {
+      await authState.clearSession({ sessionExpired: false });
+    }
+    navigation.getParent()?.goBack();
+  };
 
   const handleFieldChange = useCallback(
     (value: string) => {
@@ -180,15 +224,22 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => void closeAuth()}
+            accessibilityRole="button"
+            accessibilityLabel="Close sign in"
+            disabled={isLoading}
+          >
+            <Ionicons name="close" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.logoContainer}>
               <Image source={require('../../../assets/logo.png')} style={{ width: 40, height: 40, resizeMode: 'contain', tintColor: theme.colors.textInverse }} />
             </View>
-            <Text style={styles.title}>{isOtpLogin ? 'Sign In with OTP' : 'Welcome Back'}</Text>
-            <Text style={styles.subtitle}>
-              {isOtpLogin ? 'Enter your email to receive a 6-digit code' : 'Sign in to continue to TrimiT'}
-            </Text>
+            <Text style={styles.title}>{authCopy.title}</Text>
+            <Text style={styles.subtitle}>{authCopy.subtitle}</Text>
           </View>
 
           {/* Form */}
@@ -330,6 +381,20 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: spacing.xxl,
     justifyContent: 'center',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: spacing.xl,
+    right: spacing.xxl,
+    zIndex: 2,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   header: {
     alignItems: 'center',

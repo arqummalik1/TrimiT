@@ -18,13 +18,13 @@ describe('resolvePostLoginPath', () => {
     expect(resolvePostLoginPath({ profile: { role: 'customer' } })).toBe('/explore');
   });
 
-  it('gates new / broken accounts into complete-profile', () => {
+  it('gates an invitation-pending account into employee access', () => {
     expect(
       resolvePostLoginPath({ profileComplete: false, profile: { role: 'customer' } })
-    ).toBe('/complete-profile');
-    expect(resolvePostLoginPath({ profile: null })).toBe('/complete-profile');
-    expect(resolvePostLoginPath({ profile: {} })).toBe('/complete-profile');
-    expect(resolvePostLoginPath()).toBe('/complete-profile');
+    ).toBe('/employee-access');
+    expect(resolvePostLoginPath({ profile: null })).toBe('/employee-access');
+    expect(resolvePostLoginPath({ profile: {} })).toBe('/employee-access');
+    expect(resolvePostLoginPath()).toBe('/employee-access');
   });
 
   it('honours an explicit internal redirect over role-based routing', () => {
@@ -46,7 +46,7 @@ describe('resolvePostLoginPath', () => {
   it('completing the profile wins over a redirect param', () => {
     expect(
       resolvePostLoginPath({ profileComplete: false, redirectTo: '/my-bookings' })
-    ).toBe('/complete-profile');
+    ).toBe('/employee-access');
   });
 
   it('ignores off-site redirect targets (safeInternalPath sanitization)', () => {

@@ -4,7 +4,7 @@
  *
  * Rapido-style booking alerts (app backgrounded or killed):
  * - Android: high-importance channel + alarm audio attributes + custom sound
- * - iOS: APNs alert + critical interruption (needs Apple Critical Alerts entitlement)
+ * - iOS: APNs alert + Time Sensitive interruption (Critical Alerts pending Apple approval)
  * Shared IDs/sounds: src/lib/pushConstants.ts ← shared/push-constants.json
  */
 
@@ -226,8 +226,6 @@ async function ensureNotificationPermissions(): Promise<boolean> {
       allowAlert: true,
       allowBadge: true,
       allowSound: true,
-      // Rapido-style: play booking tone when app is killed / silent / Focus.
-      allowCriticalAlerts: true,
     },
   });
 

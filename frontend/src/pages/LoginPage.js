@@ -14,6 +14,12 @@ import {
 } from '../config/auth';
 import { safeInternalPath } from '../lib/utils';
 import { resolvePostLoginPath } from '../lib/postLoginRedirect';
+import {
+  consumePendingAuthIntent,
+  intentForProtectedPath,
+  pathForPendingAuthIntent,
+  setPendingAuthIntent,
+} from '../lib/pendingAuthIntent';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -26,6 +32,11 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isOtpLogin, setIsOtpLogin] = useState(true);
   const [resendTimer, setResendTimer] = useState(0);
+
+  useEffect(() => {
+    const intent = intentForProtectedPath(redirectAfterLogin);
+    if (intent) setPendingAuthIntent(intent);
+  }, [redirectAfterLogin]);
 
   // Resend Countdown Timer
   useEffect(() => {
@@ -63,10 +74,14 @@ const LoginPage = () => {
     const result = await login(email.trim(), password);
     if (result.success) {
       useToastStore.getState().success('Signed in successfully.');
+      const intendedPath = result.profileComplete === false
+        ? null
+        : pathForPendingAuthIntent(consumePendingAuthIntent());
       navigate(
-        resolvePostLoginPath({
+        intendedPath || resolvePostLoginPath({
           profile: result.profile,
           hasSalon: result.hasSalon,
+          profileComplete: result.profileComplete,
           redirectTo: redirectAfterLogin,
         })
       );
@@ -214,13 +229,13 @@ const LoginPage = () => {
 
           <div className="mt-6 text-center space-y-3">
             <p className="text-stone-500 text-sm">
-              Don't have an account?{' '}
+              New to TrimiT?{' '}
               <Link 
-                to="/signup" 
+                to={redirectAfterLogin ? `/signup?redirect=${encodeURIComponent(redirectAfterLogin)}` : '/signup'}
                 className="text-brand-800 font-semibold hover:underline"
                 data-testid="signup-link"
               >
-                Sign up
+                Continue with email
               </Link>
             </p>
           </div>

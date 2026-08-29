@@ -73,7 +73,7 @@ def build_expo_push_message(
     """Build an Expo Push API message (pure — easy to unit test).
 
     Urgent owner booking alerts use custom sound + bookings channel +
-    interruptionLevel=critical (mute bypass needs Apple Critical Alerts).
+    interruptionLevel=time-sensitive (breaks through Focus when the user allows it).
     Soft updates use default sound + booking_updates channel.
     """
     message: Dict[str, Any] = {

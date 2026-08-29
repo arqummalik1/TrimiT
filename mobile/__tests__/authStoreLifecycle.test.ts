@@ -73,6 +73,10 @@ const resetStore = () =>
 beforeEach(() => {
   jest.clearAllMocks();
   resetStore();
+  mockCompleteProfile.mockResolvedValue({
+    success: true,
+    profile: { id: 'u2', email: 'new@example.com', name: 'New User', role: 'customer' },
+  });
 });
 
 describe('login', () => {
@@ -206,7 +210,7 @@ describe('verifyOtp', () => {
     expect(s.refreshToken).toBe('refresh-tok');
   });
 
-  it('handles verification for new user (profileComplete=false)', async () => {
+  it('bootstraps a new customer immediately after OTP verification', async () => {
     mockVerifyOtp.mockResolvedValue({
       token: 'access-tok',
       refreshToken: 'refresh-tok',
@@ -220,9 +224,10 @@ describe('verifyOtp', () => {
     expect(result.success).toBe(true);
     const s = useAuthStore.getState();
     expect(s.isAuthenticated).toBe(true);
-    expect(s.profileComplete).toBe(false);
-    expect(s.user).toBeNull();
+    expect(s.profileComplete).toBe(true);
+    expect(s.user?.role).toBe('customer');
     expect(s.token).toBe('access-tok');
+    expect(mockCompleteProfile).toHaveBeenCalledWith({ role: 'customer' });
   });
 
   it('handles verification failure', async () => {
@@ -285,4 +290,3 @@ describe('completeProfile', () => {
     expect(s.error).toBe('Creation failed');
   });
 });
-
