@@ -45,6 +45,10 @@ function loadGoogleSignin(): GoogleSigninModule | null {
   if (cachedModule !== undefined) {
     return cachedModule;
   }
+  if (Constants.appOwnership === 'expo') {
+    cachedModule = null;
+    return null;
+  }
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     cachedModule = require('@react-native-google-signin/google-signin') as GoogleSigninModule;

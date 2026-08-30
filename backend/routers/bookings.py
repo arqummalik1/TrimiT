@@ -43,30 +43,56 @@ BOOKING_LIST_SELECT = "*,salons(*),services(*),users(*)"
 BOOKING_DETAIL_SELECT = "*,salons(*),services(*),users(*)"
 
 
+_BANK_FIELDS = (
+    "bank_account_number",
+    "bank_ifsc",
+    "bank_account_holder_name",
+    "bank_name",
+    "account_holder_name",
+)
+
+
+def _strip_bank_details(salon: dict) -> dict:
+    """Remove banking details from salon dicts before returning to clients."""
+    if isinstance(salon, dict):
+        for key in _BANK_FIELDS:
+            salon.pop(key, None)
+    return salon
+
+
 @router.get("/salon/{salon_id}")
 async def list_bookings_for_salon(
     salon_id: str,
     current_user: dict = Depends(get_current_user),
 ):
     """Owner/employee: bookings for a salon they manage."""
-    token = current_user.get("access_token")
     profile = current_user.get("profile") or {}
     role = profile.get("role", "customer")
     await assert_salon_manager(salon_id, current_user.get("id"), role)
     resp = await supabase.request(
         "GET",
         f"rest/v1/bookings?salon_id=eq.{salon_id}&select={BOOKING_LIST_SELECT}&order=created_at.desc",
-        token=token,
+        service_role=True,
     )
     if resp.status_code != 200:
+        logger.error(
+            "[LIST_SALON_BOOKINGS] failed salon_id=%s status=%s body=%s",
+            salon_id,
+            resp.status_code,
+            resp.text,
+        )
         raise HTTPException(status_code=500, detail="Failed to load bookings")
-    return resp.json()
+    rows = resp.json()
+    if isinstance(rows, list):
+        for r in rows:
+            if isinstance(r.get("salons"), dict):
+                _strip_bank_details(r["salons"])
+    return rows
 
 
 @router.get("/")
 async def list_my_bookings(current_user: dict = Depends(get_current_user)):
     """Customer: own bookings. Owner: bookings for their salon (first salon)."""
-    token = current_user.get("access_token")
     profile = current_user.get("profile") or {}
     role = profile.get("role", "customer")
 
@@ -78,17 +104,29 @@ async def list_my_bookings(current_user: dict = Depends(get_current_user)):
         resp = await supabase.request(
             "GET",
             f"rest/v1/bookings?salon_id=in.({salon_filter})&select={BOOKING_LIST_SELECT}&order=created_at.desc",
-            token=token,
+            service_role=True,
         )
     else:
         resp = await supabase.request(
             "GET",
             f"rest/v1/bookings?user_id=eq.{current_user.get('id')}&select={BOOKING_LIST_SELECT}&order=created_at.desc",
-            token=token,
+            service_role=True,
         )
     if resp.status_code != 200:
+        logger.error(
+            "[LIST_MY_BOOKINGS] failed user_id=%s role=%s status=%s body=%s",
+            current_user.get("id"),
+            role,
+            resp.status_code,
+            resp.text,
+        )
         raise HTTPException(status_code=500, detail="Failed to load bookings")
-    return resp.json()
+    rows = resp.json()
+    if isinstance(rows, list):
+        for r in rows:
+            if isinstance(r.get("salons"), dict):
+                _strip_bank_details(r["salons"])
+    return rows
 
 
 @router.patch("/{booking_id}/status")
@@ -617,13 +655,18 @@ async def get_available_slots(
 @router.get("/{booking_id}")
 async def get_booking(booking_id: str, current_user: dict = Depends(get_current_user)):
     """Single booking with salon, service, and customer embeds (same shape as list)."""
-    token = current_user.get("access_token")
     resp = await supabase.request(
         "GET",
         f"rest/v1/bookings?id=eq.{booking_id}&select={BOOKING_DETAIL_SELECT}",
-        token=token,
+        service_role=True,
     )
     if resp.status_code != 200:
+        logger.error(
+            "[GET_BOOKING] failed booking_id=%s status=%s body=%s",
+            booking_id,
+            resp.status_code,
+            resp.text,
+        )
         raise HTTPException(status_code=500, detail="Failed to load booking")
     rows = resp.json()
     if not rows:
@@ -638,6 +681,8 @@ async def get_booking(booking_id: str, current_user: dict = Depends(get_current_
     else:
         if booking.get("user_id") != uid:
             raise HTTPException(status_code=403, detail="Unauthorized")
+    if isinstance(booking.get("salons"), dict):
+        _strip_bank_details(booking["salons"])
     return booking
 
 

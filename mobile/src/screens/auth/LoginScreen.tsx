@@ -36,6 +36,7 @@ import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { usePendingAuthIntentStore } from '../../store/pendingAuthIntentStore';
+import { navigationRef } from '../../navigation/navigationRef';
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -126,7 +127,15 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
     if (authState.isAuthenticated && !authState.profileComplete) {
       await authState.clearSession({ sessionExpired: false });
     }
-    navigation.getParent()?.goBack();
+    const parent = navigation.getParent();
+    if (parent?.canGoBack()) {
+      parent.goBack();
+    } else if (navigationRef.isReady()) {
+      navigationRef.resetRoot({
+        index: 0,
+        routes: [{ name: 'CustomerTabs' }],
+      });
+    }
   };
 
   const handleFieldChange = useCallback(

@@ -17,6 +17,7 @@ import { ACCOUNT_DELETION_WEB_URL } from '../../lib/accountDeletion';
 import { showToast } from '../../store/toastStore';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme } from '../../theme/ThemeContext';
+import { navigationRef } from '../../navigation/navigationRef';
 import { Theme } from '../../theme/tokens';
 import { borderRadius, spacing, typography } from '../../theme/tokens';
 
@@ -54,6 +55,17 @@ export default function AccountDeletionScreen({ navigation }: AccountDeletionScr
     setIsDeleting(false);
     if (result.success) {
       showToast('Your account and associated data were deleted', 'success');
+      if (navigationRef.isReady()) {
+        navigationRef.resetRoot({
+          index: 0,
+          routes: [
+            {
+              name: 'Auth',
+              params: { screen: 'Login' },
+            },
+          ],
+        });
+      }
       return;
     }
     showToast(result.error ?? 'Could not delete your account. Please try again.', 'error');
