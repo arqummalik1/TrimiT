@@ -17,6 +17,7 @@ import { spacing } from '../../lib/utils';
 import api from '../../lib/api';
 import { showToast } from '../../store/toastStore';
 import { useTheme, ThemeMode } from '../../theme/ThemeContext';
+import type { Theme } from '../../theme/tokens';
 import { handleApiError } from '../../lib/errorHandler';
 import { formatCopyright, formatVersionLine } from '../../config/appVersion';
 import { ProfileStackScreenProps } from '../../navigation/types';
@@ -36,6 +37,7 @@ import {
 export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'ProfileMain'>) {
   const { theme, themeMode, setThemeMode } = useTheme();
   const styles = useMemo(() => createSettingsStyles(theme), [theme]);
+  const localStyles = useMemo(() => createLocalStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const { user, setUser, token, resetOnboarding } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
@@ -365,58 +367,62 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
   );
 }
 
-const localStyles = StyleSheet.create({
-  form: {
-    gap: spacing.xs,
-    width: '100%',
-  },
-  editActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  guestCard: {
-    alignItems: 'flex-start',
-    padding: spacing.xxl,
-  },
-  guestHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  guestBackButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: -spacing.sm,
-  },
-  guestIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(137, 91, 57, 0.10)',
-    marginBottom: spacing.lg,
-  },
-  guestTitle: {
-    fontSize: 23,
-    lineHeight: 30,
-    fontWeight: '800',
-    marginBottom: spacing.sm,
-  },
-  guestBody: {
-    fontSize: 15,
-    lineHeight: 22,
-    opacity: 0.72,
-  },
-  guestPrimaryButton: {
-    width: '100%',
-  },
-  guestButtonWrap: {
-    width: '100%',
-    marginTop: spacing.xl,
-  },
-});
+const createLocalStyles = (theme: Theme) =>
+  StyleSheet.create({
+    form: {
+      gap: spacing.xs,
+      width: '100%',
+    },
+    editActions: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      marginTop: spacing.sm,
+    },
+    guestCard: {
+      alignItems: 'flex-start',
+      padding: spacing.xxl,
+    },
+    guestHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    guestBackButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: -spacing.sm,
+    },
+    guestIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.isDark ? 'rgba(217, 119, 6, 0.15)' : 'rgba(137, 91, 57, 0.10)',
+      marginBottom: spacing.lg,
+    },
+    guestTitle: {
+      ...theme.typography.h3,
+      fontSize: 23,
+      lineHeight: 30,
+      fontWeight: '800',
+      color: theme.colors.text,
+      marginBottom: spacing.sm,
+    },
+    guestBody: {
+      ...theme.typography.body,
+      fontSize: 15,
+      lineHeight: 22,
+      color: theme.colors.textSecondary,
+    },
+    guestPrimaryButton: {
+      width: '100%',
+    },
+    guestButtonWrap: {
+      width: '100%',
+      marginTop: spacing.xl,
+    },
+  });
