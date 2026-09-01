@@ -14,10 +14,29 @@ from fastapi import status
 from httpx import Response
 
 
+EXPECTED_CUSTOMER_EMBED = "users:users!bookings_user_id_fkey(id,name,phone)"
+
+
 def _override_user(app, user):
     from dependencies.auth import get_current_user
 
     app.dependency_overrides[get_current_user] = lambda: user
+
+
+def _booking_read_calls(mock_supabase):
+    return [
+        call
+        for call in mock_supabase.called
+        if call[0] == "GET" and call[1].startswith("rest/v1/bookings?")
+    ]
+
+
+def _assert_explicit_customer_embed(call):
+    method, path, kwargs = call
+    assert method == "GET"
+    assert f"select=*,salons(*),services(*),{EXPECTED_CUSTOMER_EMBED}" in path
+    assert "users(*)" not in path
+    assert kwargs.get("service_role") is True
 
 
 def test_status_update_booking_not_found(client, mock_supabase):
@@ -140,11 +159,258 @@ def test_list_my_bookings_customer_returns_rows(client, mock_supabase):
         },
     )
     try:
-        rows = [{"id": "b1", "user_id": "cust1", "status": "pending"}]
+        rows = [
+            {
+                "id": "b1",
+                "user_id": "cust1",
+                "status": "pending",
+                "salons": {
+                    "name": "Salon",
+                    "bank_name": "Private Bank",
+                    "bank_ifsc": "PRIVATE0001",
+                },
+            }
+        ]
         mock_supabase.get("/rest/v1/bookings").return_value = Response(200, json=rows)
         response = client.get("/api/v1/bookings/")
         assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["salons"] == {"name": "Salon"}
+        booking_calls = _booking_read_calls(mock_supabase)
+        assert len(booking_calls) == 1
+        assert "user_id=eq.cust1" in booking_calls[0][1]
+        _assert_explicit_customer_embed(booking_calls[0])
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_list_my_bookings_owner_uses_explicit_customer_embed(client, mock_supabase):
+    app = client.app
+    _override_user(
+        app,
+        {
+            "id": "owner1",
+            "access_token": "tok",
+            "profile": {"role": "owner"},
+        },
+    )
+    try:
+        rows = [{"id": "b1", "user_id": "cust1", "salon_id": "s1"}]
+        mock_supabase.get("/rest/v1/salons").return_value = Response(
+            200, json=[{"id": "s1"}, {"id": "s2"}]
+        )
+        mock_supabase.get("/rest/v1/bookings").return_value = Response(200, json=rows)
+
+        response = client.get("/api/v1/bookings/")
+
+        assert response.status_code == status.HTTP_200_OK
         assert response.json() == rows
+        booking_calls = _booking_read_calls(mock_supabase)
+        assert len(booking_calls) == 1
+        assert "salon_id=in.(s1,s2)" in booking_calls[0][1]
+        _assert_explicit_customer_embed(booking_calls[0])
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_list_salon_bookings_uses_explicit_customer_embed(client, mock_supabase):
+    app = client.app
+    _override_user(
+        app,
+        {
+            "id": "owner1",
+            "access_token": "tok",
+            "profile": {"role": "owner"},
+        },
+    )
+    try:
+        rows = [{"id": "b1", "user_id": "cust1", "salon_id": "s1"}]
+        mock_supabase.get("/rest/v1/salons").return_value = Response(
+            200, json=[{"id": "s1"}]
+        )
+        mock_supabase.get("/rest/v1/bookings").return_value = Response(200, json=rows)
+
+        response = client.get("/api/v1/bookings/salon/s1")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == rows
+        booking_calls = _booking_read_calls(mock_supabase)
+        assert len(booking_calls) == 1
+        assert "salon_id=eq.s1" in booking_calls[0][1]
+        _assert_explicit_customer_embed(booking_calls[0])
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_list_salon_bookings_rejects_unmanaged_salon(client, mock_supabase):
+    app = client.app
+    _override_user(
+        app,
+        {
+            "id": "owner1",
+            "access_token": "tok",
+            "profile": {"role": "owner"},
+        },
+    )
+    try:
+        mock_supabase.get("/rest/v1/salons").return_value = Response(
+            200, json=[{"id": "a-different-salon"}]
+        )
+
+        response = client.get("/api/v1/bookings/salon/s1")
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert _booking_read_calls(mock_supabase) == []
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_list_my_bookings_does_not_treat_postgrest_error_as_empty(
+    client, mock_supabase
+):
+    app = client.app
+    _override_user(
+        app,
+        {
+            "id": "cust1",
+            "access_token": "tok",
+            "profile": {"role": "customer"},
+        },
+    )
+    try:
+        mock_supabase.get("/rest/v1/bookings").return_value = Response(
+            300,
+            json={
+                "code": "PGRST201",
+                "message": "Ambiguous relationship",
+            },
+        )
+
+        response = client.get("/api/v1/bookings/")
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.json() != []
+        booking_calls = _booking_read_calls(mock_supabase)
+        assert len(booking_calls) == 1
+        _assert_explicit_customer_embed(booking_calls[0])
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_get_booking_uses_explicit_customer_embed_and_preserves_alias(
+    client, mock_supabase
+):
+    app = client.app
+    _override_user(
+        app,
+        {
+            "id": "cust1",
+            "access_token": "tok",
+            "profile": {"role": "customer"},
+        },
+    )
+    try:
+        row = {
+            "id": "b1",
+            "user_id": "cust1",
+            "salon_id": "s1",
+            "salons": {
+                "name": "Salon",
+                "bank_account_number": "private",
+                "account_holder_name": "Private Owner",
+            },
+            "users": {"id": "cust1", "name": "Customer", "phone": "123"},
+        }
+        mock_supabase.get("/rest/v1/bookings").return_value = Response(
+            200, json=[row]
+        )
+
+        response = client.get("/api/v1/bookings/b1")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["users"] == row["users"]
+        assert response.json()["salons"] == {"name": "Salon"}
+        booking_calls = _booking_read_calls(mock_supabase)
+        assert len(booking_calls) == 1
+        assert "id=eq.b1" in booking_calls[0][1]
+        _assert_explicit_customer_embed(booking_calls[0])
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_get_booking_missing_returns_404(client, mock_supabase):
+    app = client.app
+    _override_user(
+        app,
+        {
+            "id": "cust1",
+            "access_token": "tok",
+            "profile": {"role": "customer"},
+        },
+    )
+    try:
+        mock_supabase.get("/rest/v1/bookings").return_value = Response(200, json=[])
+
+        response = client.get("/api/v1/bookings/missing")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        booking_calls = _booking_read_calls(mock_supabase)
+        assert len(booking_calls) == 1
+        _assert_explicit_customer_embed(booking_calls[0])
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_get_booking_rejects_other_customer(client, mock_supabase):
+    app = client.app
+    _override_user(
+        app,
+        {
+            "id": "cust1",
+            "access_token": "tok",
+            "profile": {"role": "customer"},
+        },
+    )
+    try:
+        mock_supabase.get("/rest/v1/bookings").return_value = Response(
+            200,
+            json=[
+                {
+                    "id": "b1",
+                    "user_id": "another-customer",
+                    "salon_id": "s1",
+                }
+            ],
+        )
+
+        response = client.get("/api/v1/bookings/b1")
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_get_booking_rejects_manager_of_different_salon(client, mock_supabase):
+    app = client.app
+    _override_user(
+        app,
+        {
+            "id": "owner1",
+            "access_token": "tok",
+            "profile": {"role": "owner"},
+        },
+    )
+    try:
+        mock_supabase.get("/rest/v1/bookings").return_value = Response(
+            200,
+            json=[{"id": "b1", "user_id": "cust1", "salon_id": "s1"}],
+        )
+        mock_supabase.get("/rest/v1/salons").return_value = Response(
+            200, json=[{"id": "a-different-salon"}]
+        )
+
+        response = client.get("/api/v1/bookings/b1")
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
     finally:
         app.dependency_overrides = {}
 

@@ -8,13 +8,14 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   SafeAreaProvider,
   initialWindowMetrics,
 } from 'react-native-safe-area-context';
 import { ThemeProvider } from '../../src/theme/ThemeContext';
+import { createTestQueryClient } from '../../testUtils/createTestQueryClient';
 
 const mockGetMyGrants = jest.fn();
 
@@ -66,11 +67,11 @@ jest.mock('../../src/hooks/useMinLoadingTime', () => ({
 import MyOffersScreen from '../../src/screens/customer/MyOffersScreen';
 
 const goBack = jest.fn();
+const testQueryClients: QueryClient[] = [];
 
 function renderScreen() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
+  const queryClient = createTestQueryClient();
+  testQueryClients.push(queryClient);
   const navigation = { goBack, navigate: jest.fn(), getParent: () => null } as any;
   const metrics = initialWindowMetrics ?? {
     frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -92,6 +93,11 @@ function renderScreen() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+afterEach(() => {
+  cleanup();
+  testQueryClients.splice(0).forEach((client) => client.clear());
 });
 
 const grant = (over: Record<string, unknown> = {}) => ({

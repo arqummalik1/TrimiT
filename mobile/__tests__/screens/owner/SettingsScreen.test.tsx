@@ -1,17 +1,12 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { cleanup, render } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '../../../src/theme/ThemeContext';
 import { SettingsScreen } from '../../../src/screens/owner/SettingsScreen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createTestQueryClient } from '../../../testUtils/createTestQueryClient';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-    },
-  },
-});
+const testQueryClients: QueryClient[] = [];
 
 jest.mock('../../../src/store/authStore', () => ({
   useAuthStore: jest.fn().mockReturnValue({
@@ -47,6 +42,8 @@ const metrics = {
 };
 
 function renderScreen(navigation: any = {}) {
+  const queryClient = createTestQueryClient();
+  testQueryClients.push(queryClient);
   return render(
     <SafeAreaProvider initialMetrics={metrics}>
       <ThemeProvider>
@@ -59,6 +56,11 @@ function renderScreen(navigation: any = {}) {
 }
 
 describe('SettingsScreen', () => {
+  afterEach(() => {
+    cleanup();
+    testQueryClients.splice(0).forEach((client) => client.clear());
+  });
+
   it('renders without crashing', () => {
     const { getByText } = renderScreen();
     expect(getByText('Loading settings...')).toBeTruthy();

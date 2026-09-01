@@ -39,8 +39,13 @@ _MANAGER_STATUS_TRANSITIONS: dict[str, set[str]] = {
     "no_show": set(),
 }
 
-BOOKING_LIST_SELECT = "*,salons(*),services(*),users(*)"
-BOOKING_DETAIL_SELECT = "*,salons(*),services(*),users(*)"
+# `bookings` has two foreign keys to `users`: `user_id` is the customer and
+# `verified_by` is the payment verifier. Keep the public `users` response key,
+# but name the customer relationship explicitly so PostgREST cannot return
+# PGRST201 when resolving the embed.
+BOOKING_CUSTOMER_SELECT = "users:users!bookings_user_id_fkey(id,name,phone)"
+BOOKING_LIST_SELECT = f"*,salons(*),services(*),{BOOKING_CUSTOMER_SELECT}"
+BOOKING_DETAIL_SELECT = f"*,salons(*),services(*),{BOOKING_CUSTOMER_SELECT}"
 
 
 _BANK_FIELDS = (
