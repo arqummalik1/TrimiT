@@ -1,76 +1,76 @@
 import { lightTheme } from '../src/theme/lightTheme';
 import { darkTheme } from '../src/theme/darkTheme';
 import { getLightStatusColors, getDarkStatusColors } from '../src/theme/tokens';
+import { lightPalette, darkPalette } from '../src/theme/colors';
 
 describe('Design System Upgrades & Themes', () => {
   describe('Light Theme and Palette Structure', () => {
-    it('defines warm ivory surfaces and elevated tiers', () => {
-      expect(lightTheme.colors.background).toBe('#FAF7F0');
-      expect(lightTheme.colors.surfaceElevated).toBe('#FFFFFF');
-      expect(lightTheme.colors.surfaceFloating).toBe('#FFFFFF');
+    it('uses the canonical light surfaces and elevated tiers', () => {
+      expect(lightTheme.colors.background).toBe(lightPalette.background);
+      expect(lightTheme.colors.surfaceElevated).toBe(lightPalette.surfaceElevated);
+      expect(lightTheme.colors.surfaceFloating).toBe(lightPalette.surfaceFloating);
     });
 
-    it('defines the bronze brand ramp', () => {
-      expect(lightTheme.colors.primary).toBe('#7A5C1E');
-      expect(lightTheme.colors.primaryDark).toBe('#5C4515');
-      expect(lightTheme.colors.primaryLight).toBe('#F6EEDA');
+    it('uses the canonical light brand ramp', () => {
+      expect(lightTheme.colors.primary).toBe(lightPalette.primary);
+      expect(lightTheme.colors.primaryDark).toBe(lightPalette.primaryDark);
+      expect(lightTheme.colors.primaryLight).toBe(lightPalette.primaryLight);
     });
 
     it('defines booking status colors', () => {
-      expect(lightTheme.colors.statusPending).toBe('#8A6410');
-      expect(lightTheme.colors.statusPendingBg).toBe('#F7EDD4');
-      expect(lightTheme.colors.statusConfirmed).toBe('#1D5F8A');
-      expect(lightTheme.colors.statusConfirmedBg).toBe('#E4EEF5');
-      expect(lightTheme.colors.statusCompleted).toBe('#1B6B4C');
-      expect(lightTheme.colors.statusCompletedBg).toBe('#E3F0E8');
-      expect(lightTheme.colors.statusCancelled).toBe('#A32B22');
-      expect(lightTheme.colors.statusCancelledBg).toBe('#F9E7E4');
-      expect(lightTheme.colors.statusRescheduled).toBe('#5B4B8A');
-      expect(lightTheme.colors.statusRescheduledBg).toBe('#ECE9F5');
-      expect(lightTheme.colors.statusInProgress).toBe('#10656B');
-      expect(lightTheme.colors.statusInProgressBg).toBe('#E1EFEF');
+      expect(lightTheme.colors.statusPending).toBe(lightPalette.statusPending);
+      expect(lightTheme.colors.statusPendingBg).toBe(lightPalette.statusPendingBg);
+      expect(lightTheme.colors.statusConfirmed).toBe(lightPalette.statusConfirmed);
+      expect(lightTheme.colors.statusConfirmedBg).toBe(lightPalette.statusConfirmedBg);
+      expect(lightTheme.colors.statusCompleted).toBe(lightPalette.statusCompleted);
+      expect(lightTheme.colors.statusCompletedBg).toBe(lightPalette.statusCompletedBg);
+      expect(lightTheme.colors.statusCancelled).toBe(lightPalette.statusCancelled);
+      expect(lightTheme.colors.statusCancelledBg).toBe(lightPalette.statusCancelledBg);
+      expect(lightTheme.colors.statusRescheduled).toBe(lightPalette.statusRescheduled);
+      expect(lightTheme.colors.statusRescheduledBg).toBe(lightPalette.statusRescheduledBg);
+      expect(lightTheme.colors.statusInProgress).toBe(lightPalette.statusInProgress);
+      expect(lightTheme.colors.statusInProgressBg).toBe(lightPalette.statusInProgressBg);
     });
 
-    it('defines premium gold gradients', () => {
-      expect(lightTheme.colors.gradientPrimary).toEqual(['#A88338', '#6E5417']);
-      expect(lightTheme.colors.gradientPremium).toEqual(['#D9BC7B', '#A88338', '#6E5417']);
-      expect(lightTheme.colors.gradientHighlight).toEqual(['#FBF5E8', '#F3E8D0']);
+    it('uses the canonical light gradients', () => {
+      expect(lightTheme.colors.gradientPrimary).toEqual(lightPalette.gradientPrimary);
+      expect(lightTheme.colors.gradientPremium).toEqual(lightPalette.gradientPremium);
+      expect(lightTheme.colors.gradientHighlight).toEqual(lightPalette.gradientHighlight);
     });
   });
 
   describe('Dark Theme and Palette Structure', () => {
-    it('defines obsidian surfaces and elevated tiers', () => {
-      expect(darkTheme.colors.background).toBe('#0E0D0B');
-      expect(darkTheme.colors.surfaceElevated).toBe('#201E19');
-      expect(darkTheme.colors.surfaceFloating).toBe('#2A2721');
+    it('uses the canonical dark surfaces and elevated tiers', () => {
+      expect(darkTheme.colors.background).toBe(darkPalette.background);
+      expect(darkTheme.colors.surfaceElevated).toBe(darkPalette.surfaceElevated);
+      expect(darkTheme.colors.surfaceFloating).toBe(darkPalette.surfaceFloating);
     });
 
-    it('defines the champagne brand ramp', () => {
-      expect(darkTheme.colors.primary).toBe('#E4C88C');
-      expect(darkTheme.colors.primaryDark).toBe('#C3A768');
-      // Dark-mode tints are dark surfaces so gold foregrounds stay legible.
-      expect(darkTheme.colors.primaryLight).toBe('#2A2417');
+    it('uses the canonical dark brand ramp', () => {
+      expect(darkTheme.colors.primary).toBe(darkPalette.primary);
+      expect(darkTheme.colors.primaryDark).toBe(darkPalette.primaryDark);
+      expect(darkTheme.colors.primaryLight).toBe(darkPalette.primaryLight);
     });
 
     it('defines dark booking status colors', () => {
-      expect(darkTheme.colors.statusPending).toBe('#EFC75E');
-      expect(darkTheme.colors.statusPendingBg).toBe('#2A2413');
-      expect(darkTheme.colors.statusConfirmed).toBe('#8FBEDD');
-      expect(darkTheme.colors.statusConfirmedBg).toBe('#16232B');
-      expect(darkTheme.colors.statusCompleted).toBe('#7FD1A6');
-      expect(darkTheme.colors.statusCompletedBg).toBe('#14261D');
-      expect(darkTheme.colors.statusCancelled).toBe('#E8827A');
-      expect(darkTheme.colors.statusCancelledBg).toBe('#2A1816');
-      expect(darkTheme.colors.statusRescheduled).toBe('#AFA0D9');
-      expect(darkTheme.colors.statusRescheduledBg).toBe('#1E1B2B');
-      expect(darkTheme.colors.statusInProgress).toBe('#6FC7CB');
-      expect(darkTheme.colors.statusInProgressBg).toBe('#12262A');
+      expect(darkTheme.colors.statusPending).toBe(darkPalette.statusPending);
+      expect(darkTheme.colors.statusPendingBg).toBe(darkPalette.statusPendingBg);
+      expect(darkTheme.colors.statusConfirmed).toBe(darkPalette.statusConfirmed);
+      expect(darkTheme.colors.statusConfirmedBg).toBe(darkPalette.statusConfirmedBg);
+      expect(darkTheme.colors.statusCompleted).toBe(darkPalette.statusCompleted);
+      expect(darkTheme.colors.statusCompletedBg).toBe(darkPalette.statusCompletedBg);
+      expect(darkTheme.colors.statusCancelled).toBe(darkPalette.statusCancelled);
+      expect(darkTheme.colors.statusCancelledBg).toBe(darkPalette.statusCancelledBg);
+      expect(darkTheme.colors.statusRescheduled).toBe(darkPalette.statusRescheduled);
+      expect(darkTheme.colors.statusRescheduledBg).toBe(darkPalette.statusRescheduledBg);
+      expect(darkTheme.colors.statusInProgress).toBe(darkPalette.statusInProgress);
+      expect(darkTheme.colors.statusInProgressBg).toBe(darkPalette.statusInProgressBg);
     });
 
-    it('defines dark premium gold gradients', () => {
-      expect(darkTheme.colors.gradientPrimary).toEqual(['#C0994A', '#8A6A24']);
-      expect(darkTheme.colors.gradientPremium).toEqual(['#F3E5C4', '#E4C88C', '#C0994A']);
-      expect(darkTheme.colors.gradientHighlight).toEqual(['#201E19', '#0E0D0B']);
+    it('uses the canonical dark gradients', () => {
+      expect(darkTheme.colors.gradientPrimary).toEqual(darkPalette.gradientPrimary);
+      expect(darkTheme.colors.gradientPremium).toEqual(darkPalette.gradientPremium);
+      expect(darkTheme.colors.gradientHighlight).toEqual(darkPalette.gradientHighlight);
     });
   });
 
@@ -107,16 +107,34 @@ describe('Design System Upgrades & Themes', () => {
   describe('Status Color Helpers', () => {
     it('returns the expanded light booking status colors map', () => {
       const colors = getLightStatusColors();
-      expect(colors.pending).toEqual({ bg: '#F7EDD4', text: '#8A6410' });
-      expect(colors.rescheduled).toEqual({ bg: '#ECE9F5', text: '#5B4B8A' });
-      expect(colors.inProgress).toEqual({ bg: '#E1EFEF', text: '#10656B' });
+      expect(colors.pending).toEqual({
+        bg: lightPalette.statusPendingBg,
+        text: lightPalette.statusPending,
+      });
+      expect(colors.rescheduled).toEqual({
+        bg: lightPalette.statusRescheduledBg,
+        text: lightPalette.statusRescheduled,
+      });
+      expect(colors.inProgress).toEqual({
+        bg: lightPalette.statusInProgressBg,
+        text: lightPalette.statusInProgress,
+      });
     });
 
     it('returns the expanded dark booking status colors map', () => {
       const colors = getDarkStatusColors();
-      expect(colors.pending).toEqual({ bg: '#2A2413', text: '#EFC75E' });
-      expect(colors.rescheduled).toEqual({ bg: '#1E1B2B', text: '#AFA0D9' });
-      expect(colors.inProgress).toEqual({ bg: '#12262A', text: '#6FC7CB' });
+      expect(colors.pending).toEqual({
+        bg: darkPalette.statusPendingBg,
+        text: darkPalette.statusPending,
+      });
+      expect(colors.rescheduled).toEqual({
+        bg: darkPalette.statusRescheduledBg,
+        text: darkPalette.statusRescheduled,
+      });
+      expect(colors.inProgress).toEqual({
+        bg: darkPalette.statusInProgressBg,
+        text: darkPalette.statusInProgress,
+      });
     });
   });
 });

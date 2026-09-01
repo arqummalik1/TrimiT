@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -17,6 +17,7 @@ import {
   initialWindowMetrics,
 } from 'react-native-safe-area-context';
 import { ThemeProvider } from '../../src/theme/ThemeContext';
+import { createTestQueryClient } from '../../testUtils/createTestQueryClient';
 
 const mockGetMyBookings = jest.fn();
 const mockCancelBooking = jest.fn();
@@ -113,10 +114,11 @@ jest.mock('../../src/hooks/useMinLoadingTime', () => ({
 
 import { MyBookingsScreen } from '../../src/screens/customer/MyBookingsScreen';
 
+const testQueryClients: QueryClient[] = [];
+
 function renderScreen() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
+  const queryClient = createTestQueryClient();
+  testQueryClients.push(queryClient);
   const navigation = { navigate: jest.fn() } as any;
   const metrics = initialWindowMetrics ?? {
     frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -138,6 +140,11 @@ function renderScreen() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+afterEach(() => {
+  cleanup();
+  testQueryClients.splice(0).forEach((client) => client.clear());
 });
 
 it('always renders the screen title', async () => {
