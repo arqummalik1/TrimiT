@@ -199,7 +199,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
 
   const createMutation = useMutation({
     mutationFn: (data: SalonPayload) => {
-      console.log('🏪 [SalonCreate][screen] mutationFn → calling repository.createSalon');
+      // console.log('🏪 [SalonCreate][screen] mutationFn → calling repository.createSalon');
       return salonRepository.createSalon(data);
     },
     // Cold starts / flaky mobile networks make the FIRST request fail with no
@@ -212,10 +212,10 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     },
     retryDelay: (attempt) => Math.min(1500 * 2 ** attempt, 6000),
     onSuccess: (created: Salon) => {
-      console.log('✅ [SalonCreate][screen] onSuccess', {
-        salonId: created?.id,
-        gender_serve: created?.gender_serve,
-      });
+      // console.log('✅ [SalonCreate][screen] onSuccess', {
+      //   salonId: created?.id,
+      //   gender_serve: created?.gender_serve,
+      // });
       goToPostCreate(created);
     },
     onError: async (error) => {
@@ -250,9 +250,9 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
         try {
           const existing = await salonRepository.getOwnerSalon();
           if (existing) {
-            console.log('✅ [SalonCreate][screen] recovered: salon already created', {
-              salonId: existing.id,
-            });
+            // console.log('✅ [SalonCreate][screen] recovered: salon already created', {
+            //   salonId: existing.id,
+            // });
             goToPostCreate(existing);
             return;
           }
@@ -283,15 +283,15 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
 
   const handleSubmit = async () => {
     if (__DEV__) {
-      console.log('🏪 [SalonCreate][screen] handleSubmit tapped', {
-        mode: salon ? 'update' : 'create',
-        gender_serve: formData.gender_serve,
-        pendingImages: pendingImages.length,
-        uploadedImages: formData.images.length,
-        locationSet,
-        lat: formData.latitude,
-        lng: formData.longitude,
-      });
+      // console.log('🏪 [SalonCreate][screen] handleSubmit tapped', {
+      //   mode: salon ? 'update' : 'create',
+      //   gender_serve: formData.gender_serve,
+      //   pendingImages: pendingImages.length,
+      //   uploadedImages: formData.images.length,
+      //   locationSet,
+      //   lat: formData.latitude,
+      //   lng: formData.longitude,
+      // });
     }
 
     if (pendingImages.some((p) => p.status === 'uploading')) {
@@ -356,11 +356,11 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     };
 
     if (__DEV__) {
-      console.log('🏪 [SalonCreate][screen] validation passed, submitting', {
-        mode: salon ? 'update' : 'create',
-        imageCount: payload.images.length,
-        payloadKeys: Object.keys(payload),
-      });
+      // console.log('🏪 [SalonCreate][screen] validation passed, submitting', {
+      //   mode: salon ? 'update' : 'create',
+      //   imageCount: payload.images.length,
+      //   payloadKeys: Object.keys(payload),
+      // });
     }
 
     try {
@@ -381,7 +381,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     const isCurrent = () => attemptTokens.current[id] === token;
 
     if (__DEV__) {
-      console.log('🖼️ [SalonCreate][image] upload started', { id, attempt: token, uri });
+      // console.log('🖼️ [SalonCreate][image] upload started', { id, attempt: token, uri });
     }
 
     setPendingImages((prev) => {
@@ -419,7 +419,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
 
       if (!isCurrent()) return;
       clearTimeout(slowTimers.current[id]);
-      console.log('✅ [SalonCreate][image] upload succeeded', { id, publicUrl });
+      // console.log('✅ [SalonCreate][image] upload succeeded', { id, publicUrl });
       setPendingImages((prev) => prev.filter((p) => p.id !== id));
       setFormData((prev) => ({ ...prev, images: [...prev.images, publicUrl] }));
       showToast('Photo added', 'success');

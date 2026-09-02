@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme/ThemeContext";
 import { Theme } from "../theme/tokens";
 import { borderRadius, fonts, formatPrice } from "../lib/utils";
+import { ENABLE_WELCOME_VOUCHER } from "../lib/featureFlags";
 
 const { width } = Dimensions.get("window");
 
@@ -38,7 +39,7 @@ export function WelcomeVoucherModal({
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (visible) {
+    if (ENABLE_WELCOME_VOUCHER && visible) {
       Animated.parallel([
         Animated.spring(scale, {
           toValue: 1,
@@ -57,6 +58,9 @@ export function WelcomeVoucherModal({
       opacity.setValue(0);
     }
   }, [visible, scale, opacity]);
+
+  // Keep the component for a later release, but do not mount a native modal now.
+  if (!ENABLE_WELCOME_VOUCHER) return null;
 
   const expiryLabel = new Date(expiresAt).toLocaleDateString("en-IN", {
     day: "numeric",

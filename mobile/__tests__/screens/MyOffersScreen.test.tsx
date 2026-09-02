@@ -9,6 +9,7 @@
 
 import React from 'react';
 import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   SafeAreaProvider,
@@ -116,6 +117,16 @@ it('shows the header on every state', async () => {
   mockGetMyGrants.mockResolvedValue([]);
   renderScreen();
   expect(screen.getByText('My offers')).toBeTruthy();
+  await waitFor(() => expect(screen.getByTestId('empty-state')).toBeTruthy());
+});
+
+it('uses one fixed-height header below the ScreenWrapper safe area', async () => {
+  mockGetMyGrants.mockResolvedValue([]);
+  renderScreen();
+
+  const headerStyle = StyleSheet.flatten(screen.getByTestId('my-offers-header').props.style);
+  expect(headerStyle.minHeight).toBe(54);
+  expect(headerStyle.paddingTop).toBeUndefined();
   await waitFor(() => expect(screen.getByTestId('empty-state')).toBeTruthy());
 });
 

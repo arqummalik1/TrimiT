@@ -11,7 +11,8 @@ import { format } from "date-fns";
 import { ProfileStackScreenProps } from "../../navigation/types";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
-import { HeaderBackButton, HeaderBackButtonSpacer } from "../../components/HeaderBackButton";
+import { HeaderBackButton } from "../../components/HeaderBackButton";
+import { ScreenHeader } from "../../components/ScreenHeader";
 import { OfferListSkeleton } from "../../components/skeletons/OfferListSkeleton";
 import { useMinLoadingTime } from "../../hooks/useMinLoadingTime";
 import { handleApiError } from "../../lib/errorHandler";
@@ -39,17 +40,18 @@ export default function MyOffersScreen({
   const now = Date.now();
 
   const header = (
-    <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-      <HeaderBackButton onPress={() => navigation.goBack()} />
-      <Text style={styles.headerTitle}>My offers</Text>
-      <HeaderBackButtonSpacer />
-    </View>
+    <ScreenHeader
+      testID="my-offers-header"
+      title="My offers"
+      left={<HeaderBackButton onPress={() => navigation.goBack()} />}
+      divider
+    />
   );
 
   if (isError && !showSkeleton) {
     const appErr = handleApiError(error);
     return (
-      <ScreenWrapper variant="stack" edges={["top"]}>
+      <ScreenWrapper variant="stack">
         {header}
         <ErrorState
           title="Couldn't load your offers"
@@ -62,7 +64,7 @@ export default function MyOffersScreen({
   }
 
   return (
-    <ScreenWrapper variant="stack" edges={["top"]}>
+    <ScreenWrapper variant="stack">
       {header}
 
       {showSkeleton ? (
@@ -138,20 +140,6 @@ export default function MyOffersScreen({
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 8,
-      paddingBottom: 8,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
-    },
-    headerTitle: {
-      fontFamily: fonts.bodySemiBold,
-      fontSize: 18,
-      color: theme.colors.text,
-    },
     listContent: {
       padding: 16,
       flexGrow: 1,

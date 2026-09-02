@@ -50,6 +50,7 @@ import { ServiceAreaGate } from '../../components/ServiceAreaGate';
 import { serviceabilityRepository } from '../../repositories/serviceabilityRepository';
 import { DISCOVER_FALLBACK_COORDS, DISCOVER_INITIAL_DELTA } from '../../lib/maps';
 import { logger } from '../../lib/logger';
+import { ENABLE_WELCOME_VOUCHER } from '../../lib/featureFlags';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WelcomeVoucherModal } from '../../components/WelcomeVoucherModal';
 import { promotionRepository, CampaignGrant } from '../../repositories/promotionRepository';
@@ -134,7 +135,8 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigation }) =>
   }, [bootstrap]);
 
   useEffect(() => {
-    if (!isFocused || !user?.id || user.role !== 'customer') return;
+    // Pause the entire welcome campaign UI check without consuming its shown flag.
+    if (!ENABLE_WELCOME_VOUCHER || !isFocused || !user?.id || user.role !== 'customer') return;
     let cancelled = false;
     (async () => {
       try {

@@ -21,7 +21,6 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { Input } from '../../components/Input';
@@ -35,6 +34,7 @@ import { typography, spacing, borderRadius } from '../../lib/utils';
 import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { usePendingAuthIntentStore } from '../../store/pendingAuthIntentStore';
 import { navigationRef } from '../../navigation/navigationRef';
 
@@ -224,6 +224,18 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
 
   return (
     <ScreenWrapper variant="auth">
+      <ScreenHeader testID="auth-safe-header" right={
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={() => void closeAuth()}
+          accessibilityRole="button"
+          accessibilityLabel="Close sign in"
+          disabled={isLoading}
+          testID="auth-close-button"
+        >
+          <Ionicons name="close" size={24} color={theme.colors.text} />
+        </TouchableOpacity>
+      } />
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -233,15 +245,6 @@ export const LoginScreen: React.FC<LoginProps> = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => void closeAuth()}
-            accessibilityRole="button"
-            accessibilityLabel="Close sign in"
-            disabled={isLoading}
-          >
-            <Ionicons name="close" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.logoContainer}>
@@ -392,10 +395,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'center',
   },
   closeButton: {
-    position: 'absolute',
-    top: spacing.xl,
-    right: spacing.xxl,
-    zIndex: 2,
     width: 44,
     height: 44,
     borderRadius: 22,

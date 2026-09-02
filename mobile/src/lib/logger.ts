@@ -11,7 +11,9 @@ function sentry() {
 /**
  * logger.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Centralized logging. `debug` / `info` are dev-only (no console noise in production).
+ * Debug/info output is commented out for 1.1.0, not deleted. All diagnostic
+ * call sites are retained. To debug locally, uncomment the two console.log
+ * lines below; keep their __DEV__ guards. See mobile/docs/RELEASE_DIAGNOSTICS.md.
  * `warn` / `error` always log to console; Sentry only when SENTRY_ENABLED is true.
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -26,7 +28,7 @@ export enum LogLevel {
 class Logger {
   debug(message: string, extra?: Record<string, unknown>) {
     if (__DEV__) {
-      console.log(`[DEBUG] ${message}`, extra ?? '');
+      // console.log(`[DEBUG] ${message}`, extra ?? '');
     }
   }
 
@@ -73,7 +75,7 @@ class Logger {
     if (!__DEV__) {
       return;
     }
-    console.log(`[INFO] ${message}`, extra ?? '');
+    // console.log(`[INFO] ${message}`, extra ?? '');
 
     if (!SENTRY_ENABLED) {
       return;

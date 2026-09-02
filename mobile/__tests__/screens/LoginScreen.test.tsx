@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StyleSheet } from 'react-native';
 import { ThemeProvider } from '../../src/theme/ThemeContext';
 import { LoginScreen } from '../../src/screens/auth/LoginScreen';
 
@@ -141,6 +142,16 @@ describe('LoginScreen', () => {
     renderScreen(navigation);
     expect(screen.getByTestId('google-signin')).toBeTruthy();
     expect(screen.getByText('Sign in with Google')).toBeTruthy();
+  });
+
+  it('keeps the close control in a fixed safe-area header instead of the scroll content', () => {
+    const navigation = { navigate: jest.fn(), getState: jest.fn(() => ({ routes: [] })) } as any;
+    renderScreen(navigation);
+
+    const headerStyle = StyleSheet.flatten(screen.getByTestId('auth-safe-header').props.style);
+    const closeStyle = StyleSheet.flatten(screen.getByTestId('auth-close-button').props.style);
+    expect(headerStyle.minHeight).toBeGreaterThanOrEqual(44);
+    expect(closeStyle.position).not.toBe('absolute');
   });
 
   it('toggles to password mode and validates password', () => {

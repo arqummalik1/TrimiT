@@ -47,6 +47,14 @@ describe('HeaderBackButton', () => {
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
+  it('does not navigate during a disabled authentication transition', () => {
+    const onPress = jest.fn();
+    renderWithTheme(<HeaderBackButton onPress={onPress} disabled />);
+    fireEvent.press(screen.getByTestId('header-back-button'));
+    expect(onPress).not.toHaveBeenCalled();
+    expect(screen.getByTestId('header-back-button')).toBeDisabled();
+  });
+
   it('is announced as a button labelled "Go back" by default', () => {
     renderWithTheme(<HeaderBackButton onPress={jest.fn()} />);
     const button = screen.getByTestId('header-back-button');

@@ -31,9 +31,15 @@ interface MapViewProps {
 
 export const MapView = forwardRef<any, MapViewProps>(({ children, style, initialRegion, onPress }, ref) => {
   useImperativeHandle(ref, () => ({
-    animateToRegion: () => console.log('animateToRegion called on web placeholder'),
-    fitToCoordinates: () => console.log('fitToCoordinates called on web placeholder'),
-    animateCamera: () => console.log('animateCamera called on web placeholder'),
+    animateToRegion: () => {
+      // console.log('animateToRegion called on web placeholder');
+    },
+    fitToCoordinates: () => {
+      // console.log('fitToCoordinates called on web placeholder');
+    },
+    animateCamera: () => {
+      // console.log('animateCamera called on web placeholder');
+    },
   }));
 
   return (

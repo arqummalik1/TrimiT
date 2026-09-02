@@ -33,6 +33,7 @@ import {
   requestEmployeeWorkspace,
   requestOwnerWorkspace,
 } from '../../lib/authGate';
+import { ENABLE_MY_OFFERS_ENTRY } from '../../lib/featureFlags';
 
 export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'ProfileMain'>) {
   const { theme, themeMode, setThemeMode } = useTheme();
@@ -253,7 +254,7 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
             </View>
           </View>
 
-          {user?.role === 'customer' && (
+          {user?.role === 'customer' && ENABLE_MY_OFFERS_ENTRY && (
             <SettingsSection title="Offers">
               <SettingsRow
                 title="My offers & coupons"

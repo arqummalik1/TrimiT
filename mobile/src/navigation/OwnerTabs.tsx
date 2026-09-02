@@ -19,7 +19,7 @@ import { SubscriptionGate } from '../components/SubscriptionGate';
 import { useVerifyPayment } from '../hooks/usePayment';
 
 const devLog = (...args: unknown[]) => {
-  if (__DEV__) console.log(...args);
+  // if (__DEV__) console.log(...args);
 };
 
 import OwnerStack from './OwnerStack';

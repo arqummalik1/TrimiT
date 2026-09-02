@@ -10,7 +10,7 @@ import { useNotificationPrefsStore } from './notificationPrefsStore';
 import { shouldShowBookingNotification } from '../lib/notificationDedupe';
 
 const devLog = (...args: unknown[]) => {
-  if (__DEV__) console.log(...args);
+  // if (__DEV__) console.log(...args);
 };
 
 /** iOS Ring/Silent switch: booking chime must still play for salon owners. */
