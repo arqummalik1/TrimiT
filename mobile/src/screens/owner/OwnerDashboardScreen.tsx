@@ -19,6 +19,7 @@ import {
   Animated,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
@@ -49,6 +50,10 @@ import { getSalonClosedState, getClosedLabel } from '../../lib/salonAvailability
 
 import { OwnerDashboardScreenProps as NavigationProps } from '../../navigation/types';
 import { ComponentProps } from 'react';
+import { authRepository } from '../../repositories/authRepository';
+import { useAuthStore } from '../../store/authStore';
+import { resetToCustomerProfile } from '../../lib/ownerOnboardingNavigation';
+import { queryKeys } from '../../lib/queryKeys';
 
 type OwnerDashboardProps = NavigationProps<'DashboardMain'>;
 
@@ -216,6 +221,39 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
   });
 
   const queryClient = useQueryClient();
+  const { token, setUser } = useAuthStore();
+
+  const restoreCustomerMutation = useMutation({
+    mutationFn: () => authRepository.cancelEmptyOwnerWorkspace(),
+    onSuccess: (result) => {
+      if (!result.success || !result.profile) {
+        showToast(result.error || 'Could not return to customer mode.', 'error');
+        return;
+      }
+      queryClient.removeQueries({ queryKey: queryKeys.ownerSalon });
+      queryClient.removeQueries({ queryKey: ['ownerAnalytics'] });
+      setUser(result.profile, token);
+      resetToCustomerProfile();
+      showToast('Customer mode restored', 'success');
+    },
+    onError: (error: unknown) => {
+      showToast(handleApiError(error).message, 'error');
+    },
+  });
+
+  const confirmReturnToCustomer = () => {
+    Alert.alert(
+      'Return to customer mode?',
+      'No salon has been created. This removes only the unfinished business setup and returns you to your customer profile.',
+      [
+        { text: 'Keep setting up', style: 'cancel' },
+        {
+          text: 'Return to customer',
+          onPress: () => restoreCustomerMutation.mutate(),
+        },
+      ],
+    );
+  };
 
   const { data: subscriptionStatus } = useSubscriptionStatus();
   const { data: subscription } = useSubscription();
@@ -344,15 +382,30 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
   if (!salon) {
     return (
       <ScreenWrapper variant="tab">
-        <EmptyState
-          icon="storefront-outline"
-          title="Set up your business"
-          message="Create your salon, beauty parlour, or unisex studio — then add services so customers can book you."
-          action={{
-            label: 'Get started',
-            onPress: () => navigation.navigate('ChooseBusinessType'),
-          }}
-        />
+        <View style={styles.emptyWorkspace}>
+          <EmptyState
+            icon="storefront-outline"
+            title="Set up your business"
+            message="Create your salon, beauty parlour, or unisex studio — then add services so customers can book you."
+            compact
+            action={{
+              label: 'Get started',
+              onPress: () => navigation.navigate('ChooseBusinessType'),
+            }}
+          />
+          <TouchableOpacity
+            onPress={confirmReturnToCustomer}
+            disabled={restoreCustomerMutation.isPending}
+            style={styles.returnToCustomerButton}
+            accessibilityRole="button"
+          >
+            {restoreCustomerMutation.isPending ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : (
+              <Text style={styles.returnToCustomerText}>Return to customer mode</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </ScreenWrapper>
     );
   }
@@ -627,6 +680,23 @@ export const OwnerDashboardScreen: React.FC<OwnerDashboardProps> = ({ navigation
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: { flex: 1 },
+  emptyWorkspace: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: spacing.xxxl,
+  },
+  returnToCustomerButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  returnToCustomerText: {
+    ...typography.bodySmallMedium,
+    color: theme.colors.primary,
+    textDecorationLine: 'underline',
+  },
   premiumHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

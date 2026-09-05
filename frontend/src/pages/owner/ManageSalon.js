@@ -28,18 +28,22 @@ const ManageSalon = () => {
   const location = useLocation();
   const pickedGender = location.state?.gender_serve;
   const queryClient = useQueryClient();
-  const { setHasSalon } = useAuthStore();
+  const { setHasSalon, profile } = useAuthStore();
+  const isCustomerOnboarding = profile?.role === 'customer';
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [restoringCustomer, setRestoringCustomer] = useState(false);
 
-  const { data: salon, isLoading } = useQuery({
+  const { data: ownerSalon, isLoading } = useQuery({
     queryKey: ['ownerSalon'],
     queryFn: async () => {
       const response = await api.get('/owner/salon');
       return response.data;
     },
+    enabled: !isCustomerOnboarding,
   });
+  const salon = isCustomerOnboarding ? null : ownerSalon;
 
   const [formData, setFormData] = useState({
     name: '',
@@ -99,6 +103,18 @@ const ManageSalon = () => {
       return response.data;
     },
     onSuccess: () => {
+      if (isCustomerOnboarding) {
+        // A salon response proves the backend committed the atomic role + salon
+        // transaction. Mirror that authoritative result locally only now.
+        const state = useAuthStore.getState();
+        const activatedProfile = { ...(state.profile || {}), role: 'owner' };
+        useAuthStore.setState({
+          profile: activatedProfile,
+          user: state.user ? { ...state.user, ...activatedProfile } : activatedProfile,
+          hasSalon: true,
+          profileComplete: true,
+        });
+      }
       setHasSalon(true);
       queryClient.invalidateQueries(['ownerSalon']);
       navigate('/owner/services');
@@ -226,6 +242,40 @@ const ManageSalon = () => {
     setFormData({ ...formData, images: newImages });
   };
 
+  const handleReturnToCustomer = async () => {
+    if (!window.confirm(
+      'Return to customer mode? No salon has been created, so only the unfinished business setup will be removed.',
+    )) return;
+
+    setRestoringCustomer(true);
+    setValidationError(null);
+    try {
+      const response = await api.delete('/auth/owner-workspace');
+      const customerProfile = response.data?.profile;
+      if (!customerProfile || customerProfile.role !== 'customer') {
+        throw new Error('Customer profile was not returned');
+      }
+      const state = useAuthStore.getState();
+      useAuthStore.setState({
+        profile: customerProfile,
+        user: state.user ? { ...state.user, ...customerProfile } : customerProfile,
+        hasSalon: false,
+        profileComplete: true,
+      });
+      queryClient.removeQueries({ queryKey: ['ownerSalon'] });
+      navigate('/account', { replace: true });
+    } catch (error) {
+      const detail = error?.response?.data?.detail;
+      setValidationError(
+        (typeof detail === 'object' && detail?.message)
+        || (typeof detail === 'string' && detail)
+        || 'Could not return to customer mode. Please try again.',
+      );
+    } finally {
+      setRestoringCustomer(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-stone-50 p-8">
@@ -270,6 +320,16 @@ const ManageSalon = () => {
               ? `Update your ${venueCopy.entityName.toLowerCase()} information`
               : `Set up your ${venueCopy.entityName.toLowerCase()} profile to start receiving bookings`}
           </p>
+          {!salon && profile?.role === 'owner' && (
+            <button
+              type="button"
+              onClick={handleReturnToCustomer}
+              disabled={restoringCustomer}
+              className="mb-8 text-sm font-medium text-brand-800 underline disabled:opacity-50"
+            >
+              {restoringCustomer ? 'Returning to customer mode…' : 'Return to customer mode'}
+            </button>
+          )}
         </motion.div>
 
         <motion.form
@@ -459,13 +519,20 @@ const ManageSalon = () => {
             </div>
           </div>
 
-          {/* Images */}
+          {/* Images: first-salon drafts remain customer-scoped, while uploads
+              require owner authorization. Photos are available after creation. */}
           <div className="mb-8">
             <h2 className="font-heading text-lg font-bold text-stone-900 mb-4 flex items-center gap-2">
               <ImageIcon size={22} weight="duotone" />
               {venueCopy.imagesSection}
             </h2>
             
+            {isCustomerOnboarding ? (
+              <p className="text-sm text-stone-500">
+                Create your business first, then add photos from Manage salon.
+              </p>
+            ) : (
+            <>
             {/* Hidden file input */}
             <input
               ref={fileInputRef}
@@ -533,6 +600,8 @@ const ManageSalon = () => {
               Upload high-quality images of your salon. First image will be used as the main thumbnail.
               Supported formats: JPEG, PNG. Max size: 5MB per image.
             </p>
+            </>
+            )}
           </div>
 
           {/* Submit */}

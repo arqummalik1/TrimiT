@@ -10,6 +10,7 @@ import {
   CheckCircle,
 } from '@phosphor-icons/react';
 import { BUSINESS_TYPE_PICKER_OPTIONS } from '../../lib/genderServe';
+import { useAuthStore } from '../../store/authStore';
 
 const ICON_MAP = {
   cut: Scissors,
@@ -19,6 +20,7 @@ const ICON_MAP = {
 
 const ChooseBusinessTypePage = () => {
   const navigate = useNavigate();
+  const role = useAuthStore((state) => state.profile?.role);
   const [selected, setSelected] = useState(null);
 
   const handleContinue = () => {
@@ -31,7 +33,7 @@ const ChooseBusinessTypePage = () => {
       <div className="max-w-lg mx-auto px-4">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate(role === 'customer' ? '/account' : -1)}
           className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-700 mb-6"
         >
           <ArrowLeft size={20} />

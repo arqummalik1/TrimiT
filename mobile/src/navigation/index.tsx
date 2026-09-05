@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/authStore';
 import { RootStackParamList } from './types';
@@ -7,6 +7,7 @@ import CompleteProfileScreen from '../screens/auth/CompleteProfileScreen';
 import AuthStack from './AuthStack';
 import CustomerTabs from './CustomerTabs';
 import OwnerTabs from './OwnerTabs';
+import OwnerOnboardingStack from './OwnerOnboardingStack';
 import { usePendingAuthIntentStore } from '../store/pendingAuthIntentStore';
 import { navigationRef } from './navigationRef';
 import {
@@ -31,7 +32,6 @@ function PostAuthIntentCoordinator() {
   const user = useAuthStore((state) => state.user);
   const intent = usePendingAuthIntentStore((state) => state.intent);
   const intentHydrated = usePendingAuthIntentStore((state) => state.isHydrated);
-  const activatingRoleRef = useRef(false);
 
   useEffect(() => {
     if (!navigationRef.isReady() || !intentHydrated) return;
@@ -49,16 +49,6 @@ function PostAuthIntentCoordinator() {
     if (!profileComplete || !user) {
       if (current?.kind === 'employee_claim' && getRootRouteName() !== 'CompleteProfile') {
         navigationRef.navigate('CompleteProfile', { prefilledRole: 'employee' });
-      }
-      return;
-    }
-
-    if (current?.kind === 'owner_onboarding' && user.role !== 'owner') {
-      if (!activatingRoleRef.current) {
-        activatingRoleRef.current = true;
-        void useAuthStore.getState().completeProfile({ role: 'owner' }).finally(() => {
-          activatingRoleRef.current = false;
-        });
       }
       return;
     }
@@ -116,6 +106,11 @@ export default function RootNavigator() {
         screenOptions={{ headerShown: false, animation: 'fade' }}
       >
         <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
+        <Stack.Screen
+          name="OwnerOnboarding"
+          component={OwnerOnboardingStack}
+          options={{ animation: 'slide_from_right', gestureEnabled: true }}
+        />
         <Stack.Screen name="OwnerTabs" component={OwnerTabs} />
         <Stack.Screen
           name="Auth"

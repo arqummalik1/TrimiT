@@ -25,8 +25,8 @@ describe('pendingAuthIntent', () => {
     expect(peekPendingAuthIntent()).toBeNull();
   });
 
-  it('maps only explicit team actions to privileged roles', () => {
-    expect(roleForPendingAuthIntent({ kind: 'owner_onboarding' })).toBe('owner');
+  it('keeps owner setup as customer while employee claims remain privileged', () => {
+    expect(roleForPendingAuthIntent({ kind: 'owner_onboarding' })).toBe('customer');
     expect(roleForPendingAuthIntent({ kind: 'employee_claim' })).toBe('employee');
     expect(roleForPendingAuthIntent({ kind: 'profile' })).toBe('customer');
   });

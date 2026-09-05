@@ -177,9 +177,6 @@ export const useAuthStore = create(
           });
 
           const pendingRole = roleForPendingAuthIntent();
-          if (peekPendingAuthIntent()?.kind === 'owner_onboarding' && profile.role === 'customer') {
-            return get().completeProfile({ role: 'owner' });
-          }
           if (pendingRole === 'employee' && profile.role !== 'employee') {
             return { success: true, profile, hasSalon: false, profileComplete: false };
           }
@@ -195,8 +192,8 @@ export const useAuthStore = create(
       // ── Google sign-in (OAuth redirect) ──────────────────────────────
       // Starts Supabase's Google OAuth flow. The browser leaves the page and
       // returns to /auth/callback, which calls hydrateFromSupabaseSession().
-      // Same intent-driven outcome as OTP: customers bootstrap automatically,
-      // owners come from an explicit owner action, employees verify an invite.
+      // Customer identity bootstraps automatically. Owner setup stays customer
+      // until salon creation succeeds; employees still verify an invitation.
       googleSignIn: async () => {
         set({ error: null });
         try {
@@ -332,9 +329,6 @@ export const useAuthStore = create(
             error: null,
           });
           const pendingRole = roleForPendingAuthIntent();
-          if (peekPendingAuthIntent()?.kind === 'owner_onboarding' && profile.role === 'customer') {
-            return get().completeProfile({ role: 'owner' });
-          }
           if (pendingRole === 'employee' && profile.role !== 'employee') {
             return { success: true, profileComplete: false, profile, hasSalon: false };
           }
@@ -437,11 +431,6 @@ export const useAuthStore = create(
                 name: providerDisplayName(userData),
               });
             }
-          } else if (
-            peekPendingAuthIntent()?.kind === 'owner_onboarding'
-            && resolvedProfile?.role === 'customer'
-          ) {
-            await get().completeProfile({ role: 'owner' });
           }
         } catch (error) {
           if (error.response?.status === 401) {
@@ -644,10 +633,6 @@ export const useAuthStore = create(
           });
 
           const pendingRole = roleForPendingAuthIntent();
-          if (peekPendingAuthIntent()?.kind === 'owner_onboarding' && profile.role === 'customer') {
-            const activated = await get().completeProfile({ role: 'owner' });
-            return { ...activated, profileComplete: activated.success, session: response.data };
-          }
           if (pendingRole === 'employee' && profile.role !== 'employee') {
             return {
               success: true,

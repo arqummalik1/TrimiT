@@ -52,7 +52,25 @@ Apply manually in the Supabase SQL editor. **Do not rename** files already appli
 |---|------|-----|
 | 44 | `44_fix_salon_subscription_trigger_fk.sql` | Migration 41's BEFORE INSERT trigger breaks new salon inserts (FK on `subscriptions.salon_id`). **Every new owner is blocked until this runs.** |
 
-After 44, continue with `45` … `63` in numeric order (see `docs/v2_docs/MIGRATION_ORDER_v2.md` when present).
+After 44, continue with `45` … `64` in numeric order (see `docs/v2_docs/MIGRATION_ORDER_v2.md` when present).
+
+## Atomic owner onboarding (release 1.1.0)
+
+Apply `64_atomic_owner_salon_activation.sql` **before** deploying a mobile build
+that opens the reversible `OwnerOnboarding` flow. Apply migration 64 first, then
+deploy the compatible backend, then ship the mobile build. The migration is
+additive and the backend retains the legacy create path for already-owner clients.
+
+Post-apply checks:
+
+1. Confirm both RPCs exist and are `SECURITY DEFINER`.
+2. Confirm `anon` and `authenticated` cannot execute either RPC.
+3. In a non-production test account, prove a failed salon insert leaves the role
+   as customer and creates no subscription.
+4. Prove a valid create produces exactly one owner role, salon, subscription, and
+   `trial_started` event.
+5. Run customer and owner booking smoke tests; migration 64 must not change any
+   booking table, foreign key, RPC, or response contract.
 
 ## Critical — permanent account deletion
 

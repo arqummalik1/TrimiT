@@ -9,7 +9,7 @@ from math import radians, sin, cos, sqrt, atan2
 from core.supabase import supabase
 from core.salon_auth import assert_salon_owner
 from config import settings
-from dependencies.auth import get_current_user
+from dependencies.auth import get_current_user, user_profile_cache
 from dependencies.subscription import require_active_subscription
 from models.salons import SalonCreate, SalonUpdate, ServiceCreate, ServiceUpdate, SalonAvailabilityUpdate
 from services import salon_availability
@@ -263,15 +263,109 @@ async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_curr
 
     try:
         profile = current_user.get("profile")
-        if not profile or profile.get("role") != "owner":
+        role = (profile or {}).get("role")
+        if role not in ("customer", "owner"):
             logger.error(
-                "[CREATE_SALON] User %s is not an owner: role=%s",
+                "[CREATE_SALON] User %s cannot create a salon: role=%s",
                 current_user.get("id"),
-                (profile or {}).get("role"),
+                role,
             )
-            raise HTTPException(status_code=403, detail="Only owners can create salons")
+            raise HTTPException(status_code=403, detail="This account cannot create a salon")
 
         owner_id = current_user.get("id")
+
+        payload = salon.model_dump(exclude_none=True)
+        payload = _sync_salon_image_fields(payload)
+
+        # Prefill the salon's UPI ID from an existing owner profile when the
+        # create form did not supply one. Customer profiles normally have none.
+        if not payload.get("upi_id"):
+            owner_upi = (profile or {}).get("upi_id")
+            if owner_upi:
+                payload["upi_id"] = owner_upi
+
+        salon_data = {
+            "id": str(uuid.uuid4()),
+            "owner_id": owner_id,
+            **payload,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        logger.info(
+            "[CREATE_SALON] preparing role=%s owner=%s salon_id=%s keys=%s gender_serve=%s images=%d",
+            role,
+            owner_id,
+            salon_data["id"],
+            sorted(payload.keys()),
+            payload.get("gender_serve"),
+            len(payload.get("images") or []),
+        )
+
+        if role == "customer":
+            # This RPC locks the profile row and commits the role transition,
+            # owner trial, and first salon as one database transaction. A failed
+            # salon insert therefore leaves the user a customer.
+            response = await supabase.request(
+                "POST",
+                "rest/v1/rpc/activate_owner_and_create_salon_v1",
+                json={
+                    "p_user_id": owner_id,
+                    "p_salon_id": salon_data["id"],
+                    "p_salon": payload,
+                },
+                service_role=True,
+            )
+
+            if response.status_code not in (200, 201):
+                body = _safe_response_json(response)
+                upstream_code = body.get("code") if isinstance(body, dict) else None
+                upstream_message = body.get("message") if isinstance(body, dict) else ""
+                logger.error(
+                    "[CREATE_SALON] atomic activation failed status=%s code=%s owner=%s",
+                    response.status_code,
+                    upstream_code,
+                    owner_id,
+                )
+                if "OWNER_SALON_EXISTS" in str(upstream_message):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="You already have a salon registered. Please update the existing one.",
+                    )
+                if "OWNER_ACTIVATION_INVALID_ROLE" in str(upstream_message):
+                    raise HTTPException(status_code=403, detail="This account cannot create a salon")
+                if upstream_code == "PGRST202" or response.status_code == 404:
+                    raise HTTPException(
+                        status_code=503,
+                        detail={
+                            "code": "OWNER_ACTIVATION_NOT_READY",
+                            "message": "Salon setup is temporarily unavailable while the server is being updated.",
+                        },
+                    )
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "SALON_CREATE_FAILED",
+                        "message": "We couldn't save your salon right now. Please try again in a moment.",
+                    },
+                )
+
+            row = _first_postgrest_row(_safe_response_json(response))
+            if not row:
+                logger.error(
+                    "[CREATE_SALON] atomic activation returned 2xx without row owner=%s",
+                    owner_id,
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail={
+                        "code": "SALON_CREATE_NO_ROW",
+                        "message": "Salon created but no data returned. Please refresh.",
+                    },
+                )
+
+            user_profile_cache.pop(owner_id, None)
+            logger.info("[CREATE_SALON] atomic success owner=%s salon_id=%s", owner_id, row.get("id"))
+            return row
 
         # Check if owner already has a salon
         check_existing = await supabase.request(
@@ -287,28 +381,11 @@ async def create_salon(salon: SalonCreate, current_user: dict = Depends(get_curr
                 detail="You already have a salon registered. Please update the existing one.",
             )
 
-        payload = salon.model_dump(exclude_none=True)
-        payload = _sync_salon_image_fields(payload)
-
-        # Prefill the salon's UPI ID from the owner's signup UPI (users.upi_id) when
-        # the create form didn't supply one — so "Pay with UPI" works immediately.
-        if not payload.get("upi_id"):
-            owner_upi = (profile or {}).get("upi_id")
-            if owner_upi:
-                payload["upi_id"] = owner_upi
-
-        salon_data = {
-            "id": str(uuid.uuid4()),
-            "owner_id": owner_id,
-            **payload,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
-
         # Always-on diagnostics (safe: no PII beyond owner_id, which is already
         # in every log line). Lets us pinpoint bad payloads in production without
         # a redeploy for verbosity.
         logger.info(
-            "[CREATE_SALON] inserting owner=%s salon_id=%s keys=%s gender_serve=%s images=%d",
+            "[CREATE_SALON] inserting existing owner=%s salon_id=%s keys=%s gender_serve=%s images=%d",
             owner_id,
             salon_data["id"],
             sorted(payload.keys()),

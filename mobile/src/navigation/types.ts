@@ -118,6 +118,13 @@ export type OwnerTabParamList = {
   Settings: NavigatorScreenParams<OwnerSettingsStackParamList>;
 };
 
+// Customer-owned, reversible business setup. This stack is placed above
+// CustomerTabs and does not grant the owner role by merely opening it.
+export type OwnerOnboardingStackParamList = {
+  ChooseBusinessType: undefined;
+  ManageSalon: { gender_serve: import('../lib/genderServe').SalonGenderServe };
+};
+
 // =============================================================================
 // ROOT
 // =============================================================================
@@ -126,6 +133,7 @@ export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
   CompleteProfile: { prefilledName?: string; prefilledPhone?: string; prefilledRole?: 'customer' | 'owner' | 'employee' } | undefined;
   CustomerTabs: NavigatorScreenParams<CustomerTabParamList> | undefined;
+  OwnerOnboarding: NavigatorScreenParams<OwnerOnboardingStackParamList> | undefined;
   OwnerTabs: NavigatorScreenParams<OwnerTabParamList> | undefined;
 };
 
@@ -192,6 +200,12 @@ export type OwnerServicesScreenProps<T extends keyof OwnerServicesStackParamList
 export type OwnerTabScreenProps<T extends keyof OwnerTabParamList> =
   CompositeScreenProps<
     BottomTabScreenProps<OwnerTabParamList, T>,
+    NativeStackScreenProps<RootStackParamList>
+  >;
+
+export type OwnerOnboardingScreenProps<T extends keyof OwnerOnboardingStackParamList> =
+  CompositeScreenProps<
+    NativeStackScreenProps<OwnerOnboardingStackParamList, T>,
     NativeStackScreenProps<RootStackParamList>
   >;
 

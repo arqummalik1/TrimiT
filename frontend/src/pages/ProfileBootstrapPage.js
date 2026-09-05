@@ -9,7 +9,7 @@ import {
   roleForPendingAuthIntent,
 } from '../lib/pendingAuthIntent';
 
-/** Retry-safe fallback when automatic customer/owner profile creation was interrupted. */
+/** Retry-safe fallback when automatic customer profile creation was interrupted. */
 export default function ProfileBootstrapPage() {
   const navigate = useNavigate();
   const { isAuthenticated, profile, hasSalon, completeProfile, logout } = useAuthStore();

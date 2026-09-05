@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Trash, Warning, Storefront, Users } from '@phosphor-icons/react';
 import { useAuthStore } from '../../store/authStore';
@@ -11,6 +11,7 @@ import { DISCOVERY_PREF_OPTIONS } from '../../lib/genderServe';
 
 const AccountPage = () => {
   const { profile, user, updateProfile } = useAuthStore();
+  const navigate = useNavigate();
   const [error, setError] = useState(null);
   const [discoveryAudience, setDiscoveryAudience] = useState(
     profile?.discovery_audience || user?.discovery_audience || 'auto',
@@ -28,6 +29,13 @@ const AccountPage = () => {
       setError(result.error || 'Could not update discovery preference');
       setDiscoveryAudience(profile?.discovery_audience || 'auto');
     }
+  };
+
+  const startSalonSetup = () => {
+    const confirmed = window.confirm(
+      'Create a salon workspace? You will remain a customer until your salon is successfully created, and you can leave setup at any time.',
+    );
+    if (confirmed) navigate('/owner/start');
   };
 
   return (
@@ -54,25 +62,6 @@ const AccountPage = () => {
         </div>
       </div>
 
-      {profile?.role === 'customer' && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
-          <h2 className="font-semibold text-stone-900 mb-2">For salon teams</h2>
-          <p className="text-sm text-stone-500 mb-4">Enter a workspace only when it applies to you.</p>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Link to="/owner/start" className="rounded-xl border border-stone-200 p-4 hover:border-brand-500 hover:bg-brand-50">
-              <Storefront size={24} weight="duotone" className="text-brand-800 mb-2" />
-              <span className="block font-semibold text-stone-900">List or manage my salon</span>
-              <span className="text-xs text-stone-500">Start owner-specific setup</span>
-            </Link>
-            <Link to="/employee-access" className="rounded-xl border border-stone-200 p-4 hover:border-brand-500 hover:bg-brand-50">
-              <Users size={24} weight="duotone" className="text-brand-800 mb-2" />
-              <span className="block font-semibold text-stone-900">Employee access</span>
-              <span className="text-xs text-stone-500">Connect through a salon invitation</span>
-            </Link>
-          </div>
-        </div>
-      )}
-
       <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
         <h2 className="font-semibold text-stone-900 mb-2">Discovery</h2>
         <p className="text-sm text-stone-500 mb-4">
@@ -88,6 +77,29 @@ const AccountPage = () => {
           <p className="text-sm text-stone-500 mt-3">Saving…</p>
         )}
       </div>
+
+      {profile?.role === 'customer' && (
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
+          <h2 className="font-semibold text-stone-900 mb-2">Business &amp; team</h2>
+          <p className="text-sm text-stone-500 mb-4">Open business tools only when you need them.</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={startSalonSetup}
+              className="rounded-xl border border-stone-200 p-4 text-left hover:border-brand-500 hover:bg-brand-50"
+            >
+              <Storefront size={24} weight="duotone" className="text-brand-800 mb-2" />
+              <span className="block font-semibold text-stone-900">Set up and list a salon</span>
+              <span className="text-xs text-stone-500">Create a business workspace</span>
+            </button>
+            <Link to="/employee-access" className="rounded-xl border border-stone-200 p-4 hover:border-brand-500 hover:bg-brand-50">
+              <Users size={24} weight="duotone" className="text-brand-800 mb-2" />
+              <span className="block font-semibold text-stone-900">Employee access</span>
+              <span className="text-xs text-stone-500">Connect through a salon invitation</span>
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-red-200 p-6">
         <div className="flex items-start gap-3 mb-4">

@@ -30,6 +30,20 @@ describe('post-auth root navigation', () => {
     });
   });
 
+  it('sends a general account sign-in to Discover instead of back to Profile', () => {
+    expect(getPostAuthDestination({ ...meta, kind: 'account_sign_in' }, 'customer')).toEqual({
+      name: 'CustomerTabs',
+      params: { screen: 'Discover', params: { screen: 'DiscoverMain' } },
+    });
+  });
+
+  it('sends an owner using general sign-in to the owner workspace', () => {
+    expect(getPostAuthDestination({ ...meta, kind: 'account_sign_in' }, 'owner')).toEqual({
+      name: 'OwnerTabs',
+      params: undefined,
+    });
+  });
+
   it('pops to the existing customer workspace so Auth is removed, not covered', () => {
     const destination = getPostAuthDestination(
       {
@@ -59,6 +73,44 @@ describe('post-auth root navigation', () => {
       payload: {
         index: 0,
         routes: [{ name: 'OwnerTabs', params: undefined }],
+      },
+    });
+  });
+
+  it('puts reversible owner onboarding above the customer profile after auth', () => {
+    const destination = getPostAuthDestination(
+      { ...meta, kind: 'owner_onboarding' },
+      'customer',
+    );
+    expect(destination).toEqual({
+      name: 'OwnerOnboarding',
+      params: { screen: 'ChooseBusinessType' },
+    });
+
+    expect(buildPostAuthRootAction(['CustomerTabs', 'Auth'], destination)).toEqual({
+      type: 'RESET',
+      payload: {
+        index: 1,
+        routes: [
+          {
+            name: 'CustomerTabs',
+            params: { screen: 'Profile', params: { screen: 'ProfileMain' } },
+          },
+          {
+            name: 'OwnerOnboarding',
+            params: { screen: 'ChooseBusinessType' },
+          },
+        ],
+      },
+    });
+  });
+
+  it('keeps legacy owners on the existing owner onboarding destination', () => {
+    expect(getPostAuthDestination({ ...meta, kind: 'owner_onboarding' }, 'owner')).toEqual({
+      name: 'OwnerTabs',
+      params: {
+        screen: 'Dashboard',
+        params: { screen: 'ChooseBusinessType' },
       },
     });
   });

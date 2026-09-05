@@ -12,6 +12,10 @@ export type PostAuthDestination =
   | {
       name: 'OwnerTabs';
       params: RootStackParamList['OwnerTabs'];
+    }
+  | {
+      name: 'OwnerOnboarding';
+      params: RootStackParamList['OwnerOnboarding'];
     };
 
 export const AUTH_MODAL_OPTIONS = {
@@ -60,19 +64,31 @@ export function getPostAuthDestination(
           },
         },
       };
+    case 'account_sign_in':
+      return role === 'owner' || role === 'employee'
+        ? { name: 'OwnerTabs', params: undefined }
+        : {
+            name: 'CustomerTabs',
+            params: { screen: 'Discover', params: { screen: 'DiscoverMain' } },
+          };
     case 'profile':
       return {
         name: 'CustomerTabs',
         params: { screen: 'Profile', params: { screen: 'ProfileMain' } },
       };
     case 'owner_onboarding':
-      return {
-        name: 'OwnerTabs',
-        params: {
-          screen: 'Dashboard',
-          params: { screen: 'ChooseBusinessType' },
-        },
-      };
+      return role === 'owner'
+        ? {
+            name: 'OwnerTabs',
+            params: {
+              screen: 'Dashboard',
+              params: { screen: 'ChooseBusinessType' },
+            },
+          }
+        : {
+            name: 'OwnerOnboarding',
+            params: { screen: 'ChooseBusinessType' },
+          };
     case 'employee_claim':
       return { name: 'OwnerTabs', params: undefined };
     default:
@@ -96,6 +112,19 @@ export function buildPostAuthRootAction(
   rootRouteNames: readonly string[],
   destination: PostAuthDestination,
 ) {
+  if (destination.name === 'OwnerOnboarding') {
+    return CommonActions.reset({
+      index: 1,
+      routes: [
+        {
+          name: 'CustomerTabs',
+          params: { screen: 'Profile', params: { screen: 'ProfileMain' } },
+        },
+        { name: destination.name, params: destination.params },
+      ],
+    });
+  }
+
   if (rootRouteNames.includes(destination.name)) {
     return StackActions.popTo(destination.name, destination.params);
   }

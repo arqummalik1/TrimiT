@@ -587,10 +587,11 @@ async def complete_profile(
     owner profiles are created without an additional identity form; missing
     role-specific details are collected only when the related feature needs them.
 
-    Role assignment is enforced here, server-side. Existing customer profiles
-    can activate the owner workspace only through an explicit owner intent;
-    employee activation additionally requires a validated pending invitation.
-    Team accounts are never downgraded by a customer booking intent.
+    Role assignment is enforced here, server-side. Existing customer -> owner
+    activation remains temporarily compatible for already-released clients; new
+    clients use the atomic first-salon endpoint instead. Employee activation
+    additionally requires a validated pending invitation. Team accounts are
+    never downgraded by a customer booking intent.
 
     Requires: valid Bearer token from verify-otp.
     """
@@ -683,9 +684,9 @@ async def complete_profile(
     email_label = (email.split("@", 1)[0] if email else "").replace(".", " ").replace("_", " ").strip()
     resolved_name = supplied_name or provider_name or email_label.title() or "TrimiT Member"
 
-    # Intent-driven role activation for an already-authenticated profile. A
-    # customer may explicitly start owner setup; employee activation still
-    # reaches this point only after the pending invite was validated above.
+    # Legacy-compatible role activation for already-released clients. New owner
+    # onboarding must not call this path; it activates through the atomic salon
+    # RPC. Employee activation reaches this point only after invite validation.
     existing_profile = await fetch_profile_service_role(user_id)
     if existing_profile:
         existing_role = existing_profile.get("role")
@@ -780,6 +781,91 @@ async def complete_profile(
         "message": "Profile created successfully",
         "welcome_grant": welcome_grant,
     }
+
+
+@router.delete("/owner-workspace")
+async def cancel_empty_owner_workspace(current_user: dict = Depends(get_current_user)):
+    """Recover an owner account that has not created a salon.
+
+    The database function refuses the transition when a salon or paid billing
+    history exists. This is primarily a safe exit for accounts left half-switched
+    by the previous onboarding flow; it never deletes a business.
+    """
+    user_id = current_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    response = await supabase.request(
+        "POST",
+        "rest/v1/rpc/cancel_empty_owner_workspace_v1",
+        json={"p_user_id": user_id},
+        service_role=True,
+    )
+
+    try:
+        body = response.json()
+    except Exception:
+        body = None
+
+    if response.status_code not in (200, 201):
+        upstream_code = body.get("code") if isinstance(body, dict) else None
+        upstream_message = body.get("message") if isinstance(body, dict) else ""
+        logger.error(
+            "cancel_empty_owner_workspace: rpc failed user=%s status=%s code=%s",
+            user_id,
+            response.status_code,
+            upstream_code,
+        )
+        if "OWNER_RECOVERY_HAS_SALON" in str(upstream_message):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "OWNER_WORKSPACE_HAS_SALON",
+                    "message": "This business workspace already has a salon and cannot be removed here.",
+                },
+            )
+        if "OWNER_RECOVERY_HAS_BILLING_HISTORY" in str(upstream_message):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "OWNER_WORKSPACE_HAS_BILLING",
+                    "message": "This workspace has billing history. Please contact support before changing it.",
+                },
+            )
+        if "OWNER_RECOVERY_INVALID_ROLE" in str(upstream_message):
+            raise HTTPException(status_code=403, detail="This account cannot return to customer mode")
+        if upstream_code == "PGRST202" or response.status_code == 404:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "code": "OWNER_RECOVERY_NOT_READY",
+                    "message": "Account recovery is temporarily unavailable while the server is being updated.",
+                },
+            )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "OWNER_RECOVERY_FAILED",
+                "message": "Could not return to customer mode. Please try again.",
+            },
+        )
+
+    if isinstance(body, list):
+        profile = body[0] if body and isinstance(body[0], dict) else None
+    else:
+        profile = body if isinstance(body, dict) and body.get("id") else None
+    if not profile:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "OWNER_RECOVERY_NO_PROFILE",
+                "message": "Customer mode was restored but the profile could not be reloaded.",
+            },
+        )
+
+    user_profile_cache.pop(user_id, None)
+    logger.info("cancel_empty_owner_workspace: customer mode restored user=%s", user_id)
+    return {"profile": profile, "message": "Customer mode restored"}
 
 
 @router.post("/validate-reset-token")

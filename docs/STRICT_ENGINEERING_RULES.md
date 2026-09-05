@@ -188,6 +188,28 @@ Rules:
 6. Backend routes using service role must perform explicit tenant authorization
    and return only authorized, allowlisted data.
 
+## 7.1 Owner onboarding contract (release 1.1.0)
+
+1. Opening owner onboarding is navigation, not authorization. It must not change
+   `public.users.role`, create a subscription, or remove customer navigation.
+2. Mobile keeps `CustomerTabs` below the reversible `OwnerOnboarding` root stack
+   until final salon creation succeeds. Header back, iOS gesture back, and
+   Android hardware back must return to the customer Profile screen. Web owner
+   setup routes must likewise remain escapable to the customer account.
+3. The first salon and customer-to-owner role transition must use
+   `activate_owner_and_create_salon_v1`; never reintroduce an application-side
+   role-update followed by a separate salon insert.
+4. Update the local role and reset to `OwnerTabs` only after the atomic endpoint
+   returns a salon row. On failure or app restart, the identity remains customer.
+5. Customers cannot use the owner-only upload endpoint during draft setup. Add
+   salon photos after successful creation unless a separately authorized draft
+   media design is reviewed and implemented.
+6. Recovery from a legacy owner-without-salon state may never delete a salon or
+   paid billing history. Use the guarded backend/database recovery contract.
+7. The later multi-role design is governed by
+   `docs/architecture/identity-workspace-membership-migration.md` and must use an
+   additive expand-contract rollout.
+
 ## 8. Required testing and verification
 
 Tests must prove behavior and integration contracts, not merely execute lines.

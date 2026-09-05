@@ -1,4 +1,5 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ProfileScreen from '../../src/screens/customer/ProfileScreen';
@@ -13,9 +14,13 @@ jest.mock('../../src/components/NotificationSettingsSection', () => ({ Notificat
 jest.mock('../../src/components/DiscoverySettingsSection', () => ({ DiscoverySettingsSection: () => null }));
 jest.mock('../../src/components/SignOutButton', () => ({ SignOutButton: () => null }));
 jest.mock('../../src/lib/authGate', () => ({
-  requestAuthentication: jest.fn(), requestEmployeeWorkspace: jest.fn(), requestOwnerWorkspace: jest.fn(),
+  requestAuthentication: jest.fn(),
+  requestEmployeeWorkspace: jest.fn(),
+  requestOwnerWorkspace: jest.fn(),
 }));
 jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
+
+const { requestAuthentication: mockRequestAuthentication } = jest.requireMock('../../src/lib/authGate');
 
 const metrics = {
   frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -32,7 +37,10 @@ function renderProfile() {
   return navigation;
 }
 
-beforeEach(() => { mockUser = customer; });
+beforeEach(() => {
+  mockUser = customer;
+  mockRequestAuthentication.mockClear();
+});
 
 it('hides the My offers entry while preserving the other customer settings', () => {
   const navigation = renderProfile();
@@ -51,4 +59,27 @@ it('shows the same version in the guest account screen', () => {
   mockUser = null;
   renderProfile();
   expect(screen.getByText('TrimiT v1.1.0 · Production')).toBeTruthy();
+});
+
+it('treats the guest account CTA as a general sign-in that returns to Discover', () => {
+  mockUser = null;
+  renderProfile();
+
+  fireEvent.press(screen.getByText('Sign in or create account'));
+
+  expect(mockRequestAuthentication).toHaveBeenCalledWith({ kind: 'account_sign_in' });
+});
+
+it('requires confirmation before opening reversible salon setup', () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+  renderProfile();
+
+  fireEvent.press(screen.getByText('Set up and list a salon'));
+
+  expect(alert).toHaveBeenCalledWith(
+    'Create a salon workspace?',
+    expect.stringContaining('remain a customer'),
+    expect.any(Array),
+  );
+  alert.mockRestore();
 });

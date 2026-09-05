@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<!--
+  TrimiT Design Studio — V2
+  4 redesigned screens · 5 live color themes · light/dark modes · fully interactive
+  Research-backed: Fresha/Booksy/Urban Company patterns + iOS-26-era glass dock +
+  5 WCAG-AA verified palettes (Verdant · Oxblood · Plum Velvet · Rosewater · Kiln)
+-->
+<html lang="en" data-theme="verdant" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrimiT Design Studio · V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============ THEME TOKENS (5 themes × 2 modes, WCAG-AA verified) ============ */
+:root{
+  --ok:#178A50; --ok-soft:rgba(23,138,80,.12);
+  --warn:#B45309; --danger:#DC2626;
+  --font-display:'Cormorant Garamond',Georgia,serif;
+  --font-body:'Manrope',-apple-system,'SF Pro Text',system-ui,sans-serif;
+  --r:18px;
+}
+[data-theme="verdant"][data-mode="light"]{--bg:#F3F7F2;--surface:#FFFFFF;--surface2:#E9F0E8;--fg:#0F2418;--muted:#55685C;--border:#D7E2D6;--accent:#0F6B44;--accent-fg:#FFFFFF;--accent-soft:#DEF0E5}
+[data-theme="verdant"][data-mode="dark"]{--bg:#0B1411;--surface:#121E19;--surface2:#1A2922;--fg:#E8F2EA;--muted:#9AB3A0;--border:#24352D;--accent:#3DD68C;--accent-fg:#06281A;--accent-soft:#113327}
+[data-theme="oxblood"][data-mode="light"]{--bg:#FAF4F3;--surface:#FFFFFF;--surface2:#F4E7E6;--fg:#231012;--muted:#6E5457;--border:#E8D4D5;--accent:#8E2233;--accent-fg:#FFFFFF;--accent-soft:#F6E3E4}
+[data-theme="oxblood"][data-mode="dark"]{--bg:#170D0F;--surface:#201315;--surface2:#2E1B1E;--fg:#F4E8EA;--muted:#B39AA0;--border:#3A2428;--accent:#E0697A;--accent-fg:#2A0B10;--accent-soft:#341A1F}
+[data-theme="plum"][data-mode="light"]{--bg:#F9F5FA;--surface:#FFFFFF;--surface2:#F0E7F2;--fg:#1F1226;--muted:#675A6E;--border:#E4D9E8;--accent:#7A2E68;--accent-fg:#FFFFFF;--accent-soft:#F2E3F0}
+[data-theme="plum"][data-mode="dark"]{--bg:#150F1A;--surface:#1D1623;--surface2:#2A2032;--fg:#EEE8F2;--muted:#A99BB1;--border:#372B42;--accent:#C86BC6;--accent-fg:#2C0F31;--accent-soft:#3A2242}
+[data-theme="rosewater"][data-mode="light"]{--bg:#FBF5F7;--surface:#FFFFFF;--surface2:#F5E8EC;--fg:#26141A;--muted:#6F5A62;--border:#EAD6DD;--accent:#A63D62;--accent-fg:#FFFFFF;--accent-soft:#F8E3EA}
+[data-theme="rosewater"][data-mode="dark"]{--bg:#1A0F14;--surface:#241519;--surface2:#332028;--fg:#F5E9ED;--muted:#B4A0AA;--border:#402A33;--accent:#F27BA0;--accent-fg:#360D1D;--accent-soft:#3B1F2A}
+[data-theme="kiln"][data-mode="light"]{--bg:#FBF6F1;--surface:#FFFFFF;--surface2:#F4E9E0;--fg:#271812;--muted:#6F5D52;--border:#EADCCF;--accent:#B54A1F;--accent-fg:#FFFFFF;--accent-soft:#F9E4D6}
+[data-theme="kiln"][data-mode="dark"]{--bg:#191210;--surface:#221915;--surface2:#2F231D;--fg:#F5EDE5;--muted:#B5A396;--border:#3E2E24;--accent:#E8995A;--accent-fg:#2B1408;--accent-soft:#3A2415}
+
+/* ============ STUDIO CHROME ============ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--fg);
+  font-family:var(--font-body);font-size:15px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  transition:background .45s ease,color .45s ease;
+  min-height:100vh;padding:0 0 72px;
+}
+.studio-bar{
+  position:sticky;top:0;z-index:50;
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+  gap:12px;padding:14px 24px;
+  background:color-mix(in oklab,var(--bg) 78%,transparent);
+  backdrop-filter:blur(18px) saturate(1.3);
+  border-bottom:1px solid var(--border);
+  transition:background .45s ease,border-color .45s ease;
+}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{font-family:var(--font-display);font-size:24px;font-weight:600;letter-spacing:-.02em}
+.brand span{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.swatches{display:flex;gap:8px}
+.swatch{
+  width:34px;height:34px;border-radius:50%;border:none;cursor:pointer;position:relative;
+  outline:2px solid transparent;outline-offset:3px;transition:outline-color .25s,transform .2s;
+  box-shadow:0 2px 8px rgba(0,0,0,.18);
+}
+.swatch:hover{transform:scale(1.1)}
+.swatch.active{outline-color:var(--fg)}
+.swatch::after{
+  content:attr(data-name);position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);
+  font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+  white-space:nowrap;opacity:0;transition:opacity .2s;pointer-events:none;
+}
+.swatch.active::after,.swatch:hover::after{opacity:1}
+.mode-toggle{
+  display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:3px;gap:2px;
+}
+.mode-toggle button{
+  display:flex;align-items:center;gap:6px;border:none;cursor:pointer;
+  padding:7px 14px;border-radius:999px;font:inherit;font-size:12px;font-weight:700;letter-spacing:.02em;
+  color:var(--muted);background:transparent;transition:all .25s;
+}
+.mode-toggle button.active{background:var(--accent);color:var(--accent-fg)}
+.mode-toggle svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
+.hint{
+  width:100%;text-align:center;font-size:12px;color:var(--muted);letter-spacing:.01em;padding-bottom:2px;
+}
+
+/* ============ STAGE GRID ============ */
+.stage{
+  display:grid;grid-template-columns:repeat(2,390px);gap:44px 32px;
+  justify-content:center;padding:44px 20px 8px;max-width:920px;margin:0 auto;
+}
+@media(max-width:880px){.stage{grid-template-columns:min(390px,100vw)}}
+.phone-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+.phone-label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.phone-label b{color:var(--accent);font-weight:800}
+.phone{
+  position:relative;width:min(390px,100vw);height:844px;border-radius:44px;overflow:hidden;
+  background:var(--bg);box-shadow:0 0 0 1px color-mix(in oklab,var(--fg) 8%,transparent),0 30px 70px -18px rgba(0,0,0,.35),0 8px 22px -8px rgba(0,0,0,.2);
+  display:flex;flex-direction:column;
+  transition:background .45s ease;
+}
+
+/* status bar */
+.sbar{
+  flex:0 0 52px;padding:16px 28px 0;display:flex;align-items:flex-start;justify-content:space-between;
+  font-size:15px;font-weight:700;color:var(--fg);z-index:3;letter-spacing:-.01em;
+}
+.sbar .r{display:inline-flex;gap:6px;align-items:center}
+.sbar svg{width:17px;height:11px;fill:var(--fg)}
+
+/* scroll content */
+.pcontent{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding-bottom:120px}
+.pcontent::-webkit-scrollbar{display:none}
+
+/* home indicator */
+.home-ind{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:130px;height:5px;border-radius:999px;background:var(--fg);opacity:.25;z-index:20}
+
+/* ============ FLOATING GLASS DOCK ============ */
+.dock{
+  position:absolute;bottom:26px;left:16px;right:16px;height:64px;border-radius:32px;z-index:15;
+  display:grid;grid-template-columns:repeat(4,1fr);align-items:center;
+  background:color-mix(in oklab,var(--surface) 62%,transparent);
+  backdrop-filter:blur(22px) saturate(1.5);
+  border:1px solid color-mix(in oklab,var(--fg) 9%,transparent);
+  box-shadow:0 12px 32px -8px rgba(0,0,0,.28),inset 0 1px 0 color-mix(in oklab,#fff 22%,transparent);
+  transition:background .45s ease;
+}
+.dock .pill{
+  position:absolute;top:10px;bottom:10px;left:8px;width:calc(25% - 8px);border-radius:22px;
+  background:color-mix(in oklab,var(--accent) 14%,transparent);
+  transition:transform .38s cubic-bezier(.34,1.45,.5,1);
+}
+.dock .tab{
+  position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:center;
+  color:var(--muted);cursor:pointer;font-size:10px;font-weight:700;letter-spacing:.02em;
+  transition:color .25s;user-select:none;
+}
+.dock .tab.active{color:var(--accent)}
+.dock .tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;transition:transform .3s cubic-bezier(.34,1.6,.5,1)}
+.dock .tab:active svg{transform:scale(.86)}
+
+/* ============ SHARED BITS ============ */
+.pad{padding-inline:20px}
+.cap{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;padding:0 20px;margin:22px 0 12px}
+.sec-head h2{font-family:var(--font-display);font-size:21px;font-weight:600;letter-spacing:-.015em}
+.sec-head a{font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;letter-spacing:.02em}
+.num{font-variant-numeric:tabular-nums}
+
+/* header + search */
+.hdr{padding:10px 20px 12px;display:flex;align-items:center;justify-content:space-between}
+.hdr .loc{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.01em}
+.hdr .loc svg{width:12px;height:12px;stroke:var(--accent);fill:none;stroke-width:2}
+.hdr h1{font-family:var(--font-display);font-size:32px;font-weight:600;letter-spacing:-.02em;line-height:1.05;margin-top:3px}
+.icon-btn{
+  width:38px;height:38px;border-radius:999px;display:grid;place-items:center;cursor:pointer;
+  background:var(--surface);border:1px solid var(--border);color:var(--fg);
+  transition:transform .2s cubic-bezier(.34,1.6,.5,1);
+}
+.icon-btn:active{transform:scale(.88)}
+.icon-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7}
+.search{
+  margin:0 20px 18px;display:flex;align-items:center;gap:10px;padding:13px 16px;border-radius:16px;
+  background:var(--surface);border:1px solid var(--border);color:var(--muted);font-size:14px;
+  transition:background .45s,border-color .45s;
+}
+.search svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0}
+
+/* ============ EDITORIAL HERO ============ */
+.hero{
+  margin:0 20px;position:relative;border-radius:22px;overflow:hidden;aspect-ratio:16/10.5;cursor:pointer;
+  box-shadow:0 16px 40px -14px rgba(0,0,0,.4);
+}
+.hero .himg{
+  position:absolute;inset:0;
+  background:
+    linear-gradient(160deg,rgba(30,20,14,.05) 0%,rgba(20,12,8,.55) 78%,rgba(12,7,4,.78) 100%),
+    radial-gradient(120% 140% at 78% 18%,#C9A87E 0%,#A67F58 34%,#6E4E33 68%,#3E2C1D 100%);
+}
+.hero .himg::after{
+  content:'';position:absolute;inset:0;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.hero .hbody{position:absolute;left:0;right:0;bottom:0;padding:18px 20px;color:#F7F1E9}
+.hero .hkick{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#E8C9A8;margin-bottom:5px}
+.hero h3{font-family:var(--font-display);font-style:italic;font-size:28px;font-weight:600;letter-spacing:-.01em;line-height:1.08;margin-bottom:10px}
+.hero .hcta{
+  display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:999px;
+  background:rgba(255,255,255,.14);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.28);color:#FFFDF9;
+  font-size:12px;font-weight:700;letter-spacing:.03em;
+}
+.hero .hcta svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.2}
+
+/* ============ SNAP RAIL ============ */
+.rail{
+  display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;
+  padding:2px 20px 6px;scrollbar-width:none;
+}
+.rail::-webkit-scrollbar{display:none}
+.rcard{
+  flex:0 0 232px;scroll-snap-align:start;border-radius:var(--r);overflow:hidden;cursor:pointer;
+  background:var(--surface);border:1px solid var(--border);
+  transition:transform .22s cubic-bezier(.34,1.5,.5,1);
+}
+.rcard:active{transform:scale(.965)}
+.rcard .rimg{position:relative;aspect-ratio:16/9.5}
+.rcard .badge{
+  position:absolute;top:9px;left:9px;padding:4px 10px;border-radius:999px;font-size:9px;font-weight:800;
+  letter-spacing:.08em;text-transform:uppercase;color:#FFFDF9;background:rgba(0,0,0,.42);
+  backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2);
+}
+.rcard .rbody{padding:11px 13px 12px}
+.rcard .rname{font-size:14px;font-weight:700;letter-spacing:-.01em;margin-bottom:4px}
+.rcard .rmeta{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);font-weight:600}
+.rcard .star{display:inline-flex;align-items:center;gap:3px;color:var(--fg)}
+.rcard .star svg{width:11px;height:11px;fill:#E8A33D;stroke:none}
+.rcard .rprice{margin-top:6px;font-size:12px;font-weight:700;color:var(--accent)}
+.rcard .rprice span{color:var(--muted);font-weight:600}
+
+/* ============ BENTO CATEGORIES ============ */
+.bento{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 20px}
+.btile{
+  aspect-ratio:1/1.06;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  background:var(--surface);border:1px solid var(--border);cursor:pointer;
+  transition:transform .2s cubic-bezier(.34,1.5,.5,1),border-color .2s;
+}
+.btile:active{transform:scale(.92)}
+.btile svg{width:24px;height:24px;stroke:var(--accent);fill:none;stroke-width:1.6}
+.btile span{font-size:11px;font-weight:700;letter-spacing:.02em;color:var(--fg)}
+
+/* ============ HYBRID LIST ROWS ============ */
+.lrow{
+  display:grid;grid-template-columns:74px 1fr auto;gap:13px;align-items:center;
+  padding:12px 20px;cursor:pointer;
+}
+.lrow:active .thumb{transform:scale(.95)}
+.thumb{
+  width:74px;height:74px;border-radius:14px;display:grid;place-items:center;
+  font-family:var(--font-display);font-size:24px;font-weight:600;color:rgba(255,253,247,.9);
+  transition:transform .22s cubic-bezier(.34,1.5,.5,1);
+}
+.lrow .lname{font-size:15px;font-weight:700;letter-spacing:-.01em;margin-bottom:3px}
+.lrow .lmeta{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);font-weight:600}
+.lrow .star{display:inline-flex;align-items:center;gap:3px;color:var(--fg)}
+.lrow .star svg{width:11px;height:11px;fill:#E8A33D;stroke:none}
+.lrow .lright{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.chip-next{
+  display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;
+  background:var(--ok-soft);color:var(--ok);font-size:10.5px;font-weight:800;letter-spacing:.02em;white-space:nowrap;
+}
+.chip-next svg{width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2.4}
+.lrow .lprice{font-size:12.5px;font-weight:700}
+.lrow .lprice span{color:var(--muted);font-weight:600}
+.hairline{border-top:1px solid var(--border);margin:0 20px}
+
+/* ============ SALON PROFILE ============ */
+.ph-hero{position:relative;height:225px;overflow:hidden}
+.ph-hero .pimg{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(130% 160% at 20% 12%,#D9C4AC 0%,#B59A7C 30%,#7A5C41 64%,#40301F 100%);
+}
+.ph-hero .pimg::after{
+  content:'';position:absolute;inset:0;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.ph-hero .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,6,3,.34) 0%,transparent 32%,transparent 55%,rgba(10,6,3,.5) 100%)}
+.ph-fabs{position:absolute;top:14px;left:16px;right:16px;display:flex;justify-content:space-between}
+.glass-btn{
+  width:38px;height:38px;border-radius:999px;display:grid;place-items:center;cursor:pointer;
+  background:rgba(255,255,255,.16);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.3);color:#FFFDF9;
+  transition:transform .2s cubic-bezier(.34,1.6,.5,1),background .2s;
+}
+.glass-btn:active{transform:scale(.86)}
+.glass-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9}
+.glass-btn.liked svg{fill:#F2557A;stroke:#F2557A}
+.ph-info{padding:16px 20px 0}
+.ph-name{display:flex;align-items:center;gap:8px}
+.ph-name h2{font-family:var(--font-display);font-size:27px;font-weight:600;letter-spacing:-.015em}
+.ph-name svg{width:17px;height:17px;stroke:var(--accent);fill:none;stroke-width:2}
+.ph-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-weight:600;margin-top:5px;flex-wrap:wrap}
+.ph-meta .star{display:inline-flex;align-items:center;gap:3px;color:var(--fg)}
+.ph-meta .star svg{width:12px;height:12px;fill:#E8A33D;stroke:none}
+.open-dot{display:inline-flex;align-items:center;gap:5px;color:var(--ok);font-weight:800}
+.open-dot i{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+.trust-chips{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.tchip{
+  display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:999px;
+  background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:800;letter-spacing:.02em;
+}
+.tchip svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.4}
+
+/* tabs with sliding pill */
+.tabs{
+  position:relative;display:grid;grid-template-columns:repeat(3,1fr);margin:18px 20px 4px;
+  padding:4px;border-radius:14px;background:var(--surface2);
+}
+.tabs .tpill{
+  position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px)/3);border-radius:11px;
+  background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.1);
+  transition:transform .35s cubic-bezier(.34,1.4,.5,1);
+}
+.tabs button{
+  position:relative;z-index:1;border:none;background:transparent;cursor:pointer;padding:9px 0;
+  font:inherit;font-size:13px;font-weight:700;color:var(--muted);border-radius:11px;transition:color .25s;
+}
+.tabs button.active{color:var(--fg)}
+
+/* service groups */
+.svc-group{padding:6px 20px 0}
+.svc-g-head{
+  display:flex;align-items:center;justify-content:space-between;padding:13px 0 10px;cursor:pointer;
+}
+.svc-g-head h3{font-size:15px;font-weight:800;letter-spacing:-.01em}
+.svc-g-head h3 span{color:var(--muted);font-weight:600;font-size:12.5px;margin-left:6px}
+.svc-g-head svg{width:16px;height:16px;stroke:var(--muted);fill:none;stroke-width:2;transition:transform .3s}
+.svc-group.collapsed .svc-g-head svg{transform:rotate(-90deg)}
+.svc-group.collapsed .svc-rows{display:none}
+.svc-row{
+  display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;
+  padding:13px 0;border-top:1px solid var(--border);
+}
+.svc-row .sname{font-size:14.5px;font-weight:700;letter-spacing:-.01em;margin-bottom:3px}
+.svc-row .sname .pop{
+  display:inline-flex;margin-left:7px;padding:2.5px 8px;border-radius:999px;vertical-align:2px;
+  background:color-mix(in oklab,#E8A33D 16%,transparent);color:#9A6A15;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+}
+[data-mode="dark"] .svc-row .sname .pop{color:#E8C077}
+.svc-row .ssub{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-weight:600}
+.svc-row .ssub svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.8}
+.svc-row .sright{display:flex;flex-direction:column;align-items:flex-end;gap:9px}
+.svc-row .sprice{font-size:14.5px;font-weight:800;letter-spacing:-.01em}
+.svc-row .sprice .mrp{font-size:11.5px;color:var(--muted);text-decoration:line-through;font-weight:600;margin-left:5px}
+.add-btn{
+  width:34px;height:34px;border-radius:999px;border:1.5px solid var(--border);cursor:pointer;
+  background:var(--surface);display:grid;place-items:center;position:relative;
+  transition:background .3s,border-color .3s,transform .25s cubic-bezier(.34,1.7,.5,1);
+}
+.add-btn:active{transform:scale(1.18)}
+.add-btn svg{width:15px;height:15px;stroke:var(--fg);fill:none;stroke-width:2.2;position:absolute;transition:transform .3s cubic-bezier(.34,1.7,.5,1),opacity .2s,stroke .3s}
+.add-btn .ic-plus{transform:rotate(0deg)}
+.add-btn .ic-check{transform:rotate(-90deg) scale(.4);opacity:0}
+.add-btn.added{background:var(--accent);border-color:var(--accent)}
+.add-btn.added .ic-plus{transform:rotate(90deg) scale(.4);opacity:0}
+.add-btn.added .ic-check{transform:rotate(0deg) scale(1);opacity:1;stroke:var(--accent-fg)}
+
+/* floating selection summary bar */
+.sumbar{
+  position:absolute;left:16px;right:16px;bottom:26px;z-index:16;
+  display:flex;align-items:center;gap:12px;padding:12px 12px 12px 18px;border-radius:22px;
+  background:color-mix(in oklab,var(--surface) 72%,transparent);
+  backdrop-filter:blur(22px) saturate(1.5);
+  border:1px solid color-mix(in oklab,var(--fg) 10%,transparent);
+  box-shadow:0 14px 36px -8px rgba(0,0,0,.3),inset 0 1px 0 color-mix(in oklab,#fff 20%,transparent);
+  transform:translateY(130px);transition:transform .45s cubic-bezier(.3,1.3,.45,1);
+}
+.sumbar.up{transform:translateY(0)}
+.sumbar .sinfo{flex:1;min-width:0}
+.sumbar .scount{font-size:13px;font-weight:800;letter-spacing:-.01em}
+.sumbar .scount b{color:var(--accent)}
+.sumbar .stotal{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
+.sumbar .go{
+  display:flex;align-items:center;gap:7px;padding:11px 18px;border-radius:14px;border:none;cursor:pointer;
+  background:var(--accent);color:var(--accent-fg);font:inherit;font-size:13.5px;font-weight:800;letter-spacing:.01em;
+  transition:transform .2s cubic-bezier(.34,1.6,.5,1);
+}
+.sumbar .go:active{transform:scale(.94)}
+.sumbar .go svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.4}
+
+/* ============ DATE & TIME SCREEN ============ */
+.flo-head{padding:10px 20px 4px;display:flex;flex-direction:column;gap:10px}
+.flo-head .toprow{display:flex;align-items:center;gap:12px}
+.back-b{
+  width:36px;height:36px;border-radius:999px;display:grid;place-items:center;cursor:pointer;flex-shrink:0;
+  background:var(--surface);border:1px solid var(--border);color:var(--fg);
+  transition:transform .2s cubic-bezier(.34,1.6,.5,1);
+}
+.back-b:active{transform:scale(.86)}
+.back-b svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.2}
+.flo-head h1{font-family:var(--font-display);font-size:25px;font-weight:600;letter-spacing:-.015em}
+.steps{display:flex;gap:6px;align-items:center}
+.step{width:26px;height:4px;border-radius:999px;background:var(--border);transition:background .3s}
+.step.done,.step.active{background:var(--accent)}
+.step.active{width:38px}
+.svc-summary{
+  margin:12px 20px 0;padding:12px 16px;border-radius:16px;display:flex;align-items:center;gap:13px;
+  background:var(--surface);border:1px solid var(--border);
+}
+.svc-summary .th{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;flex-shrink:0;
+  font-family:var(--font-display);font-size:17px;font-weight:600;color:rgba(255,253,247,.9)}
+.svc-summary .tt{font-size:13px;font-weight:800;letter-spacing:-.01em}
+.svc-summary .ts{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
+.svc-summary .tp{margin-left:auto;font-size:15px;font-weight:800;white-space:nowrap}
+
+/* day strip */
+.day-strip{
+  display:flex;gap:8px;overflow-x:auto;padding:16px 20px 14px;scrollbar-width:none;scroll-snap-type:x proximity;
+}
+.day-strip::-webkit-scrollbar{display:none}
+.day{
+  flex:0 0 56px;padding:9px 0 7px;border-radius:15px;text-align:center;cursor:pointer;scroll-snap-align:center;
+  background:var(--surface);border:1.5px solid var(--border);
+  transition:background .25s,border-color .25s,transform .22s cubic-bezier(.34,1.5,.5,1);
+}
+.day:active{transform:scale(.9)}
+.day .dw{font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.day .dn{font-size:17px;font-weight:800;letter-spacing:-.02em}
+.day .dot-row{display:flex;justify-content:center;gap:3px;margin-top:4px;height:4px;align-items:center}
+.day .dot-row i{width:4px;height:4px;border-radius:50%;background:var(--ok)}
+.day.limited .dot-row i{background:transparent;border:1.2px solid var(--ok)}
+.day.none .dot-row i{background:var(--border)}
+.day.sel{background:var(--accent);border-color:var(--accent)}
+.day.sel .dw{color:var(--accent-fg);opacity:.75}
+.day.sel .dn{color:var(--accent-fg)}
+.day.sel .dot-row i{background:var(--accent-fg)}
+.day.sel.limited .dot-row i{background:transparent;border-color:var(--accent-fg)}
+
+/* slot groups */
+.slotgrp{padding:2px 20px 4px}
+.slotgrp .glabel{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding-bottom:14px}
+.slot{
+  position:relative;padding:11px 6px;border-radius:13px;text-align:center;cursor:pointer;
+  background:var(--surface);border:1.5px solid var(--border);
+  font-size:14px;font-weight:700;letter-spacing:-.01em;
+  transition:background .28s,border-color .28s,transform .24s cubic-bezier(.34,1.7,.5,1),opacity .2s;
+}
+.slot:active{transform:scale(1.07)}
+.slot .ampm{display:block;font-size:9.5px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-top:2px;text-transform:uppercase}
+.slot.unavail{opacity:.32;pointer-events:none;text-decoration:line-through}
+.slot .chk{
+  position:absolute;top:-7px;right:-7px;width:21px;height:21px;border-radius:50%;
+  background:var(--accent);display:grid;place-items:center;
+  transform:scale(0) rotate(-90deg);transition:transform .35s cubic-bezier(.34,1.8,.5,1);
+  box-shadow:0 3px 8px rgba(0,0,0,.25);
+}
+.slot .chk svg{width:11px;height:11px;stroke:var(--accent-fg);fill:none;stroke-width:3}
+.slot.sel{
+  background:var(--accent);border-color:var(--accent);color:var(--accent-fg);
+  transform:scale(1.06);
+  box-shadow:0 6px 18px -4px color-mix(in oklab,var(--accent) 55%,transparent);
+}
+.slot.sel .ampm{color:var(--accent-fg);opacity:.72}
+.slot.sel .chk{transform:scale(1) rotate(0deg)}
+
+/* confirm zone w/ hold timer */
+.confirm-zone{
+  position:absolute;left:16px;right:16px;bottom:24px;z-index:16;border-radius:24px;padding:16px 16px 14px;
+  background:color-mix(in oklab,var(--surface) 76%,transparent);
+  backdrop-filter:blur(22px) saturate(1.5);
+  border:1px solid color-mix(in oklab,var(--fg) 10%,transparent);
+  box-shadow:0 16px 40px -10px rgba(0,0,0,.34),inset 0 1px 0 color-mix(in oklab,#fff 20%,transparent);
+}
+.cz-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.pick-chip{
+  display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;
+  background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800;letter-spacing:.01em;
+  transition:background .3s;
+}
+.pick-chip svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.4}
+.tchip-time{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;
+  font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;
+  background:color-mix(in oklab,var(--ok) 12%,transparent);color:var(--ok);
+  transition:background .3s,color .3s;
+}
+.tchip-time svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.2}
+.tchip-time.warn{background:color-mix(in oklab,var(--warn) 14%,transparent);color:var(--warn)}
+.tchip-time.crit{background:color-mix(in oklab,var(--danger) 13%,transparent);color:var(--danger);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.55}}
+.tbar-track{height:4px;border-radius:999px;background:var(--surface2);overflow:hidden;margin-bottom:13px}
+.tbar-fill{height:100%;border-radius:999px;background:var(--ok);transition:width 1s linear,background .5s}
+.tbar-fill.warn{background:var(--warn)}
+.tbar-fill.crit{background:var(--danger)}
+.btn-confirm{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:9px;
+  padding:15px;border:none;border-radius:16px;cursor:pointer;
+  background:var(--accent);color:var(--accent-fg);
+  font:inherit;font-size:15px;font-weight:800;letter-spacing:.01em;
+  transition:transform .2s cubic-bezier(.34,1.6,.5,1),background .45s;
+}
+.btn-confirm:active{transform:scale(.96)}
+.btn-confirm svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.6}
+
+/* ============ CONFIRMED SCREEN ============ */
+.conf-hero{display:flex;flex-direction:column;align-items:center;padding:38px 20px 10px;text-align:center}
+.ring-wrap{position:relative;width:118px;height:118px;margin-bottom:20px}
+.ring-wrap svg{width:118px;height:118px;transform:rotate(-90deg)}
+.ring-track{fill:none;stroke:var(--surface2);stroke-width:5}
+.ring-bar{
+  fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round;
+  stroke-dasharray:327;stroke-dashoffset:327;
+  transition:stroke-dashoffset 1.4s cubic-bezier(.3,.9,.4,1),stroke .45s;
+}
+.ring-check{
+  position:absolute;inset:0;display:grid;place-items:center;
+}
+.ring-check .ck{
+  width:54px;height:54px;border-radius:50%;background:var(--accent);display:grid;place-items:center;
+  transform:scale(0);transition:transform .5s cubic-bezier(.34,1.9,.5,1) .95s;
+}
+.ring-check svg{width:26px;height:26px;stroke:var(--accent-fg);fill:none;stroke-width:3.2}
+.conf-hero h1{font-family:var(--font-display);font-size:31px;font-weight:600;letter-spacing:-.02em;margin-bottom:7px}
+.conf-hero p{font-size:13px;color:var(--muted);font-weight:600;max-width:30ch}
+.ticket{
+  margin:22px 20px 0;border-radius:20px;overflow:hidden;
+  background:var(--surface);border:1px solid var(--border);
+}
+.tk-head{display:flex;align-items:center;gap:13px;padding:16px 18px;border-bottom:1.5px dashed var(--border)}
+.tk-head .th{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;
+  font-family:var(--font-display);font-size:19px;font-weight:600;color:rgba(255,253,247,.9)}
+.tk-head .tn{font-size:15px;font-weight:800;letter-spacing:-.01em}
+.tk-head .tm{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
+.tk-head .verified{margin-left:auto;display:flex;align-items:center;gap:4px;color:var(--ok);font-size:10.5px;font-weight:800}
+.tk-head .verified svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.6}
+.tk-rows{padding:6px 18px}
+.tk-row{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid var(--border);font-size:13px}
+.tk-row:first-child{border-top:none}
+.tk-row .k{color:var(--muted);font-weight:600;white-space:nowrap}
+.tk-row .v{font-weight:700;text-align:right;letter-spacing:-.01em}
+.tk-row .v.multi{text-align:right}
+.tk-total{display:flex;justify-content:space-between;align-items:center;padding:13px 18px;border-top:1.5px dashed var(--border);background:var(--accent-soft)}
+.tk-total .k{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.tk-total .v{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--accent)}
+.conf-trust{display:flex;justify-content:center;margin:16px 20px 0}
+.conf-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 20px 0}
+.btn-ghost{
+  padding:14px;border-radius:15px;border:1.5px solid var(--border);cursor:pointer;
+  background:var(--surface);color:var(--fg);font:inherit;font-size:13.5px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:transform .2s cubic-bezier(.34,1.6,.5,1);
+}
+.btn-ghost:active{transform:scale(.95)}
+.btn-ghost svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.9}
+.btn-solid{
+  padding:14px;border-radius:15px;border:none;cursor:pointer;
+  background:var(--accent);color:var(--accent-fg);font:inherit;font-size:13.5px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:transform .2s cubic-bezier(.34,1.6,.5,1),background .45s;
+}
+.btn-solid:active{transform:scale(.95)}
+.btn-solid svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+
+/* design notes strip */
+.notes{
+  max-width:920px;margin:36px auto 0;padding:26px 28px;border-radius:24px;
+  background:var(--surface);border:1px solid var(--border);
+}
+.notes h2{font-family:var(--font-display);font-size:22px;font-weight:600;letter-spacing:-.015em;margin-bottom:14px}
+.notes ul{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:10px 26px}
+@media(max-width:720px){.notes ul{grid-template-columns:1fr}}
+.notes li{display:flex;gap:10px;font-size:13px;line-height:1.5;color:var(--muted);font-weight:500}
+.notes li b{color:var(--fg);font-weight:800}
+.notes li svg{width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:2.4;flex-shrink:0;margin-top:1px}
+.foot{margin-top:28px;text-align:center;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ STUDIO CONTROL BAR ═══════════ -->
+<header class="studio-bar">
+  <div class="brand"><h1>TrimiT</h1><span>Design Studio · V2</span></div>
+  <div class="controls">
+    <div class="swatches">
+      <button class="swatch active" data-name="Verdant" data-set="verdant" style="background:linear-gradient(135deg,#0F6B44 50%,#3DD68C 50%)" aria-label="Verdant theme"></button>
+      <button class="swatch" data-name="Oxblood" data-set="oxblood" style="background:linear-gradient(135deg,#8E2233 50%,#E0697A 50%)" aria-label="Oxblood theme"></button>
+      <button class="swatch" data-name="Plum Velvet" data-set="plum" style="background:linear-gradient(135deg,#7A2E68 50%,#C86BC6 50%)" aria-label="Plum Velvet theme"></button>
+      <button class="swatch" data-name="Rosewater" data-set="rosewater" style="background:linear-gradient(135deg,#A63D62 50%,#F27BA0 50%)" aria-label="Rosewater theme"></button>
+      <button class="swatch" data-name="Kiln · Classic" data-set="kiln" style="background:linear-gradient(135deg,#B54A1F 50%,#E8995A 50%)" aria-label="Kiln theme"></button>
+    </div>
+    <div class="mode-toggle" role="group" aria-label="Mode">
+      <button class="active" data-mode="light"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2 12h2.5M19.5 12H22M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>Light</button>
+      <button data-mode="dark"><svg viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z"/></svg>Dark</button>
+    </div>
+  </div>
+  <p class="hint">Tap a color to re-theme the whole app · toggle Light / Dark · every screen is scrollable &amp; interactive</p>
+</header>
+
+<main class="stage">
+
+<!-- ═══════════ PHONE 1 · HOME / DISCOVER ═══════════ -->
+<div class="phone-wrap">
+  <div class="phone-label">01 · <b>Home</b> — Discover</div>
+  <div class="phone">
+    <div class="sbar"><span class="num">9:41</span><span class="r">
+      <svg viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx=".6"/><rect x="4" y="5" width="3" height="6" rx=".6"/><rect x="8" y="3" width="3" height="8" rx=".6"/><rect x="12" y="0" width="3" height="11" rx=".6"/></svg>
+      <svg viewBox="0 0 17 11"><path d="M8.5 1.5C5.5 1.5 2.7 2.6.5 4.6L2 6.1C3.8 4.5 6.1 3.6 8.5 3.6c2.4 0 4.7.9 6.5 2.5l1.5-1.5c-2.2-2-5-3.1-8-3.1zM3.5 7.6L5 9.1c1-.9 2.2-1.4 3.5-1.4 1.3 0 2.5.5 3.5 1.4l1.5-1.5c-1.4-1.3-3.1-2-5-2-1.9 0-3.6.7-5 2zM6.5 10.6l2 2 2-2c-.5-.5-1.2-.8-2-.8s-1.5.3-2 .8z"/></svg>
+      <svg viewBox="0 0 25 11" style="width:25px"><rect x=".5" y=".5" width="21" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-opacity=".45"/><rect x="22" y="3.5" width="1.5" height="4" rx=".4" fill="currentColor" fill-opacity=".45"/><rect x="2" y="2" width="18" height="7" rx="1.4"/></svg>
+    </span></div>
+
+    <div class="pcontent">
+      <div class="hdr">
+        <div>
+          <div class="loc"><svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>Koramangala, Bengaluru</div>
+          <h1>Discover</h1>
+        </div>
+        <button class="icon-btn" aria-label="Notifications"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></button>
+      </div>
+
+      <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search salons, treatments, stylists…</div>
+
+      <!-- editorial hero -->
+      <div class="hero">
+        <div class="himg"></div>
+        <div class="hbody">
+          <div class="hkick">Curated · Bridal Season '26</div>
+          <h3>The Bridal Edit</h3>
+          <span class="hcta">Explore looks <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
+        </div>
+      </div>
+
+      <!-- top rated rail -->
+      <div class="sec-head"><h2>Top rated near you</h2><a href="#">See all</a></div>
+      <div class="rail">
+        <div class="rcard">
+          <div class="rimg" style="background:linear-gradient(150deg,#B08D6C,#7E5E41 55%,#4A3524)">
+            <span class="badge">Top rated</span>
+          </div>
+          <div class="rbody">
+            <div class="rname">Luxe Hair Studio</div>
+            <div class="rmeta"><span class="star"><svg viewBox="0 0 24 24"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>4.8</span>· 1.2 km</div>
+            <div class="rprice">Cuts from <span>₹299</span></div>
+          </div>
+        </div>
+        <div class="rcard">
+          <div class="rimg" style="background:linear-gradient(150deg,#C7A5A0,#8F6660 55%,#543733)">
+            <span class="badge">Editor's pick</span>
+          </div>
+          <div class="rbody">
+            <div class="rname">Glow Aesthetics</div>
+            <div class="rmeta"><span class="star"><svg viewBox="0 0 24 24"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>4.9</span>· 2.8 km</div>
+            <div class="rprice">Glow from <span>₹449</span></div>
+          </div>
+        </div>
+        <div class="rcard">
+          <div class="rimg" style="background:linear-gradient(150deg,#9FAF9B,#6C8168 55%,#3E4E3B)">
+            <span class="badge">New</span>
+          </div>
+          <div class="rbody">
+            <div class="rname">Verdure Spa &amp; Salon</div>
+            <div class="rmeta"><span class="star"><svg viewBox="0 0 24 24"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>4.7</span>· 3.1 km</div>
+            <div class="rprice">Spa from <span>₹599</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- bento categories -->
+      <div class="sec-head"><h2>Browse by category</h2></div>
+      <div class="bento">
+        <div class="btile"><svg viewBox="0 0 24 24"><path d="M4 6c0-2.5 3.6-4 8-4s8 1.5 8 4-3.6 4-8 4-8-1.5-8-4z"/><path d="M4 6v6c0 2.5 3.6 4 8 4s8-1.5 8-4V6"/><path d="M4 12v6c0 2.5 3.6 4 8 4s8-1.5 8-4v-6"/></svg><span>Hair</span></div>
+        <div class="btile"><svg viewBox="0 0 24 24"><path d="M12 3c3 4.5 6 7 6 10.5A6 6 0 0 1 6 13.5C6 10 9 7.5 12 3z"/><path d="M12 21a4 4 0 0 0 4-4"/></svg><span>Skin</span></div>
+        <div class="btile"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg><span>Nails</span></div>
+        <div class="btile"><svg viewBox="0 0 24 24"><path d="M12 4c2.5 0 4 1.8 4 4 0 1.5-.6 2.4-1.4 3.2-.7.7-1.1 1.3-1.1 2.3h-3c0-1-.4-1.6-1.1-2.3C8.6 10.4 8 9.5 8 8c0-2.2 1.5-4 4-4z"/><path d="M10.5 16.5h3M11 19.5h2"/></svg><span>Spa</span></div>
+      </div>
+
+      <!-- hybrid list rows -->
+      <div class="sec-head"><h2>Salons near you</h2><a href="#">Map view</a></div>
+      <div class="lrow">
+        <div class="thumb" style="background:linear-gradient(150deg,#B08D6C,#6E4E33)">L</div>
+        <div>
+          <div class="lname">Luxe Hair Studio</div>
+          <div class="lmeta"><span class="star"><svg viewBox="0 0 24 24"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>4.8</span>· 1.2k bookings</div>
+        </div>
+        <div class="lright">
+          <span class="chip-next"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>Next 4:30 PM</span>
+          <div class="lprice"><span>from</span> ₹399</div>
+        </div>
+      </div>
+      <div class="hairline"></div>
+      <div class="lrow">
+        <div class="thumb" style="background:linear-gradient(150deg,#C7A5A0,#6B433E)">G</div>
+        <div>
+          <div class="lname">Glow Aesthetics</div>
+          <div class="lmeta"><span class="star"><svg viewBox="0 0 24 24"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>4.9</span>· 2.4k bookings</div>
+        </div>
+        <div class="lright">
+          <span class="chip-next"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>Next 5:00 PM</span>
+          <div class="lprice"><span>from</span> ₹449</div>
+        </div>
+      </div>
+      <div class="hairline"></div>
+      <div class="lrow">
+        <div class="thumb" style="background:linear-gradient(150deg,#8D9BAF,#3E4E63)">B</div>
+        <div>
+          <div class="lname">The Barber Shop</div>
+          <div class="lmeta"><span class="star"><svg viewBox="0 0 24 24"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>4.6</span>· 860 bookings</div>
+        </div>
+        <div class="lright">
+          <span class="chip-next"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>Next 3:00 PM</span>
+          <div class="lprice"><span>from</span> ₹199</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- floating glass dock -->
+    <nav class="dock" data-dock>
+      <div class="pill" data-pill></div>
+      <a class="tab active"><svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>Home</a>
+      <a class="tab"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Discover</a>
+      <a class="tab"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>Bookings</a>
+      <a class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21c0-4 3.5-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/></svg>Profile</a>
+    </nav>
+    <div class="home-ind"></div>
+  </div>
+</div>
+
+<!-- ═══════════ PHONE 2 · SALON PROFILE ═══════════ -->
+<div class="phone-wrap">
+  <div class="phone-label">02 · <b>Salon</b> — Services &amp; Cart</div>
+  <div class="phone">
+    <div class="sbar"><span class="num">9:41</span><span class="r">
+      <svg viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx=".6"/><rect x="4" y="5" width="3" height="6" rx=".6"/><rect x="8" y="3" width="3" height="8" rx=".6"/><rect x="12" y="0" width="3" height="11" rx=".6"/></svg>
+      <svg viewBox="0 0 17 11"><path d="M8.5 1.5C5.5 1.5 2.7 2.6.5 4.6L2 6.1C3.8 4.5 6.1 3.6 8.5 3.6c2.4 0 4.7.9 6.5 2.5l1.5-1.5c-2.2-2-5-3.1-8-3.1zM3.5 7.6L5 9.1c1-.9 2.2-1.4 3.5-1.4 1.3 0 2.5.5 3.5 1.4l1.5-1.5c-1.4-1.3-3.1-2-5-2-1.9 0-3.6.7-5 2zM6.5 10.6l2 2 2-2c-.5-.5-1.2-.8-2-.8s-1.5.3-2 .8z"/></svg>
+      <svg viewBox="0 0 25 11" style="width:25px"><rect x=".5" y=".5" width="21" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-opacity=".45"/><rect x="22" y="3.5" width="1.5" height="4" rx=".4" fill="currentColor" fill-opacity=".45"/><rect x="2" y="2" width="18" height="7" rx="1.4"/></svg>
+    </span></div>
+
+    <div class="pcontent">
+      <!-- hero -->
+      <div class="ph-hero">
+        <div class="pimg"></div>
+        <div class="scrim"></div>
+        <div class="ph-fabs">
+          <button class="glass-btn" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></button>
+          <button class="glass-btn" aria-label="Save"><svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21.2l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg></button>
+        </div>
+      </div>
+
+      <!-- info -->
+      <div class="ph-info">
+        <div class="ph-name"><h2>Luxe Hair Studio</h2><svg viewBox="0 0 24 24"><path d="M12 2 14.4 8.6 21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg></div>
+        <div class="ph-meta">
+          <span class="star"><svg viewBox="0 0 24 24"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>4.8 (1.2k)</span>·
+          <span>Koramangala · 1.2 km</span>·
+          <span class="open-dot"><i></i>Open till 8 PM</span>
+        </div>
+        <div class="trust-chips">
+          <span class="tchip"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Pay at salon</span>
+          <span class="tchip"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Free cancellation</span>
+        </div>
+      </div>
+
+      <!-- tabs -->
+      <div class="tabs" data-tabs>
+        <div class="tpill" data-tpill></div>
+        <button class="active">Services</button>
+        <button>Reviews</button>
+        <button>Photos</button>
+      </div>
+
+      <!-- service groups -->
+      <div class="svc-group">
+        <div class="svc-g-head">
+          <h3>Hair <span>· from ₹349</span></h3>
+          <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div class="svc-rows">
+          <div class="svc-row">
+            <div>
+              <div class="sname">Haircut &amp; Styling</div>
+              <div class="ssub"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>45 min</div>
+            </div>
+            <div class="sright">
+              <div class="sprice">₹499</div>
+              <button class="add-btn" data-price="499" aria-label="Add Haircut & Styling">
+                <svg class="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                <svg class="ic-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="svc-row">
+            <div>
+              <div class="sname">Hair Colouring<span class="pop">Popular</span></div>
+              <div class="ssub"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>90 min · Global</div>
+            </div>
+            <div class="sright">
+              <div class="sprice">₹1,299<span class="mrp">₹1,799</span></div>
+              <button class="add-btn added" data-price="1299" aria-label="Add Hair Colouring">
+                <svg class="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                <svg class="ic-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="svc-row">
+            <div>
+              <div class="sname">Deep Conditioning</div>
+              <div class="ssub"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>30 min</div>
+            </div>
+            <div class="sright">
+              <div class="sprice">₹349</div>
+              <button class="add-btn" data-price="349" aria-label="Add Deep Conditioning">
+                <svg class="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                <svg class="ic-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="svc-group collapsed">
+        <div class="svc-g-head">
+          <h3>Skin &amp; Facials <span>· 6 services</span></h3>
+          <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div class="svc-rows"></div>
+      </div>
+
+      <div class="svc-group collapsed">
+        <div class="svc-g-head">
+          <h3>Nails <span>· 5 services</span></h3>
+          <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div class="svc-rows"></div>
+      </div>
+    </div>
+
+    <!-- floating cart summary -->
+    <div class="sumbar" data-sumbar>
+      <div class="sinfo">
+        <div class="scount" data-scount><b>0</b> services selected</div>
+        <div class="stotal" data-stotal>Tap + to build your visit</div>
+      </div>
+      <button class="go">Continue <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+    </div>
+    <div class="home-ind"></div>
+  </div>
+</div>
+
+<!-- ═══════════ PHONE 3 · DATE & TIME ═══════════ -->
+<div class="phone-wrap">
+  <div class="phone-label">03 · <b>Time</b> — Slots &amp; Hold</div>
+  <div class="phone">
+    <div class="sbar"><span class="num">9:41</span><span class="r">
+      <svg viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx=".6"/><rect x="4" y="5" width="3" height="6" rx=".6"/><rect x="8" y="3" width="3" height="8" rx=".6"/><rect x="12" y="0" width="3" height="11" rx=".6"/></svg>
+      <svg viewBox="0 0 17 11"><path d="M8.5 1.5C5.5 1.5 2.7 2.6.5 4.6L2 6.1C3.8 4.5 6.1 3.6 8.5 3.6c2.4 0 4.7.9 6.5 2.5l1.5-1.5c-2.2-2-5-3.1-8-3.1zM3.5 7.6L5 9.1c1-.9 2.2-1.4 3.5-1.4 1.3 0 2.5.5 3.5 1.4l1.5-1.5c-1.4-1.3-3.1-2-5-2-1.9 0-3.6.7-5 2zM6.5 10.6l2 2 2-2c-.5-.5-1.2-.8-2-.8s-1.5.3-2 .8z"/></svg>
+      <svg viewBox="0 0 25 11" style="width:25px"><rect x=".5" y=".5" width="21" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-opacity=".45"/><rect x="22" y="3.5" width="1.5" height="4" rx=".4" fill="currentColor" fill-opacity=".45"/><rect x="2" y="2" width="18" height="7" rx="1.4"/></svg>
+    </span></div>
+
+    <div class="pcontent" style="padding-bottom:170px">
+      <div class="flo-head">
+        <div class="toprow">
+          <button class="back-b" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></button>
+          <h1>Select time</h1>
+        </div>
+        <div class="steps"><div class="step done"></div><div class="step done"></div><div class="step active"></div></div>
+      </div>
+
+      <div class="svc-summary">
+        <div class="th" style="background:linear-gradient(150deg,#B08D6C,#6E4E33)">L</div>
+        <div>
+          <div class="tt">Luxe Hair Studio</div>
+          <div class="ts" data-svclist>2 services · 2h 15m</div>
+        </div>
+        <div class="tp num">₹1,798</div>
+      </div>
+
+      <!-- day strip -->
+      <div class="day-strip" data-days>
+        <div class="day"><div class="dw">Mon</div><div class="dn">2</div><div class="dot-row"><i></i><i></i><i></i></div></div>
+        <div class="day sel"><div class="dw">Tue</div><div class="dn">3</div><div class="dot-row"><i></i><i></i><i></i></div></div>
+        <div class="day limited"><div class="dw">Wed</div><div class="dn">4</div><div class="dot-row"><i></i><i></i><i></i></div></div>
+        <div class="day"><div class="dw">Thu</div><div class="dn">5</div><div class="dot-row"><i></i><i></i><i></i></div></div>
+        <div class="day"><div class="dw">Fri</div><div class="dn">6</div><div class="dot-row"><i></i><i></i><i></i></div></div>
+        <div class="day limited"><div class="dw">Sat</div><div class="dn">7</div><div class="dot-row"><i></i><i></i><i></i></div></div>
+        <div class="day none"><div class="dw">Sun</div><div class="dn">8</div><div class="dot-row"><i></i><i></i><i></i></div></div>
+      </div>
+
+      <!-- slots -->
+      <div class="slotgrp">
+        <div class="glabel">Morning</div>
+        <div class="slots">
+          <div class="slot unavail">9:00<span class="ampm">AM</span></div>
+          <div class="slot">9:30<span class="ampm">AM</span></div>
+          <div class="slot">10:00<span class="ampm">AM</span></div>
+          <div class="slot">10:30<span class="ampm">AM</span></div>
+          <div class="slot">11:00<span class="ampm">AM</span></div>
+          <div class="slot unavail">11:30<span class="ampm">AM</span></div>
+        </div>
+      </div>
+      <div class="slotgrp">
+        <div class="glabel">Afternoon</div>
+        <div class="slots">
+          <div class="slot">12:00<span class="ampm">PM</span></div>
+          <div class="slot">12:30<span class="ampm">PM</span></div>
+          <div class="slot sel" data-time="1:00 PM">1:00<span class="ampm">PM</span><span class="chk"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+          <div class="slot unavail">1:30<span class="ampm">PM</span></div>
+          <div class="slot">2:00<span class="ampm">PM</span></div>
+          <div class="slot">2:30<span class="ampm">PM</span></div>
+        </div>
+      </div>
+      <div class="slotgrp">
+        <div class="glabel">Evening</div>
+        <div class="slots">
+          <div class="slot">5:00<span class="ampm">PM</span></div>
+          <div class="slot">5:30<span class="ampm">PM</span></div>
+          <div class="slot">6:00<span class="ampm">PM</span></div>
+          <div class="slot">6:30<span class="ampm">PM</span></div>
+          <div class="slot">7:00<span class="ampm">PM</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- confirm zone with hold timer -->
+    <div class="confirm-zone">
+      <div class="cz-top">
+        <span class="pick-chip"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M4 10.5h16"/></svg><span data-pick>Tue, Sep 3 · 1:00 PM</span></span>
+        <span class="tchip-time" data-tchip><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg><span data-tnum>9:42</span></span>
+      </div>
+      <div class="tbar-track"><div class="tbar-fill" data-tfill style="width:97%"></div></div>
+      <button class="btn-confirm">Confirm booking · ₹1,798 <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+    </div>
+    <div class="home-ind"></div>
+  </div>
+</div>
+
+<!-- ═══════════ PHONE 4 · CONFIRMED ═══════════ -->
+<div class="phone-wrap">
+  <div class="phone-label">04 · <b>Confirmed</b> — The Finale</div>
+  <div class="phone">
+    <div class="sbar"><span class="num">9:41</span><span class="r">
+      <svg viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx=".6"/><rect x="4" y="5" width="3" height="6" rx=".6"/><rect x="8" y="3" width="3" height="8" rx=".6"/><rect x="12" y="0" width="3" height="11" rx=".6"/></svg>
+      <svg viewBox="0 0 17 11"><path d="M8.5 1.5C5.5 1.5 2.7 2.6.5 4.6L2 6.1C3.8 4.5 6.1 3.6 8.5 3.6c2.4 0 4.7.9 6.5 2.5l1.5-1.5c-2.2-2-5-3.1-8-3.1zM3.5 7.6L5 9.1c1-.9 2.2-1.4 3.5-1.4 1.3 0 2.5.5 3.5 1.4l1.5-1.5c-1.4-1.3-3.1-2-5-2-1.9 0-3.6.7-5 2zM6.5 10.6l2 2 2-2c-.5-.5-1.2-.8-2-.8s-1.5.3-2 .8z"/></svg>
+      <svg viewBox="0 0 25 11" style="width:25px"><rect x=".5" y=".5" width="21" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-opacity=".45"/><rect x="22" y="3.5" width="1.5" height="4" rx=".4" fill="currentColor" fill-opacity=".45"/><rect x="2" y="2" width="18" height="7" rx="1.4"/></svg>
+    </span></div>
+
+    <div class="pcontent">
+      <div class="conf-hero">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 118 118">
+            <circle class="ring-track" cx="59" cy="59" r="52"/>
+            <circle class="ring-bar" data-ring cx="59" cy="59" r="52"/>
+          </svg>
+          <div class="ring-check"><div class="ck" data-ck><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div></div>
+        </div>
+        <h1>You're booked!</h1>
+        <p>Confirmation sent to +91 98••• ••210 · pay at the salon</p>
+      </div>
+
+      <div class="ticket">
+        <div class="tk-head">
+          <div class="th" style="background:linear-gradient(150deg,#B08D6C,#6E4E33)">L</div>
+          <div>
+            <div class="tn">Luxe Hair Studio</div>
+            <div class="tm">Koramangala · 1.2 km away</div>
+          </div>
+          <span class="verified"><svg viewBox="0 0 24 24"><path d="M12 2 14.4 8.6 21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>Verified</span>
+        </div>
+        <div class="tk-rows">
+          <div class="tk-row"><span class="k">Services</span><span class="v multi">Haircut &amp; Styling · Hair Colouring</span></div>
+          <div class="tk-row"><span class="k">When</span><span class="v">Tue, Sep 3 · 1:00 PM</span></div>
+          <div class="tk-row"><span class="k">Duration</span><span class="v">2h 15m</span></div>
+        </div>
+        <div class="tk-total"><span class="k">Total · pay at salon</span><span class="v num">₹1,798</span></div>
+      </div>
+
+      <div class="conf-trust">
+        <span class="tchip"><svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5c0 4.5 3 8 7.5 9.5 4.5-1.5 7.5-5 7.5-9.5V6z"/><path d="m9.3 12 2 2 3.6-3.8"/></svg>Free cancellation until 11:00 AM</span>
+      </div>
+
+      <div class="conf-actions">
+        <button class="btn-solid"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M4 10.5h16"/></svg>Add to calendar</button>
+        <button class="btn-ghost"><svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>Directions</button>
+      </div>
+    </div>
+
+    <nav class="dock" data-dock>
+      <div class="pill" data-pill></div>
+      <a class="tab"><svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>Home</a>
+      <a class="tab"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Discover</a>
+      <a class="tab active"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>Bookings</a>
+      <a class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21c0-4 3.5-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/></svg>Profile</a>
+    </nav>
+    <div class="home-ind"></div>
+  </div>
+</div>
+
+</main>
+
+<!-- design notes -->
+<section class="notes">
+  <h2>What's redesigned in V2</h2>
+  <ul>
+    <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span><b>5 live themes.</b> Verdant (recommended — the unclaimed wellness hue), Oxblood heritage red, Plum Velvet, Rosewater, and Kiln (your current terracotta, refined). Every text &amp; button pair passes WCAG-AA contrast in both modes.</span></li>
+    <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span><b>True light / dark.</b> Light mode is a genuinely light room; dark mode is genuinely dark — both tinted in each theme's hue family, never pure black or white.</span></li>
+    <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span><b>Compact home.</b> Editorial hero → snap-scroll rail of small cards → bento categories → scannable list rows with live "Next 4:30 PM" availability chips (Fresha's conversion pattern).</span></li>
+    <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span><b>Floating glass dock.</b> iOS-26-style translucent pill nav with a sliding active indicator — replaces the classic tab bar.</span></li>
+    <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span><b>Uber-Eats-style cart.</b> + buttons morph into checks, a glass summary bar springs up — services grouped in collapsible menus instead of giant cards.</span></li>
+    <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span><b>Slot picking with ceremony.</b> Day chips with availability dots, grouped slot pills, springy select with rotating check, live draining hold-timer (calm → amber → red).</span></li>
+    <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span><b>Trust inline.</b> "Pay at salon" and "Free cancellation" chips ride along the whole flow — the anti-prepay pitch that wins in India.</span></li>
+    <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span><b>Typography carries the brand.</b> Oversized Cormorant Garamond italics × tight Manrope — the fashion-editorial move your fonts already support.</span></li>
+  </ul>
+</section>
+<p class="foot">TrimiT Design Studio · V2 · research-backed · 5 themes × 2 modes</p>
+
+<script>
+/* ---------- theme + mode switching ---------- */
+const root=document.documentElement;
+document.querySelectorAll('.swatch').forEach(sw=>{
+  sw.addEventListener('click',()=>{
+    document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
+    sw.classList.add('active');
+    root.dataset.theme=sw.dataset.set;
+  });
+});
+document.querySelectorAll('.mode-toggle button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.mode-toggle button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    root.dataset.mode=btn.dataset.mode;
+  });
+});
+
+/* ---------- dock: sliding pill + tab switch ---------- */
+document.querySelectorAll('[data-dock]').forEach(dock=>{
+  const pill=dock.querySelector('[data-pill]');
+  const tabs=[...dock.querySelectorAll('.tab')];
+  const move=()=>{const i=tabs.findIndex(t=>t.classList.contains('active'));pill.style.transform=`translateX(${i*100}%)`;};
+  tabs.forEach((t,i)=>t.addEventListener('click',()=>{
+    tabs.forEach(x=>x.classList.remove('active'));t.classList.add('active');move();
+  }));
+  move();
+});
+
+/* ---------- profile tabs ---------- */
+document.querySelectorAll('[data-tabs]').forEach(grp=>{
+  const pill=grp.querySelector('[data-tpill]');
+  const btns=[...grp.querySelectorAll('button')];
+  btns.forEach((b,i)=>b.addEventListener('click',()=>{
+    btns.forEach(x=>x.classList.remove('active'));b.classList.add('active');
+    pill.style.transform=`translateX(${i*100}%)`;
+  }));
+});
+
+/* ---------- service groups collapse ---------- */
+document.querySelectorAll('.svc-g-head').forEach(h=>h.addEventListener('click',()=>h.parentElement.classList.toggle('collapsed')));
+
+/* ---------- add-to-cart with morphing buttons ---------- */
+const sumbar=document.querySelector('[data-sumbar]');
+const scount=document.querySelector('[data-scount]');
+const stotal=document.querySelector('[data-stotal]');
+const svclist=document.querySelector('[data-svclist]');
+function updateCart(){
+  const added=[...document.querySelectorAll('.add-btn.added')];
+  const n=added.length,total=added.reduce((s,b)=>s+ +b.dataset.price,0);
+  const names=added.map(b=>b.closest('.svc-row').querySelector('.sname').childNodes[0].textContent.trim().split(' ').slice(0,2).join(' '));
+  if(n===0){sumbar.classList.remove('up');scount.innerHTML='<b>0</b> services selected';stotal.textContent='Tap + to build your visit';svclist.textContent='2 services · 2h 15m';return;}
+  sumbar.classList.add('up');
+  scount.innerHTML=`<b>${n}</b> service${n>1?'s':''} selected`;
+  stotal.textContent=`₹${total.toLocaleString('en-IN')} · pay at salon`;
+  svclist.textContent=`${n} service${n>1?'s':''}${names.length?' · '+names.join(' · '):''}`;
+}
+document.querySelectorAll('.add-btn').forEach(btn=>btn.addEventListener('click',e=>{
+  e.stopPropagation();btn.classList.toggle('added');updateCart();
+}));
+
+/* ---------- slot selection ---------- */
+const pick=document.querySelector('[data-pick]');
+const selTime=()=>{const s=document.querySelector('.slot.sel');if(!s)return '—';return s.dataset.time||s.childNodes[0].textContent.trim()+' '+(s.querySelector('.ampm')?s.querySelector('.ampm').textContent.trim():'');};
+const selDay=()=>{const d=document.querySelector('.day.sel');return d?d.querySelector('.dw').textContent+', Sep '+d.querySelector('.dn').textContent:'—';};
+function syncPick(){pick.textContent=`${selDay()} · ${selTime()}`;}
+document.querySelectorAll('.slot:not(.unavail)').forEach(s=>s.addEventListener('click',()=>{
+  document.querySelectorAll('.slot.sel').forEach(x=>{
+    x.classList.remove('sel');
+    const c=x.querySelector('.chk');if(c)c.remove();
+  });
+  s.classList.add('sel');
+  if(!s.querySelector('.chk')){
+    const chk=document.createElement('span');chk.className='chk';
+    chk.innerHTML='<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
+    s.appendChild(chk);
+  }
+  if(!s.dataset.time)s.dataset.time=s.childNodes[0].textContent.trim()+' '+(s.querySelector('.ampm')?s.querySelector('.ampm').textContent.trim():'');
+  syncPick();
+}));
+document.querySelectorAll('[data-days] .day').forEach(d=>d.addEventListener('click',()=>{
+  document.querySelectorAll('[data-days] .day').forEach(x=>x.classList.remove('sel'));
+  d.classList.add('sel');syncPick();
+}));
+syncPick();
+updateCart();
+
+/* ---------- hold timer: 9:42 → calm → amber → red pulse ---------- */
+const tnum=document.querySelector('[data-tnum]');
+const tfill=document.querySelector('[data-tfill]');
+const tchip=document.querySelector('[data-tchip]');
+const FULL=582;let t=FULL;
+function tick(){
+  t--;if(t<0)t=FULL;
+  const m=Math.floor(t/60),s=t%60;
+  tnum.textContent=`${m}:${String(s).padStart(2,'0')}`;
+  const pct=Math.max(2,(t/FULL)*100);
+  tfill.style.width=pct+'%';
+  const warn=t<=120&&t>60,crit=t<=60;
+  tfill.classList.toggle('warn',warn);tfill.classList.toggle('crit',crit);
+  tchip.classList.toggle('warn',warn);tchip.classList.toggle('crit',crit);
+}
+setInterval(tick,1000);
+
+/* ---------- confirmation ring ceremony ---------- */
+const ring=document.querySelector('[data-ring]');
+const ck=document.querySelector('[data-ck]');
+requestAnimationFrame(()=>requestAnimationFrame(()=>{ring.style.strokeDashoffset='0';}));
+</script>
+</body>
+</html>
