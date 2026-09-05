@@ -2,7 +2,8 @@
 
 Notes verified from source:
 - GET / and GET /{id} are PUBLIC (no auth).
-- create_salon requires profile.role == 'owner'.
+- create_salon preserves the legacy owner path and uses one atomic RPC when the
+  authenticated profile is still a customer.
 - update/create/delete service go through assert_salon_owner, which queries
   salons with service_role=True (no user token) and 404s/403s on mismatch.
 """
@@ -93,14 +94,123 @@ def test_create_salon_requires_auth(client):
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-def test_create_salon_rejects_non_owner(client):
+def test_create_salon_rejects_employee(client):
     app = client.app
     _override_user(
-        app, {"id": "u1", "access_token": "tok", "profile": {"role": "customer"}}
+        app, {"id": "u1", "access_token": "tok", "profile": {"role": "employee"}}
     )
     try:
         response = client.post("/api/v1/salons/", json=_salon_payload())
         assert response.status_code == status.HTTP_403_FORBIDDEN
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_customer_create_salon_uses_atomic_activation_rpc(client, mock_supabase):
+    app = client.app
+    _override_user(
+        app, {"id": "customer1", "access_token": "tok", "profile": {"role": "customer"}}
+    )
+    try:
+        mock_supabase.post(
+            "/rest/v1/rpc/activate_owner_and_create_salon_v1"
+        ).return_value = Response(
+            200,
+            json=[{"id": "s-new", "owner_id": "customer1", "name": "New Salon"}],
+        )
+
+        response = client.post("/api/v1/salons/", json=_salon_payload())
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["id"] == "s-new"
+        rpc_calls = [
+            call for call in mock_supabase.called
+            if call[0] == "POST" and call[1] == "rest/v1/rpc/activate_owner_and_create_salon_v1"
+        ]
+        assert len(rpc_calls) == 1
+        rpc_kwargs = rpc_calls[0][2]
+        assert rpc_kwargs["service_role"] is True
+        assert rpc_kwargs["json"]["p_user_id"] == "customer1"
+        assert rpc_kwargs["json"]["p_salon"]["name"] == "New Salon"
+        assert not any(call[0] == "PATCH" and "rest/v1/users" in call[1] for call in mock_supabase.called)
+        assert not any(call[0] == "POST" and call[1] == "rest/v1/salons" for call in mock_supabase.called)
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_customer_create_failure_does_not_fall_back_to_non_atomic_writes(client, mock_supabase):
+    app = client.app
+    _override_user(
+        app, {"id": "customer1", "access_token": "tok", "profile": {"role": "customer"}}
+    )
+    try:
+        mock_supabase.post(
+            "/rest/v1/rpc/activate_owner_and_create_salon_v1"
+        ).return_value = Response(
+            400,
+            json={"code": "P0001", "message": "validation failed"},
+        )
+
+        response = client.post("/api/v1/salons/", json=_salon_payload())
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["error"]["details"]["code"] == "SALON_CREATE_FAILED"
+        assert not any(call[0] == "PATCH" and "rest/v1/users" in call[1] for call in mock_supabase.called)
+        assert not any(call[0] == "POST" and call[1] == "rest/v1/salons" for call in mock_supabase.called)
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_customer_create_reports_missing_atomic_migration(client, mock_supabase):
+    app = client.app
+    _override_user(
+        app, {"id": "customer1", "access_token": "tok", "profile": {"role": "customer"}}
+    )
+    try:
+        mock_supabase.post(
+            "/rest/v1/rpc/activate_owner_and_create_salon_v1"
+        ).return_value = Response(
+            404,
+            json={"code": "PGRST202", "message": "function not found"},
+        )
+
+        response = client.post("/api/v1/salons/", json=_salon_payload())
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert response.json()["error"]["details"]["code"] == "OWNER_ACTIVATION_NOT_READY"
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_empty_owner_workspace_recovery_uses_service_role_rpc(client, mock_supabase):
+    app = client.app
+    _override_user(
+        app, {"id": "owner1", "access_token": "tok", "profile": {"role": "owner"}}
+    )
+    try:
+        mock_supabase.post(
+            "/rest/v1/rpc/cancel_empty_owner_workspace_v1"
+        ).return_value = Response(
+            200,
+            json=[{
+                "id": "owner1",
+                "email": "owner@example.com",
+                "name": "Owner",
+                "role": "customer",
+                "created_at": "2026-01-01T00:00:00Z",
+            }],
+        )
+
+        response = client.delete("/api/v1/auth/owner-workspace")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["profile"]["role"] == "customer"
+        rpc_call = mock_supabase.called[0]
+        assert rpc_call == (
+            "POST",
+            "rest/v1/rpc/cancel_empty_owner_workspace_v1",
+            {"json": {"p_user_id": "owner1"}, "service_role": True},
+        )
     finally:
         app.dependency_overrides = {}
 

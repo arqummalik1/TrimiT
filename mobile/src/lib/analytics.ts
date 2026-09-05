@@ -56,7 +56,7 @@ class AnalyticsService {
 
   track(event: AnalyticsEvent, properties?: EventProperties) {
     if (__DEV__) {
-      console.log(`[Analytics] Track: ${event}`, properties);
+      // console.log(`[Analytics] Track: ${event}`, properties);
     }
     
     // if (this.isInitialized) {
@@ -66,7 +66,7 @@ class AnalyticsService {
 
   identify(userId: string, traits?: EventProperties) {
     if (__DEV__) {
-      console.log(`[Analytics] Identify: ${userId}`, traits);
+      // console.log(`[Analytics] Identify: ${userId}`, traits);
     }
     
     // if (this.isInitialized) {

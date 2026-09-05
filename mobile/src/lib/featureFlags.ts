@@ -25,6 +25,19 @@ export const ENABLE_OWNER_PROMO_MANAGEMENT =
 export const ENABLE_SUBSCRIPTIONS = true;
 
 /**
+ * Customer Profile entry for the standalone "My offers" screen.
+ * Hidden for the 1.1.0 release while the offer experience is not being promoted.
+ * The screen, route, and checkout promotion engine remain intact. Set
+ * EXPO_PUBLIC_ENABLE_MY_OFFERS=true in a future build to restore the entry.
+ */
+export const ENABLE_MY_OFFERS_ENTRY =
+  process.env.EXPO_PUBLIC_ENABLE_MY_OFFERS === 'true' ||
+  process.env.EXPO_PUBLIC_ENABLE_MY_OFFERS === '1';
+
+/** 1.1.0: hide the automatic TRIMIT50 welcome popup, not checkout discounts. */
+export const ENABLE_WELCOME_VOUCHER = false;
+
+/**
  * Client enforcement: freeze the owner app when access lapses + grey out lapsed
  * salons for customers. Enforcement is ON now (backend enforces 402/403).
  * Defaults to `true`; set EXPO_PUBLIC_ENABLE_SUBSCRIPTION_ENFORCEMENT=false to

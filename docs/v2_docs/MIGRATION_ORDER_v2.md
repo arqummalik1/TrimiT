@@ -1,4 +1,4 @@
-# TrimiT Migration Order (V2 — through 61)
+# TrimiT Migration Order (V2 — through 64)
 
 Apply **forward-only** in the Supabase SQL Editor. Never edit applied migrations.
 
@@ -31,6 +31,9 @@ All production migrations live in `/database/`. Migrations **52–54** were prev
 | **59** | **`59_salon_promo_hardening.sql`** | Lane A — salon-only `validate_promo_code`, deactivate global seed promos |
 | **60** | **`60_customer_phone_unique.sql`** | Unique customer phone index (welcome grant anti-abuse) |
 | **61** | **`61_platform_campaigns.sql`** | Lane B — `platform_campaigns`, `campaign_grants`, TRIMIT50 seed, admin APIs |
+| **62** | **`62_rls_hardening_critical.sql`** | Critical RLS and column privilege hardening |
+| **63** | **`63_account_deletion_integrity.sql`** | Account-deletion FK integrity; preserves booking verifier relationship |
+| **64** | **`64_atomic_owner_salon_activation.sql`** | Atomic first salon + owner activation and guarded incomplete-owner recovery |
 
 ## Verify in production
 
@@ -89,6 +92,17 @@ WHERE contype = 'f'
     'bookings_verified_by_fkey'
   )
 ORDER BY conname;
+
+-- 64: backend-only owner-onboarding functions and role trigger
+SELECT proname, prosecdef
+FROM pg_proc
+WHERE proname IN (
+  'activate_owner_and_create_salon_v1',
+  'cancel_empty_owner_workspace_v1'
+);
+SELECT event_manipulation, action_timing
+FROM information_schema.triggers
+WHERE trigger_name = 'trg_users_create_owner_trial';
 ```
 
 Expected: `has_table_privilege` → **false** for authenticated UPDATE on bookings;
@@ -106,3 +120,6 @@ or `n` (set null), never `a` (no action).
 - **63:** Account-deletion integrity; apply before deploying/shipping the in-app
   deletion flow, then verify both deletion API routes return `401`, not `404`,
   without authentication.
+- **64:** Apply before the reversible owner-onboarding backend/mobile rollout.
+  Verify a failed salon create leaves the test identity as customer and a valid
+  create produces one salon, one subscription, and one trial-started event.

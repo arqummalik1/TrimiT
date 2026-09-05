@@ -69,6 +69,22 @@ beforeEach(() => {
 });
 
 describe('VerifyOtpScreen — optimistic send-result params', () => {
+  it('keeps Back in a fixed safe-area header', () => {
+    const route = { params: { email: 'test@example.com', type: 'magiclink' } } as any;
+    renderScreen(route, { goBack: jest.fn(), navigate: jest.fn() });
+
+    expect(screen.getByTestId('otp-safe-header')).toBeTruthy();
+    expect(screen.getByTestId('otp-back-button')).toBeTruthy();
+  });
+
+  it('keeps Back disabled while verification is loading', () => {
+    mockStore.isLoading = true;
+    const navigation = { goBack: jest.fn(), navigate: jest.fn() };
+    renderScreen({ params: { email: 'test@example.com', type: 'magiclink' } }, navigation);
+    fireEvent.press(screen.getByTestId('otp-back-button'));
+    expect(navigation.goBack).not.toHaveBeenCalled();
+  });
+
   it('shows "Sending verification code..." while isPending is true', () => {
     const route = { params: { email: 'test@example.com', type: 'magiclink', isPending: true } } as any;
     renderScreen(route, { goBack: jest.fn(), navigate: jest.fn() });
@@ -100,6 +116,24 @@ describe('VerifyOtpScreen — optimistic send-result params', () => {
 });
 
 describe('VerifyOtpScreen — verify failures (items 8, 9, 10)', () => {
+  it('submits a verification code only once while the first request is unresolved', async () => {
+    let resolveVerification: ((value: { success: boolean; error?: string }) => void) | undefined;
+    mockVerifyOtp.mockReturnValue(
+      new Promise((resolve) => {
+        resolveVerification = resolve;
+      }),
+    );
+    const route = { params: { email: 'test@example.com', type: 'magiclink' } } as any;
+    renderScreen(route, { goBack: jest.fn(), navigate: jest.fn() });
+
+    await enterCode('123456');
+    fireEvent.press(screen.getByText('Verify & Continue'));
+    fireEvent.press(screen.getByText('Verify & Continue'));
+
+    expect(mockVerifyOtp).toHaveBeenCalledTimes(1);
+    await act(async () => resolveVerification?.({ success: false, error: 'invalid' }));
+  });
+
   it('toasts the friendly invalid/expired-OTP message on verify failure', async () => {
     mockVerifyOtp.mockResolvedValue({
       success: false,

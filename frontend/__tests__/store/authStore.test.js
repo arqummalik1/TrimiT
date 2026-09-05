@@ -263,26 +263,23 @@ describe('authStore', () => {
     expect(useAuthStore.getState().profile.role).toBe('customer');
   });
 
-  it('activates owner role only after an explicit owner intent', async () => {
+  it('keeps a returning customer as customer during owner setup', async () => {
     setPendingAuthIntent({ kind: 'owner_onboarding' });
-    api.post
-      .mockResolvedValueOnce({
-        data: {
-          access_token: 'owner-access',
-          refresh_token: 'owner-refresh',
-          user: { id: 'u-owner' },
-          profile: { id: 'u-owner', role: 'customer', name: 'Owner' },
-        },
-      })
-      .mockResolvedValueOnce({
-        data: { profile: { id: 'u-owner', role: 'owner', name: 'Owner' } },
-      });
+    api.post.mockResolvedValueOnce({
+      data: {
+        access_token: 'owner-access',
+        refresh_token: 'owner-refresh',
+        user: { id: 'u-owner' },
+        profile: { id: 'u-owner', role: 'customer', name: 'Owner' },
+      },
+    });
 
     const result = await useAuthStore.getState().login('owner@example.com', 'password');
 
     expect(result.success).toBe(true);
-    expect(result.profile.role).toBe('owner');
-    expect(useAuthStore.getState().profile.role).toBe('owner');
+    expect(result.profile.role).toBe('customer');
+    expect(useAuthStore.getState().profile.role).toBe('customer');
+    expect(api.post).not.toHaveBeenCalledWith('/auth/complete-profile', expect.anything());
   });
 
   it('updateProfile patches discovery_audience', async () => {

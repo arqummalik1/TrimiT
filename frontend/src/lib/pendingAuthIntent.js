@@ -69,7 +69,6 @@ export function clearPendingAuthIntent() {
 }
 
 export function roleForPendingAuthIntent(intent = peekPendingAuthIntent()) {
-  if (intent?.kind === 'owner_onboarding') return 'owner';
   if (intent?.kind === 'employee_claim') return 'employee';
   return 'customer';
 }

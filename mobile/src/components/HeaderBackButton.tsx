@@ -24,6 +24,7 @@ export const HEADER_BUTTON_SIZE = 44;
 
 interface HeaderBackButtonProps {
   onPress: () => void;
+  disabled?: boolean;
   variant?: 'plain' | 'overlay';
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
@@ -32,6 +33,7 @@ interface HeaderBackButtonProps {
 
 export const HeaderBackButton: React.FC<HeaderBackButtonProps> = ({
   onPress,
+  disabled = false,
   variant = 'plain',
   accessibilityLabel = 'Go back',
   style,
@@ -44,8 +46,10 @@ export const HeaderBackButton: React.FC<HeaderBackButtonProps> = ({
   return (
     <TouchableOpacity
       onPress={onPress}
+      disabled={disabled}
       style={[styles.button, isOverlay && styles.overlay, style]}
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
       accessibilityLabel={accessibilityLabel}
       activeOpacity={0.7}
       testID={testID}

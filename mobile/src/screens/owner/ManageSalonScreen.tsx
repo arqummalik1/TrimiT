@@ -31,6 +31,7 @@ import { uploadServiceImage } from '../../services/uploadService';
 import { normalizeSalon } from '../../lib/salonImage';
 import { salonSchema, toLocalPhone, toE164India } from '../../lib/validations';
 import { OwnerDashboardScreenProps, OwnerSettingsScreenProps } from '../../navigation/types';
+import type { OwnerOnboardingScreenProps } from '../../navigation/types';
 import { LocationPickerModal } from '../../components/LocationPickerModal';
 import { getSalonMapPinColor } from '../../lib/mapMarkers';
 import { getMapThemeKey, getThemedMapViewProps } from '../../lib/mapStyles';
@@ -39,10 +40,18 @@ import { FilterChipRow } from '../../components/FilterChipRow';
 import { SALON_SERVE_OPTIONS, SalonGenderServe, getVenueCopy } from '../../lib/genderServe';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { OwnerDashboardStackParamList, OwnerSettingsStackParamList } from '../../navigation/types';
+import type { OwnerOnboardingStackParamList } from '../../navigation/types';
+import { useAuthStore } from '../../store/authStore';
+import { completeOwnerOnboarding } from '../../lib/ownerOnboardingNavigation';
 
-type ManageSalonProps = OwnerDashboardScreenProps<'ManageSalon'> | OwnerSettingsScreenProps<'ManageSalon'>;
-type ManageSalonRouteProp = RouteProp<OwnerDashboardStackParamList, 'ManageSalon'> &
-  RouteProp<OwnerSettingsStackParamList, 'ManageSalon'>;
+type ManageSalonProps =
+  | OwnerDashboardScreenProps<'ManageSalon'>
+  | OwnerSettingsScreenProps<'ManageSalon'>
+  | OwnerOnboardingScreenProps<'ManageSalon'>;
+type ManageSalonRouteProp =
+  | RouteProp<OwnerDashboardStackParamList, 'ManageSalon'>
+  | RouteProp<OwnerSettingsStackParamList, 'ManageSalon'>
+  | RouteProp<OwnerOnboardingStackParamList, 'ManageSalon'>;
 
 interface SalonPayload {
   name: string;
@@ -81,12 +90,18 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const route = useRoute<ManageSalonRouteProp>();
+  const { user, token, setUser } = useAuthStore();
+  const isCustomerOnboarding = user?.role === 'customer';
 
-  const { data: salon, isLoading } = useQuery<Salon | null>({
+  const { data: ownerSalon, isLoading } = useQuery<Salon | null>({
     queryKey: queryKeys.ownerSalon,
     queryFn: () => salonRepository.getOwnerSalon(),
+    enabled: !isCustomerOnboarding,
     staleTime: 30_000,
   });
+  // Never let data cached for a previous owner session turn customer setup into
+  // edit mode. Auth sign-out clears the cache, and this guard is defense-in-depth.
+  const salon = isCustomerOnboarding ? null : ownerSalon;
 
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   // TRUE only once the owner has actually placed a pin (or an existing salon
@@ -189,17 +204,24 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
       void queryClient.invalidateQueries({ queryKey: ['ownerAnalytics'] });
       useOwnerOnboardingStore.getState().setPostSalonCreatePending(true);
       showToast(getVenueCopy(created.gender_serve ?? formData.gender_serve).successCreated, 'success');
+      if (isCustomerOnboarding && user) {
+        // The backend changes this role in the same database transaction that
+        // created the salon. Update local state only after that response exists.
+        setUser({ ...user, role: 'owner' }, token);
+        completeOwnerOnboarding();
+        return;
+      }
       resetOwnerDashboardToMain(navigation);
       if (!navigateOwnerToServices(navigation, { openAddService: true })) {
         navigation.goBack();
       }
     },
-    [queryClient, formData.gender_serve, navigation]
+    [queryClient, formData.gender_serve, isCustomerOnboarding, navigation, setUser, token, user]
   );
 
   const createMutation = useMutation({
     mutationFn: (data: SalonPayload) => {
-      console.log('🏪 [SalonCreate][screen] mutationFn → calling repository.createSalon');
+      // console.log('🏪 [SalonCreate][screen] mutationFn → calling repository.createSalon');
       return salonRepository.createSalon(data);
     },
     // Cold starts / flaky mobile networks make the FIRST request fail with no
@@ -212,10 +234,10 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     },
     retryDelay: (attempt) => Math.min(1500 * 2 ** attempt, 6000),
     onSuccess: (created: Salon) => {
-      console.log('✅ [SalonCreate][screen] onSuccess', {
-        salonId: created?.id,
-        gender_serve: created?.gender_serve,
-      });
+      // console.log('✅ [SalonCreate][screen] onSuccess', {
+      //   salonId: created?.id,
+      //   gender_serve: created?.gender_serve,
+      // });
       goToPostCreate(created);
     },
     onError: async (error) => {
@@ -250,9 +272,9 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
         try {
           const existing = await salonRepository.getOwnerSalon();
           if (existing) {
-            console.log('✅ [SalonCreate][screen] recovered: salon already created', {
-              salonId: existing.id,
-            });
+            // console.log('✅ [SalonCreate][screen] recovered: salon already created', {
+            //   salonId: existing.id,
+            // });
             goToPostCreate(existing);
             return;
           }
@@ -283,15 +305,15 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
 
   const handleSubmit = async () => {
     if (__DEV__) {
-      console.log('🏪 [SalonCreate][screen] handleSubmit tapped', {
-        mode: salon ? 'update' : 'create',
-        gender_serve: formData.gender_serve,
-        pendingImages: pendingImages.length,
-        uploadedImages: formData.images.length,
-        locationSet,
-        lat: formData.latitude,
-        lng: formData.longitude,
-      });
+      // console.log('🏪 [SalonCreate][screen] handleSubmit tapped', {
+      //   mode: salon ? 'update' : 'create',
+      //   gender_serve: formData.gender_serve,
+      //   pendingImages: pendingImages.length,
+      //   uploadedImages: formData.images.length,
+      //   locationSet,
+      //   lat: formData.latitude,
+      //   lng: formData.longitude,
+      // });
     }
 
     if (pendingImages.some((p) => p.status === 'uploading')) {
@@ -356,11 +378,11 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     };
 
     if (__DEV__) {
-      console.log('🏪 [SalonCreate][screen] validation passed, submitting', {
-        mode: salon ? 'update' : 'create',
-        imageCount: payload.images.length,
-        payloadKeys: Object.keys(payload),
-      });
+      // console.log('🏪 [SalonCreate][screen] validation passed, submitting', {
+      //   mode: salon ? 'update' : 'create',
+      //   imageCount: payload.images.length,
+      //   payloadKeys: Object.keys(payload),
+      // });
     }
 
     try {
@@ -381,7 +403,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
     const isCurrent = () => attemptTokens.current[id] === token;
 
     if (__DEV__) {
-      console.log('🖼️ [SalonCreate][image] upload started', { id, attempt: token, uri });
+      // console.log('🖼️ [SalonCreate][image] upload started', { id, attempt: token, uri });
     }
 
     setPendingImages((prev) => {
@@ -419,7 +441,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
 
       if (!isCurrent()) return;
       clearTimeout(slowTimers.current[id]);
-      console.log('✅ [SalonCreate][image] upload succeeded', { id, publicUrl });
+      // console.log('✅ [SalonCreate][image] upload succeeded', { id, publicUrl });
       setPendingImages((prev) => prev.filter((p) => p.id !== id));
       setFormData((prev) => ({ ...prev, images: [...prev.images, publicUrl] }));
       showToast('Photo added', 'success');
@@ -669,7 +691,14 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
 
         <View style={[styles.card, shadows.sm]}>
           <Text style={styles.sectionTitle}>{venueCopy.imagesSection}</Text>
-          <Text style={styles.sectionHint}>Add up to {MAX_SALON_IMAGES} photos.</Text>
+          {isCustomerOnboarding ? (
+            <Text style={styles.sectionHint}>
+              Create your business first, then add photos from Manage salon.
+            </Text>
+          ) : (
+            <Text style={styles.sectionHint}>Add up to {MAX_SALON_IMAGES} photos.</Text>
+          )}
+          {!isCustomerOnboarding ? (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -747,6 +776,7 @@ export default function ManageSalonScreen({ navigation }: ManageSalonProps) {
               </TouchableOpacity>
             ) : null}
           </ScrollView>
+          ) : null}
         </View>
 
         <Button

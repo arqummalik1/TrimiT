@@ -11,7 +11,7 @@ import {
 
 export default function OwnerStartPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, profile, completeProfile } = useAuthStore();
+  const { isAuthenticated, profile } = useAuthStore();
   const [error, setError] = useState(null);
   const started = useRef(false);
 
@@ -35,15 +35,11 @@ export default function OwnerStartPage() {
       return;
     }
 
-    void completeProfile({ role: 'owner' }).then((result) => {
-      if (result.success) {
-        const intendedPath = pathForPendingAuthIntent(consumePendingAuthIntent());
-        navigate(intendedPath || (result.hasSalon ? '/owner/dashboard' : '/owner/choose-type'), { replace: true });
-      } else {
-        setError(result.error || 'Could not activate your owner workspace.');
-      }
-    });
-  }, [completeProfile, isAuthenticated, navigate, profile?.role]);
+    // Opening setup is reversible navigation. The backend activates the owner
+    // role only in the same transaction that creates the first salon.
+    consumePendingAuthIntent();
+    navigate('/owner/choose-type', { replace: true });
+  }, [isAuthenticated, navigate, profile?.role]);
 
   return (
     <div className="min-h-screen bg-stone-50 flex items-center justify-center px-4">

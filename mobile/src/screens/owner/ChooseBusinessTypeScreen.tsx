@@ -10,6 +10,8 @@ import {
   SalonGenderServe,
 } from '../../lib/genderServe';
 import type { NavigationProp } from '@react-navigation/native';
+import type { ParamListBase } from '@react-navigation/native';
+import { exitOwnerOnboarding } from '../../lib/ownerOnboardingNavigation';
 
 type ChooseBusinessTypeParams = {
   ChooseBusinessType: undefined;
@@ -36,11 +38,22 @@ export default function ChooseBusinessTypeScreen({ navigation }: Props) {
     navigation.navigate('ManageSalon', { gender_serve: selected });
   };
 
+  const handleBack = () => {
+    if (!exitOwnerOnboarding(navigation as NavigationProp<ParamListBase>)) {
+      navigation.goBack();
+    }
+  };
+
   return (
     <ScreenWrapper variant="stack">
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Back to customer profile"
+          >
             <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.title}>What type of business?</Text>

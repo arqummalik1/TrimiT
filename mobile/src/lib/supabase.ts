@@ -62,10 +62,10 @@ export async function syncSupabaseAuthSession(
         return;
       }
       if (__DEV__) {
-        console.log('[Supabase Auth] Session synced for Realtime', {
-          userId: data.session?.user?.id,
-          expiresAt: data.session?.expires_at,
-        });
+        // console.log('[Supabase Auth] Session synced for Realtime', {
+        //   userId: data.session?.user?.id,
+        //   expiresAt: data.session?.expires_at,
+        // });
       }
       return;
     }
@@ -89,7 +89,7 @@ export const subscribeToBookings = (
   onChange: (payload: BookingPayload) => void
 ): RealtimeChannel => {
   if (__DEV__) {
-    console.log('[Supabase] Subscribing to bookings:', { salonId, bookingDate });
+    // console.log('[Supabase] Subscribing to bookings:', { salonId, bookingDate });
   }
   
   const channel = supabase
@@ -104,7 +104,7 @@ export const subscribeToBookings = (
       },
       (payload: BookingPayload) => {
         if (__DEV__) {
-          console.log('[Supabase] Booking change received:', payload.eventType, payload);
+          // console.log('[Supabase] Booking change received:', payload.eventType, payload);
         }
         const newRecord = payload.new as Record<string, unknown> | undefined;
         const oldRecord = payload.old as Record<string, unknown> | undefined;
@@ -117,7 +117,7 @@ export const subscribeToBookings = (
     )
     .subscribe((status, err) => {
       if (__DEV__) {
-        console.log('[Supabase] bookings channel status:', { salonId, bookingDate, status, err: err?.message });
+        // console.log('[Supabase] bookings channel status:', { salonId, bookingDate, status, err: err?.message });
       }
     });
 
@@ -181,7 +181,7 @@ const subscribeWithBackoff = (
     }
     if (stopped) return;
     if (__DEV__) {
-      console.log(`[Supabase] ${label} re-subscribing`, { ...context, attempt });
+      // console.log(`[Supabase] ${label} re-subscribing`, { ...context, attempt });
     }
     channel.subscribe(onStatus);
   };
@@ -201,7 +201,7 @@ const subscribeWithBackoff = (
       attempt = 0;
       cancelRetry();
       if (__DEV__) {
-        console.log(`[Supabase] ${label} status`, { ...context, status });
+        // console.log(`[Supabase] ${label} status`, { ...context, status });
       }
       return;
     }
@@ -211,7 +211,7 @@ const subscribeWithBackoff = (
       return;
     }
     if (__DEV__) {
-      console.log(`[Supabase] ${label} status`, { ...context, status, err: err?.message });
+      // console.log(`[Supabase] ${label} status`, { ...context, status, err: err?.message });
     }
   };
 
@@ -228,7 +228,7 @@ const subscribeWithBackoff = (
 // Helper to unsubscribe from a channel
 export const unsubscribeFromBookings = (channel: RealtimeChannel): void => {
   if (__DEV__) {
-    console.log('[Supabase] Unsubscribing from channel');
+    // console.log('[Supabase] Unsubscribing from channel');
   }
   supabase.removeChannel(channel);
 };
@@ -239,7 +239,7 @@ export const subscribeToSalonBookings = (
   onChange: (payload: BookingPayload) => void
 ): RealtimeChannel => {
   if (__DEV__) {
-    console.log('[Supabase] Subscribing to salon bookings:', salonId);
+    // console.log('[Supabase] Subscribing to salon bookings:', salonId);
   }
 
   const channel = supabase
@@ -254,11 +254,11 @@ export const subscribeToSalonBookings = (
       },
       (payload: BookingPayload) => {
         if (__DEV__) {
-          console.log('[Supabase] ✅ BOOKING EVENT RECEIVED:', {
-            eventType: payload.eventType,
-            new: payload.new,
-            old: payload.old,
-          });
+          // console.log('[Supabase] ✅ BOOKING EVENT RECEIVED:', {
+          //   eventType: payload.eventType,
+          //   new: payload.new,
+          //   old: payload.old,
+          // });
         }
         onChange(payload);
       }
@@ -277,7 +277,7 @@ export const subscribeToUserBookings = (
   onChange: (payload: BookingPayload) => void
 ): RealtimeChannel => {
   if (__DEV__) {
-    console.log('[Supabase] Subscribing to user bookings:', userId);
+    // console.log('[Supabase] Subscribing to user bookings:', userId);
   }
 
   const channel = supabase
@@ -292,7 +292,7 @@ export const subscribeToUserBookings = (
       },
       (payload: BookingPayload) => {
         if (__DEV__) {
-          console.log('[Supabase] user-bookings event:', payload.eventType);
+          // console.log('[Supabase] user-bookings event:', payload.eventType);
         }
         onChange(payload);
       }

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { ScreenWrapper, TAB_BAR_BASE_HEIGHT } from '../../components/ScreenWrapper';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +34,7 @@ import {
   requestEmployeeWorkspace,
   requestOwnerWorkspace,
 } from '../../lib/authGate';
+import { ENABLE_MY_OFFERS_ENTRY } from '../../lib/featureFlags';
 
 export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'ProfileMain'>) {
   const { theme, themeMode, setThemeMode } = useTheme();
@@ -49,6 +51,26 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
     navigation
       .getParent<BottomTabNavigationProp<CustomerTabParamList>>()
       ?.navigate('Discover', { screen: 'DiscoverMain' });
+  };
+
+  const confirmOwnerSetup = () => {
+    Alert.alert(
+      'Create a salon workspace?',
+      'You will remain a customer until your salon is successfully created. You can leave setup at any time.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Start setup',
+          onPress: () => {
+            if (user) {
+              requestOwnerWorkspace();
+            } else {
+              requestAuthentication({ kind: 'owner_onboarding' });
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleSave = async () => {
@@ -118,18 +140,18 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
                 <View style={localStyles.guestButtonWrap}>
                   <Button
                     title="Sign in or create account"
-                    onPress={() => requestAuthentication({ kind: 'profile' })}
+                    onPress={() => requestAuthentication({ kind: 'account_sign_in' })}
                     style={localStyles.guestPrimaryButton}
                   />
                 </View>
               </View>
             </View>
 
-            <SettingsSection title="For salon teams">
+            <SettingsSection title="Business & team">
               <SettingsRow
-                title="List or manage my salon"
-                subtitle="Create your owner workspace"
-                onPress={() => requestAuthentication({ kind: 'owner_onboarding' })}
+                title="Set up and list a salon"
+                subtitle="Create a business workspace"
+                onPress={confirmOwnerSetup}
               />
               <SettingsRow
                 title="Employee access"
@@ -253,7 +275,7 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
             </View>
           </View>
 
-          {user?.role === 'customer' && (
+          {user?.role === 'customer' && ENABLE_MY_OFFERS_ENTRY && (
             <SettingsSection title="Offers">
               <SettingsRow
                 title="My offers & coupons"
@@ -265,21 +287,6 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
           )}
 
           {user?.role === 'customer' && <DiscoverySettingsSection />}
-          {user?.role === 'customer' && (
-            <SettingsSection title="For salon teams">
-              <SettingsRow
-                title="List or manage my salon"
-                subtitle="Create an owner workspace"
-                onPress={requestOwnerWorkspace}
-              />
-              <SettingsRow
-                title="Employee access"
-                subtitle="Connect with a salon invitation"
-                onPress={requestEmployeeWorkspace}
-                isLast
-              />
-            </SettingsSection>
-          )}
           <NotificationSettingsSection />
 
           <SettingsSection title="Appearance">
@@ -308,6 +315,22 @@ export default function ProfileScreen({ navigation }: ProfileStackScreenProps<'P
               })}
             </View>
           </SettingsSection>
+
+          {user?.role === 'customer' && (
+            <SettingsSection title="Business & team">
+              <SettingsRow
+                title="Set up and list a salon"
+                subtitle="Create a business workspace"
+                onPress={confirmOwnerSetup}
+              />
+              <SettingsRow
+                title="Employee access"
+                subtitle="Connect with a salon invitation"
+                onPress={requestEmployeeWorkspace}
+                isLast
+              />
+            </SettingsSection>
+          )}
 
           {__DEV__ ? (
             <SettingsSection title="Developer preview">

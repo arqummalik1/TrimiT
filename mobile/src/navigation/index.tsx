@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/authStore';
 import { RootStackParamList } from './types';
@@ -7,8 +7,15 @@ import CompleteProfileScreen from '../screens/auth/CompleteProfileScreen';
 import AuthStack from './AuthStack';
 import CustomerTabs from './CustomerTabs';
 import OwnerTabs from './OwnerTabs';
+import OwnerOnboardingStack from './OwnerOnboardingStack';
 import { usePendingAuthIntentStore } from '../store/pendingAuthIntentStore';
 import { navigationRef } from './navigationRef';
+import {
+  AUTH_MODAL_OPTIONS,
+  buildPostAuthRootAction,
+  getPostAuthDestination,
+} from './postAuthNavigation';
+import { logger } from '../lib/logger';
 export { navigationRef } from './navigationRef';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -25,7 +32,6 @@ function PostAuthIntentCoordinator() {
   const user = useAuthStore((state) => state.user);
   const intent = usePendingAuthIntentStore((state) => state.intent);
   const intentHydrated = usePendingAuthIntentStore((state) => state.isHydrated);
-  const activatingRoleRef = useRef(false);
 
   useEffect(() => {
     if (!navigationRef.isReady() || !intentHydrated) return;
@@ -47,16 +53,6 @@ function PostAuthIntentCoordinator() {
       return;
     }
 
-    if (current?.kind === 'owner_onboarding' && user.role !== 'owner') {
-      if (!activatingRoleRef.current) {
-        activatingRoleRef.current = true;
-        void useAuthStore.getState().completeProfile({ role: 'owner' }).finally(() => {
-          activatingRoleRef.current = false;
-        });
-      }
-      return;
-    }
-
     if (current?.kind === 'employee_claim' && user.role !== 'employee') {
       if (getRootRouteName() !== 'CompleteProfile') {
         navigationRef.navigate('CompleteProfile', { prefilledRole: 'employee' });
@@ -65,54 +61,21 @@ function PostAuthIntentCoordinator() {
     }
 
     const resolved = usePendingAuthIntentStore.getState().consumeIntent();
-    if (!resolved) {
-      if (getRootRouteName() === 'Auth') {
-        navigationRef.navigate(user.role === 'owner' || user.role === 'employee' ? 'OwnerTabs' : 'CustomerTabs');
-      }
-      return;
-    }
+    if (!resolved && getRootRouteName() !== 'Auth') return;
 
-    switch (resolved.kind) {
-      case 'customer_booking':
-        navigationRef.navigate('CustomerTabs', {
-          screen: 'Discover',
-          params: {
-            screen: 'Booking',
-            params: { salonId: resolved.salonId, serviceId: resolved.serviceId },
-          },
-        });
-        break;
-      case 'my_bookings':
-        navigationRef.navigate('CustomerTabs', { screen: 'Bookings' });
-        break;
-      case 'reschedule_booking':
-        navigationRef.navigate('CustomerTabs', {
-          screen: 'Discover',
-          params: { screen: 'RescheduleBooking', params: resolved },
-        });
-        break;
-      case 'write_review':
-        navigationRef.navigate('CustomerTabs', {
-          screen: 'Discover',
-          params: {
-            screen: 'WriteReview',
-            params: { salonId: resolved.salonId, bookingId: resolved.bookingId },
-          },
-        });
-        break;
-      case 'profile':
-        navigationRef.navigate('CustomerTabs', { screen: 'Profile', params: { screen: 'ProfileMain' } });
-        break;
-      case 'owner_onboarding':
-        navigationRef.navigate('OwnerTabs', {
-          screen: 'Dashboard',
-          params: { screen: 'ChooseBusinessType' },
-        });
-        break;
-      case 'employee_claim':
-        navigationRef.navigate('OwnerTabs');
-        break;
-    }
+    const destination = getPostAuthDestination(resolved, user.role);
+    const rootState = navigationRef.getRootState();
+    logger.info('[Navigation] completing authentication', {
+      intent: resolved?.kind ?? 'none',
+      destination: destination.name,
+      rootRoutesBefore: rootState.routes.map((route) => route.name),
+    });
+    navigationRef.dispatch(
+      buildPostAuthRootAction(
+        rootState.routes.map((route) => route.name),
+        destination,
+      ),
+    );
   }, [intent, intentHydrated, isAuthenticated, profileComplete, user]);
 
   return null;
@@ -143,11 +106,16 @@ export default function RootNavigator() {
         screenOptions={{ headerShown: false, animation: 'fade' }}
       >
         <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
+        <Stack.Screen
+          name="OwnerOnboarding"
+          component={OwnerOnboardingStack}
+          options={{ animation: 'slide_from_right', gestureEnabled: true }}
+        />
         <Stack.Screen name="OwnerTabs" component={OwnerTabs} />
         <Stack.Screen
           name="Auth"
           component={AuthStack}
-          options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+          options={AUTH_MODAL_OPTIONS}
         />
         <Stack.Screen
           name="CompleteProfile"

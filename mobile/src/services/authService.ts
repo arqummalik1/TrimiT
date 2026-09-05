@@ -73,6 +73,10 @@ export const authService = {
     return apiClient.delete('/auth/account', { data: data ?? {} });
   },
 
+  cancelEmptyOwnerWorkspace: async (): Promise<AxiosResponse> => {
+    return apiClient.delete('/auth/owner-workspace');
+  },
+
   sendOtp: async (email: string): Promise<AxiosResponse> => {
     return apiClient.post('/auth/send-otp', { email });
   },

@@ -23,6 +23,7 @@ export type PendingAuthIntent =
       serviceName: string;
     })
   | (IntentMeta & { kind: 'write_review'; salonId: string; bookingId: string })
+  | (IntentMeta & { kind: 'account_sign_in' })
   | (IntentMeta & { kind: 'profile' })
   | (IntentMeta & { kind: 'owner_onboarding' })
   | (IntentMeta & { kind: 'employee_claim' });
@@ -60,6 +61,7 @@ function isValidStoredIntent(value: unknown): value is PendingAuthIntent {
     case 'customer_booking':
       return isNonEmptyString(intent.salonId) && isNonEmptyString(intent.serviceId);
     case 'my_bookings':
+    case 'account_sign_in':
     case 'profile':
     case 'owner_onboarding':
     case 'employee_claim':
@@ -128,7 +130,6 @@ export const usePendingAuthIntentStore = create<PendingAuthIntentState>()(
 
 export function getRoleForPendingIntent(): 'customer' | 'owner' | 'employee' {
   const intent = usePendingAuthIntentStore.getState().peekIntent();
-  if (intent?.kind === 'owner_onboarding') return 'owner';
   if (intent?.kind === 'employee_claim') return 'employee';
   return 'customer';
 }

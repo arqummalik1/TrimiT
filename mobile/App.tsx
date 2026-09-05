@@ -57,6 +57,7 @@ import { getReleaseConfigIssues } from "./src/lib/buildConfig";
 import { AppSplashScreen } from "./src/components/AppSplashScreen";
 import { useSplashGate } from "./src/hooks/useSplashGate";
 import { SPLASH_BACKGROUND } from "./src/lib/splashBranding";
+import { summarizeNavigationState } from "./src/navigation/navigationTrace";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
@@ -123,6 +124,11 @@ function AppContent() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
   const [showNotificationPrimer, setShowNotificationPrimer] = useState(false);
+
+  const traceNavigation = useCallback((event: "ready" | "state-change") => {
+    if (!__DEV__ || !navigationRef.isReady()) return;
+    logger.debug(`[Navigation] ${event}`, summarizeNavigationState(navigationRef.getRootState()));
+  }, []);
 
   const bootComplete = isHydrated && authBootstrapComplete && fontsLoaded;
   const splashReadyToDismiss =
@@ -383,7 +389,12 @@ function AppContent() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} linking={linking}>
+    <NavigationContainer
+      ref={navigationRef}
+      linking={linking}
+      onReady={() => traceNavigation("ready")}
+      onStateChange={() => traceNavigation("state-change")}
+    >
       <RootNavigator />
       <SigningOutOverlay />
       <SessionExpiredModal />

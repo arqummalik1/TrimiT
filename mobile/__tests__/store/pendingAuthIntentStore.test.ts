@@ -29,6 +29,11 @@ describe('pendingAuthIntentStore', () => {
     expect(usePendingAuthIntentStore.getState().consumeIntent()).toBeNull();
   });
 
+  it('stores the allowlisted general account sign-in destination', () => {
+    usePendingAuthIntentStore.getState().setIntent({ kind: 'account_sign_in' });
+    expect(usePendingAuthIntentStore.getState().peekIntent()?.kind).toBe('account_sign_in');
+  });
+
   it('drops expired intents', () => {
     usePendingAuthIntentStore.setState({
       intent: { kind: 'profile', createdAt: 1, expiresAt: 2 },
@@ -60,9 +65,9 @@ describe('pendingAuthIntentStore', () => {
     expect(usePendingAuthIntentStore.getState().consumeIntent()).toBeNull();
   });
 
-  it('maps only explicit team intents to privileged roles', () => {
+  it('keeps owner onboarding as customer until salon creation succeeds', () => {
     usePendingAuthIntentStore.getState().setIntent({ kind: 'owner_onboarding' });
-    expect(getRoleForPendingIntent()).toBe('owner');
+    expect(getRoleForPendingIntent()).toBe('customer');
     usePendingAuthIntentStore.getState().setIntent({ kind: 'employee_claim' });
     expect(getRoleForPendingIntent()).toBe('employee');
     usePendingAuthIntentStore.getState().setIntent({ kind: 'profile' });

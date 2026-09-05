@@ -153,13 +153,13 @@ apiClient.interceptors.request.use(
     }
 
     if (__DEV__) {
-      console.log('🚀 [API][REQ]', {
-        method: (config.method || 'GET').toUpperCase(),
-        url: getRequestUrl(config),
-        params: config.params,
-        hasAuth: !!config.headers?.Authorization || !!apiClient.defaults.headers.common['Authorization'],
-        idempotencyKey: config.headers?.['Idempotency-Key'] as string | undefined,
-      });
+      // console.log('🚀 [API][REQ]', {
+      //   method: (config.method || 'GET').toUpperCase(),
+      //   url: getRequestUrl(config),
+      //   params: config.params,
+      //   hasAuth: !!config.headers?.Authorization || !!apiClient.defaults.headers.common['Authorization'],
+      //   idempotencyKey: config.headers?.['Idempotency-Key'] as string | undefined,
+      // });
     }
 
     return config;
@@ -170,11 +170,11 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => {
     if (__DEV__) {
-      console.log('✅ [API][RES]', {
-        status: response.status,
-        method: (response.config.method || 'GET').toUpperCase(),
-        url: getRequestUrl(response.config as InternalAxiosRequestConfig),
-      });
+      // console.log('✅ [API][RES]', {
+      //   status: response.status,
+      //   method: (response.config.method || 'GET').toUpperCase(),
+      //   url: getRequestUrl(response.config as InternalAxiosRequestConfig),
+      // });
     }
     return response;
   },
@@ -194,11 +194,11 @@ apiClient.interceptors.response.use(
         config._networkRetryCount = attempts + 1;
         await delay(400 * (attempts + 1));
         if (__DEV__) {
-          console.warn('🔁 [API][RETRY]', {
-            attempt: config._networkRetryCount,
-            method: (config.method || 'GET').toUpperCase(),
-            url: reqUrl,
-          });
+          // console.warn('🔁 [API][RETRY]', {
+          //   attempt: config._networkRetryCount,
+          //   method: (config.method || 'GET').toUpperCase(),
+          //   url: reqUrl,
+          // });
         }
         return apiClient.request(config);
       }
@@ -280,19 +280,19 @@ apiClient.interceptors.response.use(
     }
 
     if (__DEV__) {
-      const log =
-        normalizedError.kind === 'server' ? console.error : console.warn;
-      log('❌ [API][ERR]', {
-        kind: normalizedError.kind,
-        message: normalizedError.message,
-        code: normalizedError.code,
-        requestId: normalizedError.requestId,
-        status: (error as { response?: { status?: number } })?.response?.status,
-        method: (error as { config?: { method?: string } })?.config?.method?.toUpperCase(),
-        url: (error as { config?: InternalAxiosRequestConfig })?.config
-          ? getRequestUrl((error as { config: InternalAxiosRequestConfig }).config)
-          : undefined,
-      });
+      // const log =
+      //   normalizedError.kind === 'server' ? console.error : console.warn;
+      // log('❌ [API][ERR]', {
+      //   kind: normalizedError.kind,
+      //   message: normalizedError.message,
+      //   code: normalizedError.code,
+      //   requestId: normalizedError.requestId,
+      //   status: (error as { response?: { status?: number } })?.response?.status,
+      //   method: (error as { config?: { method?: string } })?.config?.method?.toUpperCase(),
+      //   url: (error as { config?: InternalAxiosRequestConfig })?.config
+      //     ? getRequestUrl((error as { config: InternalAxiosRequestConfig }).config)
+      //     : undefined,
+      // });
     }
     return Promise.reject(normalizedError);
   }

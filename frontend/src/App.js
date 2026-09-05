@@ -116,6 +116,13 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
+const OwnerSetupSubscriptionGate = ({ children }) => {
+  const role = useAuthStore((state) => state.profile?.role);
+  return role === 'owner'
+    ? <OwnerSubscriptionGate>{children}</OwnerSubscriptionGate>
+    : children;
+};
+
 function App() {
   const { initializeAuth, isAuthenticated, profile, isInitializing, hasSalon } =
     useAuthStore();
@@ -287,20 +294,20 @@ function App() {
           <Route
             path="/owner/choose-type"
             element={
-              <ProtectedRoute allowedRoles={["owner"]}>
-                <OwnerSubscriptionGate>
+              <ProtectedRoute allowedRoles={["customer", "owner"]}>
+                <OwnerSetupSubscriptionGate>
                   <ChooseBusinessTypePage />
-                </OwnerSubscriptionGate>
+                </OwnerSetupSubscriptionGate>
               </ProtectedRoute>
             }
           />
           <Route
             path="/owner/salon"
             element={
-              <ProtectedRoute allowedRoles={["owner"]}>
-                <OwnerSubscriptionGate>
+              <ProtectedRoute allowedRoles={["customer", "owner"]}>
+                <OwnerSetupSubscriptionGate>
                   <ManageSalon />
-                </OwnerSubscriptionGate>
+                </OwnerSetupSubscriptionGate>
               </ProtectedRoute>
             }
           />

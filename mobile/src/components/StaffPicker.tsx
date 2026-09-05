@@ -80,7 +80,7 @@ const StaffPicker: React.FC<StaffPickerProps> = ({
 
   // #region agent log
   if (__DEV__) {
-    console.log('🧪 [StaffPicker] loaded safe formatRating');
+    // console.log('🧪 [StaffPicker] loaded safe formatRating');
   }
   // #endregion
 

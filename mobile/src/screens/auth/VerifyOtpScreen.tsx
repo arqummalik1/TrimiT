@@ -22,6 +22,9 @@ import { useTheme } from '../../theme/ThemeContext';
 import { Theme } from '../../theme/tokens';
 import { AuthScreenProps } from '../../navigation/types';
 import { OTP_RESEND_COOLDOWN_SECONDS } from '../../config/auth';
+import { HeaderBackButton } from '../../components/HeaderBackButton';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { logger } from '../../lib/logger';
 
 type VerifyOtpProps = AuthScreenProps<'VerifyOtp'>;
 
@@ -136,6 +139,8 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
   const [localError, setLocalError] = useState<string | undefined>(undefined);
   const [sendingCode, setSendingCode] = useState(route.params.isPending === true);
   const [otpSendFailed, setOtpSendFailed] = useState(false);
+  const [verificationComplete, setVerificationComplete] = useState(false);
+  const verificationInFlightRef = useRef(false);
 
   // Single hidden input backs the 6 visual boxes. A SINGLE field is what makes
   // iOS Security-Code AutoFill (QuickType bar) fill all 6 digits at once — six
@@ -206,28 +211,42 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
       return;
     }
 
-    const result = await verifyOtp(email, fullCode, type);
-    if (result.success) {
-      if (type === 'recovery') {
-        // If recovery, navigate to ResetPassword with the retrieved token
-        const token = result.session?.access_token;
-        if (token) {
-          navigation.navigate('ResetPassword', { token });
+    if (verificationInFlightRef.current) return;
+    verificationInFlightRef.current = true;
+    let keepLocked = false;
+    logger.info('[Auth] OTP verification submitted', { type });
+
+    try {
+      const result = await verifyOtp(email, fullCode, type);
+      logger.info('[Auth] OTP verification completed', { type, success: result.success });
+      if (result.success) {
+        if (type === 'recovery') {
+          // If recovery, navigate to ResetPassword with the retrieved token
+          const token = result.session?.access_token;
+          if (token) {
+            keepLocked = true;
+            setVerificationComplete(true);
+            navigation.navigate('ResetPassword', { token });
+          } else {
+            showToast('Failed to retrieve recovery session.', 'error');
+          }
         } else {
-          showToast('Failed to retrieve recovery session.', 'error');
+          keepLocked = true;
+          setVerificationComplete(true);
+          const isNew = result.session?.is_new_user;
+          const name = result.session?.profile?.name || email.split('@')[0];
+
+          if (isNew) {
+            showToast('Welcome to TrimiT. Taking you back to where you left off.', 'success');
+          } else {
+            showToast(`Welcome back, ${name}!`, 'success');
+          }
         }
       } else {
-        const isNew = result.session?.is_new_user;
-        const name = result.session?.profile?.name || email.split('@')[0];
-
-        if (isNew) {
-          showToast('Welcome to TrimiT. Taking you back to where you left off.', 'success');
-        } else {
-          showToast(`Welcome back, ${name}!`, 'success');
-        }
+        showToast(result.error || 'Verification failed. Please try again.', 'error');
       }
-    } else {
-      showToast(result.error || 'Verification failed. Please try again.', 'error');
+    } finally {
+      if (!keepLocked) verificationInFlightRef.current = false;
     }
   };
 
@@ -239,10 +258,18 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
     return `${name.slice(0, 2)}***@${domain}`;
   }, [email]);
 
-  const isVerifyDisabled = code.length < 6 || isLoading;
+  const isVerifyDisabled = code.length < 6 || isLoading || verificationComplete;
 
   return (
     <ScreenWrapper variant="auth">
+      <ScreenHeader testID="otp-safe-header" left={
+        <HeaderBackButton
+          onPress={() => navigation.goBack()}
+          disabled={isLoading || verificationComplete}
+          accessibilityLabel="Back to sign in"
+          testID="otp-back-button"
+        />
+      } />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -252,14 +279,6 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-            disabled={isLoading}
-          >
-            <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-
           <View style={styles.header}>
             <View style={styles.iconContainer}>
               <Ionicons name="mail-unread-outline" size={36} color={theme.colors.primary} />
@@ -330,7 +349,7 @@ export default function VerifyOtpScreen({ route, navigation }: VerifyOtpProps) {
             <Button
               title="Verify & Continue"
               onPress={handleVerify}
-              loading={isLoading}
+              loading={isLoading || verificationComplete}
               disabled={isVerifyDisabled || sendingCode}
               style={{ marginTop: spacing.xl }}
             />
@@ -359,11 +378,6 @@ const createStyles = (theme: Theme) =>
     scrollContent: {
       flexGrow: 1,
       paddingHorizontal: spacing.xxl,
-    },
-    backButton: {
-      padding: spacing.sm,
-      marginTop: spacing.sm,
-      alignSelf: 'flex-start',
     },
     header: {
       alignItems: 'center',

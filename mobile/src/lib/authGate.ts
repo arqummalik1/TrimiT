@@ -14,9 +14,13 @@ export function requestAuthentication(intent: NewPendingAuthIntent): void {
   }
 }
 
-/** Activate an owner workspace for a user who is already authenticated. */
+/** Open reversible owner setup without changing the authenticated user's role. */
 export function requestOwnerWorkspace(): void {
-  usePendingAuthIntentStore.getState().setIntent({ kind: 'owner_onboarding' });
+  usePendingAuthIntentStore.getState().clearIntent();
+  const { navigationRef } = require('../navigation/navigationRef') as typeof import('../navigation/navigationRef');
+  if (navigationRef.isReady()) {
+    navigationRef.navigate('OwnerOnboarding', { screen: 'ChooseBusinessType' });
+  }
 }
 
 /** Start invite validation for an already-authenticated employee. */

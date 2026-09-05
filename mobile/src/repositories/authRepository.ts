@@ -401,6 +401,28 @@ export const authRepository = {
     }
   },
 
+  async cancelEmptyOwnerWorkspace(): Promise<{
+    success: boolean;
+    profile?: User;
+    error?: string;
+  }> {
+    try {
+      const response = await authService.cancelEmptyOwnerWorkspace();
+      const profile = normalizeAuthUser(
+        response.data?.profile as Parameters<typeof normalizeAuthUser>[0],
+      );
+      if (!profile || profile.role !== 'customer') {
+        return {
+          success: false,
+          error: 'Customer mode was restored but the profile could not be reloaded.',
+        };
+      }
+      return { success: true, profile };
+    } catch (err: unknown) {
+      return { success: false, error: parseAuthFailure(err).message };
+    }
+  },
+
   /**
    * Verify an OTP token.
    *
